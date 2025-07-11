@@ -137,8 +137,8 @@ contains
     cache = new_module_cache(compiler, '13.0.0')
     
     ! Create test directories
-    test_build_dir = '/tmp/fortran_test_build_' // get_timestamp()
-    test_target_dir = '/tmp/fortran_test_target_' // get_timestamp()
+    test_build_dir = '/tmp/fortran_test_build_' // trim(get_timestamp())
+    test_target_dir = '/tmp/fortran_test_target_' // trim(get_timestamp())
     call mkdir(test_build_dir)
     call mkdir(test_target_dir)
     
@@ -217,7 +217,7 @@ contains
     compiler%id = id_gcc
     cache = new_module_cache(compiler, '13.0.0')
     
-    test_build_dir = '/tmp/fortran_test_hit_' // get_timestamp()
+    test_build_dir = '/tmp/fortran_test_hit_' // trim(get_timestamp())
     call mkdir(test_build_dir)
     
     ! Setup source file
@@ -287,7 +287,7 @@ contains
     end if
     
     ! Try operations with disabled cache
-    test_build_dir = '/tmp/fortran_test_disabled_' // get_timestamp()
+    test_build_dir = '/tmp/fortran_test_disabled_' // trim(get_timestamp())
     srcfile%file_name = 'disabled_test.f90'
     srcfile%digest = 22222_int64
     cache_key = cache%get_cache_key(srcfile)

@@ -108,7 +108,7 @@ contains
     class(module_cache_t), intent(inout) :: this
     type(compiler_t), intent(in) :: compiler
     character(*), intent(in), optional :: compiler_version
-    character(:), allocatable :: env_val
+    character(len=256) :: env_val
     integer :: stat
     
     ! Set cache directory

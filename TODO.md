@@ -203,22 +203,32 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
     - Deferred in favor of existing FPM progress output
 
 - [x] Implement module-level caching for partial cache hits
-  - **Status**: Core implementation completed, integration pending
+  - **Status**: Infrastructure integrated, module sharing logic pending
   - **What was done**:
     - Created `fpm_module_cache.f90` module following FPM conventions
     - Implemented cache directory structure: `~/.cache/fortran/modules/<compiler>/<version>/<hash>/`
     - Added module fingerprinting based on source digest and dependencies
+    - **Integrated module cache infrastructure into runner.f90**
     - Created comprehensive test suite (unit, integration, system tests)
-    - Built demonstration showing 2-3x speedup for unchanged modules
+    - Built demonstration showing cache directory creation and initialization
+    - Fixed segmentation fault in cache initialization
   - **Architecture**:
     - `module_cache_t` type manages cache operations
     - Compiler-specific segregation for binary compatibility
     - PID and timestamp-based metadata for cache management
     - Environment variable `FPM_NO_MODULE_CACHE` to disable
-  - **Future work**:
-    - Full integration with runner.f90 requires FPM API enhancements
-    - Module dependency graph analysis for smarter caching
-    - Cross-project module sharing capabilities
+    - Cache infrastructure properly integrated into build pipeline
+  - **Current Status (Verified by Tests)**:
+    - ✅ Module cache directories created correctly (`~/.cache/fortran/modules/gfortran/13.0.0/`)
+    - ✅ Cache initialization works in runner with "Module cache enabled" message
+    - ✅ Project-level caching works (cache hit/miss detection for full projects)
+    - ❌ **Module sharing between projects not yet implemented**
+  - **Next Steps**:
+    - Implement actual module sharing logic in FPM project generation
+    - Analyze FPM build output to identify compiled modules from dependencies
+    - Copy cached `.mod` files into new FPM projects before building
+    - Cache newly compiled dependency modules after FPM builds
+    - Add module dependency graph analysis for smarter caching
 
 ### 4.2 Enhanced Registry Support (DEFERRED - Someday/Maybe)
 - [ ] Support for git tags and branches in dependencies
