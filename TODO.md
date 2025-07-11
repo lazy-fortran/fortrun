@@ -166,12 +166,13 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
   - Incremental compilation: 1.5-2x speedup
   - Implemented both shell script and Fortran benchmarks
 - [x] Implement parallel dependency resolution
-  - **Status**: Infrastructure added, waiting for FPM support
+  - **Status**: Already supported by FPM using OpenMP!
+  - **Discovery**: FPM uses OpenMP parallel do loops by default
   - **What was done**:
-    - Added `--jobs/-j` flag to CLI parsing
-    - Infrastructure ready to pass flag to FPM
-    - Current FPM version (0.12.0) doesn't support --jobs flag
-  - **Future**: When FPM adds support, just enable the flag in build command
+    - Added `--jobs/-j` flag to CLI parsing (can be removed)
+    - Discovered FPM already builds in parallel when OpenMP is available
+  - **How to control**: Set `OMP_NUM_THREADS` environment variable
+    - Example: `OMP_NUM_THREADS=4 fortran file.f90`
 
 - [x] Write test for concurrent cache access
   - Documented current limitations

@@ -5,13 +5,14 @@ module cli
   
 contains
 
-  subroutine parse_arguments(filename, show_help, verbose_level, custom_cache_dir, custom_config_dir, parallel_jobs)
+  subroutine parse_arguments(filename, show_help, verbose_level, custom_cache_dir, custom_config_dir, parallel_jobs, no_wait)
     character(len=*), intent(out) :: filename
     logical, intent(out) :: show_help
     integer, intent(out) :: verbose_level
     character(len=*), intent(out) :: custom_cache_dir
     character(len=*), intent(out) :: custom_config_dir
     integer, intent(out) :: parallel_jobs
+    logical, intent(out) :: no_wait
     
     integer :: nargs, i, iostat
     character(len=256) :: arg
@@ -23,6 +24,7 @@ contains
     custom_cache_dir = ''
     custom_config_dir = ''
     parallel_jobs = 0  ! 0 means use FPM default
+    no_wait = .false.
     filename_found = .false.
     expecting_cache_dir = .false.
     expecting_config_dir = .false.
@@ -83,6 +85,8 @@ contains
         expecting_config_dir = .true.
       else if (arg == '-j' .or. arg == '--jobs') then
         expecting_jobs = .true.
+      else if (arg == '--no-wait') then
+        no_wait = .true.
       else if (arg(1:1) /= '-') then
         ! Not a flag, must be filename
         if (.not. filename_found) then
