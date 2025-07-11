@@ -1,6 +1,7 @@
 module notebook_executor
     use notebook_parser
     use notebook_output
+    use figure_capture
     use cache, only: get_cache_dir, get_content_hash, cache_exists
     use cache_lock, only: acquire_lock, release_lock
     use preprocessor, only: is_preprocessor_file, preprocess_file
@@ -150,6 +151,9 @@ contains
         ! Copy notebook_output module
         call copy_notebook_output_module(project_dir)
         
+        ! Copy figure_capture module
+        call copy_figure_capture_module(project_dir)
+        
         ! Generate main program
         call generate_main_program(notebook, trim(cache_dir) // '/notebook_' // trim(cache_key) // '_outputs.txt', main_content)
         open(newunit=unit, file=trim(project_dir) // '/app/main.f90', status='replace')
@@ -274,6 +278,7 @@ contains
         ! Combine into full module
         module_content = 'module notebook_execution' // new_line('a') // &
                         '    use notebook_output' // new_line('a') // &
+                        '    use figure_capture' // new_line('a') // &
                         '    implicit none' // new_line('a') // &
                         '    ' // new_line('a') // &
                         '    ! Module variables for persistence' // new_line('a') // &
@@ -338,9 +343,11 @@ contains
                 first_line = .false.
             end if
             
-            ! Transform print statements
+            ! Transform print statements and show() calls
             if (index(lines(i), 'print *,') > 0) then
                 transformed = trim(transformed) // transform_print_statement(lines(i))
+            else if (index(lines(i), 'show()') > 0 .or. index(lines(i), 'call show()') > 0) then
+                transformed = trim(transformed) // transform_show_statement(lines(i))
             else
                 transformed = trim(transformed) // trim(lines(i))
             end if
@@ -375,6 +382,30 @@ contains
         end if
         
     end function transform_print_statement
+    
+    function transform_show_statement(line) result(transformed_line)
+        character(len=*), intent(in) :: line
+        character(len=:), allocatable :: transformed_line
+        integer :: show_pos
+        
+        ! Handle both "show()" and "call show()" patterns
+        show_pos = index(line, 'call show()')
+        if (show_pos > 0) then
+            ! Replace "call show()" with "call fortplot_show_interceptor()"
+            transformed_line = line(1:show_pos-1) // 'call fortplot_show_interceptor()' // &
+                              line(show_pos+11:)
+        else
+            show_pos = index(line, 'show()')
+            if (show_pos > 0) then
+                ! Replace "show()" with "call fortplot_show_interceptor()"
+                transformed_line = line(1:show_pos-1) // 'call fortplot_show_interceptor()' // &
+                                  line(show_pos+6:)
+            else
+                transformed_line = line
+            end if
+        end if
+        
+    end function transform_show_statement
     
     subroutine generate_main_program(notebook, output_file, main_content)
         type(notebook_t), intent(in) :: notebook
@@ -444,6 +475,21 @@ contains
         
     end subroutine copy_notebook_output_module
     
+    subroutine copy_figure_capture_module(project_dir)
+        character(len=*), intent(in) :: project_dir
+        character(len=512) :: command
+        character(len=256) :: current_dir
+        
+        ! Get current working directory
+        call getcwd(current_dir)
+        
+        ! Copy the figure_capture module to the project
+        command = 'cp "' // trim(current_dir) // '/src/figure_capture.f90" "' // &
+                  trim(project_dir) // '/src/"'
+        call execute_command_line(command)
+        
+    end subroutine copy_figure_capture_module
+    
     subroutine build_notebook_project(project_dir, success, error_msg)
         character(len=*), intent(in) :: project_dir
         logical, intent(out) :: success
@@ -469,6 +515,9 @@ contains
         character(len=:), allocatable :: output
         integer :: exit_code, i
         
+        ! Initialize figure capture
+        call init_figure_capture()
+        
         ! Execute the notebook
         command = 'cd ' // trim(project_dir) // ' && fpm run 2>&1'
         call execute_and_capture(command, output, exit_code)
@@ -476,6 +525,8 @@ contains
         ! Read actual output from notebook_output module
         if (exit_code == 0) then
             call read_notebook_outputs(cache_dir, cache_key, notebook, results)
+            ! Collect figure data for cells that generated plots
+            call collect_figure_data(notebook, results)
         else
             ! Set simple failure for all cells
             do i = 1, notebook%num_cells
@@ -493,6 +544,9 @@ contains
         if (.not. results%success) then
             results%error_message = output
         end if
+        
+        ! Cleanup figure capture
+        call finalize_figure_capture()
         
     end subroutine execute_notebook_project
     
@@ -542,6 +596,39 @@ contains
         end if
         
     end subroutine read_notebook_outputs
+    
+    subroutine collect_figure_data(notebook, results)
+        type(notebook_t), intent(in) :: notebook
+        type(execution_result_t), intent(inout) :: results
+        
+        integer :: i, code_cell_index, figure_count
+        character(len=:), allocatable :: base64_data
+        
+        ! Count figures generated and assign to cells that contain show() calls
+        figure_count = 0
+        code_cell_index = 0
+        
+        do i = 1, notebook%num_cells
+            if (notebook%cells(i)%cell_type == CELL_CODE) then
+                code_cell_index = code_cell_index + 1
+                
+                ! Check if this cell contains show() calls
+                if (index(notebook%cells(i)%content, 'show()') > 0 .or. &
+                    index(notebook%cells(i)%content, 'call show()') > 0) then
+                    
+                    figure_count = figure_count + 1
+                    
+                    ! Get base64 data for this figure
+                    base64_data = get_figure_data(figure_count)
+                    
+                    if (len(base64_data) > 0) then
+                        results%cells(i)%figure_data = base64_data
+                    end if
+                end if
+            end if
+        end do
+        
+    end subroutine collect_figure_data
     
     ! Helper functions (reusing from old implementation)
     function add_indentation(text, indent) result(indented_text)

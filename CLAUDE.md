@@ -17,10 +17,10 @@ This project uses FPM (Fortran Package Manager) as its build system.
 fpm build
 
 # Run the main application
-./build/gfortran_*/app/fortran example.f90
+fpm run fortran example.f90
 
 # Run tests
-fmp test
+fpm test
 
 # Run specific test
 fpm test test_name
