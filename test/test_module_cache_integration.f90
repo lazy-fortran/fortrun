@@ -58,14 +58,14 @@ contains
     print '(a)', 'Test 1: Cache with real module compilation'
     
     ! Setup test directory
-    test_dir = '/tmp/fortran_cache_test_' // get_timestamp()
+    test_dir = '/tmp/fortran_cache_test_' // trim(get_timestamp())
     build_dir = test_dir // '/build'
-    call mkdir(test_dir)
-    call mkdir(build_dir)
+    call execute_command_line('mkdir -p ' // trim(test_dir))
+    call execute_command_line('mkdir -p ' // trim(build_dir))
     
     ! Create a real Fortran module
-    src_file = test_dir // '/math_utils.f90'
-    open(newunit=unit, file=src_file, status='replace', action='write')
+    src_file = trim(test_dir) // '/math_utils.f90'
+    open(newunit=unit, file=trim(src_file), status='replace', action='write')
     write(unit, '(a)') 'module math_utils'
     write(unit, '(a)') '  implicit none'
     write(unit, '(a)') '  private'
@@ -163,13 +163,13 @@ contains
     
     print '(a)', 'Test 2: Cache with module dependencies'
     
-    test_dir = '/tmp/fortran_dep_test_' // get_timestamp()
+    test_dir = '/tmp/fortran_dep_test_' // trim(get_timestamp())
     build_dir = test_dir // '/build'
-    call mkdir(test_dir)
-    call mkdir(build_dir)
+    call execute_command_line('mkdir -p ' // trim(test_dir))
+    call execute_command_line('mkdir -p ' // trim(build_dir))
     
     ! Create base module
-    open(newunit=unit, file=test_dir // '/base.f90', status='replace')
+    open(newunit=unit, file=trim(test_dir) // '/base.f90', status='replace')
     write(unit, '(a)') 'module base'
     write(unit, '(a)') '  implicit none'
     write(unit, '(a)') '  integer, parameter :: dp = kind(1.0d0)'
@@ -177,7 +177,7 @@ contains
     close(unit)
     
     ! Create dependent module
-    open(newunit=unit, file=test_dir // '/derived.f90', status='replace')
+    open(newunit=unit, file=trim(test_dir) // '/derived.f90', status='replace')
     write(unit, '(a)') 'module derived'
     write(unit, '(a)') '  use base'
     write(unit, '(a)') '  implicit none'
@@ -238,7 +238,7 @@ contains
     test_dir = '/tmp/fortran_inval_test_' // get_timestamp()
     call mkdir(test_dir)
     
-    src_file = test_dir // '/changing.f90'
+    src_file = trim(test_dir) // '/changing.f90'
     
     ! Create initial version
     open(newunit=unit, file=src_file, status='replace')
@@ -298,15 +298,15 @@ contains
     print '(a)', 'Test 4: Cross-project module sharing'
     
     ! Create two project directories
-    proj1_dir = '/tmp/fortran_proj1_' // get_timestamp()
-    proj2_dir = '/tmp/fortran_proj2_' // get_timestamp()
-    call mkdir(proj1_dir)
-    call mkdir(proj2_dir)
-    call mkdir(proj1_dir // '/build')
-    call mkdir(proj2_dir // '/build')
+    proj1_dir = '/tmp/fortran_proj1_' // trim(get_timestamp())
+    proj2_dir = '/tmp/fortran_proj2_' // trim(get_timestamp())
+    call execute_command_line('mkdir -p ' // trim(proj1_dir))
+    call execute_command_line('mkdir -p ' // trim(proj2_dir)) 
+    call execute_command_line('mkdir -p ' // trim(proj1_dir) // '/build')
+    call execute_command_line('mkdir -p ' // trim(proj2_dir) // '/build')
     
     ! Create identical module in project 1
-    src_file = proj1_dir // '/shared_utils.f90'
+    src_file = trim(proj1_dir) // '/shared_utils.f90'
     open(newunit=unit, file=src_file, status='replace')
     write(unit, '(a)') 'module shared_utils'
     write(unit, '(a)') '  implicit none'
@@ -339,7 +339,7 @@ contains
       print '(a)', '  ✓ Module shared between projects via cache'
       
       ! Test compilation using cached module
-      open(newunit=unit, file=proj2_dir // '/use_shared.f90', status='replace')
+      open(newunit=unit, file=trim(proj2_dir) // '/use_shared.f90', status='replace')
       write(unit, '(a)') 'program use_shared'
       write(unit, '(a)') '  use shared_utils'
       write(unit, '(a)') '  print *, "PI =", PI'
@@ -374,7 +374,7 @@ contains
     integer :: unit, exitstat
     
     ! Create program using the cached module
-    open(newunit=unit, file=test_dir // '/test_prog.f90', status='replace')
+    open(newunit=unit, file=trim(test_dir) // '/test_prog.f90', status='replace')
     write(unit, '(a)') 'program test_prog'
     write(unit, '(a)') '  use math_utils'
     write(unit, '(a)') '  implicit none'
