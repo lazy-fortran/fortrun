@@ -117,13 +117,20 @@ fpm test test_name
 - ✅ Cache locking mechanism for parallel builds
 - ✅ Performance benchmarks and safety tests
 
-### 🚧 **Phase 4 In Progress**: Simplified Fortran
-- ✅ Preprocessor for .f files (Phase 4.1)
+### ✅ **Phase 4 Complete**: Simplified Fortran Preprocessor
+- ✅ Preprocessor for .f files
   - ✅ Automatic program wrapping
   - ✅ Automatic contains insertion
   - ✅ Implicit none by default
   - ✅ Support for functions and subroutines
-- ⚠️ Basic type inference (Phase 4.2)
+  - ✅ Comprehensive test coverage
+  - ✅ Integration with cache system
+
+### 🚧 **Phase 5 In Progress**: Basic Type Inference
+- ⚠️ Type inference infrastructure
+- ⚠️ Literal type detection
+- ⚠️ Expression type propagation
+- ⚠️ Variable declaration generation
 
 ## Modern Defaults (Opinionated Design)
 
@@ -211,11 +218,12 @@ Each example includes:
 
 ## Future Roadmap
 
-- **Phase 4.2**: Basic type inference for .f files
-- **Phase 5**: Cross-package support and performance optimization  
-- **Phase 6**: Integration with official FPM registry
-- **Phase 7**: Advanced type inference and more Python-like features
-- **Phase 8**: Interactive REPL mode
+- **Phase 5**: Basic type inference for .f files
+- **Phase 6**: Advanced type inference (arrays, derived types)
+- **Phase 7**: Python-like features (comprehensions, f-strings)  
+- **Phase 8**: Cross-package support and performance optimization
+- **Phase 9**: Integration with official FPM registry
+- **Phase 10**: Interactive REPL mode
 
 **Goal**: **Make Python Fortran again** - making Fortran development as seamless as Python, where you can just run a file without worrying about compilation, linking, or dependency management.
 

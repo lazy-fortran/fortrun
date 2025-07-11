@@ -230,12 +230,13 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
     - Cache newly compiled dependency modules after FPM builds
     - Add module dependency graph analysis for smarter caching
 
-### 4.2 Enhanced Registry Support (DEFERRED - Someday/Maybe)
-- [ ] Support for git tags and branches in dependencies
-- [ ] Local package overrides (e.g., use local fork instead of registry version)
-- [ ] Package namespacing (e.g., `fortran-lang/stdlib`)
-- [ ] Advanced version constraint solver
-- [ ] Package conflict resolution
+### 4.2 Cross-Package Support (DEFERRED - Someday/Maybe)
+- [ ] Write test for namespace support
+- [ ] Implement package namespacing
+- [ ] Write test for version resolution
+- [ ] Implement version constraint solver
+- [ ] Write test for package conflicts
+- [ ] Implement conflict resolution
   - Note: Deferred until core features are battle-tested
   - Would require significant architectural changes
   - Better to focus on performance and reliability first
@@ -255,13 +256,19 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
 
 ## Phase 5: Integration and Polish
 
-### 5.1 Platform Support
+### 5.1 FPM Registry Integration
+- [ ] Write test for fetching from official registry
+- [ ] Implement registry sync functionality
+- [ ] Write test for offline mode
+- [ ] Implement offline fallback
+
+### 5.2 Platform Support
 - [ ] Write tests for Windows compatibility
 - [ ] Implement platform-specific adjustments
 - [ ] Write tests for macOS compatibility
 - [ ] Write tests for various Linux distributions
 
-### 5.2 Documentation and Examples
+### 5.3 Documentation and Examples
 - [ ] Create comprehensive user documentation
 - [ ] Write example programs demonstrating usage
 - [ ] Create developer documentation for extensions
@@ -284,85 +291,172 @@ Key abstractions to maintain:
 - `BuildOrchestrator`: Coordinates fpm builds
 - `CLIHandler`: Manages user interaction
 
-## Phase 6: Simplified Fortran Preprocessor (.f files) - IN BRANCH: preprocessor
+## Phase 5: Simplified Fortran Preprocessor (.f files) - COMPLETED
 
-**NOTE: All work for Phase 6 and 7 (preprocessor and type inference) is being done in the `preprocessor` branch.**
-**To work on these features, checkout the preprocessor branch: `git checkout preprocessor`**
+### 5.1 Basic Preprocessor Infrastructure ✅
+- [x] Create `src/preprocessor.f90` module
+  - Implemented complete preprocessor with program wrapping
+  - Automatic contains insertion for functions/subroutines
+  - Preserves existing program statements
+- [x] Support `.f` file detection in CLI
+  - Updated CLI to accept .f and .F extensions
+  - Added is_preprocessor_file function
+- [x] Implement basic file transformation pipeline
+  - Preprocesses .f to .f90 in cache directory
+  - Maintains proper indentation
+  - Handles edge cases (empty files, comments, etc.)
+- [x] Generate temporary .f90 files in cache
+  - Files created as `<basename>_preprocessed.f90`
+  - Integration with existing cache system
 
-### 6.1 Basic Preprocessor Infrastructure
-- [ ] Create `src/preprocessor.f90` module
-- [ ] Support `.f` file detection in CLI
-- [ ] Implement basic file transformation pipeline
-- [ ] Generate line mappings for debugging
+### 5.2 Automatic Program Wrapping ✅
+- [x] Write test for automatic program wrapping
+  - Unit test: test_simple_preprocessing
+  - Integration test: hello.f example
+- [x] Write test for functions without contains
+  - Unit test: test_function_preprocessing
+  - Integration test: math.f example
+- [x] Write test for subroutines without contains
+  - Unit test: test_subroutine_preprocessing
+  - Integration test: subroutines.f example
+- [x] Write test for existing program detection
+  - Unit test: test_existing_program
+  - Ensures no double wrapping
+- [x] Add implicit `program main` wrapper when needed
+- [x] Add automatic `contains` before first function/subroutine
+- [x] Add `implicit none` to generated programs
 
-### 6.2 Implicit Program/Module Detection
-- [ ] Write test for program detection (has `call` statements)
-- [ ] Write test for module detection (has `contains`, `public`)
-- [ ] Implement AST-based analysis for unit type detection
-- [ ] Add implicit `program`/`module` wrappers
-- [ ] Use filename as default module name
-
-### 6.3 Modern Defaults
+### 5.3 Modern Defaults
 - [x] Add `implicit none` to all generated units (via fpm.toml implicit-typing = false)
 - [x] Set compiler flags for double precision default (--flag "-fdefault-real-8 -fdefault-double-8")
 - [ ] Auto-import common intrinsic modules
 - [x] Write tests for default behaviors (real_default_test.f90)
 
-### 6.4 Dot Notation Transform
-- [ ] Write test for simple member access (`.` to `%`)
-- [ ] Implement context-aware dot parser
-- [ ] Handle floating point literal edge cases
-- [ ] Preserve logical operators (`.and.`, `.or.`)
-- [ ] Test nested type access
+## Phase 6: Basic Type Inference (Next Priority)
 
-## Phase 7: Type Inference System - IN BRANCH: preprocessor
+### 6.1 Type Inference Infrastructure
+- [x] Create `src/type_inference.f90` module
+  - Type environment to track variable types
+  - Expression analyzer for literal detection
+  - Declaration generator
+- [x] Write unit test framework for type inference
+  - Test individual inference rules
+  - Test type propagation
+  - Test error cases
 
-### 7.1 Basic Intrinsic Type Inference
-- [ ] Write test for integer literal inference (42 → integer)
-- [ ] Write test for real literal inference (3.14 → real(8))
-- [ ] Write test for logical inference (.true. → logical)
-- [ ] Write test for character inference ("text" → character)
-- [ ] Implement expression parser to detect literal types
-- [ ] Generate variable declarations at procedure start
-- [ ] Handle multiple assignments to same variable (type consistency)
+### 6.2 Literal Type Detection
+- [x] Write test for integer literals
+  - `x = 42` → `integer :: x`
+  - Handle different integer forms (42, 42_8, etc.)
+- [x] Write test for real literals
+  - `y = 3.14` → `real(8) :: y`
+  - `z = 1.0e-10` → `real(8) :: z`
+  - Handle different real forms (3.14, 3.14d0, 3.14_8)
+- [x] Write test for logical literals
+  - `flag = .true.` → `logical :: flag`
+- [x] Write test for character literals
+  - `name = "John"` → `character(len=4) :: name`
+  - Handle concatenation for length inference
+- [x] Implement literal pattern matching
+  - Regular expressions for each literal type
+  - Precision suffix handling
 
-### 7.2 Array Type Inference
-- [ ] Write test for array literal inference ([1,2,3] → integer, dimension(3))
-- [ ] Write test for array operations (shape preservation)
-- [ ] Implement array shape tracking
-- [ ] Support allocatable array inference
-- [ ] Handle reshape and other intrinsics
+### 6.3 Expression Type Propagation
+- [x] Write test for arithmetic expressions
+  - `x = 2 + 3` → `integer :: x`
+  - `y = 2.0 + 3` → `real(8) :: y` (promotion rules)
+- [x] Write test for function returns
+  - `x = sin(1.0)` → `real(8) :: x`
+  - Track intrinsic function return types
+- [x] Write test for mixed expressions
+  - Type promotion in mixed arithmetic
+  - Implicit conversions
+- [x] Implement expression tree builder
+  - Parse expressions into AST
+  - Evaluate types bottom-up
 
-### 7.3 Function Return Type and Intent-Based Inference
-- [ ] Write test for function return type inference from body
-- [ ] Write test for intent(out) type inference from assignments
-- [ ] Implement function body analyzer for return statements
-- [ ] Track assignments to function name for return type
-- [ ] Propagate inferred return types to call sites
-- [ ] Handle intent(out) variables with deferred type declaration
+### 6.4 Variable Declaration Generation
+- [x] Write test for declaration placement
+  - Declarations at start of program/function/subroutine
+  - Handle multiple procedures in one file
+- [x] Write test for name conflicts
+  - Don't redeclare existing variables
+  - Handle shadowing in nested scopes
+- [x] Write test for declaration ordering
+  - Parameters before variables
+  - Group by type for readability
+- [x] Implement declaration injector
+  - Find correct insertion points
+  - Format declarations properly
 
-### 7.4 Derived Type Inference
-- [ ] Write test for field-based type inference
-- [ ] Write test for constructor-based inference
-- [ ] Generate derived type definitions
-- [ ] Support type extension inference
-- [ ] Validate consistent type usage
+## Phase 7: Advanced Type Inference
+
+### 7.1 Array Type Inference
+- [ ] Write test for array literals
+  - `arr = [1, 2, 3]` → `integer, dimension(3) :: arr`
+  - Handle empty arrays
+- [ ] Write test for array sections
+  - `b = a(1:10)` → infer b's dimensions
+- [ ] Write test for array operations
+  - Shape preservation in arithmetic
+  - Shape checking for conformance
+- [ ] Implement array shape tracker
+  - Static shape analysis
+  - Dynamic shape hints
+
+### 7.2 Derived Type Inference
+- [ ] Write test for type component access
+  - `x = point%x` → infer x's type from point type
+- [ ] Write test for type constructors
+  - `p = point(1.0, 2.0)` → `type(point) :: p`
+- [ ] Implement type registry
+  - Track user-defined types in scope
+  - Handle type imports from modules
+
+### 7.3 Procedure Inference
+- [ ] Write test for function type inference
+  - Infer return type from return statements
+  - Handle multiple return paths
+- [ ] Write test for subroutine argument inference
+  - Infer intent from usage
+  - Infer types from call sites
+- [ ] Implement interprocedural analysis
+  - Build call graph
+  - Propagate types across calls
+
+## Phase 8: Python-like Features (Future)
+
+### 8.1 List Comprehensions
+- [ ] Transform `[x**2 for x in range(1,10)]` to DO loops
+- [ ] Support filtering with if conditions
+- [ ] Nested comprehensions
+
+### 8.2 Enhanced String Handling
+- [ ] String interpolation: `f"x = {x}"`
+- [ ] Multi-line strings with triple quotes
+- [ ] String methods (split, join, etc.)
+
+### 8.3 Modern Control Flow
+- [ ] For-each loops: `for item in array:`
+- [ ] With statement for resource management
+- [ ] Exception handling with try/except
 
 ## Phase 9: Installation and Deployment
 
 ### 9.1 Installation Script
-- [ ] Create `install.sh` script for easy installation
-- [ ] Install `fortran` command to `~/.local/bin/`
-- [ ] Copy default config to `~/.config/fortran/`
-- [ ] Create cache directory `~/.cache/fortran/`
+- [x] Create `install.sh` script for easy installation
+  - Script runs `fpm install` and copies registry files
+  - Preserves existing user configurations
 - [ ] Add uninstall option
 - [ ] Support system-wide installation (optional)
+- [ ] Windows installer (install.bat)
 
 ### 9.2 Package Distribution
-- [ ] Create release packages (tar.gz, deb, rpm)
+- [ ] Create release packages (tar.gz, zip)
 - [ ] Add to package managers (AUR, homebrew, etc.)
 - [ ] Docker container for easy deployment
 - [ ] GitHub releases with binaries
+- [ ] Continuous deployment pipeline
 
 ## Progress Tracking
 
