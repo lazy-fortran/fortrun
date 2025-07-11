@@ -1,6 +1,7 @@
 !> Unit tests for fpm_module_cache module
 program test_module_cache_unit
   use, intrinsic :: iso_fortran_env, only: int64
+  use, intrinsic :: iso_c_binding, only: c_char, c_int, c_null_char
   use fpm_module_cache
   use fpm_compiler, only: compiler_t, new_compiler, id_gcc
   use fpm_model, only: srcfile_t, FPM_UNIT_MODULE
@@ -8,6 +9,19 @@ program test_module_cache_unit
   use fpm_error, only: error_t
   use fpm_filesystem, only: delete_file, exists, mkdir, join_path
   implicit none
+  
+  interface
+    subroutine setenv(name, value, overwrite) bind(c, name='setenv')
+      import :: c_char, c_int
+      character(kind=c_char), intent(in) :: name(*), value(*)
+      integer(c_int), value :: overwrite
+    end subroutine setenv
+    
+    subroutine unsetenv(name) bind(c, name='unsetenv') 
+      import :: c_char
+      character(kind=c_char), intent(in) :: name(*)
+    end subroutine unsetenv
+  end interface
   
   integer :: stat
   logical :: all_pass
@@ -166,6 +180,7 @@ contains
     ! Store module
     call cache%store_module(srcfile, cache_key, test_build_dir, error)
     
+    
     test_pass = .not. allocated(error)
     if (test_pass) then
       print '(a)', '  ✓ Module stored in cache successfully'
@@ -179,12 +194,6 @@ contains
     
     ! Retrieve module
     call cache%retrieve_module(cache_key, test_target_dir, srcfile, found, error)
-    
-    ! Debug: Check what happened
-    print '(a,l1)', '  Debug: found = ', found
-    if (allocated(error)) then
-      print '(a,a)', '  Debug: error = ', error%message
-    end if
     
     test_pass = found .and. .not. allocated(error)
     if (test_pass) then
@@ -214,17 +223,22 @@ contains
     type(compiler_t) :: compiler
     type(srcfile_t) :: srcfile
     type(error_t), allocatable :: error
-    character(:), allocatable :: test_build_dir
+    character(:), allocatable :: test_build_dir, test_cache_dir
     character(len=64) :: cache_key
     logical :: is_cached, test_pass
     type(string_t) :: modules(1)
     
     print '(a)', 'Test 4: Cache hit detection'
     
-    ! Setup
+    ! Setup with unique cache directory
+    test_cache_dir = '/tmp/fortran_cache_hit_' // trim(get_timestamp())
+    call mkdir(test_cache_dir)
+    
     call new_compiler(compiler, 'gfortran', 'gcc', 'g++', .true., .false.)
     compiler%id = id_gcc
     cache = new_module_cache(compiler, '13.0.0')
+    ! Override cache directory to use test-specific one
+    cache%cache_dir = test_cache_dir
     
     test_build_dir = '/tmp/fortran_test_hit_' // trim(get_timestamp())
     call mkdir(test_build_dir)
@@ -263,7 +277,7 @@ contains
     end if
     
     ! Cleanup
-    call execute_command_line('rm -rf ' // test_build_dir)
+    call execute_command_line('rm -rf ' // test_build_dir // ' ' // test_cache_dir)
     
   end subroutine test_cache_hit_detection
   
@@ -280,7 +294,7 @@ contains
     print '(a)', 'Test 5: Disabled cache behavior'
     
     ! Set environment to disable cache
-    call execute_command_line('export FPM_NO_MODULE_CACHE=1')
+    call setenv('FPM_NO_MODULE_CACHE' // c_null_char, '1' // c_null_char, 1)
     
     ! Setup
     call new_compiler(compiler, 'gfortran', 'gcc', 'g++', .true., .false.)
@@ -316,7 +330,7 @@ contains
     end if
     
     ! Unset environment
-    call execute_command_line('unset FPM_NO_MODULE_CACHE')
+    call unsetenv('FPM_NO_MODULE_CACHE' // c_null_char)
     
   end subroutine test_disabled_cache
   
