@@ -178,6 +178,12 @@ contains
     write(unit, '(a)') 'implicit-typing = false'
     write(unit, '(a)') 'implicit-external = false'
     write(unit, '(a)') 'source-form = "free"'
+    write(unit, '(a)') ''
+    write(unit, '(a)') '[[executable]]'
+    write(unit, '(a)') 'name = "' // trim(name) // '"'
+    write(unit, '(a)') 'main = "main.f90"'
+    write(unit, '(a)') ''
+    write(unit, '(a)') '[executable.dependencies]'
     close(unit)
     
   end subroutine generate_fpm_toml

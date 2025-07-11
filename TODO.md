@@ -161,6 +161,34 @@ Key abstractions to maintain:
 - `BuildOrchestrator`: Coordinates fpm builds
 - `CLIHandler`: Manages user interaction
 
+## Phase 5: Simplified Fortran Preprocessor (.f files)
+
+### 5.1 Basic Preprocessor Infrastructure
+- [ ] Create `src/preprocessor.f90` module
+- [ ] Support `.f` file detection in CLI
+- [ ] Implement basic file transformation pipeline
+- [ ] Generate line mappings for debugging
+
+### 5.2 Implicit Program/Module Detection
+- [ ] Write test for program detection (has `call` statements)
+- [ ] Write test for module detection (has `contains`, `public`)
+- [ ] Implement AST-based analysis for unit type detection
+- [ ] Add implicit `program`/`module` wrappers
+- [ ] Use filename as default module name
+
+### 5.3 Modern Defaults
+- [ ] Add `implicit none` to all generated units
+- [ ] Set compiler flags for double precision default
+- [ ] Auto-import common intrinsic modules
+- [ ] Write tests for default behaviors
+
+### 5.4 Dot Notation Transform
+- [ ] Write test for simple member access (`.` to `%`)
+- [ ] Implement context-aware dot parser
+- [ ] Handle floating point literal edge cases
+- [ ] Preserve logical operators (`.and.`, `.or.`)
+- [ ] Test nested type access
+
 ## Progress Tracking
 
 - Mark items with [x] when completed
