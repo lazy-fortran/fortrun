@@ -12,21 +12,59 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
 ## Phase 1: Foundation and Basic CLI
 
 ### 1.1 Project Setup
-- [ ] Set up basic CLI argument parsing structure
-- [ ] Create test framework for CLI testing
-- [ ] Define core interfaces and abstractions
+- [ ] Set up basic CLI structure in `app/main.f90`
+  - Parse command line arguments using Fortran intrinsics
+  - Support: `fortran <file.f90>` and `fortran --help`
+  - Exit with proper codes (0 for success, 1 for errors)
+- [ ] Create test framework structure
+  - Set up `test/test_cli.f90` for CLI testing
+  - Create helper module `test/test_utils.f90` for assertions
+  - Add test runner in fpm.toml
+- [ ] Define core interfaces in `src/`
+  - `src/cli_parser.f90`: Command line parsing module
+  - `src/runner.f90`: Main execution orchestrator
+  - `src/errors.f90`: Error types and handling
 
 ### 1.2 Minimal Viable Product
-- [ ] Write test for running a simple .f90 file without dependencies
-- [ ] Implement basic .f90 file execution using fpm
-- [ ] Write test for error handling (invalid files, syntax errors)
-- [ ] Implement error handling and user feedback
+- [ ] Write test: `test_run_simple_hello_world`
+  - Create test .f90 file that prints "Hello, World!"
+  - Verify it compiles and runs via our tool
+  - Check output matches expected
+- [ ] Implement basic execution in `src/runner.f90`
+  - Create temporary directory in `/tmp/fortran_build_XXXXX`
+  - Copy input .f90 to `app/` in temp directory
+  - Generate minimal fpm.toml
+  - Execute `fpm run` and capture output
+  - Clean up temp directory
+- [ ] Write test: `test_invalid_file_error`
+  - Test with non-existent file
+  - Test with non-.f90 file
+  - Test with invalid Fortran syntax
+- [ ] Implement error handling in `src/errors.f90`
+  - FileNotFoundError
+  - InvalidFileTypeError
+  - CompilationError with fpm output
+  - User-friendly error messages
 
 ### 1.3 Module Detection
-- [ ] Write test for detecting 'use' statements in .f90 files
-- [ ] Implement Fortran source parser for module dependencies
-- [ ] Write test for handling multiple module dependencies
-- [ ] Implement dependency graph builder
+- [ ] Write test: `test_detect_single_use_statement`
+  - Parse: `use my_module`
+  - Parse: `use my_module, only: some_func`
+  - Parse: `use, intrinsic :: iso_fortran_env`
+- [ ] Implement basic parser in `src/source_parser.f90`
+  - Read .f90 file line by line
+  - Regex pattern for `use` statements
+  - Extract module names
+  - Handle Fortran comments and continuations
+- [ ] Write test: `test_detect_multiple_modules`
+  - File with multiple use statements
+  - Nested module dependencies
+  - Ignore intrinsic modules
+- [ ] Implement dependency graph in `src/dependency_graph.f90`
+  - Module type with name and source file
+  - Graph structure with add_dependency method
+  - Topological sort for build order
+  - Cycle detection
 
 ## Phase 2: Dependency Resolution
 
