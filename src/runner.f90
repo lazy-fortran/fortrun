@@ -1,5 +1,6 @@
 module runner
   use cache, only: get_cache_dir, ensure_cache_dir, get_content_hash, cache_exists
+  use cache_lock, only: acquire_lock, release_lock, cleanup_stale_locks
   use module_scanner, only: scan_modules, module_info
   use fpm_generator, only: generate_fpm_with_deps, generate_fpm_with_deps_from_config
   use registry_resolver, only: ensure_registry_exists, ensure_registry_exists_in_dir
@@ -10,13 +11,14 @@ module runner
   
 contains
 
-  subroutine run_fortran_file(filename, exit_code, verbose_level, custom_cache_dir, custom_config_dir, parallel_jobs)
+  subroutine run_fortran_file(filename, exit_code, verbose_level, custom_cache_dir, custom_config_dir, parallel_jobs, no_wait)
     character(len=*), intent(in) :: filename
     integer, intent(out) :: exit_code
     integer, intent(in) :: verbose_level
     character(len=*), intent(in) :: custom_cache_dir
     character(len=*), intent(in) :: custom_config_dir
     integer, intent(in) :: parallel_jobs
+    logical, intent(in) :: no_wait
     
     logical :: file_exists, success
     character(len=256) :: cache_dir, project_dir, basename
@@ -65,6 +67,20 @@ contains
     ! Generate content-based hash for cache key
     call get_project_hash_and_directory(absolute_path, basename, cache_dir, project_dir, verbose_level)
     
+    ! Clean up stale locks on startup
+    call cleanup_stale_locks(cache_dir)
+    
+    ! Try to acquire lock for this project
+    if (.not. acquire_lock(cache_dir, basename, .not. no_wait)) then
+      if (no_wait) then
+        print '(a)', 'Error: Cache is locked by another process. Use without --no-wait to wait.'
+      else
+        print '(a)', 'Error: Timeout waiting for cache lock.'
+      end if
+      exit_code = 1
+      return
+    end if
+    
     ! Check if project already exists (cache hit)
     if (directory_exists(trim(project_dir) // '/build')) then
       if (verbose_level >= 1) then
@@ -84,6 +100,7 @@ contains
       
       if (cmdstat /= 0 .or. exitstat /= 0) then
         print '(a)', 'Error: Failed to create project directory'
+        call release_lock(cache_dir, basename)
         exit_code = 1
         return
       end if
@@ -131,6 +148,7 @@ contains
         ! Parse FPM errors and provide helpful messages
         call provide_helpful_error_message('/tmp/fpm_build_output.txt')
       end if
+      call release_lock(cache_dir, basename)
       exit_code = 1
       return
     end if
@@ -146,6 +164,9 @@ contains
       ! FPM returned non-zero, likely compilation error
       exit_code = exitstat
     end if
+    
+    ! Release the lock
+    call release_lock(cache_dir, basename)
     
     ! Clean up (optional for now - we might want to keep for caching)
     ! command = 'rm -rf "' // trim(project_dir) // '"'
