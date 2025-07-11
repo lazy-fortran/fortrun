@@ -1,5 +1,6 @@
 program test_cli_system
   use, intrinsic :: iso_fortran_env, only: error_unit
+  use cache, only: get_cache_dir
   implicit none
   
   character(len=512) :: command, test_file
@@ -155,7 +156,11 @@ contains
     print *, 'Test 5: -v flag'
     
     ! Clean cache to force rebuild and see verbose output
-    call execute_command_line('rm -rf ~/.cache/fortran/test_system_cli_*')
+    block
+      character(len=256) :: cache_dir
+      cache_dir = get_cache_dir()
+      call execute_command_line('rm -rf "' // trim(cache_dir) // '/test_system_cli_*"')
+    end block
     
     command = './build/gfortran_*/app/fortran -v ' // trim(test_file) // &
               ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
@@ -198,7 +203,11 @@ contains
     print *, 'Test 7: --verbose flag (no argument)'
     
     ! Clean cache to force rebuild and see verbose output
-    call execute_command_line('rm -rf ~/.cache/fortran/test_system_cli_*')
+    block
+      character(len=256) :: cache_dir
+      cache_dir = get_cache_dir()
+      call execute_command_line('rm -rf "' // trim(cache_dir) // '/test_system_cli_*"')
+    end block
     
     command = './build/gfortran_*/app/fortran --verbose ' // trim(test_file) // &
               ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
@@ -221,7 +230,11 @@ contains
     print *, 'Test 8: --verbose 1'
     
     ! Clean cache to force rebuild and see verbose output
-    call execute_command_line('rm -rf ~/.cache/fortran/test_system_cli_*')
+    block
+      character(len=256) :: cache_dir
+      cache_dir = get_cache_dir()
+      call execute_command_line('rm -rf "' // trim(cache_dir) // '/test_system_cli_*"')
+    end block
     
     command = './build/gfortran_*/app/fortran --verbose 1 ' // trim(test_file) // &
               ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'

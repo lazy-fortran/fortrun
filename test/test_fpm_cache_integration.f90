@@ -28,7 +28,7 @@ contains
     print *, 'Test 1: FPM source discovery'
     
     ! Create a test directory with Fortran files
-    test_dir = '/tmp/fpm_test_sources'
+    test_dir = '/tmp/fpm_test_sources_' // trim(get_timestamp())
     call execute_command_line('mkdir -p ' // trim(test_dir))
     
     ! Create a test source file
@@ -113,5 +113,14 @@ contains
     print *
     
   end subroutine test_source_file_info
+
+  function get_timestamp() result(timestamp)
+    character(len=20) :: timestamp
+    integer :: values(8)
+    
+    call date_and_time(values=values)
+    write(timestamp, '(i4.4,5i2.2)') values(1), values(2), values(3), &
+                                      values(5), values(6), values(7)
+  end function get_timestamp
 
 end program test_fpm_cache_integration
