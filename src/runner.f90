@@ -77,8 +77,8 @@ contains
     ! Generate minimal fpm.toml
     call generate_fpm_toml(project_dir, basename)
     
-    ! Run FPM with release profile to get our flags
-    command = 'cd "' // trim(project_dir) // '" && fpm run --profile release'
+    ! Run FPM with modern Fortran flags
+    command = 'cd "' // trim(project_dir) // '" && fpm build --flag "-fimplicit-none -fdefault-real-8 -fdefault-double-8" && fpm run'
     call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat, wait=.true.)
     
     if (cmdstat /= 0) then
@@ -184,15 +184,6 @@ contains
     write(unit, '(a)') 'main = "main.f90"'
     write(unit, '(a)') ''
     write(unit, '(a)') '[executable.dependencies]'
-    write(unit, '(a)') ''
-    write(unit, '(a)') '# Compiler flags for modern defaults'
-    write(unit, '(a)') '[profiles.release]'
-    write(unit, '(a)') '[profiles.release.gfortran]'
-    write(unit, '(a)') 'flags = "-fimplicit-none -fdefault-real-8 -fdefault-double-8"'
-    write(unit, '(a)') ''
-    write(unit, '(a)') '[profiles.debug]'
-    write(unit, '(a)') '[profiles.debug.gfortran]'
-    write(unit, '(a)') 'flags = "-fimplicit-none -fdefault-real-8 -fdefault-double-8 -g -fcheck=bounds"'
     close(unit)
     
   end subroutine generate_fpm_toml
