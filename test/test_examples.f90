@@ -1,5 +1,6 @@
 program test_examples
   use, intrinsic :: iso_fortran_env, only: error_unit
+  use cache, only: get_cache_dir
   implicit none
   
   character(len=256), dimension(:), allocatable :: example_files
@@ -154,8 +155,12 @@ contains
     end if
     
     ! Clean cache for this example
-    command = 'rm -rf ~/.cache/fortran/' // trim(cache_pattern) // '_*'
-    call execute_command_line(trim(command))
+    block
+      character(len=256) :: cache_dir
+      cache_dir = get_cache_dir()
+      command = 'rm -rf "' // trim(cache_dir) // '/' // trim(cache_pattern) // '_*"'
+      call execute_command_line(trim(command))
+    end block
     
     ! Run the example
     command = './build/gfortran_*/app/fortran ' // trim(filename) // &

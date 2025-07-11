@@ -1,5 +1,6 @@
 program test_registry_enhancement
   use, intrinsic :: iso_fortran_env, only: error_unit
+  use cache, only: get_cache_dir
   implicit none
   
   print *, '=== Registry Enhancement Tests ===\'
@@ -121,8 +122,12 @@ contains
     logical :: found_pyplot
     
     ! Find the generated fpm.toml in cache directory
-    call execute_command_line('find ~/.cache/fortran -name "fpm.toml" -newer /tmp/multiple_output.txt ' // &
-                              '2>/dev/null | head -1 > /tmp/fpm_path.txt')
+    block
+      character(len=256) :: cache_dir
+      cache_dir = get_cache_dir()
+      call execute_command_line('find "' // trim(cache_dir) // '" -name "fpm.toml" -newer /tmp/multiple_output.txt ' // &
+                                '2>/dev/null | head -1 > /tmp/fpm_path.txt')
+    end block
     
     open(newunit=unit, file='/tmp/fpm_path.txt', status='old', iostat=iostat)
     if (iostat /= 0) then
