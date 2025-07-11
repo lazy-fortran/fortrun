@@ -89,9 +89,9 @@ contains
     
     ! Build first
     if (verbose_level == 0) then
-      ! Quiet mode: build silently
+      ! Quiet mode: capture errors for helpful messages
       command = 'cd "' // trim(project_dir) // '" && ' // &
-                'fpm build --flag "-fdefault-real-8 -fdefault-double-8" > /dev/null 2>&1'
+                'fpm build --flag "-fdefault-real-8 -fdefault-double-8" > /tmp/fpm_build_output.txt 2>&1'
     else if (verbose_level >= 2) then
       ! Very verbose: show detailed build output
       command = 'cd "' // trim(project_dir) // '" && ' // &
@@ -106,7 +106,8 @@ contains
     
     if (cmdstat /= 0 .or. exitstat /= 0) then
       if (verbose_level == 0) then
-        print '(a)', 'Error: Build failed. Run with -v to see details.'
+        ! Parse FPM errors and provide helpful messages
+        call provide_helpful_error_message('/tmp/fpm_build_output.txt')
       end if
       exit_code = 1
       return
@@ -259,5 +260,35 @@ contains
     call execute_command_line(command)
     
   end subroutine copy_local_modules
+  
+  subroutine provide_helpful_error_message(error_file)
+    character(len=*), intent(in) :: error_file
+    integer :: unit, iostat
+    character(len=512) :: line
+    
+    ! Read the error file and show the FPM error message
+    open(newunit=unit, file=error_file, status='old', iostat=iostat)
+    if (iostat /= 0) then
+      ! If we can't read the error file, fall back to generic message
+      print '(a)', 'Error: Build failed. Run with -v to see details.'
+      return
+    end if
+    
+    do
+      read(unit, '(a)', iostat=iostat) line
+      if (iostat /= 0) exit
+      
+      ! Show relevant error lines from FPM
+      if (index(line, '<ERROR>') > 0 .or. index(line, 'Error:') > 0) then
+        print '(a)', trim(line)
+      end if
+    end do
+    
+    close(unit)
+    
+    ! Clean up error file
+    call execute_command_line('rm -f ' // trim(error_file))
+    
+  end subroutine provide_helpful_error_message
   
 end module runner

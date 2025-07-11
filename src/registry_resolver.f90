@@ -2,12 +2,13 @@ module registry_resolver
   use config, only: get_registry_path, get_config_dir, ensure_config_dir
   implicit none
   private
-  public :: resolve_module_to_package, load_registry, ensure_registry_exists, load_registry_from_path, ensure_registry_exists_in_dir
+  public :: resolve_module_to_package, load_registry, ensure_registry_exists, load_registry_from_path, ensure_registry_exists_in_dir, resolve_module_with_version
   
   type :: package_info
     character(len=128) :: name
     character(len=256) :: git_url
     character(len=64) :: prefix
+    character(len=32) :: version
   end type package_info
   
   type(package_info), dimension(:), allocatable :: packages
@@ -52,6 +53,9 @@ contains
         n_packages = n_packages + 1
         current_package = extract_between(line, '[packages.', ']')
         packages(n_packages)%name = current_package
+        packages(n_packages)%git_url = ''
+        packages(n_packages)%prefix = ''
+        packages(n_packages)%version = ''
         in_package = .true.
       else if (in_package) then
         ! Parse package properties
@@ -59,6 +63,8 @@ contains
           packages(n_packages)%git_url = extract_quoted(line)
         else if (index(line, 'prefix =') > 0) then
           packages(n_packages)%prefix = extract_quoted(line)
+        else if (index(line, 'version =') > 0) then
+          packages(n_packages)%version = extract_quoted(line)
         end if
       end if
     end do
@@ -103,6 +109,9 @@ contains
         n_packages = n_packages + 1
         current_package = extract_between(line, '[packages.', ']')
         packages(n_packages)%name = current_package
+        packages(n_packages)%git_url = ''
+        packages(n_packages)%prefix = ''
+        packages(n_packages)%version = ''
         in_package = .true.
       else if (in_package) then
         ! Parse package properties
@@ -110,6 +119,8 @@ contains
           packages(n_packages)%git_url = extract_quoted(line)
         else if (index(line, 'prefix =') > 0) then
           packages(n_packages)%prefix = extract_quoted(line)
+        else if (index(line, 'version =') > 0) then
+          packages(n_packages)%version = extract_quoted(line)
         end if
       end if
     end do
@@ -162,6 +173,55 @@ contains
     end do
     
   end subroutine resolve_module_to_package
+  
+  subroutine resolve_module_with_version(module_name, package_name, git_url, version, found)
+    character(len=*), intent(in) :: module_name
+    character(len=*), intent(out) :: package_name
+    character(len=*), intent(out) :: git_url
+    character(len=*), intent(out) :: version
+    logical, intent(out) :: found
+    
+    integer :: i, underscore_pos
+    character(len=128) :: inferred_package
+    
+    found = .false.
+    package_name = ''
+    git_url = ''
+    version = ''
+    
+    ! First check prefixes
+    do i = 1, n_packages
+      if (len_trim(packages(i)%prefix) > 0) then
+        if (index(module_name, trim(packages(i)%prefix)) == 1) then
+          package_name = packages(i)%name
+          git_url = packages(i)%git_url
+          version = packages(i)%version
+          found = .true.
+          return
+        end if
+      end if
+    end do
+    
+    ! Try underscore inference
+    underscore_pos = index(module_name, '_')
+    if (underscore_pos > 0) then
+      inferred_package = module_name(1:underscore_pos-1) // '-fortran'
+    else
+      inferred_package = module_name
+    end if
+    
+    ! Look for inferred package name
+    do i = 1, n_packages
+      if (trim(packages(i)%name) == trim(inferred_package)) then
+        package_name = packages(i)%name
+        git_url = packages(i)%git_url
+        version = packages(i)%version
+        found = .true.
+        return
+      end if
+    end do
+    
+  end subroutine resolve_module_with_version
   
   function extract_between(str, start_str, end_str) result(extracted)
     character(len=*), intent(in) :: str, start_str, end_str

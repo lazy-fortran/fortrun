@@ -1,4 +1,4 @@
-# fortran
+# ![fortran logo](media/logo.png)
 
 **Making Fortran as easy as Python** - A command-line tool that enables running Fortran programs as easily as Python scripts, with automatic dependency resolution, modern defaults, and zero configuration.
 

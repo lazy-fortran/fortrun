@@ -1,6 +1,6 @@
 module fpm_generator
   use module_scanner, only: module_info
-  use registry_resolver, only: resolve_module_to_package, load_registry, load_registry_from_path
+  use registry_resolver, only: resolve_module_to_package, load_registry, load_registry_from_path, resolve_module_with_version
   implicit none
   private
   public :: generate_fpm_with_deps, generate_fpm_with_deps_from_config
@@ -15,6 +15,7 @@ contains
     character(len=512) :: toml_path
     character(len=128) :: package_name, package_names(100)
     character(len=256) :: git_url, git_urls(100)
+    character(len=32) :: version, versions(100)
     logical :: found
     integer :: unit, i, j, n_deps
     logical :: already_added
@@ -27,7 +28,7 @@ contains
     ! Resolve dependencies
     n_deps = 0
     do i = 1, n_modules
-      call resolve_module_to_package(modules(i)%name, package_name, git_url, found)
+      call resolve_module_with_version(modules(i)%name, package_name, git_url, version, found)
       
       if (found) then
         ! Check if already added
@@ -43,6 +44,7 @@ contains
           n_deps = n_deps + 1
           package_names(n_deps) = package_name
           git_urls(n_deps) = git_url
+          versions(n_deps) = version
         end if
       end if
     end do
@@ -79,8 +81,13 @@ contains
     if (n_deps > 0) then
       write(unit, '(a)') '[dependencies]'
       do i = 1, n_deps
-        write(unit, '(a)') trim(package_names(i)) // ' = { git = "' // &
-                          trim(git_urls(i)) // '" }'
+        if (len_trim(versions(i)) > 0) then
+          write(unit, '(a)') trim(package_names(i)) // ' = { git = "' // &
+                            trim(git_urls(i)) // '", tag = "' // trim(versions(i)) // '" }'
+        else
+          write(unit, '(a)') trim(package_names(i)) // ' = { git = "' // &
+                            trim(git_urls(i)) // '" }'
+        end if
       end do
     else
       write(unit, '(a)') '[executable.dependencies]'
@@ -98,6 +105,7 @@ contains
     character(len=512) :: toml_path, registry_path
     character(len=128) :: package_name, package_names(100)
     character(len=256) :: git_url, git_urls(100)
+    character(len=32) :: version, versions(100)
     logical :: found
     integer :: unit, i, j, n_deps
     logical :: already_added
@@ -111,7 +119,7 @@ contains
     ! Resolve dependencies
     n_deps = 0
     do i = 1, n_modules
-      call resolve_module_to_package(modules(i)%name, package_name, git_url, found)
+      call resolve_module_with_version(modules(i)%name, package_name, git_url, version, found)
       
       if (found) then
         ! Check if already added
@@ -127,6 +135,7 @@ contains
           n_deps = n_deps + 1
           package_names(n_deps) = package_name
           git_urls(n_deps) = git_url
+          versions(n_deps) = version
         end if
       end if
     end do
@@ -163,8 +172,13 @@ contains
     if (n_deps > 0) then
       write(unit, '(a)') '[dependencies]'
       do i = 1, n_deps
-        write(unit, '(a)') trim(package_names(i)) // ' = { git = "' // &
-                          trim(git_urls(i)) // '" }'
+        if (len_trim(versions(i)) > 0) then
+          write(unit, '(a)') trim(package_names(i)) // ' = { git = "' // &
+                            trim(git_urls(i)) // '", tag = "' // trim(versions(i)) // '" }'
+        else
+          write(unit, '(a)') trim(package_names(i)) // ' = { git = "' // &
+                            trim(git_urls(i)) // '" }'
+        end if
       end do
     else
       write(unit, '(a)') '[executable.dependencies]'

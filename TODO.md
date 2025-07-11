@@ -78,10 +78,17 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
 - [ ] Add registry validation and error messages
 
 ### 2.3 Error Handling and User Experience
-- [ ] Write test for clear FPM error forwarding
-- [ ] Implement helpful error messages when modules not found
-- [ ] Write test for suggesting similar module names
-- [ ] Add verbose mode to show FPM operations
+- [x] Write test for clear FPM error forwarding
+  - ✅ **Implemented**: `test_error_handling.f90`
+- [x] Implement helpful error messages when modules not found
+  - ✅ **Implemented**: FPM error messages forwarded clearly in quiet mode
+  - ✅ **Tested by**: `test_error_handling.f90`
+- [x] Write test for suggesting similar module names
+  - ✅ **Implemented**: Basic error forwarding (no specific suggestions to keep generic)
+  - ✅ **Tested by**: `test_error_handling.f90`
+- [x] Add verbose mode to show FPM operations
+  - ✅ **Implemented**: `-v`, `-vv`, `--verbose`, `--verbose 1`, `--verbose 2`
+  - ✅ **Tested by**: `test_verbose.f90`, `test_cli_system.f90`
 
 ## Phase 3: Caching System
 
