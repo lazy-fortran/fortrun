@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Purpose
 
-This project develops a command-line tool called `fortran` that works like `python` but for `.f90` files. The tool enables running Fortran programs directly without manual compilation, automatically resolving and building module dependencies using FPM.
+This project develops a command-line tool called `fortran` that **makes Fortran as easy as Python**. The tool enables running Fortran programs directly without manual compilation, automatically resolving and building module dependencies using FPM, with opinionated modern defaults and zero configuration.
 
 ## Build System
 
@@ -17,16 +17,16 @@ This project uses FPM (Fortran Package Manager) as its build system.
 fpm build
 
 # Run the main application
-fpm run
+./build/gfortran_*/app/fortran example.f90
 
 # Run tests
-fpm test
+fmp test
+
+# Run specific test
+fpm test test_name
 
 # Build with release optimizations
 fpm build --profile release
-
-# Run a specific executable
-fpm run --target app_name
 
 # Clean build artifacts
 fpm clean
@@ -37,16 +37,26 @@ fpm clean
 This is a Fortran project following standard FPM directory structure:
 
 - `src/` - Library modules that provide reusable functionality
-- `app/` - Executable programs that use the library modules
-- `test/` - Test programs (currently contains placeholder)
+- `app/` - Executable programs that use the library modules  
+- `test/` - Test programs with comprehensive coverage
+- `example/` - Example programs organized by feature
 
 ### Key Architectural Patterns
 
-1. **Module-based Organization**: Core functionality is organized into modules in `src/`, with the main module being `fortran` that exports public procedures.
+1. **Module-based Organization**: Core functionality is organized into modules in `src/`:
+   - `cli.f90` - Command-line argument parsing
+   - `runner.f90` - Main execution logic
+   - `module_scanner.f90` - Module dependency detection
+   - `registry_resolver.f90` - Package registry resolution
+   - `fpm_generator.f90` - Dynamic fpm.toml generation
+   - `cache.f90` - OS-specific caching
+   - `config.f90` - Configuration directory management
 
 2. **Explicit Typing**: The codebase enforces `implicit none` throughout, requiring all variables to be explicitly declared.
 
 3. **Private-by-Default**: Modules use private visibility by default, explicitly marking public interfaces.
+
+4. **Test-Driven Development**: Every feature has comprehensive test coverage.
 
 ## Development Configuration
 
@@ -55,116 +65,141 @@ The `fpm.toml` configuration enforces:
 - No implicit externals (`implicit-external = false`)
 - Free-form source code (`source-form = "free"`)
 - Automatic discovery of executables and tests
+- Auto-examples disabled (`auto-examples = false`) due to external dependencies
 
-## Testing
+## Testing Strategy
 
-Tests should be placed in the `test/` directory. FPM will automatically discover and compile them. Currently, `test/check.f90` is a placeholder that needs implementation.
+Comprehensive test coverage includes:
 
-To run a specific test:
+### Unit Tests
+- `test_module_scanner.f90` - Module dependency detection
+- `test_registry_resolver.f90` - Package registry resolution
+- `test_fpm_generator.f90` - fpm.toml generation
+- `test_cache.f90` - Caching functionality
+- `test_cli.f90` - Command-line argument parsing
+
+### Integration Tests
+- `test_examples.f90` - Runs all examples and validates output
+- `test_verbose.f90` - Verbose mode functionality
+
+### System Tests
+- `test_cli_system.f90` - End-to-end CLI testing with real commands
+
+To run specific tests:
 ```bash
-fpm test --target test_name
+fpm test test_name
 ```
 
-## Implementation Strategy
+## Implementation Status
 
-### Phase 1: Basic Implementation
-- Create a CLI tool that accepts a `.f90` file as input
-- Use FPM to build the file with its dependencies
-- Execute the resulting binary
-- Initial version rebuilds on every run (no caching)
+### ✅ **Phase 1 Complete**: Foundation
+- ✅ Basic CLI with comprehensive argument parsing (`--help`, `-v`, `-vv`, `--verbose`, `--cache-dir`, `--config-dir`)
+- ✅ Local module dependency resolution with interdependent module support
+- ✅ FPM integration with modern defaults (implicit none, double precision)
+- ✅ OS-specific caching and configuration management
+- ✅ Package registry with smart module resolution (prefix matching, underscore inference)
+- ✅ Comprehensive test coverage (unit, integration, system tests)
 
-### Phase 2: Caching System
-- Implement a caching mechanism to avoid recompilation
-- Cache location should be in a system-appropriate directory (e.g., `~/.cache/fortran/`)
-- Use file timestamps and content hashes to detect changes
-- Store compiled modules and executables in the cache
+### 🚧 **Phase 2 In Progress**: Enhanced Features
+- ✅ Interdependent local modules example
+- ✅ Custom cache/config directories
+- ✅ Organized example structure with documentation
+- ⚠️ Advanced file handling (subdirectories, relative imports)
+- ⚠️ Registry enhancements (version constraints, validation)
+- ⚠️ Error handling improvements
 
-### Phase 3: Cross-Package Support
-- Extend to work across different packages like Cargo
-- May require extending FPM's functionality
-- Support for package registries and version management
+## Modern Defaults (Opinionated Design)
 
-## Key Implementation Decisions
+The tool enforces modern Fortran practices by default:
 
-1. **FPM Integration**: Can use either FPM library API or command-line interface. Choose based on:
-   - API for fine-grained control and better error handling
-   - CLI for simpler operations and easier maintenance
+1. **`implicit none`** - Enforced automatically via `fpm.toml`
+2. **Double precision** - `real` defaults to `real(8)` via compiler flags
+3. **Free form** - Modern source format
+4. **Standard compliance** - Generates Fortran 2018 code
 
-2. **Cache Structure**: Design cache to store:
-   - Compiled modules (`.mod` files)
-   - Object files (`.o` files)
-   - Executable binaries
-   - Dependency graphs
-   - Build metadata (timestamps, hashes)
+### Compiler Flags Applied
+```bash
+--flag "-fdefault-real-8 -fdefault-double-8"
+```
 
-3. **Dependency Resolution**: Leverage FPM's existing dependency resolution capabilities while adding:
-   - Dynamic dependency detection from single `.f90` files
-   - Module search paths
-   - External package resolution
+## Module Registry System
 
-## Module Registry
-
-The tool includes a registry that maps Fortran module names to their respective packages, designed to be compatible with the [FPM Registry](https://github.com/fortran-lang/fpm-registry) format. The registry uses TOML format.
+The tool includes a registry that maps Fortran module names to their respective packages, designed to be compatible with the [FPM Registry](https://github.com/fortran-lang/fpm-registry) format.
 
 ### Registry Format
 
-The registry follows FPM's package namespace structure:
-
 ```toml
-# registry.toml
+# ~/.config/fortran/registry.toml
 [packages]
 
-[packages.json-fortran]
-version = "8.3.0"
-git = "https://github.com/jacobwilliams/json-fortran"
-modules = ["json_module", "json_kinds", "json_parameters"]
+[packages.fortplotlib]
+git = "https://github.com/krystophny/fortplotlib"
+prefix = "fortplot"  # Any module starting with "fortplot"
 
-[packages.stdlib]
-version = "0.2.0" 
-git = "https://github.com/fortran-lang/stdlib"
-modules = ["stdlib_io", "stdlib_kinds", "stdlib_string_type", "stdlib_ascii"]
-
-[packages.fftpack]
-version = "1.0.0"
-git = "https://github.com/fortran-lang/fftpack"
-modules = ["fftpack"]
+[packages.pyplot-fortran]
+git = "https://github.com/jacobwilliams/pyplot-fortran"
+# pyplot_module -> pyplot-fortran (underscore inference)
 ```
 
 ### Module Resolution Strategy
 
-The tool uses a smart module resolution strategy:
-
-1. **Explicit mappings**: Check `module_index.toml` for explicit module-to-package mappings
-2. **Custom prefixes**: Check if module starts with a registered prefix (e.g., `fortplot*` → `fortplotlib`)
+1. **Explicit mappings**: Check direct module-to-package mappings
+2. **Custom prefixes**: Check if module starts with a registered prefix
 3. **Automatic inference**: 
    - If module contains underscore: `module_name` → `package-name` (part before first `_`)
    - If no underscore: `module_name` → `package-name` (the module name itself)
 
-Example resolutions:
-- `use fortplot` → `fortplotlib` (via prefix)
-- `use fortplot_utils` → `fortplotlib` (via prefix)
-- `use pyplot_module` → `pyplot-fortran` (via underscore rule)
-- `use json_module` → `json-fortran` (via underscore rule)
-- `use fftpack` → `fftpack` (no underscore, use full name)
+### Configuration Directories
 
-### Registry Integration
+The tool uses standard OS directories:
+- **Config**: `~/.config/fortran/` (Linux/macOS) or `%LOCALAPPDATA%/fortran/config/` (Windows)
+- **Cache**: `~/.cache/fortran/` (Linux/macOS) or `%LOCALAPPDATA%/fortran/cache/` (Windows)
+- **Registry**: `~/.config/fortran/registry.toml`
 
-1. **Local Registry**: Store package definitions in `registry.toml`
-2. **Module Index**: Auto-generate `module_index.toml` for quick lookups
-3. **FPM Registry Sync**: Optionally pull package info from the official FPM registry
-4. **Namespace Support**: Follow FPM's namespace convention (e.g., `fortran-lang/stdlib`)
+## Example Structure
 
-### Usage Flow
+Examples are organized into subdirectories:
+- `example/hello/` - Basic hello world
+- `example/calculator/` - Local module usage
+- `example/precision/` - Modern precision defaults
+- `example/interdependent/` - Complex interdependent modules
+- `example/plotting/` - External dependencies (disabled)
 
-When encountering `use module_name`:
-1. Check local source files
-2. Look up module in `module_index.toml`
-3. Find package details in `registry.toml`
-4. Use FPM to fetch and build the dependency
-5. Cache the built package for future use
+Each example includes:
+- Source files
+- README.md with documentation
+- Test validation in `test_examples.f90`
 
-This approach maintains compatibility with the FPM ecosystem while enabling Python-like import behavior.
+## Development Principles
+
+1. **Opinionated for Good**: Make choices that help users adopt modern Fortran practices
+2. **Python-like Experience**: `fortran mycode.f90` should be as easy as `python mycode.py`
+3. **Test-Driven Development**: Write tests first, comprehensive coverage
+4. **Zero Configuration**: Just write code and run it
+5. **Gradual Adoption**: Works with existing FPM packages and build systems
+
+## Key Implementation Decisions
+
+1. **FPM Integration**: Uses FPM CLI for building, generates dynamic `fpm.toml` files
+2. **Caching Strategy**: OS-specific cache directories with timestamp-based invalidation
+3. **Registry Design**: TOML-based, FPM-compatible with smart resolution rules
+4. **Modern Defaults**: Compiler flags and fpm.toml settings enforce best practices
 
 ## Development Notes
 
-- We will use my fork of fpm in case we need changes there: https://github.com/krystophny/fpm . However, if it can be avoided, don't make changes in fpm itself, or keep them minimal otherwise. The caching system should be part of `fortran` for now with the possibility to port it to fpm later.
+- **FPM Fork**: We use the standard FPM, keeping changes minimal or separate
+- **Caching**: Part of `fortran` tool, not FPM itself
+- **Testing**: Every feature must have tests before merging
+- **Documentation**: Examples serve as both documentation and tests
+
+## Future Roadmap
+
+- **Phase 3**: Smart caching with content hashing
+- **Phase 4**: Cross-package support and performance optimization  
+- **Phase 5**: Integration with official FPM registry
+- **Phase 6**: Simplified Fortran preprocessor (`.f` files)
+- **Phase 7**: Type inference system
+
+**Goal**: Make Fortran development as seamless as Python, where you can just run a file without worrying about compilation, linking, or dependency management.
+
+*"Fortran is the Python of scientific computing - it just doesn't know it yet."*
