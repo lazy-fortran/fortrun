@@ -68,6 +68,9 @@ contains
       if (verbose_level >= 1) then
         print '(a)', 'Cache hit: Using existing build'
       end if
+      
+      ! Always update source files to allow incremental compilation
+      call update_source_files(absolute_path, project_dir)
     else
       ! Cache miss: need to set up project
       if (verbose_level >= 1) then
@@ -296,7 +299,7 @@ contains
     character(len=*), intent(in) :: source_file, basename, cache_dir
     character(len=*), intent(out) :: project_dir
     integer, intent(in) :: verbose_level
-    character(len=32) :: content_hash
+    character(len=32) :: structure_hash
     character(len=256) :: source_dir
     integer :: last_slash
     
@@ -308,15 +311,15 @@ contains
       source_dir = '.'
     end if
     
-    ! Generate content hash for all source files in directory
-    content_hash = get_content_hash([source_file])
+    ! Generate hash based on project structure (dependencies and local modules), not main file content
+    structure_hash = get_project_structure_hash(source_dir, source_file)
     
     if (verbose_level >= 2) then
-      print '(a,a)', 'Content hash: ', trim(content_hash)
+      print '(a,a)', 'Project structure hash: ', trim(structure_hash)
     end if
     
-    ! Create project directory based on content hash
-    project_dir = trim(cache_dir) // '/' // trim(basename) // '_' // trim(content_hash)
+    ! Create project directory based on structure hash
+    project_dir = trim(cache_dir) // '/' // trim(basename) // '_' // trim(structure_hash)
     
   end subroutine get_project_hash_and_directory
   
@@ -351,5 +354,107 @@ contains
     call generate_fpm_with_dependencies(absolute_path, project_dir, basename, verbose_level, custom_config_dir)
     
   end subroutine setup_project_files
+  
+  subroutine update_source_files(absolute_path, project_dir)
+    character(len=*), intent(in) :: absolute_path, project_dir
+    character(len=512) :: command
+    integer :: exitstat, cmdstat
+    
+    ! Update the main source file in the cached project
+    command = 'cp "' // trim(absolute_path) // '" "' // trim(project_dir) // '/app/main.f90"'
+    call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
+    
+    if (cmdstat /= 0 .or. exitstat /= 0) then
+      print '(a)', 'Warning: Failed to update main source file in cache'
+    end if
+    
+    ! Update any local module files (copy all .f90 files from source directory)
+    call copy_local_modules(absolute_path, project_dir)
+    
+  end subroutine update_source_files
+  
+  function get_project_structure_hash(source_dir, main_file) result(structure_hash)
+    character(len=*), intent(in) :: source_dir, main_file
+    character(len=32) :: structure_hash
+    character(len=512) :: all_files(100)
+    integer :: num_files, i
+    character(len=512) :: combined_dependencies
+    
+    ! Get all .f90 files in the source directory except the main file
+    call get_f90_files_except_main(source_dir, main_file, all_files, num_files)
+    
+    ! Combine local module files to create structure hash
+    combined_dependencies = ''
+    do i = 1, num_files
+      if (len_trim(all_files(i)) > 0) then
+        combined_dependencies = trim(combined_dependencies) // trim(all_files(i)) // ';'
+      end if
+    end do
+    
+    ! If no local modules, use a simple hash based on the main file path
+    if (len_trim(combined_dependencies) == 0) then
+      structure_hash = 'simple_' // extract_basename(main_file)
+    else
+      ! Generate hash based on local module files (not their content, just structure)
+      structure_hash = get_content_hash(all_files(1:num_files))
+      if (structure_hash == 'fallback_unknown') then
+        structure_hash = 'struct_' // extract_basename(main_file)
+      end if
+    end if
+    
+  end function get_project_structure_hash
+  
+  subroutine get_f90_files_except_main(source_dir, main_file, files, num_files)
+    character(len=*), intent(in) :: source_dir, main_file
+    character(len=*), intent(out) :: files(:)
+    integer, intent(out) :: num_files
+    character(len=512) :: command, temp_file
+    integer :: unit, iostat, i
+    character(len=512) :: line, main_basename
+    
+    ! Get basename of main file for comparison
+    main_basename = extract_basename(main_file)
+    
+    ! Create temporary file to list .f90 files
+    temp_file = '/tmp/fortran_f90_list.tmp'
+    command = 'find "' // trim(source_dir) // '" -maxdepth 1 -name "*.f90" -o -name "*.F90" > ' // trim(temp_file)
+    call execute_command_line(command)
+    
+    ! Read file list and exclude main file
+    files = ''
+    num_files = 0
+    open(newunit=unit, file=temp_file, status='old', iostat=iostat)
+    if (iostat == 0) then
+      do i = 1, size(files)
+        read(unit, '(a)', iostat=iostat) line
+        if (iostat /= 0) exit
+        
+        ! Skip if this is the main file
+        if (index(line, trim(main_basename)) > 0) cycle
+        
+        num_files = num_files + 1
+        files(num_files) = trim(line)
+      end do
+      close(unit)
+    end if
+    
+    ! Clean up
+    call execute_command_line('rm -f ' // trim(temp_file))
+    
+  end subroutine get_f90_files_except_main
+  
+  function extract_basename(filepath) result(basename)
+    character(len=*), intent(in) :: filepath
+    character(len=256) :: basename
+    integer :: last_slash
+    
+    last_slash = index(filepath, '/', back=.true.)
+    if (last_slash > 0) then
+      basename = filepath(last_slash+1:)
+    else
+      basename = filepath
+    end if
+    
+  end function extract_basename
   
 end module runner
