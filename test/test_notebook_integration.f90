@@ -36,6 +36,8 @@ contains
         character(len=:), allocatable :: content, output
         type(notebook_t) :: nb
         type(execution_result_t) :: results
+        character(len=256) :: test_cache_dir
+        integer :: i
         
         print *, "  Test 1: Simple notebook execution..."
         
@@ -50,8 +52,12 @@ contains
         ! Parse notebook
         call parse_notebook(content, nb)
         
+        ! Set up test cache directory
+        test_cache_dir = "/tmp/test_notebook_cache"
+        call execute_command_line("mkdir -p " // trim(test_cache_dir))
+        
         ! Execute notebook
-        call execute_notebook(nb, results)
+        call execute_notebook(nb, results, test_cache_dir)
         
         ! Check execution results
         if (.not. results%success) then
@@ -59,6 +65,7 @@ contains
             all_tests_passed = .false.
             return
         end if
+        
         
         ! Check that output was captured
         if (index(results%cells(2)%output, "Result:") == 0) then
@@ -78,6 +85,7 @@ contains
         character(len=:), allocatable :: content, markdown_output
         type(notebook_t) :: nb
         type(execution_result_t) :: results
+        character(len=256) :: test_cache_dir
         
         print *, "  Test 2: Markdown rendering..."
         
@@ -88,7 +96,12 @@ contains
                   "print *, 'Hello, World!'"
         
         call parse_notebook(content, nb)
-        call execute_notebook(nb, results)
+        
+        ! Set up test cache directory
+        test_cache_dir = "/tmp/test_notebook_cache"
+        call execute_command_line("mkdir -p " // trim(test_cache_dir))
+        
+        call execute_notebook(nb, results, test_cache_dir)
         call render_notebook_markdown(nb, results, markdown_output)
         
         ! Check markdown output contains expected elements
@@ -121,6 +134,8 @@ contains
         character(len=:), allocatable :: content, markdown_output
         type(notebook_t) :: nb
         type(execution_result_t) :: results
+        character(len=256) :: test_cache_dir
+        integer :: i
         
         print *, "  Test 3: Multi-cell execution..."
         
@@ -134,7 +149,13 @@ contains
                   "print *, 'z =', z"
         
         call parse_notebook(content, nb)
-        call execute_notebook(nb, results)
+        
+        ! Set up test cache directory
+        test_cache_dir = "/tmp/test_notebook_cache"
+        call execute_command_line("mkdir -p " // trim(test_cache_dir))
+        
+        call execute_notebook(nb, results, test_cache_dir)
+        
         
         ! Check that variables persist across cells
         if (index(results%cells(2)%output, "y =") == 0 .or. &
@@ -162,6 +183,7 @@ contains
         character(len=:), allocatable :: content, markdown_output
         type(notebook_t) :: nb
         type(execution_result_t) :: results
+        character(len=256) :: test_cache_dir
         
         print *, "  Test 4: Plot capture (mock)..."
         
@@ -172,7 +194,12 @@ contains
                   "print *, 'Plot would be shown here'"
         
         call parse_notebook(content, nb)
-        call execute_notebook(nb, results)
+        
+        ! Set up test cache directory
+        test_cache_dir = "/tmp/test_notebook_cache"
+        call execute_command_line("mkdir -p " // trim(test_cache_dir))
+        
+        call execute_notebook(nb, results, test_cache_dir)
         call render_notebook_markdown(nb, results, markdown_output)
         
         ! For now, just check basic rendering works

@@ -62,6 +62,9 @@ contains
             cache_dir = get_cache_dir()
         end if
         
+        ! Ensure cache directory exists
+        call execute_command_line('mkdir -p "' // trim(cache_dir) // '"')
+        
         ! Generate cache key from notebook content
         call generate_notebook_cache_key(notebook, cache_key)
         
@@ -94,7 +97,7 @@ contains
             call preprocess_notebook_if_needed(notebook)
             
             ! Generate single module FPM project
-            call generate_single_module_project(notebook, fpm_project_dir)
+            call generate_single_module_project(notebook, fpm_project_dir, cache_dir, cache_key)
             
             ! Build the notebook project with FPM
             call build_notebook_project(fpm_project_dir, results%success, results%error_message)
@@ -116,13 +119,13 @@ contains
         end if
         
         ! Execute the notebook and capture outputs
-        call execute_notebook_project(fpm_project_dir, notebook, results)
+        call execute_notebook_project(fpm_project_dir, cache_dir, cache_key, notebook, results)
         
     end subroutine execute_notebook
     
-    subroutine generate_single_module_project(notebook, project_dir)
+    subroutine generate_single_module_project(notebook, project_dir, cache_dir, cache_key)
         type(notebook_t), intent(in) :: notebook
-        character(len=*), intent(in) :: project_dir
+        character(len=*), intent(in) :: project_dir, cache_dir, cache_key
         
         character(len=512) :: command
         character(len=:), allocatable :: module_content, main_content, fpm_content
@@ -148,7 +151,7 @@ contains
         call copy_notebook_output_module(project_dir)
         
         ! Generate main program
-        call generate_main_program(notebook, main_content)
+        call generate_main_program(notebook, trim(cache_dir) // '/notebook_' // trim(cache_key) // '_outputs.txt', main_content)
         open(newunit=unit, file=trim(project_dir) // '/app/main.f90', status='replace')
         write(unit, '(a)') main_content
         close(unit)
@@ -291,7 +294,8 @@ contains
         variables_section = '    real(8) :: x, y, z, sum, diff, product, quotient' // new_line('a') // &
                            '    integer :: i, j, k, n, count' // new_line('a') // &
                            '    logical :: flag, ready' // new_line('a') // &
-                           '    character(len=256) :: text, label'
+                           '    character(len=256) :: text, label' // new_line('a') // &
+                           '    character(len=1024) :: temp_str  ! For print transformations'
         
     end subroutine analyze_notebook_variables
     
@@ -348,21 +352,33 @@ contains
         character(len=*), intent(in) :: line
         character(len=:), allocatable :: transformed_line
         integer :: print_pos
+        character(len=:), allocatable :: args_part
         
         print_pos = index(line, 'print *,')
         if (print_pos > 0) then
-            ! Simple transformation: print *, "text", var -> call notebook_print("text " // trim(adjustl(str(var))))
-            ! For now, keep it simple and just replace with notebook_print
-            transformed_line = line(1:print_pos-1) // 'call notebook_print(' // &
-                              trim(line(print_pos+8:)) // ')'
+            args_part = trim(adjustl(line(print_pos+8:)))
+            
+            ! Check for common patterns and transform appropriately
+            if (index(args_part, ',') > 0) then
+                ! Multiple arguments - need to create a format string
+                ! Use a simpler, more compatible format
+                transformed_line = line(1:print_pos-1) // &
+                    'write(temp_str, *) ' // trim(args_part) // new_line('a') // &
+                    repeat(' ', print_pos-1) // 'call notebook_print(trim(temp_str))'
+            else
+                ! Single argument - direct call
+                transformed_line = line(1:print_pos-1) // 'call notebook_print(' // &
+                                  trim(args_part) // ')'
+            end if
         else
             transformed_line = line
         end if
         
     end function transform_print_statement
     
-    subroutine generate_main_program(notebook, main_content)
+    subroutine generate_main_program(notebook, output_file, main_content)
         type(notebook_t), intent(in) :: notebook
+        character(len=*), intent(in) :: output_file
         character(len=:), allocatable, intent(out) :: main_content
         
         character(len=:), allocatable :: execution_calls
@@ -376,7 +392,7 @@ contains
             if (notebook%cells(i)%cell_type == CELL_CODE) then
                 code_cell_count = code_cell_count + 1
                 execution_calls = trim(execution_calls) // &
-                                '    call start_cell_capture(' // trim(int_to_str(i)) // ')' // new_line('a') // &
+                                '    call start_cell_capture(' // trim(int_to_str(code_cell_count)) // ')' // new_line('a') // &
                                 '    call cell_' // trim(int_to_str(code_cell_count)) // '()' // new_line('a')
             end if
         end do
@@ -386,10 +402,11 @@ contains
                       '    use notebook_output' // new_line('a') // &
                       '    implicit none' // new_line('a') // &
                       '    ' // new_line('a') // &
-                      '    call init_output_capture(' // trim(int_to_str(notebook%num_cells)) // ')' // new_line('a') // &
+                      '    call init_output_capture(' // trim(int_to_str(code_cell_count)) // ')' // new_line('a') // &
                       '    ' // new_line('a') // &
                       execution_calls // &
                       '    ' // new_line('a') // &
+                      '    call write_outputs_to_file("' // trim(output_file) // '")' // new_line('a') // &
                       '    call finalize_output_capture()' // new_line('a') // &
                       '    ' // new_line('a') // &
                       'end program notebook_runner'
@@ -443,8 +460,8 @@ contains
         
     end subroutine build_notebook_project
     
-    subroutine execute_notebook_project(project_dir, notebook, results)
-        character(len=*), intent(in) :: project_dir
+    subroutine execute_notebook_project(project_dir, cache_dir, cache_key, notebook, results)
+        character(len=*), intent(in) :: project_dir, cache_dir, cache_key
         type(notebook_t), intent(in) :: notebook
         type(execution_result_t), intent(inout) :: results
         
@@ -456,16 +473,21 @@ contains
         command = 'cd ' // trim(project_dir) // ' && fpm run 2>&1'
         call execute_and_capture(command, output, exit_code)
         
-        ! For now, set simple success/failure
-        ! TODO: Parse actual output from notebook_output module
-        do i = 1, notebook%num_cells
-            results%cells(i)%success = (exit_code == 0)
-            if (notebook%cells(i)%cell_type == CELL_CODE) then
-                results%cells(i)%output = "Cell executed successfully"  ! Placeholder
-            else
-                results%cells(i)%output = ""
-            end if
-        end do
+        ! Read actual output from notebook_output module
+        if (exit_code == 0) then
+            call read_notebook_outputs(cache_dir, cache_key, notebook, results)
+        else
+            ! Set simple failure for all cells
+            do i = 1, notebook%num_cells
+                results%cells(i)%success = .false.
+                if (notebook%cells(i)%cell_type == CELL_CODE) then
+                    results%cells(i)%output = ""
+                    results%cells(i)%error = "Execution failed"
+                else
+                    results%cells(i)%output = ""
+                end if
+            end do
+        end if
         
         results%success = (exit_code == 0)
         if (.not. results%success) then
@@ -473,6 +495,53 @@ contains
         end if
         
     end subroutine execute_notebook_project
+    
+    subroutine read_notebook_outputs(cache_dir, cache_key, notebook, results)
+        character(len=*), intent(in) :: cache_dir, cache_key
+        type(notebook_t), intent(in) :: notebook
+        type(execution_result_t), intent(inout) :: results
+        
+        character(len=:), allocatable :: output_file
+        character(len=:), allocatable :: cell_outputs(:)
+        integer :: i, code_cell_index
+        logical :: file_exists
+        
+        output_file = trim(cache_dir) // '/notebook_' // trim(cache_key) // '_outputs.txt'
+        
+        ! Check if output file exists
+        inquire(file=output_file, exist=file_exists)
+        
+        if (file_exists) then
+            call read_outputs_from_file(output_file, cell_outputs)
+            
+            ! Map outputs to cell results (only code cells have outputs)
+            code_cell_index = 0
+            do i = 1, notebook%num_cells
+                results%cells(i)%success = .true.
+                if (notebook%cells(i)%cell_type == CELL_CODE) then
+                    code_cell_index = code_cell_index + 1
+                    if (code_cell_index <= size(cell_outputs)) then
+                        results%cells(i)%output = trim(cell_outputs(code_cell_index))
+                    else
+                        results%cells(i)%output = ""
+                    end if
+                else
+                    results%cells(i)%output = ""
+                end if
+            end do
+        else
+            ! Fallback if no output file
+            do i = 1, notebook%num_cells
+                results%cells(i)%success = .true.
+                if (notebook%cells(i)%cell_type == CELL_CODE) then
+                    results%cells(i)%output = "No output captured"
+                else
+                    results%cells(i)%output = ""
+                end if
+            end do
+        end if
+        
+    end subroutine read_notebook_outputs
     
     ! Helper functions (reusing from old implementation)
     function add_indentation(text, indent) result(indented_text)

@@ -29,6 +29,8 @@ module notebook_output
     public :: notebook_error
     public :: get_cell_output
     public :: finalize_output_capture
+    public :: write_outputs_to_file
+    public :: read_outputs_from_file
     
 contains
 
@@ -157,5 +159,77 @@ contains
         end if
         
     end subroutine finalize_output_capture
+    
+    subroutine write_outputs_to_file(filename)
+        character(len=*), intent(in) :: filename
+        integer :: unit, i, j
+        
+        open(newunit=unit, file=filename, status='replace')
+        
+        ! Write number of cells
+        write(unit, '(i0)') max_cells
+        
+        ! Write each cell's output
+        do i = 1, max_cells
+            write(unit, '(i0,1x,l1)') cell_outputs(i)%count, cell_outputs(i)%has_error
+            do j = 1, cell_outputs(i)%count
+                ! Write with a delimiter to avoid space issues
+                write(unit, '(l1,1x,">>>",a,"<<<")') cell_outputs(i)%entries(j)%is_error, &
+                                                   trim(cell_outputs(i)%entries(j)%content)
+            end do
+        end do
+        
+        close(unit)
+        
+    end subroutine write_outputs_to_file
+    
+    subroutine read_outputs_from_file(filename, cell_results)
+        character(len=*), intent(in) :: filename
+        character(len=:), allocatable, intent(out) :: cell_results(:)
+        
+        integer :: unit, i, j, num_cells, entry_count, content_len, start_pos, end_pos
+        logical :: has_error, is_error
+        character(len=1024) :: line, content, full_line
+        
+        open(newunit=unit, file=filename, status='old')
+        
+        ! Read number of cells
+        read(unit, *) num_cells
+        allocate(character(len=1024) :: cell_results(num_cells))
+        
+        ! Read each cell's output
+        do i = 1, num_cells
+            read(unit, *) entry_count, has_error
+            cell_results(i) = ""
+            
+            do j = 1, entry_count
+                read(unit, '(a)') full_line
+                
+                ! Parse the line: logical>>>content<<<
+                if (full_line(1:1) == 'T') then
+                    is_error = .true.
+                else
+                    is_error = .false.
+                end if
+                
+                start_pos = index(full_line, '>>>') + 3
+                end_pos = index(full_line, '<<<') - 1
+                
+                if (start_pos > 3 .and. end_pos > start_pos) then
+                    content = full_line(start_pos:end_pos)
+                else
+                    content = ""
+                end if
+                if (len_trim(cell_results(i)) > 0) then
+                    cell_results(i) = trim(cell_results(i)) // new_line('a') // trim(content)
+                else
+                    cell_results(i) = trim(content)
+                end if
+            end do
+        end do
+        
+        close(unit)
+        
+    end subroutine read_outputs_from_file
     
 end module notebook_output
