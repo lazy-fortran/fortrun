@@ -121,7 +121,8 @@ contains
     logical :: found_pyplot
     
     ! Find the generated fpm.toml in cache directory
-    call execute_command_line('find ~/.cache/fortran -name "fpm.toml" -newer /tmp/multiple_output.txt 2>/dev/null | head -1 > /tmp/fpm_path.txt')
+    call execute_command_line('find ~/.cache/fortran -name "fpm.toml" -newer /tmp/multiple_output.txt ' // &
+                              '2>/dev/null | head -1 > /tmp/fpm_path.txt')
     
     open(newunit=unit, file='/tmp/fpm_path.txt', status='old', iostat=iostat)
     if (iostat /= 0) then

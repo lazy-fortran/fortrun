@@ -77,7 +77,8 @@ contains
     print *, 'Test 2: Run from parent directory using relative path'
     
     ! Change to parent directory and run with relative path
-    command = 'ORIGINAL_DIR=$(pwd) && cd ' // trim(test_dir) // ' && $ORIGINAL_DIR/build/gfortran_*/app/fortran subdir/hello.f90 ' // &
+    command = 'ORIGINAL_DIR=$(pwd) && cd ' // trim(test_dir) // &
+              ' && $ORIGINAL_DIR/build/gfortran_*/app/fortran subdir/hello.f90 ' // &
               '> /tmp/rel_output.txt 2>&1; echo $? > /tmp/rel_exit.txt'
     call execute_command_line(command)
     

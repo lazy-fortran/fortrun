@@ -57,7 +57,8 @@ contains
     
     ! Simulate no arguments by calling parse_arguments directly
     ! This should set show_help to .true.
-    call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, custom_config_dir, parallel_jobs, no_wait)
+    call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
+                        custom_config_dir, parallel_jobs, no_wait)
     
     if (.not. show_help) then
       write(error_unit, *) 'FAIL: No arguments should show help'

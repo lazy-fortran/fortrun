@@ -2,7 +2,9 @@ module registry_resolver
   use config, only: get_registry_path, get_config_dir, ensure_config_dir
   implicit none
   private
-  public :: resolve_module_to_package, load_registry, ensure_registry_exists, load_registry_from_path, ensure_registry_exists_in_dir, resolve_module_with_version, validate_registry
+  public :: resolve_module_to_package, load_registry, ensure_registry_exists, &
+            load_registry_from_path, ensure_registry_exists_in_dir, &
+            resolve_module_with_version, validate_registry
   
   type :: package_info
     character(len=128) :: name

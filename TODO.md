@@ -332,9 +332,9 @@ Key abstractions to maintain:
 - [ ] Auto-import common intrinsic modules
 - [x] Write tests for default behaviors (real_default_test.f90)
 
-## Phase 6: Basic Type Inference (Next Priority)
+## Phase 6: Basic Type Inference - COMPLETED ✅
 
-### 6.1 Type Inference Infrastructure
+### 6.1 Type Inference Infrastructure ✅
 - [x] Create `src/type_inference.f90` module
   - Type environment to track variable types
   - Expression analyzer for literal detection
@@ -344,7 +344,7 @@ Key abstractions to maintain:
   - Test type propagation
   - Test error cases
 
-### 6.2 Literal Type Detection
+### 6.2 Literal Type Detection ✅
 - [x] Write test for integer literals
   - `x = 42` → `integer :: x`
   - Handle different integer forms (42, 42_8, etc.)
@@ -361,7 +361,7 @@ Key abstractions to maintain:
   - Regular expressions for each literal type
   - Precision suffix handling
 
-### 6.3 Expression Type Propagation
+### 6.3 Expression Type Propagation ✅
 - [x] Write test for arithmetic expressions
   - `x = 2 + 3` → `integer :: x`
   - `y = 2.0 + 3` → `real(8) :: y` (promotion rules)
@@ -375,7 +375,7 @@ Key abstractions to maintain:
   - Parse expressions into AST
   - Evaluate types bottom-up
 
-### 6.4 Variable Declaration Generation
+### 6.4 Variable Declaration Generation ✅
 - [x] Write test for declaration placement
   - Declarations at start of program/function/subroutine
   - Handle multiple procedures in one file
@@ -388,6 +388,19 @@ Key abstractions to maintain:
 - [x] Implement declaration injector
   - Find correct insertion points
   - Format declarations properly
+
+### 6.5 Integration with Preprocessor ✅
+- [x] Integrate type inference with preprocessor
+  - Type inference enabled by default for .f files
+  - Automatic variable declaration generation
+  - Proper handling of existing declarations
+- [x] Comprehensive integration tests
+  - test_type_inference_integration.f90 with 5/5 tests passing
+  - Basic type inference, arithmetic expressions, mixed types
+  - Intrinsic functions, print statement filtering
+- [x] Unit tests for type inference
+  - test_type_inference.f90 with 18/18 tests passing
+  - All literal types, expression evaluation, declaration generation
 
 ## Phase 7: Advanced Type Inference
 
