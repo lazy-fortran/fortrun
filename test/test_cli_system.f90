@@ -514,10 +514,18 @@ contains
   
   subroutine test_invalid_extension()
     logical :: exit_ok, has_error
+    integer :: unit
+    character(len=256) :: test_txt_file
     
     print *, 'Test 14: Invalid file extension'
     
-    command = './build/gfortran_*/app/fortran test.txt' // &
+    ! Create a temporary .txt file
+    test_txt_file = '/tmp/test_invalid.txt'
+    open(newunit=unit, file=test_txt_file, status='replace')
+    write(unit, '(a)') "This is not a Fortran file"
+    close(unit)
+    
+    command = './build/gfortran_*/app/fortran ' // trim(test_txt_file) // &
               ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command, exitstat=exit_code)
     
@@ -530,6 +538,9 @@ contains
     else
       print *, 'FAIL: Should reject invalid extensions'
     end if
+    
+    ! Cleanup
+    call execute_command_line('rm -f ' // trim(test_txt_file))
   end subroutine test_invalid_extension
 
   subroutine cleanup_test_files()
