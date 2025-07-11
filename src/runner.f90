@@ -1,5 +1,5 @@
 module runner
-  use cache, only: get_cache_dir, ensure_cache_dir
+  use cache, only: get_cache_dir, ensure_cache_dir, get_content_hash, cache_exists
   use module_scanner, only: scan_modules, module_info
   use fpm_generator, only: generate_fpm_with_deps, generate_fpm_with_deps_from_config
   use registry_resolver, only: ensure_registry_exists, ensure_registry_exists_in_dir
@@ -60,32 +60,33 @@ contains
       return
     end if
     
-    ! Create project directory in cache
-    project_dir = trim(cache_dir) // '/' // trim(basename) // '_' // get_timestamp()
-    command = 'mkdir -p "' // trim(project_dir) // '/app"'
-    call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
+    ! Generate content-based hash for cache key
+    call get_project_hash_and_directory(absolute_path, basename, cache_dir, project_dir, verbose_level)
     
-    if (cmdstat /= 0 .or. exitstat /= 0) then
-      print '(a)', 'Error: Failed to create project directory'
-      exit_code = 1
-      return
+    ! Check if project already exists (cache hit)
+    if (directory_exists(trim(project_dir) // '/build')) then
+      if (verbose_level >= 1) then
+        print '(a)', 'Cache hit: Using existing build'
+      end if
+    else
+      ! Cache miss: need to set up project
+      if (verbose_level >= 1) then
+        print '(a)', 'Cache miss: Setting up new build'
+      end if
+      
+      command = 'mkdir -p "' // trim(project_dir) // '/app"'
+      call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
+      
+      if (cmdstat /= 0 .or. exitstat /= 0) then
+        print '(a)', 'Error: Failed to create project directory'
+        exit_code = 1
+        return
+      end if
+      
+      ! Copy source files and generate FPM project only on cache miss
+      call setup_project_files(absolute_path, project_dir, basename, verbose_level, custom_config_dir)
     end if
     
-    ! Copy the source file to app directory
-    command = 'cp "' // trim(absolute_path) // '" "' // trim(project_dir) // '/app/main.f90"'
-    call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
-    
-    if (cmdstat /= 0 .or. exitstat /= 0) then
-      print '(a)', 'Error: Failed to copy source file'
-      exit_code = 1
-      return
-    end if
-    
-    ! Copy all other .f90 files from the same directory to src/
-    call copy_local_modules(absolute_path, project_dir)
-    
-    ! Scan for module dependencies
-    call generate_fpm_with_dependencies(absolute_path, project_dir, basename, verbose_level, custom_config_dir)
     
     ! Build first
     if (verbose_level == 0) then
@@ -290,5 +291,65 @@ contains
     call execute_command_line('rm -f ' // trim(error_file))
     
   end subroutine provide_helpful_error_message
+  
+  subroutine get_project_hash_and_directory(source_file, basename, cache_dir, project_dir, verbose_level)
+    character(len=*), intent(in) :: source_file, basename, cache_dir
+    character(len=*), intent(out) :: project_dir
+    integer, intent(in) :: verbose_level
+    character(len=32) :: content_hash
+    character(len=256) :: source_dir
+    integer :: last_slash
+    
+    ! Get directory containing the source file
+    last_slash = index(source_file, '/', back=.true.)
+    if (last_slash > 0) then
+      source_dir = source_file(1:last_slash-1)
+    else
+      source_dir = '.'
+    end if
+    
+    ! Generate content hash for all source files in directory
+    content_hash = get_content_hash([source_file])
+    
+    if (verbose_level >= 2) then
+      print '(a,a)', 'Content hash: ', trim(content_hash)
+    end if
+    
+    ! Create project directory based on content hash
+    project_dir = trim(cache_dir) // '/' // trim(basename) // '_' // trim(content_hash)
+    
+  end subroutine get_project_hash_and_directory
+  
+  function directory_exists(dir_path) result(exists)
+    character(len=*), intent(in) :: dir_path
+    logical :: exists
+    
+    ! Check if directory exists by checking for current directory marker
+    inquire(file=trim(dir_path) // '/.', exist=exists)
+    
+  end function directory_exists
+  
+  subroutine setup_project_files(absolute_path, project_dir, basename, verbose_level, custom_config_dir)
+    character(len=*), intent(in) :: absolute_path, project_dir, basename, custom_config_dir
+    integer, intent(in) :: verbose_level
+    character(len=512) :: command
+    integer :: exitstat, cmdstat
+    
+    ! Copy the source file to app directory
+    command = 'cp "' // trim(absolute_path) // '" "' // trim(project_dir) // '/app/main.f90"'
+    call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
+    
+    if (cmdstat /= 0 .or. exitstat /= 0) then
+      print '(a)', 'Error: Failed to copy source file'
+      return
+    end if
+    
+    ! Copy all other .f90 files from the same directory to src/
+    call copy_local_modules(absolute_path, project_dir)
+    
+    ! Scan for module dependencies and generate fpm.toml
+    call generate_fpm_with_dependencies(absolute_path, project_dir, basename, verbose_level, custom_config_dir)
+    
+  end subroutine setup_project_files
   
 end module runner
