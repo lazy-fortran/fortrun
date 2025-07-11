@@ -281,7 +281,10 @@ Key abstractions to maintain:
 - `BuildOrchestrator`: Coordinates fpm builds
 - `CLIHandler`: Manages user interaction
 
-## Phase 5: Simplified Fortran Preprocessor (.f files)
+## Phase 5: Simplified Fortran Preprocessor (.f files) - IN BRANCH: preprocessor
+
+**NOTE: All work for Phase 5, 6, and 7 (preprocessor and type inference) is being done in the `preprocessor` branch.**
+**To work on these features, checkout the preprocessor branch: `git checkout preprocessor`**
 
 ### 5.1 Basic Preprocessor Infrastructure
 - [ ] Create `src/preprocessor.f90` module
@@ -309,7 +312,7 @@ Key abstractions to maintain:
 - [ ] Preserve logical operators (`.and.`, `.or.`)
 - [ ] Test nested type access
 
-## Phase 6: Type Inference System
+## Phase 6: Type Inference System - IN BRANCH: preprocessor
 
 ### 6.1 Basic Intrinsic Type Inference
 - [ ] Write test for integer literal inference (42 → integer)
