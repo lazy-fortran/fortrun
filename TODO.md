@@ -38,16 +38,16 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
 - [x] Enhance runner to copy all local .f90 files to temp project
 
 ### 1.3 Registry-based Module Resolution
-- [ ] Write test: `test_detect_external_module`
+- [x] Write test: `test_detect_external_module`
   - Parse .f90 file for `use fortplot`
   - Verify it finds fortplotlib in registry
-- [ ] Implement module detection in `src/module_scanner.f90`
+- [x] Implement module detection in `src/module_scanner.f90`
   - Simple line-by-line scan for `use` statements
   - Extract module names (ignore intrinsic modules)
-- [ ] Write test: `test_generate_fpm_with_dependencies`
+- [x] Write test: `test_generate_fpm_with_dependencies`
   - For file using `pyplot_module`
   - Generate fpm.toml with pyplot-fortran dependency
-- [ ] Implement FPM project generator in `src/fpm_generator.f90`
+- [x] Implement FPM project generator in `src/fpm_generator.f90`
   - Load registry.toml for package definitions
   - Implement smart module resolution:
     - Check explicit mappings in module_index.toml

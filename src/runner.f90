@@ -1,5 +1,7 @@
 module runner
   use cache, only: get_cache_dir, ensure_cache_dir
+  use module_scanner, only: scan_modules, module_info
+  use fpm_generator, only: generate_fpm_with_deps
   use, intrinsic :: iso_fortran_env, only: int64
   implicit none
   private
@@ -80,8 +82,8 @@ contains
     ! Copy all other .f90 files from the same directory to src/
     call copy_local_modules(absolute_path, project_dir)
     
-    ! Generate minimal fpm.toml
-    call generate_fpm_toml(project_dir, basename)
+    ! Scan for module dependencies
+    call generate_fpm_with_dependencies(absolute_path, project_dir, basename, verbose_level)
     
     ! Build first
     if (verbose_level == 0) then
@@ -189,35 +191,24 @@ contains
     
   end function get_timestamp
   
-  subroutine generate_fpm_toml(project_dir, name)
-    character(len=*), intent(in) :: project_dir, name
-    integer :: unit
-    character(len=512) :: toml_path
+  subroutine generate_fpm_with_dependencies(source_file, project_dir, name, verbose_level)
+    character(len=*), intent(in) :: source_file, project_dir, name
+    integer, intent(in) :: verbose_level
     
-    toml_path = trim(project_dir) // '/fpm.toml'
+    type(module_info), dimension(:), allocatable :: modules
+    integer :: n_modules
     
-    open(newunit=unit, file=toml_path, status='replace')
-    write(unit, '(a)') 'name = "' // trim(name) // '"'
-    write(unit, '(a)') 'version = "0.1.0"'
-    write(unit, '(a)') ''
-    write(unit, '(a)') '[build]'
-    write(unit, '(a)') 'auto-executables = false'
-    write(unit, '(a)') 'auto-tests = false'
-    write(unit, '(a)') 'auto-examples = false'
-    write(unit, '(a)') ''
-    write(unit, '(a)') '[fortran]'
-    write(unit, '(a)') 'implicit-typing = false  # Enforces implicit none'
-    write(unit, '(a)') 'implicit-external = false'
-    write(unit, '(a)') 'source-form = "free"'
-    write(unit, '(a)') ''
-    write(unit, '(a)') '[[executable]]'
-    write(unit, '(a)') 'name = "' // trim(name) // '"'
-    write(unit, '(a)') 'main = "main.f90"'
-    write(unit, '(a)') ''
-    write(unit, '(a)') '[executable.dependencies]'
-    close(unit)
+    ! Scan the source file for module dependencies
+    call scan_modules(source_file, modules, n_modules)
     
-  end subroutine generate_fpm_toml
+    if (verbose_level >= 1 .and. n_modules > 0) then
+      print '(a,i0,a)', 'Found ', n_modules, ' external module dependencies'
+    end if
+    
+    ! Generate fpm.toml with dependencies
+    call generate_fpm_with_deps(project_dir, name, modules, n_modules)
+    
+  end subroutine generate_fpm_with_dependencies
   
   subroutine copy_local_modules(main_file, project_dir)
     character(len=*), intent(in) :: main_file, project_dir
