@@ -83,22 +83,33 @@ contains
     ! Generate minimal fpm.toml
     call generate_fpm_toml(project_dir, basename)
     
-    ! Build and run with verbosity control
+    ! Build first
     if (verbose_level == 0) then
-      ! Quiet mode: build silently, then run
+      ! Quiet mode: build silently
       command = 'cd "' // trim(project_dir) // '" && ' // &
-                'fpm build --flag "-fdefault-real-8 -fdefault-double-8" > /dev/null 2>&1 && ' // &
-                'fpm run --flag "-fdefault-real-8 -fdefault-double-8"'
-    else if (verbose_level == 1) then
-      ! Normal verbose: show build and run
+                'fpm build --flag "-fdefault-real-8 -fdefault-double-8" > /dev/null 2>&1'
+    else if (verbose_level >= 2) then
+      ! Very verbose: show detailed build output
       command = 'cd "' // trim(project_dir) // '" && ' // &
-                'fpm run --flag "-fdefault-real-8 -fdefault-double-8"'
+                'fpm build --verbose --flag "-fdefault-real-8 -fdefault-double-8"'
     else
-      ! Very verbose: show detailed output
+      ! Normal verbose: show build progress
       command = 'cd "' // trim(project_dir) // '" && ' // &
-                'fpm run --verbose --flag "-fdefault-real-8 -fdefault-double-8"'
+                'fpm build --flag "-fdefault-real-8 -fdefault-double-8"'
     end if
     
+    call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat, wait=.true.)
+    
+    if (cmdstat /= 0 .or. exitstat /= 0) then
+      if (verbose_level == 0) then
+        print '(a)', 'Error: Build failed. Run with -v to see details.'
+      end if
+      exit_code = 1
+      return
+    end if
+    
+    ! Run the executable directly
+    command = trim(project_dir) // '/build/gfortran_*/app/' // trim(basename)
     call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat, wait=.true.)
     
     if (cmdstat /= 0) then
