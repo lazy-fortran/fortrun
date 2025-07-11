@@ -77,8 +77,9 @@ contains
     ! Generate minimal fpm.toml
     call generate_fpm_toml(project_dir, basename)
     
-    ! Run FPM with modern Fortran flags
-    command = 'cd "' // trim(project_dir) // '" && fpm build --flag "-fimplicit-none -fdefault-real-8 -fdefault-double-8" && fpm run'
+    ! Run FPM with precision flags (implicit-none handled by fpm.toml)
+    command = 'cd "' // trim(project_dir) // '" && ' // &
+              'fpm run --flag "-fdefault-real-8 -fdefault-double-8"'
     call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat, wait=.true.)
     
     if (cmdstat /= 0) then
@@ -175,7 +176,7 @@ contains
     write(unit, '(a)') 'auto-examples = false'
     write(unit, '(a)') ''
     write(unit, '(a)') '[fortran]'
-    write(unit, '(a)') 'implicit-typing = false'
+    write(unit, '(a)') 'implicit-typing = false  # Enforces implicit none'
     write(unit, '(a)') 'implicit-external = false'
     write(unit, '(a)') 'source-form = "free"'
     write(unit, '(a)') ''
