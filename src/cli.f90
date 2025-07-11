@@ -5,25 +5,28 @@ module cli
   
 contains
 
-  subroutine parse_arguments(filename, show_help, verbose_level, custom_cache_dir, custom_config_dir)
+  subroutine parse_arguments(filename, show_help, verbose_level, custom_cache_dir, custom_config_dir, parallel_jobs)
     character(len=*), intent(out) :: filename
     logical, intent(out) :: show_help
     integer, intent(out) :: verbose_level
     character(len=*), intent(out) :: custom_cache_dir
     character(len=*), intent(out) :: custom_config_dir
+    integer, intent(out) :: parallel_jobs
     
-    integer :: nargs, i
+    integer :: nargs, i, iostat
     character(len=256) :: arg
-    logical :: filename_found, expecting_cache_dir, expecting_config_dir
+    logical :: filename_found, expecting_cache_dir, expecting_config_dir, expecting_jobs
     
     filename = ''
     show_help = .false.
     verbose_level = 0
     custom_cache_dir = ''
     custom_config_dir = ''
+    parallel_jobs = 0  ! 0 means use FPM default
     filename_found = .false.
     expecting_cache_dir = .false.
     expecting_config_dir = .false.
+    expecting_jobs = .false.
     
     nargs = command_argument_count()
     
@@ -42,6 +45,13 @@ contains
       else if (expecting_config_dir) then
         custom_config_dir = trim(arg)
         expecting_config_dir = .false.
+      else if (expecting_jobs) then
+        read(arg, *, iostat=iostat) parallel_jobs
+        if (iostat /= 0 .or. parallel_jobs < 1) then
+          print '(a)', 'Error: Invalid number of jobs. Must be a positive integer.'
+          stop 1
+        end if
+        expecting_jobs = .false.
       else if (arg == '--help' .or. arg == '-h') then
         show_help = .true.
         return
@@ -71,6 +81,8 @@ contains
         expecting_cache_dir = .true.
       else if (arg == '--config-dir') then
         expecting_config_dir = .true.
+      else if (arg == '-j' .or. arg == '--jobs') then
+        expecting_jobs = .true.
       else if (arg(1:1) /= '-') then
         ! Not a flag, must be filename
         if (.not. filename_found) then
@@ -89,6 +101,11 @@ contains
     
     if (expecting_config_dir) then
       print '(a)', 'Error: --config-dir requires an argument'
+      show_help = .true.
+    end if
+    
+    if (expecting_jobs) then
+      print '(a)', 'Error: -j/--jobs requires a number'
       show_help = .true.
     end if
     
