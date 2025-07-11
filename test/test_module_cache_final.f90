@@ -221,7 +221,7 @@ contains
     close(unit)
     
     ! First run (should be cache miss)
-    call execute_command_line('fpm run fortran -- test_cache.f90 > first_run.txt 2>&1')
+    call execute_command_line('fpm run fortran -- test_cache.f90 -v > first_run.txt 2>&1')
     call execute_command_line('grep -q "Cache miss" first_run.txt', exitstat=stat)
     
     if (stat == 0) then
@@ -231,7 +231,7 @@ contains
     end if
     
     ! Second run (should be cache hit)
-    call execute_command_line('fpm run fortran -- test_cache.f90 > second_run.txt 2>&1')
+    call execute_command_line('fpm run fortran -- test_cache.f90 -v > second_run.txt 2>&1')
     call execute_command_line('grep -q "Cache hit" second_run.txt', exitstat=stat)
     
     if (stat == 0) then
