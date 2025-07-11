@@ -1,0 +1,12 @@
+# Local package registry for fortran CLI tool
+# Maps module names to their packages for automatic dependency resolution
+
+[packages]
+
+[packages.fortplotlib]
+git = "https://github.com/krystophny/fortplotlib"
+modules = ["fortplot"]
+
+[packages.pyplot-fortran]
+git = "https://github.com/jacobwilliams/pyplot-fortran" 
+modules = ["pyplot_module"]

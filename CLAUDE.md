@@ -161,3 +161,7 @@ When encountering `use module_name`:
 5. Cache the built package for future use
 
 This approach maintains compatibility with the FPM ecosystem while enabling Python-like import behavior.
+
+## Development Notes
+
+- We will use my fork of fpm in case we need changes there: https://github.com/krystophny/fpm . However, if it can be avoided, don't make changes in fpm itself, or keep them minimal otherwise. The caching system should be part of `fortran` for now with the possibility to port it to fpm later.

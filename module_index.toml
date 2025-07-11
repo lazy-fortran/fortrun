@@ -1,0 +1,6 @@
+# Auto-generated module index for fast lookups
+# Maps module names to package names
+
+[modules]
+fortplot = "fortplotlib"
+pyplot_module = "pyplot-fortran"

@@ -9,86 +9,68 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
 - Each task should be completable independently
 - Prefer using the existing fpm fork (https://github.com/krystophny/fpm) minimally or not at all
 
-## Phase 1: Foundation and Basic CLI
+## Phase 1: Foundation and Basic CLI (Simplified with FPM)
 
 ### 1.1 Project Setup
 - [ ] Set up basic CLI structure in `app/main.f90`
   - Parse command line arguments using Fortran intrinsics
   - Support: `fortran <file.f90>` and `fortran --help`
   - Exit with proper codes (0 for success, 1 for errors)
-- [ ] Create test framework structure
-  - Set up `test/test_cli.f90` for CLI testing
-  - Create helper module `test/test_utils.f90` for assertions
-  - Add test runner in fpm.toml
-- [ ] Define core interfaces in `src/`
-  - `src/cli_parser.f90`: Command line parsing module
-  - `src/runner.f90`: Main execution orchestrator
-  - `src/errors.f90`: Error types and handling
+- [ ] Create initial registry files
+  - `registry.toml` with fortplotlib and pyplot-fortran
+  - `module_index.toml` mapping modules to packages
+- [ ] Define minimal core modules in `src/`
+  - `src/cli.f90`: Command line parsing
+  - `src/runner.f90`: Main execution logic
 
-### 1.2 Minimal Viable Product
-- [ ] Write test: `test_run_simple_hello_world`
-  - Create test .f90 file that prints "Hello, World!"
-  - Verify it compiles and runs via our tool
-  - Check output matches expected
+### 1.2 Minimal Viable Product (Using FPM directly)
+- [ ] Write test: `test_run_simple_program`
+  - Test .f90 file without external dependencies
+  - Verify execution via our tool
 - [ ] Implement basic execution in `src/runner.f90`
-  - Create temporary directory in `/tmp/fortran_build_XXXXX`
-  - Copy input .f90 to `app/` in temp directory
-  - Generate minimal fpm.toml
-  - Execute `fpm run` and capture output
-  - Clean up temp directory
-- [ ] Write test: `test_invalid_file_error`
-  - Test with non-existent file
-  - Test with non-.f90 file
-  - Test with invalid Fortran syntax
-- [ ] Implement error handling in `src/errors.f90`
-  - FileNotFoundError
-  - InvalidFileTypeError
-  - CompilationError with fpm output
-  - User-friendly error messages
+  - Create temporary directory
+  - Generate fpm.toml with the .f90 file as app
+  - Execute `fpm run` 
+  - Clean up
+- [ ] Write test: `test_run_with_local_module`
+  - Test .f90 that uses a local module file
+  - Both files in same directory
+- [ ] Enhance runner to copy all local .f90 files to temp project
 
-### 1.3 Module Detection
-- [ ] Write test: `test_detect_single_use_statement`
-  - Parse: `use my_module`
-  - Parse: `use my_module, only: some_func`
-  - Parse: `use, intrinsic :: iso_fortran_env`
-- [ ] Implement basic parser in `src/source_parser.f90`
-  - Read .f90 file line by line
-  - Regex pattern for `use` statements
-  - Extract module names
-  - Handle Fortran comments and continuations
-- [ ] Write test: `test_detect_multiple_modules`
-  - File with multiple use statements
-  - Nested module dependencies
-  - Ignore intrinsic modules
-- [ ] Implement dependency graph in `src/dependency_graph.f90`
-  - Module type with name and source file
-  - Graph structure with add_dependency method
-  - Topological sort for build order
-  - Cycle detection
+### 1.3 Registry-based Module Resolution
+- [ ] Write test: `test_detect_external_module`
+  - Parse .f90 file for `use fortplot`
+  - Verify it finds fortplotlib in registry
+- [ ] Implement module detection in `src/module_scanner.f90`
+  - Simple line-by-line scan for `use` statements
+  - Extract module names (ignore intrinsic modules)
+- [ ] Write test: `test_generate_fpm_with_dependencies`
+  - For file using `pyplot_module`
+  - Generate fpm.toml with pyplot-fortran dependency
+- [ ] Implement FPM project generator in `src/fpm_generator.f90`
+  - Load registry.toml and module_index.toml
+  - Map detected modules to packages
+  - Generate fpm.toml with dependencies section
 
-## Phase 2: Dependency Resolution
+## Phase 2: Enhanced Features (Leveraging FPM)
 
-### 2.1 Local Module Resolution
-- [ ] Write test for finding modules in current directory
-- [ ] Implement local module search functionality
-- [ ] Write test for recursive dependency resolution
-- [ ] Implement recursive dependency resolver
+### 2.1 Improved Local File Handling
+- [ ] Write test for multiple local files with interdependencies
+- [ ] Implement smart local file copying (preserve directory structure)
+- [ ] Write test for handling relative imports
+- [ ] Support running from different directories
 
-### 2.2 Registry Integration
-- [ ] Write test for loading registry.toml
-- [ ] Implement TOML registry parser
-- [ ] Write test for module-to-package lookup
-- [ ] Implement module index generator
-- [ ] Write test for resolving external packages
-- [ ] Implement package fetching using fpm
+### 2.2 Registry Enhancement
+- [ ] Write test for multiple modules from same package
+- [ ] Support version constraints in registry
+- [ ] Write test for conflicting dependencies
+- [ ] Add registry validation and error messages
 
-### 2.3 Build System Integration
-- [ ] Write test for creating temporary fpm project structure
-- [ ] Implement dynamic fpm.toml generation
-- [ ] Write test for building with dependencies
-- [ ] Implement fpm build invocation
-- [ ] Write test for build error handling
-- [ ] Implement build error reporting
+### 2.3 Error Handling and User Experience
+- [ ] Write test for clear FPM error forwarding
+- [ ] Implement helpful error messages when modules not found
+- [ ] Write test for suggesting similar module names
+- [ ] Add verbose mode to show FPM operations
 
 ## Phase 3: Caching System
 
