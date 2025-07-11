@@ -59,8 +59,12 @@ contains
     ! Trim whitespace
     trimmed_expr = adjustl(expr)
     
-    ! Check for literals in order of precedence
-    if (is_logical_literal(trimmed_expr)) then
+    ! Check for expressions before literals to handle cases like "3.14 > 3"
+    ! Comparison expressions must be checked first
+    if (is_comparison_expression(trimmed_expr, inferred_type, env)) then
+      ! Type already set by is_comparison_expression (always logical)
+    ! Then check for literals
+    else if (is_logical_literal(trimmed_expr)) then
       inferred_type%base_type = TYPE_LOGICAL
       inferred_type%kind = 4
     else if (is_character_literal(trimmed_expr, inferred_type%char_len)) then
@@ -70,8 +74,6 @@ contains
       inferred_type%base_type = TYPE_REAL
     else if (is_integer_literal(trimmed_expr, inferred_type%kind)) then
       inferred_type%base_type = TYPE_INTEGER
-    else if (is_comparison_expression(trimmed_expr, inferred_type, env)) then
-      ! Type already set by is_comparison_expression (always logical)
     else if (is_arithmetic_expression(trimmed_expr, inferred_type, env)) then
       ! Type already set by is_arithmetic_expression
     else if (is_intrinsic_function(trimmed_expr, inferred_type, env)) then
@@ -176,7 +178,7 @@ contains
     integer, intent(out) :: length
     logical :: is_char
     
-    integer :: expr_len, quote_start, quote_end
+    integer :: expr_len, i, char_count
     character :: quote_char
     
     is_char = .false.
@@ -188,17 +190,31 @@ contains
     ! Check for single or double quotes
     if (expr(1:1) == "'" .or. expr(1:1) == '"') then
       quote_char = expr(1:1)
-      quote_start = 1
       
-      ! Find matching closing quote
-      quote_end = index(expr(2:), quote_char)
-      if (quote_end > 0) then
-        quote_end = quote_end + 1  ! Adjust for substring
-        if (quote_end == expr_len) then
-          is_char = .true.
-          length = quote_end - quote_start - 1
+      ! Scan through string handling doubled quotes
+      i = 2
+      char_count = 0
+      do while (i <= expr_len)
+        if (expr(i:i) == quote_char) then
+          if (i < expr_len .and. expr(i+1:i+1) == quote_char) then
+            ! Doubled quote - counts as one character
+            char_count = char_count + 1
+            i = i + 2
+          else if (i == expr_len) then
+            ! Found closing quote at end
+            is_char = .true.
+            length = char_count
+            return
+          else
+            ! Quote in middle but not doubled - not a valid string literal
+            return
+          end if
+        else
+          ! Regular character
+          char_count = char_count + 1
+          i = i + 1
         end if
-      end if
+      end do
     end if
     
   end function is_character_literal
