@@ -12,6 +12,9 @@ module-naming = false
 [install]
 library = false
 test = false
+[dependencies]
+fpm = { git = "https://github.com/krystophny/fpm.git" }
+
 [fortran]
 implicit-typing = false
 implicit-external = false
