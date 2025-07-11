@@ -57,12 +57,8 @@ contains
     write(unit, '(a)') 'version = "0.1.0"'
     write(unit, '(a)') ''
     
-    ! Build settings
-    write(unit, '(a)') '[build]'
-    write(unit, '(a)') 'auto-executables = false'
-    write(unit, '(a)') 'auto-tests = false'
-    write(unit, '(a)') 'auto-examples = false'
-    write(unit, '(a)') ''
+    ! Build settings - removed to allow auto-discovery of library sources
+    ! FPM will auto-discover sources in src/ directory
     
     ! Fortran settings
     write(unit, '(a)') '[fortran]'
@@ -148,12 +144,8 @@ contains
     write(unit, '(a)') 'version = "0.1.0"'
     write(unit, '(a)') ''
     
-    ! Build settings
-    write(unit, '(a)') '[build]'
-    write(unit, '(a)') 'auto-executables = false'
-    write(unit, '(a)') 'auto-tests = false'
-    write(unit, '(a)') 'auto-examples = false'
-    write(unit, '(a)') ''
+    ! Build settings - removed to allow auto-discovery of library sources
+    ! FPM will auto-discover sources in src/ directory
     
     ! Fortran settings
     write(unit, '(a)') '[fortran]'
