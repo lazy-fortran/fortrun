@@ -233,3 +233,4 @@ Each example includes:
 ## Development Memories
 
 - Check FPM API before implementing on our own
+- Unit, integration, and system tests are to be put in test/ and run with `fpm test` with optional target attribute --target
