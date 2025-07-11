@@ -1,7 +1,8 @@
 module runner
   use cache, only: get_cache_dir, ensure_cache_dir
   use module_scanner, only: scan_modules, module_info
-  use fpm_generator, only: generate_fpm_with_deps
+  use fpm_generator, only: generate_fpm_with_deps, generate_fpm_with_deps_from_config
+  use registry_resolver, only: ensure_registry_exists, ensure_registry_exists_in_dir
   use, intrinsic :: iso_fortran_env, only: int64
   implicit none
   private
@@ -9,11 +10,12 @@ module runner
   
 contains
 
-  subroutine run_fortran_file(filename, exit_code, verbose_level, custom_cache_dir)
+  subroutine run_fortran_file(filename, exit_code, verbose_level, custom_cache_dir, custom_config_dir)
     character(len=*), intent(in) :: filename
     integer, intent(out) :: exit_code
     integer, intent(in) :: verbose_level
     character(len=*), intent(in) :: custom_cache_dir
+    character(len=*), intent(in) :: custom_config_dir
     
     logical :: file_exists, success
     character(len=256) :: cache_dir, project_dir, basename
@@ -83,7 +85,7 @@ contains
     call copy_local_modules(absolute_path, project_dir)
     
     ! Scan for module dependencies
-    call generate_fpm_with_dependencies(absolute_path, project_dir, basename, verbose_level)
+    call generate_fpm_with_dependencies(absolute_path, project_dir, basename, verbose_level, custom_config_dir)
     
     ! Build first
     if (verbose_level == 0) then
@@ -191,12 +193,20 @@ contains
     
   end function get_timestamp
   
-  subroutine generate_fpm_with_dependencies(source_file, project_dir, name, verbose_level)
+  subroutine generate_fpm_with_dependencies(source_file, project_dir, name, verbose_level, custom_config_dir)
     character(len=*), intent(in) :: source_file, project_dir, name
     integer, intent(in) :: verbose_level
+    character(len=*), intent(in) :: custom_config_dir
     
     type(module_info), dimension(:), allocatable :: modules
     integer :: n_modules
+    
+    ! Ensure registry exists in config directory
+    if (len_trim(custom_config_dir) > 0) then
+      call ensure_registry_exists_in_dir(custom_config_dir)
+    else
+      call ensure_registry_exists()
+    end if
     
     ! Scan the source file for module dependencies
     call scan_modules(source_file, modules, n_modules)
@@ -205,8 +215,12 @@ contains
       print '(a,i0,a)', 'Found ', n_modules, ' external module dependencies'
     end if
     
-    ! Generate fpm.toml with dependencies
-    call generate_fpm_with_deps(project_dir, name, modules, n_modules)
+    ! Generate fmp.toml with dependencies
+    if (len_trim(custom_config_dir) > 0) then
+      call generate_fpm_with_deps_from_config(project_dir, name, modules, n_modules, custom_config_dir)
+    else
+      call generate_fpm_with_deps(project_dir, name, modules, n_modules)
+    end if
     
   end subroutine generate_fpm_with_dependencies
   

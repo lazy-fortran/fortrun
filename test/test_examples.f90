@@ -9,13 +9,14 @@ program test_examples
   logical :: file_exists
   
   ! List of example files to test
-  n_examples = 5
+  n_examples = 6
   allocate(example_files(n_examples))
-  example_files(1) = 'example/hello.f90'
-  example_files(2) = 'example/calculator.f90'
-  example_files(3) = 'example/precision_test.f90'
-  example_files(4) = 'example/precision_compare.f90'
-  example_files(5) = 'example/real_default_test.f90'
+  example_files(1) = 'example/hello/hello.f90'
+  example_files(2) = 'example/calculator/calculator.f90'
+  example_files(3) = 'example/precision/precision_test.f90'
+  example_files(4) = 'example/precision/precision_compare.f90'
+  example_files(5) = 'example/precision/real_default_test.f90'
+  example_files(6) = 'example/interdependent/main.f90'
   
   n_passed = 0
   n_failed = 0
@@ -44,15 +45,21 @@ program test_examples
       
       ! Show output for specific examples
       select case (trim(example_files(i)))
-      case ('example/hello.f90')
+      case ('example/hello/hello.f90')
         if (index(output, 'Hello from fortran CLI!') == 0) then
           print '(a)', '    WARNING: Expected output not found'
         end if
-      case ('example/real_default_test.f90')
+      case ('example/precision/real_default_test.f90')
         if (index(output, 'sizeof(real) =                     8  bytes') > 0) then
           print '(a)', '    ✓ Double precision default confirmed'
         else
           print '(a)', '    WARNING: Double precision not working as expected'
+        end if
+      case ('example/interdependent/main.f90')
+        if (index(output, 'Cylinder Calculations') > 0) then
+          print '(a)', '    ✓ Interdependent modules working correctly'
+        else
+          print '(a)', '    WARNING: Interdependent modules may not be working'
         end if
       end select
     else

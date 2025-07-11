@@ -3,18 +3,18 @@ program main
   use runner, only: run_fortran_file
   implicit none
   
-  character(len=256) :: filename, custom_cache_dir
+  character(len=256) :: filename, custom_cache_dir, custom_config_dir
   logical :: show_help
   integer :: exit_code, verbose_level
   
-  call parse_arguments(filename, show_help, verbose_level, custom_cache_dir)
+  call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, custom_config_dir)
   
   if (show_help) then
     call print_help()
     stop 0
   end if
   
-  call run_fortran_file(filename, exit_code, verbose_level, custom_cache_dir)
+  call run_fortran_file(filename, exit_code, verbose_level, custom_cache_dir, custom_config_dir)
   
   if (exit_code /= 0) then
     stop 1
@@ -32,9 +32,10 @@ contains
     print '(a)', ''
     print '(a)', 'Options:'
     print '(a)', '  -h, --help        Show this help message'
-    print '(a)', '  -v, --verbose     Show FPM output'
-    print '(a)', '  -vv               Show detailed FPM output'
+    print '(a)', '  -v, --verbose 1   Show FPM output'
+    print '(a)', '  -vv, --verbose 2  Show detailed FPM output'
     print '(a)', '  --cache-dir DIR   Use custom cache directory'
+    print '(a)', '  --config-dir DIR  Use custom config directory'
   end subroutine print_help
   
 end program main

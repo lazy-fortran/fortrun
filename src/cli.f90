@@ -5,22 +5,25 @@ module cli
   
 contains
 
-  subroutine parse_arguments(filename, show_help, verbose_level, custom_cache_dir)
+  subroutine parse_arguments(filename, show_help, verbose_level, custom_cache_dir, custom_config_dir)
     character(len=*), intent(out) :: filename
     logical, intent(out) :: show_help
     integer, intent(out) :: verbose_level
     character(len=*), intent(out) :: custom_cache_dir
+    character(len=*), intent(out) :: custom_config_dir
     
     integer :: nargs, i
     character(len=256) :: arg
-    logical :: filename_found, expecting_cache_dir
+    logical :: filename_found, expecting_cache_dir, expecting_config_dir
     
     filename = ''
     show_help = .false.
     verbose_level = 0
     custom_cache_dir = ''
+    custom_config_dir = ''
     filename_found = .false.
     expecting_cache_dir = .false.
+    expecting_config_dir = .false.
     
     nargs = command_argument_count()
     
@@ -36,15 +39,38 @@ contains
       if (expecting_cache_dir) then
         custom_cache_dir = trim(arg)
         expecting_cache_dir = .false.
+      else if (expecting_config_dir) then
+        custom_config_dir = trim(arg)
+        expecting_config_dir = .false.
       else if (arg == '--help' .or. arg == '-h') then
         show_help = .true.
         return
-      else if (arg == '--verbose' .or. arg == '-v') then
+      else if (arg == '-v') then
         verbose_level = 1
       else if (arg == '-vv') then
         verbose_level = 2
+      else if (arg == '--verbose') then
+        ! Check if next argument is a number (1 or 2)
+        if (i < nargs) then
+          call get_command_argument(i+1, arg)
+          if (arg == '1') then
+            verbose_level = 1
+            i = i + 1  ! Skip the next argument since we consumed it
+          else if (arg == '2') then
+            verbose_level = 2
+            i = i + 1  ! Skip the next argument since we consumed it
+          else
+            ! Next arg is not a number, default to level 1
+            verbose_level = 1
+          end if
+        else
+          ! No more arguments, default to level 1
+          verbose_level = 1
+        end if
       else if (arg == '--cache-dir') then
         expecting_cache_dir = .true.
+      else if (arg == '--config-dir') then
+        expecting_config_dir = .true.
       else if (arg(1:1) /= '-') then
         ! Not a flag, must be filename
         if (.not. filename_found) then
@@ -60,6 +86,12 @@ contains
       print '(a)', 'Error: --cache-dir requires an argument'
       show_help = .true.
     end if
+    
+    if (expecting_config_dir) then
+      print '(a)', 'Error: --config-dir requires an argument'
+      show_help = .true.
+    end if
+    
     
     if (.not. filename_found) then
       show_help = .true.

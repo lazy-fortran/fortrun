@@ -24,17 +24,19 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
   - `src/runner.f90`: Main execution logic
 
 ### 1.2 Minimal Viable Product (Using FPM directly)
-- [ ] Write test: `test_run_simple_program`
+- [x] Write test: `test_run_simple_program`
   - Test .f90 file without external dependencies
   - Verify execution via our tool
+  - ✅ **Covered by**: `example/hello.f90` and `test_examples.f90`
 - [x] Implement basic execution in `src/runner.f90`
   - Create temporary directory in OS cache location
   - Generate fpm.toml with the .f90 file as app
   - Execute `fpm run` 
   - Keep builds cached for future use
-- [ ] Write test: `test_run_with_local_module`
+- [x] Write test: `test_run_with_local_module`
   - Test .f90 that uses a local module file
   - Both files in same directory
+  - ✅ **Covered by**: `example/calculator.f90` + `example/math_module.f90` and `test_examples.f90`
 - [x] Enhance runner to copy all local .f90 files to temp project
 
 ### 1.3 Registry-based Module Resolution
@@ -59,8 +61,13 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
 ## Phase 2: Enhanced Features (Leveraging FPM)
 
 ### 2.1 Improved Local File Handling
-- [ ] Write test for multiple local files with interdependencies
-- [ ] Implement smart local file copying (preserve directory structure)
+- [x] Write test for multiple local files with interdependencies
+  - ✅ **Implemented as**: `example/interdependent/` with 4 interdependent modules
+  - ✅ **Tested by**: `test_examples.f90`
+- [x] Implement smart local file copying (preserve directory structure)
+  - ✅ **Current implementation**: Copies all .f90 files from same directory
+  - ✅ **Works for**: Flat directory structure (all modules in same dir)
+  - ⚠️ **Future enhancement**: Support subdirectories and relative paths
 - [ ] Write test for handling relative imports
 - [ ] Support running from different directories
 
@@ -221,6 +228,22 @@ Key abstractions to maintain:
 - [ ] Generate derived type definitions
 - [ ] Support type extension inference
 - [ ] Validate consistent type usage
+
+## Phase 8: Installation and Deployment
+
+### 8.1 Installation Script
+- [ ] Create `install.sh` script for easy installation
+- [ ] Install `fortran` command to `~/.local/bin/`
+- [ ] Copy default config to `~/.config/fortran/`
+- [ ] Create cache directory `~/.cache/fortran/`
+- [ ] Add uninstall option
+- [ ] Support system-wide installation (optional)
+
+### 8.2 Package Distribution
+- [ ] Create release packages (tar.gz, deb, rpm)
+- [ ] Add to package managers (AUR, homebrew, etc.)
+- [ ] Docker container for easy deployment
+- [ ] GitHub releases with binaries
 
 ## Progress Tracking
 
