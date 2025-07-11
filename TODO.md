@@ -179,19 +179,18 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
   - Sequential access works correctly
   - Concurrent access needs proper locking
 
-- [ ] Implement cache locking mechanism
-  - **Concrete Plan**:
-    1. Add `.lock` file creation when build starts
-    2. Include PID and timestamp in lock file
-    3. Check for stale locks (> 5 minutes old)
-    4. Implement wait with timeout (30 seconds default)
-  - **Implementation Steps**:
-    - Create `src/cache_lock.f90` module
-    - Add `acquire_lock()` and `release_lock()` functions
-    - Use POSIX file locking where available
-    - Fallback to lock files with atomic rename
-    - Add `--no-wait` flag to fail immediately if locked
+- [x] Implement cache locking mechanism
+  - **Status**: Implemented with atomic file creation approach
+  - **What was done**:
+    - Created `src/cache_lock.f90` module
+    - Added `acquire_lock()` and `release_lock()` functions
+    - Implemented PID and timestamp-based stale lock detection
+    - Added `--no-wait` flag to fail immediately if locked
+    - Integrated into runner.f90 to prevent concurrent builds
     - Clean up stale locks on startup
+  - **Known limitations**:
+    - Edge case with duplicate lock detection due to atomic file creation
+    - Would need platform-specific system calls for perfect locking
 
 - [x] Implement build progress reporting
   - **Status**: Basic infrastructure added, full implementation deferred
