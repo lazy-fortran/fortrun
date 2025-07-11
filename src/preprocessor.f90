@@ -248,11 +248,12 @@ contains
     trimmed_line = adjustl(line)
     
     ! Skip lines that are not assignments (print, write, read, etc.)
-    if (index(trimmed_line, 'print') == 1 .or. &
-        index(trimmed_line, 'write') == 1 .or. &
-        index(trimmed_line, 'read') == 1 .or. &
-        index(trimmed_line, 'call') == 1 .or. &
-        index(trimmed_line, '!') == 1) then
+    ! Use word boundaries to avoid false matches
+    if ((index(trimmed_line, 'print ') == 1 .or. index(trimmed_line, 'print*') == 1) .or. &
+        (index(trimmed_line, 'write ') == 1 .or. index(trimmed_line, 'write(') == 1) .or. &
+        (index(trimmed_line, 'read ') == 1 .or. index(trimmed_line, 'read(') == 1) .or. &
+        (index(trimmed_line, 'call ') == 1) .or. &
+        (index(trimmed_line, '!') == 1)) then
       return
     end if
     
