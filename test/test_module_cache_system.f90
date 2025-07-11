@@ -59,7 +59,7 @@ contains
     print '(a)', 'Test 1: Basic module caching scenario'
     
     ! Setup test directory
-    test_dir = '/tmp/fortran_syscache_' // get_timestamp()
+    test_dir = '/tmp/fortran_syscache_' // trim(get_timestamp())
     cache_dir = test_dir // '/.cache'
     call mkdir(test_dir)
     
@@ -145,7 +145,7 @@ contains
     
     print '(a)', 'Test 2: Multi-file project with module cache'
     
-    test_dir = '/tmp/fortran_multi_' // get_timestamp()
+    test_dir = '/tmp/fortran_multi_' // trim(get_timestamp())
     cache_dir = test_dir // '/.cache'
     call mkdir(test_dir)
     
@@ -233,7 +233,7 @@ contains
     
     print '(a)', 'Test 3: Cache performance improvement'
     
-    test_dir = '/tmp/fortran_perf_' // get_timestamp()
+    test_dir = '/tmp/fortran_perf_' // trim(get_timestamp())
     cache_dir = test_dir // '/.cache'
     call mkdir(test_dir)
     
@@ -251,7 +251,7 @@ contains
     
     ! Generate many functions
     do i = 1, 20
-      write(unit, '(a,i0)') '  integer function func', i, '(x)'
+      write(unit, '(a,i0,a)') '  integer function func', i, '(x)'
       write(unit, '(a)') '    integer, intent(in) :: x'
       write(unit, '(a,i0,a,i0)') '    func', i, ' = x + CONST', i
       write(unit, '(a,i0)') '  end function func', i
@@ -272,7 +272,7 @@ contains
     ! Build without cache (fresh cache dir)
     call cpu_time(time_no_cache)
     call execute_command_line(fortran_cmd // ' --cache-dir /tmp/nocache_' // &
-                              get_timestamp() // ' ' // test_dir // '/main.f90', &
+                              trim(get_timestamp()) // ' ' // test_dir // '/main.f90', &
                               exitstat=exitstat)
     call cpu_time(time_with_cache)
     time_no_cache = time_with_cache - time_no_cache
@@ -321,9 +321,9 @@ contains
     
     print '(a)', 'Test 4: Cache sharing between similar projects'
     
-    proj1_dir = '/tmp/fortran_proj1_' // get_timestamp()
-    proj2_dir = '/tmp/fortran_proj2_' // get_timestamp()
-    shared_cache = '/tmp/fortran_shared_cache_' // get_timestamp()
+    proj1_dir = '/tmp/fortran_proj1_' // trim(get_timestamp())
+    proj2_dir = '/tmp/fortran_proj2_' // trim(get_timestamp())
+    shared_cache = '/tmp/fortran_shared_cache_' // trim(get_timestamp())
     
     call mkdir(proj1_dir)
     call mkdir(proj2_dir)
@@ -396,7 +396,7 @@ contains
     
     print '(a)', 'Test 5: Cache with dependencies'
     
-    test_dir = '/tmp/fortran_deps_' // get_timestamp()
+    test_dir = '/tmp/fortran_deps_' // trim(get_timestamp())
     cache_dir = test_dir // '/.cache'
     call mkdir(test_dir)
     
@@ -475,12 +475,12 @@ contains
   end subroutine cleanup_test_dir
   
   function get_timestamp() result(timestamp)
-    character(len=16) :: timestamp
+    character(len=20) :: timestamp
     integer :: values(8)
     
     call date_and_time(values=values)
-    write(timestamp, '(i0,5i2.2)') values(1), values(2), values(3), &
-                                    values(5), values(6), values(7)
+    write(timestamp, '(i4.4,5i2.2)') values(1), values(2), values(3), &
+                                      values(5), values(6), values(7)
   end function get_timestamp
 
 end program test_module_cache_system
