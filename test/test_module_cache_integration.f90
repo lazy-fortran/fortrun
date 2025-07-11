@@ -382,9 +382,10 @@ contains
     write(unit, '(a)') 'end program test_prog'
     close(unit)
     
-    ! Try to compile using cached module
+    
+    ! Try to compile using cached module (need to link the object file)
     call execute_command_line('cd ' // build_dir // ' && ' // &
-                              'gfortran -o test_prog ' // test_dir // '/test_prog.f90', &
+                              'gfortran -o test_prog ' // test_dir // '/test_prog.f90 math_utils.o', &
                               exitstat=exitstat)
     
     success = (exitstat == 0)

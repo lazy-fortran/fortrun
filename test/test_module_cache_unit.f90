@@ -226,6 +226,7 @@ contains
     character(:), allocatable :: test_build_dir, test_cache_dir
     character(len=64) :: cache_key
     logical :: is_cached, test_pass
+    integer :: unit
     type(string_t) :: modules(1)
     
     print '(a)', 'Test 4: Cache hit detection'
@@ -242,6 +243,17 @@ contains
     
     test_build_dir = '/tmp/fortran_test_hit_' // trim(get_timestamp())
     call mkdir(test_build_dir)
+    
+    ! Create dummy module files for testing
+    open(newunit=unit, file=join_path(test_build_dir, 'hit_test.mod'), &
+         status='replace', action='write')
+    write(unit, '(a)') 'dummy module file for hit test'
+    close(unit)
+    
+    open(newunit=unit, file=join_path(test_build_dir, 'hit_test.o'), &
+         status='replace', action='write')
+    write(unit, '(a)') 'dummy object file for hit test'
+    close(unit)
     
     ! Setup source file
     srcfile%file_name = 'hit_test.f90'
