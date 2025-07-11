@@ -2,7 +2,7 @@ module registry_resolver
   use config, only: get_registry_path, get_config_dir, ensure_config_dir
   implicit none
   private
-  public :: resolve_module_to_package, load_registry, ensure_registry_exists, load_registry_from_path, ensure_registry_exists_in_dir, resolve_module_with_version
+  public :: resolve_module_to_package, load_registry, ensure_registry_exists, load_registry_from_path, ensure_registry_exists_in_dir, resolve_module_with_version, validate_registry
   
   type :: package_info
     character(len=128) :: name
@@ -348,5 +348,111 @@ contains
     print *, 'Created default registry at: ', trim(registry_path)
     
   end subroutine ensure_registry_exists_in_dir
+  
+  subroutine validate_registry(registry_path, is_valid, error_message)
+    character(len=*), intent(in) :: registry_path
+    logical, intent(out) :: is_valid
+    character(len=*), intent(out) :: error_message
+    
+    integer :: unit, iostat, line_num
+    character(len=512) :: line
+    logical :: in_packages_section, in_package, has_packages_section
+    character(len=128) :: current_package
+    
+    is_valid = .true.
+    error_message = ''
+    line_num = 0
+    has_packages_section = .false.
+    
+    open(newunit=unit, file=registry_path, status='old', iostat=iostat)
+    if (iostat /= 0) then
+      is_valid = .false.
+      error_message = 'Cannot open registry file: ' // trim(registry_path)
+      return
+    end if
+    
+    in_packages_section = .false.
+    in_package = .false.
+    current_package = ''
+    
+    do
+      read(unit, '(a)', iostat=iostat) line
+      if (iostat /= 0) exit
+      
+      line_num = line_num + 1
+      line = adjustl(line)
+      
+      ! Skip empty lines and comments
+      if (len_trim(line) == 0) cycle
+      if (line(1:1) == '#') cycle
+      
+      ! Check for [packages] section
+      if (line == '[packages]') then
+        has_packages_section = .true.
+        in_packages_section = .true.
+        in_package = .false.
+        cycle
+      end if
+      
+      ! Check for package sections
+      if (line(1:10) == '[packages.' .and. index(line, ']') > 0) then
+        if (.not. in_packages_section) then
+          is_valid = .false.
+          write(error_message, '(a,i0)') 'Package section found before [packages] section at line ', line_num
+          close(unit)
+          return
+        end if
+        
+        current_package = extract_between(line, '[packages.', ']')
+        if (len_trim(current_package) == 0) then
+          is_valid = .false.
+          write(error_message, '(a,i0)') 'Empty package name at line ', line_num
+          close(unit)
+          return
+        end if
+        
+        in_package = .true.
+        cycle
+      end if
+      
+      ! Validate package properties
+      if (in_package .and. index(line, '=') > 0) then
+        if (index(line, 'git =') > 0) then
+          ! Check if git URL is properly quoted
+          if (index(line, '"') == 0) then
+            is_valid = .false.
+            write(error_message, '(a,i0,a)') 'Git URL not properly quoted at line ', line_num, ' in package ', trim(current_package)
+            close(unit)
+            return
+          end if
+        else if (index(line, 'version =') > 0) then
+          ! Check if version is properly quoted
+          if (index(line, '"') == 0) then
+            is_valid = .false.
+            write(error_message, '(a,i0,a)') 'Version not properly quoted at line ', line_num, ' in package ', trim(current_package)
+            close(unit)
+            return
+          end if
+        else if (index(line, 'prefix =') > 0) then
+          ! Check if prefix is properly quoted
+          if (index(line, '"') == 0) then
+            is_valid = .false.
+            write(error_message, '(a,i0,a)') 'Prefix not properly quoted at line ', line_num, ' in package ', trim(current_package)
+            close(unit)
+            return
+          end if
+        end if
+      end if
+    end do
+    
+    close(unit)
+    
+    if (.not. has_packages_section) then
+      is_valid = .false.
+      error_message = 'Registry file missing [packages] section'
+      return
+    end if
+    
+  end subroutine validate_registry
   
 end module registry_resolver
