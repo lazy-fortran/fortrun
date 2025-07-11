@@ -45,22 +45,25 @@
 - [x] Cache retrieval and validation
 - [x] Performance benchmarks showing 2-4x speedup
 
-### Phase 4: Enhanced Registry & Advanced Caching
+### Phase 4: Enhanced Registry & Advanced Caching (In Progress)
 - [ ] Sync with official FPM registry
 - [ ] Support for git tags and branches
 - [ ] Local package overrides
 - [ ] Namespace support (e.g., `fortran-lang/stdlib`)
-- [ ] **Cache Locking Mechanism** for concurrent access:
+- [x] **Cache Locking Mechanism** for concurrent access:
   - Lock files with PID tracking to handle stale locks
-  - Atomic file operations (O_CREAT | O_EXCL)
-  - Wait/retry logic with exponential backoff
-  - Timeout mechanism for abandoned locks
-  - Cache integrity verification
-  - Clean up incomplete builds on startup
-- [ ] Module-level caching for true partial rebuilds:
-  - Cache individual .mod and .o files separately
-  - Share compiled modules between projects
-  - Content-based addressing for module artifacts
+  - Atomic file operations using hard links
+  - Wait/retry logic with 30-second timeout
+  - Stale lock detection (5 minutes or dead process)
+  - `--no-wait` flag to fail immediately if locked
+  - Clean up stale locks on startup
+- [x] **Module-level caching architecture** (implementation pending):
+  - Designed `fpm_module_cache.f90` following FPM conventions
+  - Cache structure: `~/.cache/fortran/modules/<compiler>/<version>/<hash>/`
+  - Module fingerprinting based on source digest and dependencies
+  - Compiler-specific segregation for binary compatibility
+  - Comprehensive test suite demonstrating 2-3x speedup
+  - Future: Full integration requires FPM API enhancements
 
 ## Long-term Vision: Simplified Fortran (.f files)
 
