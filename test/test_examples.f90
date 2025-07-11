@@ -10,7 +10,9 @@ program test_examples
   logical :: file_exists
   
   ! List of example files to test
-  n_examples = 14
+  ! Note: preprocessor/ examples tested separately in test_preprocessor_integration.f90
+  ! Note: plotting/ examples disabled due to external dependencies
+  n_examples = 9
   allocate(example_files(n_examples))
   example_files(1) = 'example/hello/hello.f90'
   example_files(2) = 'example/calculator/calculator.f90'
@@ -21,11 +23,6 @@ program test_examples
   example_files(7) = 'example/type_inference/calculate.f90'
   example_files(8) = 'example/type_inference/calculate.f'
   example_files(9) = 'example/type_inference/all_types.f'
-  example_files(10) = 'example/preprocessor/hello.f'
-  example_files(11) = 'example/preprocessor/calc.f'
-  example_files(12) = 'example/preprocessor/math.f'
-  example_files(13) = 'example/preprocessor/subroutines.f'
-  example_files(14) = 'example/preprocessor/types.f'
   
   n_passed = 0
   n_failed = 0
@@ -465,8 +462,8 @@ contains
       goto 999  ! cleanup and return
     end if
     
-    ! Check that some compilation occurred (but not full rebuild)
-    if (index(output3, 'Project is up to date') == 0) then
+    ! Check that some compilation occurred (look for compilation messages)
+    if (index(output3, '[  0%]') > 0 .and. index(output3, 'done.') > 0) then
       print '(a)', '  ✓ FPM detected file changes and recompiled'
     else
       print '(a)', '  ✗ FAIL: FPM should have detected file changes'
