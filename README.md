@@ -17,6 +17,9 @@ The `fortran` command works like `python` but for `.f90` files. Give it a valid 
 # Run any Fortran program instantly
 fortran hello.f90
 
+# NEW: Simplified .f files (no boilerplate needed!)
+fortran script.f  # Just write code, no program/contains needed
+
 # Works with local modules automatically
 fortran calculator.f90  # Uses math_module.f90 in same directory
 
@@ -55,6 +58,12 @@ fortran --verbose 2 myprogram.f90
 - **Verbose modes**: `-v`, `-vv`, `--verbose 1`, `--verbose 2`
 - **Custom directories**: `--cache-dir`, `--config-dir`
 - **Error handling**: Clear error messages and suggestions
+
+### 📝 **Simplified Syntax (.f files)**
+- **No boilerplate**: Skip `program`/`end program` statements
+- **Auto-wrapping**: Functions and subroutines work without `contains`
+- **Implicit none**: Added automatically
+- **Script-like**: Write Fortran like Python scripts
 
 ## Examples
 
@@ -120,6 +129,24 @@ main.f90
 ```
 
 See `example/interdependent/` for a complete working example.
+
+### Simplified Syntax (.f files)
+```fortran
+! script.f - No boilerplate needed!
+x = 5.0
+y = 3.0
+print *, 'Sum:', add(x, y)
+
+real function add(a, b)
+  real :: a, b
+  add = a + b
+end function
+```
+```bash
+fortran script.f
+# Automatically wrapped in program/contains
+# Output: Sum: 8.0
+```
 
 ## Installation
 

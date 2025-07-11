@@ -28,7 +28,7 @@ contains
     print '(a)', 'Run a Fortran program file with automatic dependency resolution.'
     print '(a)', ''
     print '(a)', 'Arguments:'
-    print '(a)', '  <file.f90>    Path to the Fortran source file to run'
+    print '(a)', '  <file.f90>    Path to the Fortran source file to run (.f90 or .f)'
     print '(a)', ''
     print '(a)', 'Options:'
     print '(a)', '  -h, --help        Show this help message'

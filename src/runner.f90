@@ -9,6 +9,7 @@ module runner
   use fpm_model, only: srcfile_t
   use fpm_strings, only: string_t
   use fpm_error, only: error_t
+  use preprocessor, only: is_preprocessor_file, preprocess_file
   use, intrinsic :: iso_fortran_env, only: int64
   implicit none
   private
@@ -28,10 +29,12 @@ contains
     logical :: file_exists, success
     character(len=256) :: cache_dir, project_dir, basename
     character(len=512) :: command
-    character(len=256) :: absolute_path
+    character(len=256) :: absolute_path, preprocessed_file, working_file
     character(len=32) :: jobs_flag
+    character(len=1024) :: preprocess_error
     integer :: exitstat, cmdstat
     integer :: i, last_slash
+    logical :: was_preprocessed
     
     exit_code = 0
     
@@ -44,8 +47,9 @@ contains
     end if
     
     ! Check file extension
-    if (index(filename, '.f90') == 0 .and. index(filename, '.F90') == 0) then
-      print '(a)', 'Error: Input file must have .f90 or .F90 extension'
+    if (index(filename, '.f90') == 0 .and. index(filename, '.F90') == 0 .and. &
+        index(filename, '.f') == 0 .and. index(filename, '.F') == 0) then
+      print '(a)', 'Error: Input file must have .f90, .F90, .f, or .F extension'
       exit_code = 1
       return
     end if
@@ -55,6 +59,32 @@ contains
     
     ! Extract basename without extension
     call get_basename(filename, basename)
+    
+    ! Check if file needs preprocessing
+    was_preprocessed = .false.
+    working_file = absolute_path
+    
+    if (is_preprocessor_file(filename)) then
+      if (verbose_level >= 1) then
+        print '(a)', 'Preprocessing .f file...'
+      end if
+      
+      ! Preprocess the file
+      call preprocess_file(absolute_path, preprocessed_file, preprocess_error)
+      if (len_trim(preprocess_error) > 0) then
+        print '(a,a)', 'Error during preprocessing: ', trim(preprocess_error)
+        exit_code = 1
+        return
+      end if
+      
+      ! Keep track of preprocessed file
+      working_file = preprocessed_file
+      was_preprocessed = .true.
+      
+      if (verbose_level >= 2) then
+        print '(a,a)', 'Preprocessed file created: ', trim(preprocessed_file)
+      end if
+    end if
     
     ! Get cache directory (use custom if provided)
     if (len_trim(custom_cache_dir) > 0) then
@@ -93,7 +123,7 @@ contains
       end if
       
       ! Always update source files to allow incremental compilation
-      call update_source_files(absolute_path, project_dir)
+      call update_source_files(working_file, project_dir)
     else
       ! Cache miss: need to set up project
       if (verbose_level >= 1) then
@@ -111,7 +141,7 @@ contains
       end if
       
       ! Copy source files and generate FPM project only on cache miss
-      call setup_project_files(absolute_path, project_dir, basename, verbose_level, custom_config_dir)
+      call setup_project_files(working_file, project_dir, basename, verbose_level, custom_config_dir)
     end if
     
     
