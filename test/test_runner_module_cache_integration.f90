@@ -74,7 +74,7 @@ contains
     type(error_t), allocatable :: error
     character(len=64) :: cache_key
     logical :: found, test_pass
-    character(len=256) :: test_dir, build_dir
+    character(:), allocatable :: test_dir, build_dir
     integer :: unit
     type(string_t) :: modules(1)
     
@@ -87,12 +87,12 @@ contains
     
     ! Create test directories
     test_dir = 'test_module_cache_sources'
-    build_dir = trim(test_dir) // '/build'
-    call execute_command_line('rm -rf ' // trim(test_dir))
-    call execute_command_line('mkdir -p ' // trim(build_dir))
+    build_dir = test_dir // '/build'
+    call execute_command_line('rm -rf ' // test_dir)
+    call execute_command_line('mkdir -p ' // build_dir)
     
     ! Create test module
-    open(newunit=unit, file=trim(test_dir) // '/test_mod.f90', status='replace')
+    open(newunit=unit, file=test_dir // '/test_mod.f90', status='replace')
     write(unit, '(a)') 'module test_mod'
     write(unit, '(a)') '  implicit none'
     write(unit, '(a)') '  integer, parameter :: answer = 42'
@@ -100,7 +100,7 @@ contains
     close(unit)
     
     ! Compile the module
-    call execute_command_line('cd ' // trim(build_dir) // ' && gfortran -c ../test_mod.f90')
+    call execute_command_line('cd ' // build_dir // ' && gfortran -c ../test_mod.f90')
     
     ! Setup source file info
     srcfile%file_name = 'test_mod.f90'
@@ -145,7 +145,7 @@ contains
     end if
     
     ! Cleanup
-    call execute_command_line('rm -rf ' // trim(test_dir))
+    call execute_command_line('rm -rf ' // test_dir)
     
   end subroutine test_module_cache_with_sources
 
