@@ -141,6 +141,11 @@ contains
         in_subroutine = .false.
         write(unit_out, '(A)') line
       else
+        ! Check for existing declarations
+        if (enable_type_inference .and. is_declaration_line(line)) then
+          call mark_declared_variables(type_env, line)
+        end if
+        
         ! Check for assignments for type inference
         if (enable_type_inference .and. .not. in_subroutine .and. .not. in_function) then
           call detect_and_process_assignment(type_env, line)
@@ -236,6 +241,81 @@ contains
     trimmed = adjustl(line)
     is_end = index(trimmed, 'end ' // trim(construct_type)) == 1
   end function is_end_statement
+  
+  function is_declaration_line(line) result(is_decl)
+    character(len=*), intent(in) :: line
+    logical :: is_decl
+    character(len=256) :: trimmed
+    
+    trimmed = adjustl(line)
+    
+    ! Check for type declarations
+    is_decl = (index(trimmed, 'integer ') == 1 .or. &
+               index(trimmed, 'real ') == 1 .or. &
+               index(trimmed, 'logical ') == 1 .or. &
+               index(trimmed, 'character ') == 1 .or. &
+               index(trimmed, 'complex ') == 1 .or. &
+               index(trimmed, 'double precision ') == 1 .or. &
+               index(trimmed, 'integer(') == 1 .or. &
+               index(trimmed, 'real(') == 1 .or. &
+               index(trimmed, 'logical(') == 1 .or. &
+               index(trimmed, 'character(') == 1 .or. &
+               index(trimmed, 'complex(') == 1 .or. &
+               index(trimmed, 'type(') == 1)
+  end function is_declaration_line
+  
+  subroutine mark_declared_variables(type_env, line)
+    type(type_environment), intent(inout) :: type_env
+    character(len=*), intent(in) :: line
+    
+    character(len=256) :: trimmed, var_list
+    integer :: double_colon_pos, comma_pos, i
+    character(len=64) :: var_name
+    integer :: var_idx
+    logical :: found
+    
+    trimmed = adjustl(line)
+    
+    ! Find :: separator (skip if not present - old style declaration)
+    double_colon_pos = index(trimmed, '::')
+    if (double_colon_pos == 0) then
+      ! Old style declaration without :: - skip for now
+      return
+    end if
+    
+    ! Get variable list after ::
+    var_list = adjustl(trimmed(double_colon_pos+2:))
+    
+    ! Parse comma-separated variable names
+    i = 1
+    do while (i <= len_trim(var_list))
+      ! Find next comma or end
+      comma_pos = index(var_list(i:), ',')
+      if (comma_pos == 0) then
+        ! Last variable
+        var_name = adjustl(trim(var_list(i:)))
+      else
+        var_name = adjustl(trim(var_list(i:i+comma_pos-2)))
+        i = i + comma_pos
+      end if
+      
+      ! Add to type environment as already declared (with special marker)
+      if (len_trim(var_name) > 0) then
+        ! Create an entry marked as already declared
+        if (type_env%var_count < size(type_env%vars)) then
+          type_env%var_count = type_env%var_count + 1
+          var_idx = type_env%var_count
+          type_env%vars(var_idx)%name = var_name
+          type_env%vars(var_idx)%in_use = .true.
+          ! Use a special type to indicate already declared
+          type_env%vars(var_idx)%var_type%base_type = -1  ! Special marker
+        end if
+      end if
+      
+      if (comma_pos == 0) exit
+    end do
+    
+  end subroutine mark_declared_variables
   
   subroutine detect_and_process_assignment(type_env, line)
     type(type_environment), intent(inout) :: type_env
@@ -343,7 +423,9 @@ contains
     
     ! Generate declaration for each variable
     do i = 1, type_env%var_count
-      if (type_env%vars(i)%in_use .and. type_env%vars(i)%var_type%base_type /= TYPE_UNKNOWN) then
+      if (type_env%vars(i)%in_use .and. &
+          type_env%vars(i)%var_type%base_type /= TYPE_UNKNOWN .and. &
+          type_env%vars(i)%var_type%base_type /= -1) then  ! Skip already declared
         
         ! Generate type string
         select case (type_env%vars(i)%var_type%base_type)

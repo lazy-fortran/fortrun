@@ -63,6 +63,8 @@ contains
     ! Comparison expressions must be checked first
     if (is_comparison_expression(trimmed_expr, inferred_type, env)) then
       ! Type already set by is_comparison_expression (always logical)
+    else if (is_logical_expression(trimmed_expr, inferred_type, env)) then
+      ! Type already set by is_logical_expression (always logical)
     ! Then check for literals
     else if (is_logical_literal(trimmed_expr)) then
       inferred_type%base_type = TYPE_LOGICAL
@@ -377,6 +379,60 @@ contains
     
   end function is_comparison_expression
   
+  function is_logical_expression(expr, result_type, env) result(is_logical)
+    character(len=*), intent(in) :: expr
+    type(type_info), intent(out) :: result_type
+    type(type_environment), intent(in), optional :: env
+    logical :: is_logical
+    
+    integer :: and_pos, or_pos, not_pos, op_pos
+    character(len=256) :: left_expr, right_expr
+    type(type_info) :: left_type, right_type
+    
+    is_logical = .false.
+    result_type%base_type = TYPE_UNKNOWN
+    
+    ! Check for logical operators
+    and_pos = index(expr, '.and.')
+    or_pos = index(expr, '.or.')
+    not_pos = index(expr, '.not.')
+    
+    ! Handle .not. (unary operator)
+    if (not_pos == 1) then
+      is_logical = .true.
+      result_type%base_type = TYPE_LOGICAL
+      result_type%kind = 4
+      return
+    end if
+    
+    ! Find first binary logical operator
+    op_pos = 0
+    if (and_pos > 0) op_pos = and_pos
+    if (or_pos > 0 .and. (op_pos == 0 .or. or_pos < op_pos)) op_pos = or_pos
+    
+    if (op_pos > 1) then
+      ! Extract left expression
+      left_expr = adjustl(expr(1:op_pos-1))
+      
+      ! Extract right expression (skip operator)
+      if (op_pos == and_pos) then
+        right_expr = adjustl(expr(op_pos+5:))  ! Skip '.and.'
+      else if (op_pos == or_pos) then
+        right_expr = adjustl(expr(op_pos+4:))  ! Skip '.or.'
+      end if
+      
+      ! Ensure we have non-empty expressions
+      if (len_trim(left_expr) == 0 .or. len_trim(right_expr) == 0) then
+        return  ! Invalid logical expression
+      end if
+      
+      is_logical = .true.
+      result_type%base_type = TYPE_LOGICAL
+      result_type%kind = 4
+    end if
+    
+  end function is_logical_expression
+  
   function is_intrinsic_function(expr, result_type, env) result(is_intrinsic)
     character(len=*), intent(in) :: expr
     type(type_info), intent(out) :: result_type
@@ -433,6 +489,11 @@ contains
     integer :: var_idx
     logical :: found
     
+    ! Ignore array subscripts - only process simple variable names
+    if (index(var_name, '(') > 0) then
+      return
+    end if
+    
     ! Infer type from expression
     call infer_type_from_expression(expr, expr_type, env)
     
@@ -453,7 +514,10 @@ contains
     end if
     
     ! Update or check type
-    if (env%vars(var_idx)%var_type%base_type == TYPE_UNKNOWN) then
+    if (env%vars(var_idx)%var_type%base_type == -1) then
+      ! Variable already declared - skip type inference
+      return
+    else if (env%vars(var_idx)%var_type%base_type == TYPE_UNKNOWN) then
       ! First assignment
       env%vars(var_idx)%var_type = expr_type
     else if (env%vars(var_idx)%var_type%base_type /= expr_type%base_type) then
