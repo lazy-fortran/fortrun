@@ -65,6 +65,7 @@ contains
     integer, intent(inout) :: test_count, pass_count
     logical :: dir_exists
     character(len=256) :: cache_dir
+    integer :: unit
     
     test_count = test_count + 1
     print '(a)', 'Test 1: Basic functionality'
@@ -76,7 +77,11 @@ contains
     call execute_command_line('rm -rf "' // trim(cache_dir) // '"')
     
     ! Create simple program
-    call execute_command_line('echo "program test; print *, \"basic test\"; end program" > test_basic.f90')
+    open(newunit=unit, file='test_basic.f90', status='replace')
+    write(unit, '(a)') 'program test'
+    write(unit, '(a)') '    print *, "basic test"'
+    write(unit, '(a)') 'end program'
+    close(unit)
     
     ! Run program
     call execute_command_line('./build/gfortran_*/app/fortran test_basic.f90 > test_output.txt 2>&1')
@@ -100,7 +105,7 @@ contains
   subroutine test_multiple_programs_local_module(all_pass, test_count, pass_count)
     logical, intent(inout) :: all_pass
     integer, intent(inout) :: test_count, pass_count
-    integer :: stat1, stat2
+    integer :: stat1, stat2, unit
     character(len=256) :: cache_dir
     
     test_count = test_count + 1
@@ -113,13 +118,27 @@ contains
     call execute_command_line('rm -rf "' // trim(cache_dir) // '"')
     
     ! Create shared module
-    call execute_command_line('echo "module shared; integer :: x = 42; end module" > shared.f90')
+    open(newunit=unit, file='shared.f90', status='replace')
+    write(unit, '(a)') 'module shared'
+    write(unit, '(a)') '    integer :: x = 42'
+    write(unit, '(a)') 'end module'
+    close(unit)
     
     ! Create first program
-    call execute_command_line('echo "program app1; use shared; print *, x; end program" > app1.f90')
+    open(newunit=unit, file='app1.f90', status='replace')
+    write(unit, '(a)') 'program app1'
+    write(unit, '(a)') '    use shared'
+    write(unit, '(a)') '    print *, x'
+    write(unit, '(a)') 'end program'
+    close(unit)
     
     ! Create second program
-    call execute_command_line('echo "program app2; use shared; print *, x + 1; end program" > app2.f90')
+    open(newunit=unit, file='app2.f90', status='replace')
+    write(unit, '(a)') 'program app2'
+    write(unit, '(a)') '    use shared'
+    write(unit, '(a)') '    print *, x + 1'
+    write(unit, '(a)') 'end program'
+    close(unit)
     
     ! Run both programs
     call execute_command_line('./build/gfortran_*/app/fortran app1.f90 > app1_output.txt 2>&1', exitstat=stat1)
@@ -143,6 +162,7 @@ contains
     integer, intent(inout) :: test_count, pass_count
     logical :: gfortran_exists, version_exists
     character(len=256) :: cache_dir
+    integer :: unit
     
     test_count = test_count + 1
     print '(a)', 'Test 3: Cache directory structure'
@@ -151,7 +171,11 @@ contains
     cache_dir = get_cache_dir()
     
     ! Ensure cache exists from previous test
-    call execute_command_line('echo "program test; print *, \"structure test\"; end program" > test_structure.f90')
+    open(newunit=unit, file='test_structure.f90', status='replace')
+    write(unit, '(a)') 'program test'
+    write(unit, '(a)') '    print *, "structure test"'
+    write(unit, '(a)') 'end program'
+    close(unit)
     call execute_command_line('./build/gfortran_*/app/fortran test_structure.f90 > /dev/null 2>&1')
     
     ! Check compiler-specific directory
@@ -177,7 +201,7 @@ contains
   subroutine test_cache_hit_miss(all_pass, test_count, pass_count)
     logical, intent(inout) :: all_pass
     integer, intent(inout) :: test_count, pass_count
-    integer :: stat
+    integer :: stat, unit
     character(len=256) :: cache_dir
     
     test_count = test_count + 1
@@ -190,7 +214,11 @@ contains
     call execute_command_line('rm -rf "' // trim(cache_dir) // '"')
     
     ! Create program
-    call execute_command_line('echo "program test; print *, \"cache test\"; end program" > test_cache.f90')
+    open(newunit=unit, file='test_cache.f90', status='replace')
+    write(unit, '(a)') 'program test'
+    write(unit, '(a)') '    print *, "cache test"'
+    write(unit, '(a)') 'end program'
+    close(unit)
     
     ! First run (should be cache miss)
     call execute_command_line('./build/gfortran_*/app/fortran test_cache.f90 > first_run.txt 2>&1')
@@ -223,7 +251,7 @@ contains
     logical, intent(inout) :: all_pass
     integer, intent(inout) :: test_count, pass_count
     real :: time1, time2, time3, time4
-    integer :: stat
+    integer :: stat, unit
     character(len=256) :: cache_dir
     
     test_count = test_count + 1
@@ -236,13 +264,27 @@ contains
     call execute_command_line('rm -rf "' // trim(cache_dir) // '"')
     
     ! Create package-like module
-    call execute_command_line('echo "module math_package; real :: pi = 3.14159; end module" > math_package.f90')
+    open(newunit=unit, file='math_package.f90', status='replace')
+    write(unit, '(a)') 'module math_package'
+    write(unit, '(a)') '    real :: pi = 3.14159'
+    write(unit, '(a)') 'end module'
+    close(unit)
     
     ! Create first application
-    call execute_command_line('echo "program calc1; use math_package; print *, pi; end program" > calc1.f90')
+    open(newunit=unit, file='calc1.f90', status='replace')
+    write(unit, '(a)') 'program calc1'
+    write(unit, '(a)') '    use math_package'
+    write(unit, '(a)') '    print *, pi'
+    write(unit, '(a)') 'end program'
+    close(unit)
     
     ! Create second application
-    call execute_command_line('echo "program calc2; use math_package; print *, pi * 2; end program" > calc2.f90')
+    open(newunit=unit, file='calc2.f90', status='replace')
+    write(unit, '(a)') 'program calc2'
+    write(unit, '(a)') '    use math_package'
+    write(unit, '(a)') '    print *, pi * 2'
+    write(unit, '(a)') 'end program'
+    close(unit)
     
     ! Time first run
     call cpu_time(time1)
