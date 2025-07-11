@@ -27,7 +27,7 @@ program main
     end if
     
     call parse_notebook_file(filename, notebook)
-    call execute_notebook(notebook, results)
+    call execute_notebook(notebook, results, custom_cache_dir, verbose_level)
     call save_notebook_markdown(notebook, results, notebook_output)
     
     if (verbose_level > 0) then

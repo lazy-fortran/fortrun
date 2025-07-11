@@ -18,6 +18,9 @@ Basic mathematical operations with output capture.
 ### arrays_loops.f
 Array operations, loops, and reductions.
 
+### control_flow.f
+Control flow constructs including conditionals, loops, and case statements.
+
 ### plotting_demo.f
 Integration with fortplotlib to embed plots as inline images.
 
