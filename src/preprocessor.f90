@@ -247,6 +247,15 @@ contains
     
     trimmed_line = adjustl(line)
     
+    ! Skip lines that are not assignments (print, write, read, etc.)
+    if (index(trimmed_line, 'print') == 1 .or. &
+        index(trimmed_line, 'write') == 1 .or. &
+        index(trimmed_line, 'read') == 1 .or. &
+        index(trimmed_line, 'call') == 1 .or. &
+        index(trimmed_line, '!') == 1) then
+      return
+    end if
+    
     ! Look for assignment operator (=)
     eq_pos = index(trimmed_line, '=')
     if (eq_pos > 1) then
@@ -310,7 +319,7 @@ contains
       if (.not. declarations_added .and. index(adjustl(line), 'implicit none') == 1) then
         write(unit_out, '(A)') '  '  ! Blank line
         write(unit_out, '(A)') '  ! Auto-generated variable declarations:'
-        call write_formatted_declarations(unit_out, declarations)
+        call write_formatted_declarations(unit_out, type_env)
         write(unit_out, '(A)') '  '  ! Blank line
         declarations_added = .true.
       end if
@@ -324,27 +333,50 @@ contains
     
   end subroutine inject_declarations
   
-  subroutine write_formatted_declarations(unit, declarations)
+  subroutine write_formatted_declarations(unit, type_env)
     integer, intent(in) :: unit
-    character(len=*), intent(in) :: declarations
+    type(type_environment), intent(in) :: type_env
     
-    integer :: pos, next_pos
-    character(len=256) :: single_decl
+    integer :: i
+    character(len=64) :: type_str
     
-    pos = 1
-    do while (pos <= len_trim(declarations))
-      next_pos = index(declarations(pos:), '; ')
-      if (next_pos == 0) then
-        single_decl = trim(declarations(pos:))
-        pos = len_trim(declarations) + 1
-      else
-        next_pos = pos + next_pos - 1
-        single_decl = trim(declarations(pos:next_pos-1))
-        pos = next_pos + 2
-      end if
-      
-      if (len_trim(single_decl) > 0) then
-        write(unit, '(A)') '  ' // trim(single_decl)
+    ! Generate declaration for each variable
+    do i = 1, type_env%var_count
+      if (type_env%vars(i)%in_use .and. type_env%vars(i)%var_type%base_type /= TYPE_UNKNOWN) then
+        
+        ! Generate type string
+        select case (type_env%vars(i)%var_type%base_type)
+        case (TYPE_INTEGER)
+          if (type_env%vars(i)%var_type%kind == 4) then
+            type_str = 'integer'
+          else
+            write(type_str, '(a,i0,a)') 'integer(', type_env%vars(i)%var_type%kind, ')'
+          end if
+          
+        case (TYPE_REAL)
+          if (type_env%vars(i)%var_type%kind == 4) then
+            type_str = 'real'
+          else
+            write(type_str, '(a,i0,a)') 'real(', type_env%vars(i)%var_type%kind, ')'
+          end if
+          
+        case (TYPE_LOGICAL)
+          type_str = 'logical'
+          
+        case (TYPE_CHARACTER)
+          if (type_env%vars(i)%var_type%char_len >= 0) then
+            write(type_str, '(a,i0,a)') 'character(len=', type_env%vars(i)%var_type%char_len, ')'
+          else
+            type_str = 'character(len=*)'
+          end if
+          
+        case default
+          cycle  ! Skip unknown types
+        end select
+        
+        ! Write properly formatted declaration
+        write(unit, '(a,a,a,a)') '  ', trim(type_str), ' :: ', trim(type_env%vars(i)%name)
+        
       end if
     end do
     
