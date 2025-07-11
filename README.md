@@ -51,41 +51,13 @@ fortran -v myprogram.f90
 
 ## Example: Same Program, Two Styles
 
-**Modern Fortran (.f90)**
-```fortran
-! calculate.f90
-program calculate
-  implicit none
-  real :: radius, area
-  
-  radius = 5.0
-  area = circle_area(radius)
-  print *, 'Area of circle:', area
-  
-contains
-  real function circle_area(r)
-    real, intent(in) :: r
-    real, parameter :: pi = 3.14159
-    circle_area = pi * r * r
-  end function circle_area
-end program calculate
-```
+Compare the same calculation in both formats:
+- **Modern Fortran (.f90)**: [example/type_inference/calculate.f90](example/type_inference/calculate.f90)
+- **Simplified Format (.f)**: [example/type_inference/calculate.f](example/type_inference/calculate.f)
 
-**Simplified Format (.f)**
-```fortran
-! calculate.f
-radius = 5.0
-area = circle_area(radius)
-print *, 'Area of circle:', area
+The `.f` format automatically infers types from assignments and expressions, eliminating all declaration boilerplate while producing identical results.
 
-real function circle_area(r)
-  real :: r
-  real, parameter :: pi = 3.14159
-  circle_area = pi * r * r
-end function
-```
-
-Both produce identical results - the `.f` format automatically handles program wrapping, variable declarations, and implicit none.
+For a comprehensive demonstration of type inference across all basic types (integer, real, character, logical), see [example/type_inference/all_types.f](example/type_inference/all_types.f).
 
 ## More Examples
 
