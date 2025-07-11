@@ -40,7 +40,7 @@ contains
     close(unit)
     
     ! Run the program with custom config dir (will fail but should show dependencies)
-    command = './build/gfortran_*/app/fortran --config-dir ' // trim(test_dir) // ' -v ' // &
+    command = 'fpm run fortran -- --config-dir ' // trim(test_dir) // ' -v ' // &
               trim(test_file) // ' > /tmp/multiple_output.txt 2>&1; echo $? > /tmp/multiple_exit.txt'
     call execute_command_line(command)
     

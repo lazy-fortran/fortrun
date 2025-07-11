@@ -12,7 +12,7 @@ program test_preprocessor_integration
   
   ! Test 1: Run simple .f file
   test_count = test_count + 1
-  call execute_command_line('./build/gfortran_*/app/fortran example/preprocessor/hello.f', &
+  call execute_command_line('fpm run fortran -- example/preprocessor/hello.f', &
                            exitstat=exit_status)
   if (exit_status == 0) then
     pass_count = pass_count + 1
@@ -23,7 +23,7 @@ program test_preprocessor_integration
   
   ! Test 2: Run .f file with functions
   test_count = test_count + 1
-  call execute_command_line('./build/gfortran_*/app/fortran example/preprocessor/math.f', &
+  call execute_command_line('fpm run fortran -- example/preprocessor/math.f', &
                            exitstat=exit_status)
   if (exit_status == 0) then
     pass_count = pass_count + 1
@@ -34,7 +34,7 @@ program test_preprocessor_integration
   
   ! Test 3: Run .f file with subroutines
   test_count = test_count + 1
-  call execute_command_line('./build/gfortran_*/app/fortran example/preprocessor/subroutines.f', &
+  call execute_command_line('fpm run fortran -- example/preprocessor/subroutines.f', &
                            exitstat=exit_status)
   if (exit_status == 0) then
     pass_count = pass_count + 1
@@ -45,7 +45,7 @@ program test_preprocessor_integration
   
   ! Test 4: Verbose mode shows preprocessing message
   test_count = test_count + 1
-  call execute_command_line('./build/gfortran_*/app/fortran -v example/preprocessor/hello.f ' // &
+  call execute_command_line('fpm run fortran -- -v example/preprocessor/hello.f ' // &
                            '2>&1 | grep -q "Preprocessing"', exitstat=exit_status)
   if (exit_status == 0) then
     pass_count = pass_count + 1
@@ -56,7 +56,7 @@ program test_preprocessor_integration
   
   ! Test 5: Regular .f90 files still work
   test_count = test_count + 1
-  call execute_command_line('./build/gfortran_*/app/fortran example/hello/hello.f90', &
+  call execute_command_line('fpm run fortran -- example/hello/hello.f90', &
                            exitstat=exit_status)
   if (exit_status == 0) then
     pass_count = pass_count + 1

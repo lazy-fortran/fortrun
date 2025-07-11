@@ -84,7 +84,7 @@ contains
     close(unit)
     
     ! Run program
-    call execute_command_line('./build/gfortran_*/app/fortran test_basic.f90 > test_output.txt 2>&1')
+    call execute_command_line('fpm run fortran -- test_basic.f90 > test_output.txt 2>&1')
     
     ! Check if cache directory was created
     inquire(file=trim(cache_dir) // '/modules', exist=dir_exists)
@@ -141,8 +141,8 @@ contains
     close(unit)
     
     ! Run both programs
-    call execute_command_line('./build/gfortran_*/app/fortran app1.f90 > app1_output.txt 2>&1', exitstat=stat1)
-    call execute_command_line('./build/gfortran_*/app/fortran app2.f90 > app2_output.txt 2>&1', exitstat=stat2)
+    call execute_command_line('fpm run fortran -- app1.f90 > app1_output.txt 2>&1', exitstat=stat1)
+    call execute_command_line('fpm run fortran -- app2.f90 > app2_output.txt 2>&1', exitstat=stat2)
     
     if (stat1 == 0 .and. stat2 == 0) then
       print '(a)', '  ✓ Both programs executed successfully'
@@ -176,7 +176,7 @@ contains
     write(unit, '(a)') '    print *, "structure test"'
     write(unit, '(a)') 'end program'
     close(unit)
-    call execute_command_line('./build/gfortran_*/app/fortran test_structure.f90 > /dev/null 2>&1')
+    call execute_command_line('fpm run fortran -- test_structure.f90 > /dev/null 2>&1')
     
     ! Check compiler-specific directory
     inquire(file=trim(cache_dir) // '/modules/gfortran', exist=gfortran_exists)
@@ -221,7 +221,7 @@ contains
     close(unit)
     
     ! First run (should be cache miss)
-    call execute_command_line('./build/gfortran_*/app/fortran test_cache.f90 > first_run.txt 2>&1')
+    call execute_command_line('fpm run fortran -- test_cache.f90 > first_run.txt 2>&1')
     call execute_command_line('grep -q "Cache miss" first_run.txt', exitstat=stat)
     
     if (stat == 0) then
@@ -231,7 +231,7 @@ contains
     end if
     
     ! Second run (should be cache hit)
-    call execute_command_line('./build/gfortran_*/app/fortran test_cache.f90 > second_run.txt 2>&1')
+    call execute_command_line('fpm run fortran -- test_cache.f90 > second_run.txt 2>&1')
     call execute_command_line('grep -q "Cache hit" second_run.txt', exitstat=stat)
     
     if (stat == 0) then
@@ -288,12 +288,12 @@ contains
     
     ! Time first run
     call cpu_time(time1)
-    call execute_command_line('./build/gfortran_*/app/fortran calc1.f90 > /dev/null 2>&1', exitstat=stat)
+    call execute_command_line('fpm run fortran -- calc1.f90 > /dev/null 2>&1', exitstat=stat)
     call cpu_time(time2)
     
     ! Time second run
     call cpu_time(time3)
-    call execute_command_line('./build/gfortran_*/app/fortran calc2.f90 > /dev/null 2>&1', exitstat=stat)
+    call execute_command_line('fpm run fortran -- calc2.f90 > /dev/null 2>&1', exitstat=stat)
     call cpu_time(time4)
     
     if (stat == 0) then

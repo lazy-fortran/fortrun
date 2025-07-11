@@ -16,7 +16,7 @@ program test_module_cache_system
     stop 1
   end if
   
-  fortran_cmd = './build/gfortran_*/app/fortran'
+  fortran_cmd = 'fpm run fortran --'
   
   print '(a)', 'Running module cache system tests...'
   print '(a)', ''

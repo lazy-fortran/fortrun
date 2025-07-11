@@ -58,11 +58,11 @@ contains
     ! Test sequential access (should work)
     print '(a)', ''
     print '(a)', 'Testing sequential access...'
-    call execute_command_line('./build/gfortran_*/app/fortran --cache-dir "' // &
+    call execute_command_line('fpm run fortran -- --cache-dir "' // &
                               trim(cache_dir) // '" "' // trim(test_file) // &
                               '" > /dev/null 2>&1', exitstat=exit_code1)
     
-    call execute_command_line('./build/gfortran_*/app/fortran --cache-dir "' // &
+    call execute_command_line('fpm run fortran -- --cache-dir "' // &
                               trim(cache_dir) // '" "' // trim(test_file) // &
                               '" > /dev/null 2>&1', exitstat=exit_code2)
     

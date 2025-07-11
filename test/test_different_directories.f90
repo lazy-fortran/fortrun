@@ -55,8 +55,8 @@ contains
     abs_path = trim(sub_dir) // '/hello.f90'
     
     ! Change to parent directory and run with absolute path
-    command = 'ORIGINAL_DIR=$(pwd) && cd ' // trim(test_dir) // ' && $ORIGINAL_DIR/build/gfortran_*/app/fortran "' // &
-              trim(abs_path) // '" > /tmp/abs_output.txt 2>&1; echo $? > /tmp/abs_exit.txt'
+    command = 'ORIGINAL_DIR=$(pwd) && cd ' // trim(test_dir) // ' && (cd $ORIGINAL_DIR && fpm run fortran -- "' // &
+              trim(abs_path) // '") > /tmp/abs_output.txt 2>&1; echo $? > /tmp/abs_exit.txt'
     call execute_command_line(command)
     
     ! Check that it succeeded
@@ -78,7 +78,7 @@ contains
     
     ! Change to parent directory and run with relative path
     command = 'ORIGINAL_DIR=$(pwd) && cd ' // trim(test_dir) // &
-              ' && $ORIGINAL_DIR/build/gfortran_*/app/fortran subdir/hello.f90 ' // &
+              ' && (cd $ORIGINAL_DIR && fpm run fortran -- subdir/hello.f90) ' // &
               '> /tmp/rel_output.txt 2>&1; echo $? > /tmp/rel_exit.txt'
     call execute_command_line(command)
     
@@ -103,7 +103,7 @@ contains
     abs_path = trim(sub_dir) // '/hello.f90'
     
     ! Change to /tmp and run with absolute path
-    command = 'ORIGINAL_DIR=$(pwd) && cd /tmp && $ORIGINAL_DIR/build/gfortran_*/app/fortran "' // &
+    command = 'ORIGINAL_DIR=$(pwd) && cd /tmp && (cd $ORIGINAL_DIR && fpm run fortran -- "' // &
               trim(abs_path) // '" > /tmp/diff_output.txt 2>&1; echo $? > /tmp/diff_exit.txt'
     call execute_command_line(command)
     

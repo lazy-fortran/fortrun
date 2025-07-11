@@ -82,7 +82,7 @@ contains
   subroutine test_no_arguments()
     print *, 'Test 1: No arguments (should show help)'
     
-    command = './build/gfortran_*/app/fortran > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
+    command = 'fpm run fortran -- > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command)
     
     call check_help_output('/tmp/cli_test_output.txt', test_passed)
@@ -100,7 +100,7 @@ contains
   subroutine test_help_flag()
     print *, 'Test 2: --help flag'
     
-    command = './build/gfortran_*/app/fortran --help > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
+    command = 'fpm run fortran -- --help > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command)
     
     call check_help_output('/tmp/cli_test_output.txt', test_passed)
@@ -118,7 +118,7 @@ contains
   subroutine test_h_flag()
     print *, 'Test 3: -h flag'
     
-    command = './build/gfortran_*/app/fortran -h > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
+    command = 'fpm run fortran -- -h > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command)
     
     call check_help_output('/tmp/cli_test_output.txt', test_passed)
@@ -136,7 +136,7 @@ contains
   subroutine test_basic_execution()
     print *, 'Test 4: Basic execution'
     
-    command = './build/gfortran_*/app/fortran ' // trim(test_file) // &
+    command = 'fpm run fortran -- ' // trim(test_file) // &
               ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command)
     
@@ -162,7 +162,7 @@ contains
       call execute_command_line('rm -rf "' // trim(cache_dir) // '/test_system_cli_*"')
     end block
     
-    command = './build/gfortran_*/app/fortran -v ' // trim(test_file) // &
+    command = 'fpm run fortran -- -v ' // trim(test_file) // &
               ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command)
     
@@ -182,7 +182,7 @@ contains
   subroutine test_vv_flag()
     print *, 'Test 6: -vv flag'
     
-    command = './build/gfortran_*/app/fortran -vv ' // trim(test_file) // &
+    command = 'fpm run fortran -- -vv ' // trim(test_file) // &
               ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command)
     
@@ -209,7 +209,7 @@ contains
       call execute_command_line('rm -rf "' // trim(cache_dir) // '/test_system_cli_*"')
     end block
     
-    command = './build/gfortran_*/app/fortran --verbose ' // trim(test_file) // &
+    command = 'fpm run fortran -- --verbose ' // trim(test_file) // &
               ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command)
     
@@ -236,7 +236,7 @@ contains
       call execute_command_line('rm -rf "' // trim(cache_dir) // '/test_system_cli_*"')
     end block
     
-    command = './build/gfortran_*/app/fortran --verbose 1 ' // trim(test_file) // &
+    command = 'fpm run fortran -- --verbose 1 ' // trim(test_file) // &
               ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command)
     
@@ -256,7 +256,7 @@ contains
   subroutine test_verbose_2()
     print *, 'Test 9: --verbose 2'
     
-    command = './build/gfortran_*/app/fortran --verbose 2 ' // trim(test_file) // &
+    command = 'fpm run fortran -- --verbose 2 ' // trim(test_file) // &
               ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command)
     
@@ -276,7 +276,7 @@ contains
   subroutine test_cache_dir()
     print *, 'Test 10: --cache-dir'
     
-    command = './build/gfortran_*/app/fortran --cache-dir /tmp/custom_cache ' // trim(test_file) // &
+    command = 'fpm run fortran -- --cache-dir /tmp/custom_cache ' // trim(test_file) // &
               ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command)
     
@@ -302,7 +302,7 @@ contains
     call execute_command_line('mkdir -p /tmp/custom_config')
     call execute_command_line('cp registry.toml /tmp/custom_config/')
     
-    command = './build/gfortran_*/app/fortran --config-dir /tmp/custom_config ' // trim(test_file) // &
+    command = 'fpm run fortran -- --config-dir /tmp/custom_config ' // trim(test_file) // &
               ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command)
     
@@ -322,7 +322,7 @@ contains
     print *, 'Test 12: Invalid arguments'
     
     ! Test missing cache directory argument
-    command = './build/gfortran_*/app/fortran --cache-dir > /tmp/cli_test_output.txt 2>&1; ' // &
+    command = 'fpm run fortran -- --cache-dir > /tmp/cli_test_output.txt 2>&1; ' // &
               'echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command)
     
@@ -517,7 +517,7 @@ contains
     write(unit, '(a)') "print *, 'Hello from .f file'"
     close(unit)
     
-    command = './build/gfortran_*/app/fortran ' // trim(test_f_file) // &
+    command = 'fpm run fortran -- ' // trim(test_f_file) // &
               ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command, exitstat=exit_code)
     
@@ -547,7 +547,7 @@ contains
     write(unit, '(a)') "This is not a Fortran file"
     close(unit)
     
-    command = './build/gfortran_*/app/fortran ' // trim(test_txt_file) // &
+    command = 'fpm run fortran -- ' // trim(test_txt_file) // &
               ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command, exitstat=exit_code)
     
