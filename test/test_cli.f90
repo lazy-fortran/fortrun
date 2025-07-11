@@ -5,8 +5,8 @@ program test_cli
   
   ! Test variables
   character(len=256) :: filename, custom_cache_dir, custom_config_dir
-  logical :: show_help
-  integer :: verbose_level
+  logical :: show_help, no_wait
+  integer :: verbose_level, parallel_jobs
   
   print *, '=== CLI Argument Parsing Tests ==='
   print *
@@ -57,7 +57,7 @@ contains
     
     ! Simulate no arguments by calling parse_arguments directly
     ! This should set show_help to .true.
-    call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, custom_config_dir)
+    call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, custom_config_dir, parallel_jobs, no_wait)
     
     if (.not. show_help) then
       write(error_unit, *) 'FAIL: No arguments should show help'

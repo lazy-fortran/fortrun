@@ -49,6 +49,12 @@ program test_cli_system
   ! Test 12: Invalid arguments
   call test_invalid_arguments()
   
+  ! Test 13: .f file execution
+  call test_f_file_execution()
+  
+  ! Test 14: Invalid file extension
+  call test_invalid_extension()
+  
   ! Cleanup
   call cleanup_test_files()
   
@@ -475,6 +481,56 @@ contains
     end if
     
   end subroutine check_directory_exists
+
+  subroutine test_f_file_execution()
+    character(len=512) :: test_f_file
+    logical :: success, exit_ok
+    integer :: unit
+    
+    print *, 'Test 13: .f file execution'
+    
+    ! Create a simple .f test file
+    test_f_file = '/tmp/test_simple.f'
+    open(newunit=unit, file=test_f_file, status='replace')
+    write(unit, '(a)') "print *, 'Hello from .f file'"
+    close(unit)
+    
+    command = './build/gfortran_*/app/fortran ' // trim(test_f_file) // &
+              ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
+    call execute_command_line(command, exitstat=exit_code)
+    
+    call check_exit_code('/tmp/cli_test_exit.txt', 0, exit_ok)
+    call check_program_output('/tmp/cli_test_output.txt', 'Hello from .f file', success)
+    
+    if (exit_ok .and. success) then
+      print *, 'PASS: .f file executed successfully'
+    else
+      print *, 'FAIL: .f file execution failed'
+    end if
+    
+    ! Cleanup
+    call execute_command_line('rm -f ' // trim(test_f_file))
+  end subroutine test_f_file_execution
+  
+  subroutine test_invalid_extension()
+    logical :: exit_ok, has_error
+    
+    print *, 'Test 14: Invalid file extension'
+    
+    command = './build/gfortran_*/app/fortran test.txt' // &
+              ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
+    call execute_command_line(command, exitstat=exit_code)
+    
+    call check_exit_code('/tmp/cli_test_exit.txt', 1, exit_ok)
+    call check_program_output('/tmp/cli_test_output.txt', &
+                              'must have .f90, .F90, .f, or .F extension', has_error)
+    
+    if (exit_ok .and. has_error) then
+      print *, 'PASS: Invalid extension rejected'
+    else
+      print *, 'FAIL: Should reject invalid extensions'
+    end if
+  end subroutine test_invalid_extension
 
   subroutine cleanup_test_files()
     call execute_command_line('rm -f /tmp/test_system_cli.f90')

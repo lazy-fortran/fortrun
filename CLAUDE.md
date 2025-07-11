@@ -110,12 +110,20 @@ fpm test test_name
 - ✅ Conflicting dependencies resolution
 - ✅ System tests for CLI functionality
 
-### 🚧 **Phase 3 In Progress**: Smart Caching
+### ✅ **Phase 3 Complete**: Smart Caching
 - ✅ Cache directory structure and management
 - ✅ FPM API integration for content-based hashing
 - ✅ Cache key generation using FPM's digest system
-- ⚠️ Build artifact caching (Phase 3.2)
-- ⚠️ Cache retrieval and validation (Phase 3.3)
+- ✅ Cache locking mechanism for parallel builds
+- ✅ Performance benchmarks and safety tests
+
+### 🚧 **Phase 4 In Progress**: Simplified Fortran
+- ✅ Preprocessor for .f files (Phase 4.1)
+  - ✅ Automatic program wrapping
+  - ✅ Automatic contains insertion
+  - ✅ Implicit none by default
+  - ✅ Support for functions and subroutines
+- ⚠️ Basic type inference (Phase 4.2)
 
 ## Modern Defaults (Opinionated Design)
 
@@ -203,11 +211,11 @@ Each example includes:
 
 ## Future Roadmap
 
-- **Phase 3**: Smart caching with content hashing
-- **Phase 4**: Cross-package support and performance optimization  
-- **Phase 5**: Integration with official FPM registry
-- **Phase 6**: Simplified Fortran preprocessor (`.f` files)
-- **Phase 7**: Type inference system
+- **Phase 4.2**: Basic type inference for .f files
+- **Phase 5**: Cross-package support and performance optimization  
+- **Phase 6**: Integration with official FPM registry
+- **Phase 7**: Advanced type inference and more Python-like features
+- **Phase 8**: Interactive REPL mode
 
 **Goal**: **Make Python Fortran again** - making Fortran development as seamless as Python, where you can just run a file without worrying about compilation, linking, or dependency management.
 
