@@ -166,35 +166,81 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
   - Incremental compilation: 1.5-2x speedup
   - Implemented both shell script and Fortran benchmarks
 - [ ] Implement parallel dependency resolution
+  - **Concrete Plan**:
+    1. Analyze dependency graph to find independent modules
+    2. Use FPM's parallel build capabilities (already supports -j flag)
+    3. Pass through parallel build flags from CLI
+    4. Test with projects having many independent dependencies
+  - **Implementation Steps**:
+    - Add `--jobs/-j` flag to CLI (e.g., `fortran -j4 file.f90`)
+    - Pass flag to FPM build command
+    - Add benchmark for parallel vs sequential builds
+    - Document optimal job count recommendations
+
 - [x] Write test for concurrent cache access
   - Documented current limitations
   - Sequential access works correctly
   - Concurrent access needs proper locking
-- [ ] Implement cache locking mechanism
-  - Need lock files with PID tracking
-  - Atomic operations for cache updates
-  - Wait/retry logic with timeouts
-  - Deferred as future enhancement
-- [ ] Implement module-level caching for partial cache hits
-  - Cache individual compiled modules separately
-  - Share cached modules between projects
-  - Enable true partial rebuilds across projects
 
-### 4.2 Cross-Package Support
+- [ ] Implement cache locking mechanism
+  - **Concrete Plan**:
+    1. Add `.lock` file creation when build starts
+    2. Include PID and timestamp in lock file
+    3. Check for stale locks (> 5 minutes old)
+    4. Implement wait with timeout (30 seconds default)
+  - **Implementation Steps**:
+    - Create `src/cache_lock.f90` module
+    - Add `acquire_lock()` and `release_lock()` functions
+    - Use POSIX file locking where available
+    - Fallback to lock files with atomic rename
+    - Add `--no-wait` flag to fail immediately if locked
+    - Clean up stale locks on startup
+
+- [ ] Implement build progress reporting
+  - **Concrete Plan**:
+    1. Parse FPM output to extract progress information
+    2. Show simplified progress bar for non-verbose mode
+    3. Aggregate multiple file compilations into single progress
+  - **Implementation Steps**:
+    - Create progress parser for FPM output
+    - Add simple progress bar using ASCII characters
+    - Show: `[=====>    ] 50% Compiling (3/6 files)`
+    - Update in-place using carriage returns
+    - Fall back to normal output if not a TTY
+
+- [ ] Implement module-level caching for partial cache hits
+  - **Concrete Plan**:
+    1. Create separate cache directory for compiled modules
+    2. Use content hash of .f90 file as cache key for .mod/.o files
+    3. Copy cached modules into project before build
+    4. Let FPM skip compilation of unchanged modules
+  - **Implementation Steps**:
+    - Add `~/.cache/fortran/modules/` directory structure
+    - Store .mod and .o files by content hash
+    - Create module dependency graph
+    - Copy relevant cached modules before FPM build
+    - Benchmark improvement for large projects
+  - **Note**: This is complex and may require FPM API changes
+
+### 4.2 Cross-Package Support (DEFERRED - Someday/Maybe)
 - [ ] Write test for namespace support
 - [ ] Implement package namespacing
 - [ ] Write test for version resolution
 - [ ] Implement version constraint solver
 - [ ] Write test for package conflicts
 - [ ] Implement conflict resolution
+  - Note: Deferred until core features are battle-tested
+  - Would require significant architectural changes
+  - Better to focus on performance and reliability first
 
 ### 4.3 Developer Experience
 - [x] Write test for verbose/debug output
   - ✅ Already implemented in Phase 2.3
   - ✅ Tested by: `test_verbose.f90`, `test_cli_system.f90`
 - [ ] Implement detailed logging system
-- [ ] Write test for progress indicators
-- [ ] Implement build progress reporting
+  - Add `--log-file` option to save detailed logs
+  - Include timestamps and module names
+  - Useful for debugging complex builds
 - [x] Write test for helpful error messages
   - ✅ Already implemented in Phase 2.3
   - ✅ Tested by: `test_error_handling.f90`
