@@ -70,6 +70,8 @@ contains
       inferred_type%base_type = TYPE_REAL
     else if (is_integer_literal(trimmed_expr, inferred_type%kind)) then
       inferred_type%base_type = TYPE_INTEGER
+    else if (is_comparison_expression(trimmed_expr, inferred_type, env)) then
+      ! Type already set by is_comparison_expression (always logical)
     else if (is_arithmetic_expression(trimmed_expr, inferred_type, env)) then
       ! Type already set by is_arithmetic_expression
     else if (is_intrinsic_function(trimmed_expr, inferred_type, env)) then
@@ -219,6 +221,13 @@ contains
     mult_pos = index(expr, '*')
     div_pos = index(expr, '/')
     
+    ! Check if division is actually part of /= operator
+    if (div_pos > 0 .and. div_pos < len_trim(expr)) then
+      if (expr(div_pos+1:div_pos+1) == '=') then
+        div_pos = 0  ! Not a division operator
+      end if
+    end if
+    
     ! Handle different binary operations
     if (plus_pos > 1) then
       left_expr = adjustl(expr(1:plus_pos-1))
@@ -254,6 +263,103 @@ contains
     end if
     
   end function is_arithmetic_expression
+  
+  function is_comparison_expression(expr, result_type, env) result(is_comp)
+    character(len=*), intent(in) :: expr
+    type(type_info), intent(out) :: result_type
+    type(type_environment), intent(in), optional :: env
+    logical :: is_comp
+    
+    integer :: gt_pos, lt_pos, eq_pos, ne_pos, ge_pos, le_pos
+    integer :: op_pos
+    character(len=256) :: left_expr, right_expr
+    type(type_info) :: left_type, right_type
+    
+    is_comp = .false.
+    result_type%base_type = TYPE_UNKNOWN
+    
+    ! Check for comparison operators
+    ! Initialize all positions
+    gt_pos = 0
+    lt_pos = 0
+    ge_pos = 0
+    le_pos = 0
+    eq_pos = 0
+    ne_pos = 0
+    
+    ! First check for two-character operators
+    ge_pos = index(expr, '>=')
+    le_pos = index(expr, '<=')
+    eq_pos = index(expr, '==')
+    ne_pos = index(expr, '/=')
+    
+    ! Then check for single-character operators (but not if part of >=, <=)
+    if (ge_pos == 0) then
+      gt_pos = index(expr, '>')
+    end if
+    if (le_pos == 0) then
+      lt_pos = index(expr, '<')
+    end if
+    
+    ! Check for Fortran-style operators
+    if (gt_pos == 0 .and. ge_pos == 0) gt_pos = index(expr, '.gt.')
+    if (lt_pos == 0 .and. le_pos == 0) lt_pos = index(expr, '.lt.')
+    if (eq_pos == 0) eq_pos = index(expr, '.eq.')
+    if (ne_pos == 0) ne_pos = index(expr, '.ne.')
+    if (ge_pos == 0) ge_pos = index(expr, '.ge.')
+    if (le_pos == 0) le_pos = index(expr, '.le.')
+    
+    ! Find which operator is present and its position
+    op_pos = 0
+    if (gt_pos > 0) op_pos = gt_pos
+    if (lt_pos > 0 .and. (op_pos == 0 .or. lt_pos < op_pos)) op_pos = lt_pos
+    if (eq_pos > 0 .and. (op_pos == 0 .or. eq_pos < op_pos)) op_pos = eq_pos
+    if (ne_pos > 0 .and. (op_pos == 0 .or. ne_pos < op_pos)) op_pos = ne_pos
+    if (ge_pos > 0 .and. (op_pos == 0 .or. ge_pos < op_pos)) op_pos = ge_pos
+    if (le_pos > 0 .and. (op_pos == 0 .or. le_pos < op_pos)) op_pos = le_pos
+    
+    if (op_pos > 1) then
+      ! Extract left and right expressions
+      left_expr = adjustl(expr(1:op_pos-1))
+      
+      ! Determine operator length and extract right expression
+      if (op_pos == ge_pos .or. op_pos == le_pos) then
+        right_expr = adjustl(expr(op_pos+2:))  ! Two-character operator >= or <=
+      else if (op_pos == eq_pos .or. op_pos == ne_pos) then
+        right_expr = adjustl(expr(op_pos+2:))  ! Two-character operator == or /=
+      else if (index(expr(op_pos:), '.gt.') == 1 .or. &
+               index(expr(op_pos:), '.lt.') == 1 .or. &
+               index(expr(op_pos:), '.eq.') == 1 .or. &
+               index(expr(op_pos:), '.ne.') == 1 .or. &
+               index(expr(op_pos:), '.ge.') == 1 .or. &
+               index(expr(op_pos:), '.le.') == 1) then
+        right_expr = adjustl(expr(op_pos+4:))  ! Four-character operator like .gt.
+      else
+        right_expr = adjustl(expr(op_pos+1:))  ! Single-character operator > or <
+      end if
+      
+      ! Ensure we have non-empty expressions
+      if (len_trim(left_expr) == 0 .or. len_trim(right_expr) == 0) then
+        return  ! Invalid comparison
+      end if
+      
+      ! Infer types of operands
+      if (present(env)) then
+        call infer_type_from_expression(left_expr, left_type, env)
+        call infer_type_from_expression(right_expr, right_type, env)
+      else
+        call infer_type_from_expression(left_expr, left_type)
+        call infer_type_from_expression(right_expr, right_type)
+      end if
+      
+      ! Comparison always returns logical, even if operands are unknown
+      ! (we assume variables exist and have compatible types for comparison)
+      is_comp = .true.
+      result_type%base_type = TYPE_LOGICAL
+      result_type%kind = 4  ! Default logical kind
+    end if
+    
+  end function is_comparison_expression
   
   function is_intrinsic_function(expr, result_type, env) result(is_intrinsic)
     character(len=*), intent(in) :: expr

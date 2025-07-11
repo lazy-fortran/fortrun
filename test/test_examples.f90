@@ -9,7 +9,7 @@ program test_examples
   logical :: file_exists
   
   ! List of example files to test
-  n_examples = 6
+  n_examples = 9
   allocate(example_files(n_examples))
   example_files(1) = 'example/hello/hello.f90'
   example_files(2) = 'example/calculator/calculator.f90'
@@ -17,6 +17,9 @@ program test_examples
   example_files(4) = 'example/precision/precision_compare.f90'
   example_files(5) = 'example/precision/real_default_test.f90'
   example_files(6) = 'example/interdependent/main.f90'
+  example_files(7) = 'example/type_inference/calculate.f90'
+  example_files(8) = 'example/type_inference/calculate.f'
+  example_files(9) = 'example/type_inference/all_types.f'
   
   n_passed = 0
   n_failed = 0
@@ -60,6 +63,25 @@ program test_examples
           print '(a)', '    ✓ Interdependent modules working correctly'
         else
           print '(a)', '    WARNING: Interdependent modules may not be working'
+        end if
+      case ('example/type_inference/calculate.f90', 'example/type_inference/calculate.f')
+        if (index(output, 'Label:') > 0 .and. &
+            index(output, 'Number of circles:') > 0 .and. &
+            index(output, 'Area:') > 0 .and. &
+            index(output, 'Is large?') > 0) then
+          print '(a)', '    ✓ Type inference example output correct'
+        else
+          print '(a)', '    WARNING: Type inference example output incomplete'
+        end if
+      case ('example/type_inference/all_types.f')
+        if (index(output, 'Integer count:') > 0 .and. &
+            index(output, 'Real pi:') > 0 .and. &
+            index(output, 'String name:') > 0 .and. &
+            index(output, 'Logical ready:') > 0 .and. &
+            index(output, 'Is positive?') > 0) then
+          print '(a)', '    ✓ All type inference working correctly'
+        else
+          print '(a)', '    WARNING: Type inference for all types may not be working'
         end if
       end select
     else
@@ -124,6 +146,11 @@ contains
     j = index(cache_pattern, '.f90')
     if (j > 0) then
       cache_pattern = cache_pattern(1:j-1)
+    else
+      j = index(cache_pattern, '.f')
+      if (j > 0) then
+        cache_pattern = cache_pattern(1:j-1)
+      end if
     end if
     
     ! Clean cache for this example
