@@ -48,9 +48,13 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
   - For file using `pyplot_module`
   - Generate fpm.toml with pyplot-fortran dependency
 - [ ] Implement FPM project generator in `src/fpm_generator.f90`
-  - Load registry.toml and module_index.toml
-  - Map detected modules to packages
-  - Generate fpm.toml with dependencies section
+  - Load registry.toml for package definitions
+  - Implement smart module resolution:
+    - Check explicit mappings in module_index.toml
+    - Check custom prefixes
+    - Use underscore-based inference
+    - Fallback to module name as package name
+  - Generate fpm.toml with resolved dependencies
 
 ## Phase 2: Enhanced Features (Leveraging FPM)
 

@@ -1,6 +1,37 @@
 program main
-  use fortran, only: say_hello
+  use cli, only: parse_arguments
+  use runner, only: run_fortran_file
   implicit none
+  
+  character(len=256) :: filename
+  logical :: show_help
+  integer :: exit_code
+  
+  call parse_arguments(filename, show_help)
+  
+  if (show_help) then
+    call print_help()
+    stop 0
+  end if
+  
+  call run_fortran_file(filename, exit_code)
+  
+  if (exit_code /= 0) then
+    stop 1
+  end if
+  
+contains
 
-  call say_hello()
+  subroutine print_help()
+    print '(a)', 'Usage: fortran <file.f90>'
+    print '(a)', ''
+    print '(a)', 'Run a Fortran program file with automatic dependency resolution.'
+    print '(a)', ''
+    print '(a)', 'Arguments:'
+    print '(a)', '  <file.f90>    Path to the Fortran source file to run'
+    print '(a)', ''
+    print '(a)', 'Options:'
+    print '(a)', '  --help        Show this help message'
+  end subroutine print_help
+  
 end program main

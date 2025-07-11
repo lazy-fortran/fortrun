@@ -130,19 +130,22 @@ git = "https://github.com/fortran-lang/fftpack"
 modules = ["fftpack"]
 ```
 
-### Module Lookup Table
+### Module Resolution Strategy
 
-For fast module-to-package resolution, we maintain a derived lookup table:
+The tool uses a smart module resolution strategy:
 
-```toml
-# module_index.toml (auto-generated)
-[modules]
-json_module = "json-fortran"
-json_kinds = "json-fortran"
-stdlib_io = "stdlib"
-stdlib_kinds = "stdlib"
-fftpack = "fftpack"
-```
+1. **Explicit mappings**: Check `module_index.toml` for explicit module-to-package mappings
+2. **Custom prefixes**: Check if module starts with a registered prefix (e.g., `fortplot*` → `fortplotlib`)
+3. **Automatic inference**: 
+   - If module contains underscore: `module_name` → `package-name` (part before first `_`)
+   - If no underscore: `module_name` → `package-name` (the module name itself)
+
+Example resolutions:
+- `use fortplot` → `fortplotlib` (via prefix)
+- `use fortplot_utils` → `fortplotlib` (via prefix)
+- `use pyplot_module` → `pyplot-fortran` (via underscore rule)
+- `use json_module` → `json-fortran` (via underscore rule)
+- `use fftpack` → `fftpack` (no underscore, use full name)
 
 ### Registry Integration
 
