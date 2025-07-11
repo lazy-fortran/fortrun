@@ -7,9 +7,11 @@ module runner
   
 contains
 
-  subroutine run_fortran_file(filename, exit_code)
+  subroutine run_fortran_file(filename, exit_code, verbose_level, custom_cache_dir)
     character(len=*), intent(in) :: filename
     integer, intent(out) :: exit_code
+    integer, intent(in) :: verbose_level
+    character(len=*), intent(in) :: custom_cache_dir
     
     logical :: file_exists, success
     character(len=256) :: cache_dir, project_dir, basename
@@ -41,8 +43,12 @@ contains
     ! Extract basename without extension
     call get_basename(filename, basename)
     
-    ! Get cache directory
-    cache_dir = get_cache_dir()
+    ! Get cache directory (use custom if provided)
+    if (len_trim(custom_cache_dir) > 0) then
+      cache_dir = custom_cache_dir
+    else
+      cache_dir = get_cache_dir()
+    end if
     call ensure_cache_dir(cache_dir, success)
     if (.not. success) then
       print '(a)', 'Error: Failed to create cache directory'
@@ -77,9 +83,22 @@ contains
     ! Generate minimal fpm.toml
     call generate_fpm_toml(project_dir, basename)
     
-    ! Run FPM with precision flags (implicit-none handled by fpm.toml)
-    command = 'cd "' // trim(project_dir) // '" && ' // &
-              'fpm run --flag "-fdefault-real-8 -fdefault-double-8"'
+    ! Build and run with verbosity control
+    if (verbose_level == 0) then
+      ! Quiet mode: build silently, then run
+      command = 'cd "' // trim(project_dir) // '" && ' // &
+                'fpm build --flag "-fdefault-real-8 -fdefault-double-8" > /dev/null 2>&1 && ' // &
+                'fpm run --flag "-fdefault-real-8 -fdefault-double-8"'
+    else if (verbose_level == 1) then
+      ! Normal verbose: show build and run
+      command = 'cd "' // trim(project_dir) // '" && ' // &
+                'fpm run --flag "-fdefault-real-8 -fdefault-double-8"'
+    else
+      ! Very verbose: show detailed output
+      command = 'cd "' // trim(project_dir) // '" && ' // &
+                'fpm run --verbose --flag "-fdefault-real-8 -fdefault-double-8"'
+    end if
+    
     call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat, wait=.true.)
     
     if (cmdstat /= 0) then
