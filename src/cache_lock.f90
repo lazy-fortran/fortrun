@@ -1,4 +1,5 @@
 module cache_lock
+  use iso_c_binding, only: c_int
   implicit none
   private
   public :: acquire_lock, release_lock, is_locked, cleanup_stale_locks
@@ -27,6 +28,8 @@ contains
     do
       ! First check if lock already exists
       inquire(file=lock_file, exist=locked)
+      ! DEBUG
+      ! print *, 'DEBUG acquire_lock: lock exists=', locked, ' for ', trim(lock_file)
       if (.not. locked) then
         ! Try to create lock file atomically
         if (try_create_lock(lock_file)) then
@@ -48,6 +51,8 @@ contains
         
         ! Lock exists and is not stale
         success = .false.
+        ! DEBUG
+        ! print *, 'DEBUG: Lock exists and not stale, setting success=F, should_wait=', should_wait
         
         ! If not waiting, fail immediately
         if (.not. should_wait) then
@@ -131,6 +136,7 @@ contains
     character(len=512) :: temp_file, command
     integer :: unit, iostat, pid
     character(len=32) :: pid_str, timestamp
+    logical :: file_exists
     
     success = .false.
     
@@ -149,8 +155,8 @@ contains
       
       ! Try to atomically move temp file to lock file
       ! First check if lock file already exists
-      inquire(file=lock_file, exist=success)
-      if (success) then
+      inquire(file=lock_file, exist=file_exists)
+      if (file_exists) then
         ! Lock already exists, can't create  
         call execute_command_line('rm -f "' // trim(temp_file) // '"')
         success = .false.
@@ -160,7 +166,9 @@ contains
         call execute_command_line(command, exitstat=iostat)
         
         if (iostat == 0) then
-          success = .true.
+          ! Double-check that we really created the lock
+          inquire(file=lock_file, exist=file_exists)
+          success = file_exists
         else
           success = .false.
         end if
@@ -202,6 +210,7 @@ contains
                         lock_hour*3600 + lock_min*60 + lock_sec
             current_time = get_current_timestamp()
             
+            
             ! Check if lock is older than stale threshold
             if (current_time - lock_time > STALE_LOCK_TIME) then
               stale = .true.
@@ -235,19 +244,16 @@ contains
   
   subroutine get_pid(pid)
     integer, intent(out) :: pid
-    integer :: unit, iostat
     
-    call execute_command_line('echo $$ > /tmp/fortran_pid.tmp')
+    interface
+      function getpid() bind(c, name='getpid')
+        import :: c_int
+        integer(c_int) :: getpid
+      end function getpid
+    end interface
     
-    open(newunit=unit, file='/tmp/fortran_pid.tmp', status='old', iostat=iostat)
-    if (iostat == 0) then
-      read(unit, *) pid
-      close(unit)
-    else
-      pid = 0
-    end if
-    
-    call execute_command_line('rm -f /tmp/fortran_pid.tmp')
+    ! Use C getpid function for portability
+    pid = getpid()
     
   end subroutine get_pid
   
