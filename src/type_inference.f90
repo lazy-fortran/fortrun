@@ -56,8 +56,9 @@ contains
     inferred_type%kind = 4
     inferred_type%char_len = -1
     
-    ! Trim whitespace
+    ! Trim whitespace and remove comments
     trimmed_expr = adjustl(expr)
+    call strip_comment(trimmed_expr)
     
     ! Check for expressions before literals to handle cases like "3.14 > 3"
     ! Comparison expressions must be checked first
@@ -629,5 +630,53 @@ contains
     end do
     
   end subroutine generate_declarations
+
+  subroutine strip_comment(expr)
+    character(len=*), intent(inout) :: expr
+    
+    integer :: comment_pos, i, expr_len
+    logical :: in_string
+    character :: quote_char
+    
+    ! Find comment position, but ignore ! inside string literals
+    comment_pos = 0
+    in_string = .false.
+    quote_char = ' '
+    expr_len = len_trim(expr)
+    
+    i = 1
+    do while (i <= expr_len)
+      if (.not. in_string) then
+        ! Not in string - check for start of string or comment
+        if (expr(i:i) == '"' .or. expr(i:i) == "'") then
+          in_string = .true.
+          quote_char = expr(i:i)
+        else if (expr(i:i) == '!') then
+          comment_pos = i
+          exit
+        end if
+      else
+        ! In string - check for end of string
+        if (expr(i:i) == quote_char) then
+          ! Check for doubled quote (escape sequence)
+          if (i < expr_len .and. expr(i+1:i+1) == quote_char) then
+            i = i + 1  ! Skip the doubled quote
+          else
+            in_string = .false.
+          end if
+        end if
+      end if
+      i = i + 1
+    end do
+    
+    ! Remove comment if found
+    if (comment_pos > 0) then
+      expr = expr(1:comment_pos-1)
+    end if
+    
+    ! Trim trailing whitespace
+    expr = trim(expr)
+    
+  end subroutine strip_comment
 
 end module type_inference

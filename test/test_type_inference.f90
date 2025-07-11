@@ -16,6 +16,7 @@ program test_type_inference
   call test_multiple_assignments(test_count, pass_count)
   call test_declaration_generation(test_count, pass_count)
   call test_edge_cases(test_count, pass_count)
+  call test_assignments_with_comments(test_count, pass_count)
   
   print '(a)', ''
   print '(a,i0,a,i0,a)', 'Type inference tests: ', pass_count, '/', test_count, ' passed'
@@ -498,5 +499,49 @@ contains
     
     call cleanup_type_environment(env)
   end subroutine test_edge_cases
+
+  subroutine test_assignments_with_comments(test_count, pass_count)
+    integer, intent(inout) :: test_count, pass_count
+    type(type_environment) :: env
+    type(type_info) :: var_type
+    logical :: found
+    
+    call init_type_environment(env)
+    
+    ! Test assignment with comment - character literal
+    test_count = test_count + 1
+    call process_assignment(env, 'label', '"Test Circle" ! character string')
+    call get_variable_type(env, 'label', var_type, found)
+    if (found .and. var_type%base_type == TYPE_CHARACTER) then
+      pass_count = pass_count + 1
+      print '(a)', 'PASS: Character assignment with comment'
+    else
+      print '(a)', 'FAIL: Character assignment with comment'
+    end if
+    
+    ! Test assignment with comment - integer literal  
+    test_count = test_count + 1
+    call process_assignment(env, 'count', '3 ! integer value')
+    call get_variable_type(env, 'count', var_type, found)
+    if (found .and. var_type%base_type == TYPE_INTEGER) then
+      pass_count = pass_count + 1
+      print '(a)', 'PASS: Integer assignment with comment'
+    else
+      print '(a)', 'FAIL: Integer assignment with comment'
+    end if
+    
+    ! Test assignment with comment - real literal
+    test_count = test_count + 1
+    call process_assignment(env, 'value', '3.14 ! real value')
+    call get_variable_type(env, 'value', var_type, found)
+    if (found .and. var_type%base_type == TYPE_REAL) then
+      pass_count = pass_count + 1
+      print '(a)', 'PASS: Real assignment with comment'  
+    else
+      print '(a)', 'FAIL: Real assignment with comment'
+    end if
+    
+    call cleanup_type_environment(env)
+  end subroutine test_assignments_with_comments
 
 end program test_type_inference
