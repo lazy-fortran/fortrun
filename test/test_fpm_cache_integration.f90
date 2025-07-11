@@ -70,6 +70,7 @@ contains
     type(error_t), allocatable :: error
     character(len=256) :: test_dir
     integer :: unit
+    logical :: exists
     
     print *, 'Test 2: Source file information access'
     
@@ -99,7 +100,7 @@ contains
       print *, 'PASS: Source file digest:', sources(1)%digest
       
       ! Check if file actually exists
-      inquire(file=trim(sources(1)%file_name), exist=.true.)
+      inquire(file=trim(sources(1)%file_name), exist=exists)
       
     else
       write(error_unit, *) 'Error: No sources found'

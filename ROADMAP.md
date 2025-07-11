@@ -2,9 +2,9 @@
 
 ## Project Vision
 
-The `fortran` CLI tool aims to make Fortran development as seamless as Python, with automatic dependency resolution, transparent compilation, and eventually a simplified syntax that compiles to standard Fortran.
+**Make Python Fortran again.** The `fortran` CLI tool aims to make Fortran development as seamless as Python, with automatic dependency resolution, transparent compilation, and eventually a simplified syntax that compiles to standard Fortran.
 
-## Current Status (Phase 1 Complete)
+## Current Status (Phase 2 Complete, Phase 3 In Progress)
 
 ### ✅ Implemented Features
 - **Basic CLI**: `fortran <file.f90>` executes Fortran programs transparently
@@ -19,16 +19,21 @@ The `fortran` CLI tool aims to make Fortran development as seamless as Python, w
 
 ## Near-term Roadmap
 
-### Phase 2: Registry-based Dependencies (In Progress)
-- [ ] Module scanner to detect `use` statements
-- [ ] Automatic package resolution from registry
-- [ ] Dynamic FPM project generation with dependencies
-- [ ] Support for version constraints
+### Phase 2: Registry-based Dependencies (Complete)
+- [x] Module scanner to detect `use` statements
+- [x] Automatic package resolution from registry
+- [x] Dynamic FPM project generation with dependencies
+- [x] Support for version constraints
+- [x] Multiple modules from same package support
+- [x] Conflicting dependencies resolution
+- [x] Registry validation and error handling
 
-### Phase 3: Smart Caching
-- [ ] Content-based hashing for cache invalidation
-- [ ] Reuse previous builds when files haven't changed
-- [ ] Leverage FPM's internal hashing mechanisms
+### Phase 3: Smart Caching (In Progress)
+- [x] Content-based hashing for cache invalidation
+- [x] Reuse previous builds when files haven't changed
+- [x] Leverage FPM's internal hashing mechanisms
+- [ ] Build artifact caching (Phase 3.2)
+- [ ] Cache retrieval and validation (Phase 3.3)
 - [ ] Parallel build support
 
 ### Phase 4: Enhanced Registry
@@ -251,4 +256,4 @@ Implement a preprocessor that transforms `.f` files (simplified syntax) into sta
 - **Phase 6**: 4-6 months (Syntax Enhancements)
 - **Phase 7**: 6-12 months (Advanced Features)
 
-The goal is to make Fortran as approachable as Python while maintaining its performance advantages and numerical computing strengths.
+The goal is to **Make Python Fortran again** - making Fortran as approachable as Python while maintaining its performance advantages and numerical computing strengths.
