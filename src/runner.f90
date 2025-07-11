@@ -4,6 +4,8 @@ module runner
   use module_scanner, only: scan_modules, module_info
   use fpm_generator, only: generate_fpm_with_deps, generate_fpm_with_deps_from_config
   use registry_resolver, only: ensure_registry_exists, ensure_registry_exists_in_dir
+  use fpm_module_cache, only: module_cache_t, new_module_cache
+  use fpm_compiler, only: compiler_t, new_compiler, id_gcc
   use, intrinsic :: iso_fortran_env, only: int64
   implicit none
   private
@@ -244,6 +246,8 @@ contains
     
     type(module_info), dimension(:), allocatable :: modules
     integer :: n_modules
+    type(module_cache_t) :: mod_cache
+    type(compiler_t) :: compiler
     
     ! Ensure registry exists in config directory
     if (len_trim(custom_config_dir) > 0) then
@@ -259,12 +263,27 @@ contains
       print '(a,i0,a)', 'Found ', n_modules, ' external module dependencies'
     end if
     
+    ! Initialize module cache for dependency caching
+    call new_compiler(compiler, 'gfortran', 'gcc', 'g++', .true., .false.)
+    compiler%id = id_gcc
+    mod_cache = new_module_cache(compiler, '13.0.0')
+    
+    if (verbose_level >= 1 .and. mod_cache%enabled) then
+      print '(a)', 'Module cache enabled for dependency optimization'
+    end if
+    
     ! Generate fmp.toml with dependencies
     if (len_trim(custom_config_dir) > 0) then
       call generate_fpm_with_deps_from_config(project_dir, name, modules, n_modules, custom_config_dir)
     else
       call generate_fpm_with_deps(project_dir, name, modules, n_modules)
     end if
+    
+    ! TODO: Implement module cache integration after FPM build
+    ! This would require:
+    ! 1. Analyzing FPM build output to identify compiled modules
+    ! 2. Caching compiled modules from dependencies
+    ! 3. Reusing cached modules in subsequent builds
     
   end subroutine generate_fpm_with_dependencies
   
