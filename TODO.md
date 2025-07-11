@@ -220,13 +220,12 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
     - Module dependency graph analysis for smarter caching
     - Cross-project module sharing capabilities
 
-### 4.2 Cross-Package Support (DEFERRED - Someday/Maybe)
-- [ ] Write test for namespace support
-- [ ] Implement package namespacing
-- [ ] Write test for version resolution
-- [ ] Implement version constraint solver
-- [ ] Write test for package conflicts
-- [ ] Implement conflict resolution
+### 4.2 Enhanced Registry Support (DEFERRED - Someday/Maybe)
+- [ ] Support for git tags and branches in dependencies
+- [ ] Local package overrides (e.g., use local fork instead of registry version)
+- [ ] Package namespacing (e.g., `fortran-lang/stdlib`)
+- [ ] Advanced version constraint solver
+- [ ] Package conflict resolution
   - Note: Deferred until core features are battle-tested
   - Would require significant architectural changes
   - Better to focus on performance and reliability first
@@ -246,19 +245,13 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
 
 ## Phase 5: Integration and Polish
 
-### 5.1 FPM Registry Integration
-- [ ] Write test for fetching from official registry
-- [ ] Implement registry sync functionality
-- [ ] Write test for offline mode
-- [ ] Implement offline fallback
-
-### 5.2 Platform Support
+### 5.1 Platform Support
 - [ ] Write tests for Windows compatibility
 - [ ] Implement platform-specific adjustments
 - [ ] Write tests for macOS compatibility
 - [ ] Write tests for various Linux distributions
 
-### 5.3 Documentation and Examples
+### 5.2 Documentation and Examples
 - [ ] Create comprehensive user documentation
 - [ ] Write example programs demonstrating usage
 - [ ] Create developer documentation for extensions
@@ -281,40 +274,40 @@ Key abstractions to maintain:
 - `BuildOrchestrator`: Coordinates fpm builds
 - `CLIHandler`: Manages user interaction
 
-## Phase 5: Simplified Fortran Preprocessor (.f files) - IN BRANCH: preprocessor
+## Phase 6: Simplified Fortran Preprocessor (.f files) - IN BRANCH: preprocessor
 
-**NOTE: All work for Phase 5, 6, and 7 (preprocessor and type inference) is being done in the `preprocessor` branch.**
+**NOTE: All work for Phase 6 and 7 (preprocessor and type inference) is being done in the `preprocessor` branch.**
 **To work on these features, checkout the preprocessor branch: `git checkout preprocessor`**
 
-### 5.1 Basic Preprocessor Infrastructure
+### 6.1 Basic Preprocessor Infrastructure
 - [ ] Create `src/preprocessor.f90` module
 - [ ] Support `.f` file detection in CLI
 - [ ] Implement basic file transformation pipeline
 - [ ] Generate line mappings for debugging
 
-### 5.2 Implicit Program/Module Detection
+### 6.2 Implicit Program/Module Detection
 - [ ] Write test for program detection (has `call` statements)
 - [ ] Write test for module detection (has `contains`, `public`)
 - [ ] Implement AST-based analysis for unit type detection
 - [ ] Add implicit `program`/`module` wrappers
 - [ ] Use filename as default module name
 
-### 5.3 Modern Defaults
+### 6.3 Modern Defaults
 - [x] Add `implicit none` to all generated units (via fpm.toml implicit-typing = false)
 - [x] Set compiler flags for double precision default (--flag "-fdefault-real-8 -fdefault-double-8")
 - [ ] Auto-import common intrinsic modules
 - [x] Write tests for default behaviors (real_default_test.f90)
 
-### 5.4 Dot Notation Transform
+### 6.4 Dot Notation Transform
 - [ ] Write test for simple member access (`.` to `%`)
 - [ ] Implement context-aware dot parser
 - [ ] Handle floating point literal edge cases
 - [ ] Preserve logical operators (`.and.`, `.or.`)
 - [ ] Test nested type access
 
-## Phase 6: Type Inference System - IN BRANCH: preprocessor
+## Phase 7: Type Inference System - IN BRANCH: preprocessor
 
-### 6.1 Basic Intrinsic Type Inference
+### 7.1 Basic Intrinsic Type Inference
 - [ ] Write test for integer literal inference (42 → integer)
 - [ ] Write test for real literal inference (3.14 → real(8))
 - [ ] Write test for logical inference (.true. → logical)
@@ -323,14 +316,14 @@ Key abstractions to maintain:
 - [ ] Generate variable declarations at procedure start
 - [ ] Handle multiple assignments to same variable (type consistency)
 
-### 6.2 Array Type Inference
+### 7.2 Array Type Inference
 - [ ] Write test for array literal inference ([1,2,3] → integer, dimension(3))
 - [ ] Write test for array operations (shape preservation)
 - [ ] Implement array shape tracking
 - [ ] Support allocatable array inference
 - [ ] Handle reshape and other intrinsics
 
-### 6.3 Function Return Type and Intent-Based Inference
+### 7.3 Function Return Type and Intent-Based Inference
 - [ ] Write test for function return type inference from body
 - [ ] Write test for intent(out) type inference from assignments
 - [ ] Implement function body analyzer for return statements
@@ -338,16 +331,16 @@ Key abstractions to maintain:
 - [ ] Propagate inferred return types to call sites
 - [ ] Handle intent(out) variables with deferred type declaration
 
-### 6.4 Derived Type Inference
+### 7.4 Derived Type Inference
 - [ ] Write test for field-based type inference
 - [ ] Write test for constructor-based inference
 - [ ] Generate derived type definitions
 - [ ] Support type extension inference
 - [ ] Validate consistent type usage
 
-## Phase 8: Installation and Deployment
+## Phase 9: Installation and Deployment
 
-### 8.1 Installation Script
+### 9.1 Installation Script
 - [ ] Create `install.sh` script for easy installation
 - [ ] Install `fortran` command to `~/.local/bin/`
 - [ ] Copy default config to `~/.config/fortran/`
@@ -355,7 +348,7 @@ Key abstractions to maintain:
 - [ ] Add uninstall option
 - [ ] Support system-wide installation (optional)
 
-### 8.2 Package Distribution
+### 9.2 Package Distribution
 - [ ] Create release packages (tar.gz, deb, rpm)
 - [ ] Add to package managers (AUR, homebrew, etc.)
 - [ ] Docker container for easy deployment
