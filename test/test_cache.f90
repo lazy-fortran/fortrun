@@ -102,7 +102,7 @@ contains
     character(len=1024) :: line
     
     ! Build command with custom cache
-    command = './build/gfortran_*/app/fortran --cache-dir ' // trim(cache_dir) // &
+    command = 'fpm run fortran -- --cache-dir ' // trim(cache_dir) // &
               ' ' // trim(flags) // ' ' // trim(filename) // ' > test_output.tmp 2>&1'
     
     ! Run command

@@ -163,7 +163,7 @@ contains
     end block
     
     ! Run the example
-    command = './build/gfortran_*/app/fortran ' // trim(filename) // &
+    command = 'fpm run fortran -- ' // trim(filename) // &
               ' > test_output.tmp 2>&1'
     call execute_command_line(trim(command), exitstat=exit_code)
     
@@ -305,7 +305,7 @@ contains
     character(len=1024) :: line
     
     ! Run with verbose flag and custom cache directory
-    command = './build/gfortran_*/app/fortran -v --cache-dir "' // trim(cache_dir) // &
+    command = 'fpm run fortran -- -v --cache-dir "' // trim(cache_dir) // &
               '" ' // trim(filename) // ' > test_cache_output.tmp 2>&1'
     call execute_command_line(trim(command), exitstat=exit_code)
     

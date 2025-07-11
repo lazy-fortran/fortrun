@@ -186,7 +186,7 @@ contains
     end if
     
     ! Build command
-    command = './build/gfortran_*/app/fortran --cache-dir "' // &
+    command = 'fpm run fortran -- --cache-dir "' // &
               trim(cache_dir) // '" "' // trim(file_path) // '" > /dev/null 2>&1'
     
     ! Measure execution time

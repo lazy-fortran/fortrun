@@ -94,7 +94,7 @@ contains
     call execute_command_line('rm -rf ' // trim(temp_cache))
     
     ! Build command with custom cache
-    command = './build/gfortran_*/app/fortran --cache-dir ' // trim(temp_cache) // &
+    command = 'fpm run fortran -- --cache-dir ' // trim(temp_cache) // &
               ' ' // trim(flags) // ' ' // &
               trim(filename) // ' > test_output.tmp 2>&1'
     

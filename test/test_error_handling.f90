@@ -41,7 +41,7 @@ contains
     close(unit)
     
     ! Run the program and capture output
-    command = './build/gfortran_*/app/fortran ' // trim(test_file) // &
+    command = 'fpm run fortran -- ' // trim(test_file) // &
               ' > /tmp/unknown_output.txt 2>&1; echo $? > /tmp/unknown_exit.txt'
     call execute_command_line(command)
     
@@ -82,7 +82,7 @@ contains
     close(unit)
     
     ! Run the program and capture output
-    command = './build/gfortran_*/app/fortran ' // trim(test_file) // &
+    command = 'fpm run fortran -- ' // trim(test_file) // &
               ' > /tmp/error_output.txt 2>&1; echo $? > /tmp/error_exit.txt'
     call execute_command_line(command)
     
@@ -121,7 +121,7 @@ contains
     close(unit)
     
     ! Run the program and capture output
-    command = './build/gfortran_*/app/fortran ' // trim(test_file) // &
+    command = 'fpm run fortran -- ' // trim(test_file) // &
               ' > /tmp/syntax_output.txt 2>&1; echo $? > /tmp/syntax_exit.txt'
     call execute_command_line(command)
     
