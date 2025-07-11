@@ -52,6 +52,12 @@ fortran -v myprogram.f90
 - Type inference: Automatic variable declarations from assignments
 - Script-like: Write Fortran like Python scripts
 
+**Notebook Support**
+- Jupytext-style notebooks: Mix code and markdown in `.f` files
+- Automatic plot capture: Inline figures from fortplotlib
+- Markdown output: Generate self-contained documentation
+- Run with: `fortran --notebook mynotebook.f -o output.md`
+
 ## Example: Same Program, Two Styles
 
 Compare the same calculation in both formats:
@@ -68,7 +74,8 @@ See `example/` directory for working examples including:
 - Basic hello world (`example/hello/`)
 - Local module usage (`example/calculator/`)
 - Complex interdependent modules (`example/interdependent/`)
-- Simplified syntax for `.f` files (`example/simple/`)
+- Type inference for `.f` files (`example/type_inference/`)
+- Notebook with plots (`example/notebook/plotting_demo.f`)
 
 ## Installation
 
