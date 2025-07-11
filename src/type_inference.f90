@@ -58,7 +58,7 @@ contains
     
     ! Trim whitespace and remove comments
     trimmed_expr = adjustl(expr)
-    call strip_comment(trimmed_expr)
+    ! call strip_comment(trimmed_expr)  ! Temporarily disabled
     
     ! Check for expressions before literals to handle cases like "3.14 > 3"
     ! Comparison expressions must be checked first
@@ -199,7 +199,7 @@ contains
       char_count = 0
       do while (i <= expr_len)
         if (expr(i:i) == quote_char) then
-          if (i < expr_len .and. expr(i+1:i+1) == quote_char) then
+          if (i+1 <= expr_len .and. expr(i+1:i+1) == quote_char) then
             ! Doubled quote - counts as one character
             char_count = char_count + 1
             i = i + 2
@@ -659,7 +659,7 @@ contains
         ! In string - check for end of string
         if (expr(i:i) == quote_char) then
           ! Check for doubled quote (escape sequence)
-          if (i < expr_len .and. expr(i+1:i+1) == quote_char) then
+          if (i+1 <= expr_len .and. expr(i+1:i+1) == quote_char) then
             i = i + 1  ! Skip the doubled quote
           else
             in_string = .false.
