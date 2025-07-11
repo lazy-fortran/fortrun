@@ -5,7 +5,7 @@ module cli
   
 contains
 
-  subroutine parse_arguments(filename, show_help, verbose_level, custom_cache_dir, custom_config_dir, parallel_jobs, no_wait)
+  subroutine parse_arguments(filename, show_help, verbose_level, custom_cache_dir, custom_config_dir, parallel_jobs, no_wait, notebook_mode, notebook_output)
     character(len=*), intent(out) :: filename
     logical, intent(out) :: show_help
     integer, intent(out) :: verbose_level
@@ -13,10 +13,12 @@ contains
     character(len=*), intent(out) :: custom_config_dir
     integer, intent(out) :: parallel_jobs
     logical, intent(out) :: no_wait
+    logical, intent(out) :: notebook_mode
+    character(len=*), intent(out) :: notebook_output
     
     integer :: nargs, i, iostat
     character(len=256) :: arg
-    logical :: filename_found, expecting_cache_dir, expecting_config_dir, expecting_jobs
+    logical :: filename_found, expecting_cache_dir, expecting_config_dir, expecting_jobs, expecting_output
     
     filename = ''
     show_help = .false.
@@ -25,10 +27,13 @@ contains
     custom_config_dir = ''
     parallel_jobs = 0  ! 0 means use FPM default
     no_wait = .false.
+    notebook_mode = .false.
+    notebook_output = ''
     filename_found = .false.
     expecting_cache_dir = .false.
     expecting_config_dir = .false.
     expecting_jobs = .false.
+    expecting_output = .false.
     
     nargs = command_argument_count()
     
@@ -47,6 +52,9 @@ contains
       else if (expecting_config_dir) then
         custom_config_dir = trim(arg)
         expecting_config_dir = .false.
+      else if (expecting_output) then
+        notebook_output = trim(arg)
+        expecting_output = .false.
       else if (expecting_jobs) then
         read(arg, *, iostat=iostat) parallel_jobs
         if (iostat /= 0 .or. parallel_jobs < 1) then
@@ -87,6 +95,10 @@ contains
         expecting_jobs = .true.
       else if (arg == '--no-wait') then
         no_wait = .true.
+      else if (arg == '--notebook') then
+        notebook_mode = .true.
+      else if (arg == '-o' .or. arg == '--output') then
+        expecting_output = .true.
       else if (arg(1:1) /= '-') then
         ! Not a flag, must be filename
         if (.not. filename_found) then
@@ -113,11 +125,45 @@ contains
       show_help = .true.
     end if
     
+    if (expecting_output) then
+      print '(a)', 'Error: -o/--output requires an argument'
+      show_help = .true.
+    end if
     
     if (.not. filename_found) then
       show_help = .true.
     end if
     
+    ! If notebook mode and no output specified, generate default
+    if (notebook_mode .and. notebook_output == '') then
+      call generate_default_output_name(filename, notebook_output)
+    end if
+    
   end subroutine parse_arguments
+  
+  subroutine generate_default_output_name(input_file, output_file)
+    character(len=*), intent(in) :: input_file
+    character(len=*), intent(out) :: output_file
+    
+    integer :: dot_pos, slash_pos
+    character(len=256) :: base_name
+    
+    ! Find last slash to get basename
+    slash_pos = index(input_file, '/', back=.true.)
+    if (slash_pos > 0) then
+      base_name = input_file(slash_pos+1:)
+    else
+      base_name = input_file
+    end if
+    
+    ! Find last dot to remove extension
+    dot_pos = index(base_name, '.', back=.true.)
+    if (dot_pos > 0) then
+      output_file = trim(base_name(1:dot_pos-1)) // '.md'
+    else
+      output_file = trim(base_name) // '.md'
+    end if
+    
+  end subroutine generate_default_output_name
   
 end module cli

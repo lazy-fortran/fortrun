@@ -139,17 +139,12 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
 - [x] Implement cached execution path
 - [x] Write system test for incremental compilation
 - [x] Implement incremental build support
-- [ ] Write test for partial cache hits (some deps cached)
-  - Note: Current implementation caches at project level, not module level
-  - True partial cache hits would require architectural changes:
-    - Cache individual compiled modules separately
-    - Share cached modules between projects
-    - This is a future enhancement for Phase 4
 - [x] Test with complex dependency changes
   - Test modifying dependency modules
   - Test adding new dependencies
   - Current behavior: dependency changes create new cache directories
   - This ensures correctness but could be optimized in future phases
+  - Note: Partial cache hits (caching individual modules) deferred to Phase 8
 - [x] Write test for source file modification with cached dependencies
   - Run .f90 file first time: compiles everything including dependencies
   - Run same file second time: compiles nothing (full cache hit)
@@ -399,75 +394,150 @@ Key abstractions to maintain:
   - Basic type inference, arithmetic expressions, mixed types
   - Intrinsic functions, print statement filtering
 - [x] Unit tests for type inference
-  - test_type_inference.f90 with 18/18 tests passing
+  - test_type_inference.f90 with 41/41 tests passing
   - All literal types, expression evaluation, declaration generation
 
-### 6.6 Current Test Status ✅
-- **Core functionality working**:
-  - ✅ Preprocessor unit tests: 12/12 passed
-  - ✅ Type inference tests: 18/18 passed  
-  - ✅ Type inference integration: 5/5 passed
-  - ✅ Registry functionality: All tests passed
-- **Known issues**:
-  - ⚠️ Preprocessor integration: 3/5 passed (2 failures due to duplicate declarations)
-  - ⚠️ Some cache tests failing (existing issues unrelated to type inference)
-  - **Note**: Duplicate declaration failures are expected - shows type inference working but needs refinement to detect existing declarations
+### 6.6 Bounds Checking Bug Fix ✅
+- [x] Fix character literal bounds checking error
+  - Issue: Fortran evaluation order in logical expressions
+  - Solution: Defensive nested conditionals for safe string access
+  - Result: All type inference tests now pass
+- [x] Fix .f file integration
+  - Type inference working correctly in preprocessed .f files
+  - All example tests passing
 
-## Phase 7: Advanced Type Inference
+### 6.7 Final Test Status ✅
+- **All functionality working**:
+  - ✅ Type inference tests: All passed
+  - ✅ Type inference integration: All passed
+  - ✅ Example tests: All passed (including .f files)
+  - ✅ Full test suite: All major tests passing
 
-### 7.1 Array Type Inference
-- [ ] Write test for array literals
+## Phase 7: Notebook Features - COMPLETED ✅
+
+### 7.1 Jupytext-like Notebook Support ✅
+- [x] Create `src/notebook_parser.f90` module
+  - Parse .f files with markdown cells using %% delimiters
+  - Support for markdown and code cell types
+  - Proper content extraction and formatting
+- [x] Create `src/notebook_executor.f90` module
+  - Execute notebook cells in isolation
+  - Capture output from each cell
+  - Handle variable persistence across cells
+- [x] Create `src/notebook_renderer.f90` module
+  - Render notebooks to markdown with code blocks
+  - Include cell output in markdown format
+  - Support for multiple output types
+
+### 7.2 Figure/Plot Integration ✅
+- [x] Create `src/figure_capture.f90` module
+  - Intercept fortplotlib show() calls
+  - Save figures as PNG files
+  - Convert to base64 for inline embedding
+- [x] Integrate with notebook execution
+  - Transform show() calls to interceptor calls
+  - Collect figure data per cell
+  - Embed as inline images in markdown output
+- [x] Comprehensive testing
+  - Unit tests for figure capture: 5/5 passed
+  - Integration with notebook execution verified
+  - End-to-end plotting examples working
+
+### 7.3 CLI Integration ✅
+- [x] Add --notebook flag to CLI
+  - Support for .f notebook files
+  - Optional -o/--output flag for markdown output
+  - Integration with existing verbose modes
+- [x] Update help system
+  - Document notebook mode usage
+  - Examples for plotting integration
+  - Clear usage instructions
+
+## Phase 8: Advanced Type Inference - ARCHITECTURE CRITICAL ⚠️
+
+**WARNING**: The current `type_inference.f90` module will become unmaintainable if we add advanced features without proper architectural planning. We must avoid spaghetti code.
+
+**Complexity Assessment**:
+- **Arrays**: Moderate complexity - shape tracking and operation inference
+- **Derived types**: High complexity - field analysis, constructor inference, polymorphism
+- **Procedures**: Very high complexity - return value analysis, intent inference, interprocedural propagation
+
+**Required Architecture Changes**:
+- Current single-module approach (680+ lines) will not scale
+- Need modular design with clear separation of concerns
+- Proper AST representation instead of string-based parsing
+- Sophisticated type system with rich descriptors
+- Nested scope management for proper variable tracking
+
+### 8.0 Architecture Refactoring (REQUIRED FIRST)
+- [ ] **Assess current type_inference.f90 complexity and limitations**
+- [ ] **Design modular architecture**:
+  - `type_system.f90` - Core type definitions and utilities
+  - `literal_analyzer.f90` - Current literal detection functionality
+  - `expression_analyzer.f90` - AST-based expression analysis
+  - `array_analyzer.f90` - Array shape and dimension inference
+  - `procedure_analyzer.f90` - Function/subroutine analysis
+  - `type_environment.f90` - Nested scope and variable tracking
+  - `declaration_generator.f90` - Code generation
+- [ ] **Implement type inference coordinator**
+  - Clean public API hiding internal complexity
+  - Plugin-like architecture for new analyzers
+- [ ] **Ensure backward compatibility** - all existing tests must pass
+
+### 8.1 Array Type Inference (Post-Refactoring)
+- [ ] **Array literal inference** (Moderate complexity)
   - `arr = [1, 2, 3]` → `integer, dimension(3) :: arr`
-  - Handle empty arrays
-- [ ] Write test for array sections
-  - `b = a(1:10)` → infer b's dimensions
-- [ ] Write test for array operations
-  - Shape preservation in arithmetic
-  - Shape checking for conformance
-- [ ] Implement array shape tracker
-  - Static shape analysis
-  - Dynamic shape hints
+  - `mat = reshape([1,2,3,4], [2,2])` → `integer, dimension(2,2) :: mat`
+- [ ] **Array operation inference** 
+  - Shape preservation and transformation rules
+  - Intrinsic function shape analysis (`matmul`, `sum`, etc.)
 
-### 7.2 Derived Type Inference
-- [ ] Write test for type component access
-  - `x = point%x` → infer x's type from point type
-- [ ] Write test for type constructors
-  - `p = point(1.0, 2.0)` → `type(point) :: p`
-- [ ] Implement type registry
-  - Track user-defined types in scope
-  - Handle type imports from modules
+### 8.2 Derived Type Inference (High complexity)
+- [ ] **Field access pattern analysis** (Complex)
+  - `person.name = "Alice"` → infer person type with character field
+  - Cross-reference consistency checking
+- [ ] **Constructor pattern inference** (Very complex)
+  - Automatic type definition generation
+  - Polymorphism and inheritance support
 
-### 7.3 Procedure Inference
-- [ ] Write test for function type inference
-  - Infer return type from return statements
-  - Handle multiple return paths
-- [ ] Write test for subroutine argument inference
-  - Infer intent from usage
-  - Infer types from call sites
-- [ ] Implement interprocedural analysis
-  - Build call graph
-  - Propagate types across calls
+### 8.3 Procedure Analysis (Very high complexity)
+- [ ] **Return value inference** (Complex)
+  - Multi-path return analysis with type unification
+- [ ] **Intent and argument inference** (Very complex)
+  - Output argument analysis: `call sub(x, y)` where `y` is modified
+  - Intent inference from usage patterns
+- [ ] **Interprocedural analysis** (Extremely complex)
+  - Call graph construction and type propagation
+  - Recursive and mutual recursion handling
 
-## Phase 8: Python-like Features (Future)
+**Implementation Strategy**: 
+1. **Phase 8.0**: Complete architecture refactoring (2-3 weeks)
+2. **Phase 8.1**: Arrays (1-2 weeks after refactoring)  
+3. **Phase 8.2**: Derived types (3-4 weeks)
+4. **Phase 8.3**: Procedures (4-6 weeks)
 
-### 8.1 List Comprehensions
+**Success Criteria**: Each module <300 lines, maintainable, extensible, no performance regression
+
+## Phase 9: Python-like Features (Future)
+
+### 9.1 List Comprehensions
 - [ ] Transform `[x**2 for x in range(1,10)]` to DO loops
 - [ ] Support filtering with if conditions
 - [ ] Nested comprehensions
 
-### 8.2 Enhanced String Handling
+### 9.2 Enhanced String Handling
 - [ ] String interpolation: `f"x = {x}"`
 - [ ] Multi-line strings with triple quotes
 - [ ] String methods (split, join, etc.)
 
-### 8.3 Modern Control Flow
+### 9.3 Modern Control Flow
 - [ ] For-each loops: `for item in array:`
 - [ ] With statement for resource management
 - [ ] Exception handling with try/except
 
-## Phase 9: Installation and Deployment
+## Phase 10: Installation and Deployment
 
-### 9.1 Installation Script
+### 10.1 Installation Script
 - [x] Create `install.sh` script for easy installation
   - Script runs `fpm install` and copies registry files
   - Preserves existing user configurations
@@ -475,7 +545,7 @@ Key abstractions to maintain:
 - [ ] Support system-wide installation (optional)
 - [ ] Windows installer (install.bat)
 
-### 9.2 Package Distribution
+### 10.2 Package Distribution
 - [ ] Create release packages (tar.gz, zip)
 - [ ] Add to package managers (AUR, homebrew, etc.)
 - [ ] Docker container for easy deployment

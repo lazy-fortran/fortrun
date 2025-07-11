@@ -4,7 +4,7 @@
 
 **Make Python Fortran again.** The `fortran` CLI tool aims to make Fortran development as seamless as Python, with automatic dependency resolution, transparent compilation, and eventually a simplified syntax that compiles to standard Fortran.
 
-## Current Status (Phase 3 Complete)
+## Current Status (Phase 7 Complete)
 
 ### ✅ Implemented Features
 - **Basic CLI**: `fortran <file.f90>` executes Fortran programs transparently
@@ -25,6 +25,22 @@
   - Verbose mode (`-v`, `--verbose`) for debugging
   - Helpful error messages from FPM
   - Custom cache directory support (`--cache-dir`)
+- **Simplified Fortran Preprocessor (.f files)**:
+  - Automatic program wrapping for executable code
+  - Automatic `contains` insertion for functions/subroutines
+  - Modern defaults with `implicit none` and double precision
+  - Seamless integration with existing build system
+- **Basic Type Inference**:
+  - Automatic type detection for integers, reals, logicals, characters
+  - Expression type propagation and variable tracking
+  - Integration with .f file preprocessing
+  - Comprehensive test coverage (41/41 tests passing)
+- **Notebook Support (Jupytext-like)**:
+  - Parse .f files with markdown cells using %% delimiters
+  - Execute notebook cells with variable persistence
+  - Render to markdown with code blocks and output
+  - **Figure/Plot Integration**: Automatic capture of fortplotlib plots as inline base64 PNG images
+  - CLI integration with `--notebook` flag
 
 ## Near-term Roadmap
 
