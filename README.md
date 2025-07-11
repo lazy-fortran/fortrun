@@ -4,7 +4,9 @@
 
 ## Overview
 
-The `fortran` command works like `python` but for `.f90` files. It automatically resolves module dependencies, applies modern defaults, builds with FPM, caches results, and executes programs transparently.
+The `fortran` command works like `python` but for Fortran files - supporting both modern `.f90` and simplified `.f` formats. It automatically resolves module dependencies, applies modern defaults, builds with FPM, caches results, and executes programs transparently.
+
+The `.f` format brings the simplicity of classic FORTRAN with a modern twist - no boilerplate, automatic type inference, and implicit none by default.
 
 ## Quick Start
 
@@ -47,7 +49,45 @@ fortran -v myprogram.f90
 - Type inference: Automatic variable declarations from assignments
 - Script-like: Write Fortran like Python scripts
 
-## Examples
+## Example: Same Program, Two Styles
+
+**Modern Fortran (.f90)**
+```fortran
+! calculate.f90
+program calculate
+  implicit none
+  real :: radius, area
+  
+  radius = 5.0
+  area = circle_area(radius)
+  print *, 'Area of circle:', area
+  
+contains
+  real function circle_area(r)
+    real, intent(in) :: r
+    real, parameter :: pi = 3.14159
+    circle_area = pi * r * r
+  end function circle_area
+end program calculate
+```
+
+**Simplified Format (.f)**
+```fortran
+! calculate.f
+radius = 5.0
+area = circle_area(radius)
+print *, 'Area of circle:', area
+
+real function circle_area(r)
+  real :: r
+  real, parameter :: pi = 3.14159
+  circle_area = pi * r * r
+end function
+```
+
+Both produce identical results - the `.f` format automatically handles program wrapping, variable declarations, and implicit none.
+
+## More Examples
 
 See `example/` directory for working examples including:
 - Basic hello world (`example/hello/`)
