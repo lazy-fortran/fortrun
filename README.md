@@ -131,9 +131,15 @@ See `example/interdependent/` for a complete working example.
 ```bash
 git clone https://github.com/krystophny/fortran.git
 cd fortran
-fpm build
-# Copy to your PATH
-cp build/gfortran_*/app/fortran ~/.local/bin/
+
+# Install using the install script (recommended)
+./install.sh
+
+# Or manually with fpm
+fpm install
+# Then copy the registry files
+mkdir -p ~/.config/fortran
+cp registry.toml module_index.toml ~/.config/fortran/
 ```
 
 ## Configuration
