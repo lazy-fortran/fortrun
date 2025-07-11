@@ -10,17 +10,19 @@ module runner
   
 contains
 
-  subroutine run_fortran_file(filename, exit_code, verbose_level, custom_cache_dir, custom_config_dir)
+  subroutine run_fortran_file(filename, exit_code, verbose_level, custom_cache_dir, custom_config_dir, parallel_jobs)
     character(len=*), intent(in) :: filename
     integer, intent(out) :: exit_code
     integer, intent(in) :: verbose_level
     character(len=*), intent(in) :: custom_cache_dir
     character(len=*), intent(in) :: custom_config_dir
+    integer, intent(in) :: parallel_jobs
     
     logical :: file_exists, success
     character(len=256) :: cache_dir, project_dir, basename
     character(len=512) :: command
     character(len=256) :: absolute_path
+    character(len=32) :: jobs_flag
     integer :: exitstat, cmdstat
     integer :: i, last_slash
     
@@ -92,6 +94,19 @@ contains
     
     
     ! Build first
+    ! Prepare parallel jobs flag if specified
+    ! NOTE: Current FPM version (0.12.0) doesn't support -j flag
+    ! This is prepared for future versions that will support it
+    if (parallel_jobs > 0) then
+      write(jobs_flag, '(a,i0,a)') ' --jobs ', parallel_jobs, ' '
+      if (verbose_level >= 1) then
+        print '(a,i0,a)', 'Note: Parallel builds requested (', parallel_jobs, &
+                          ' jobs) but current FPM version does not support --jobs flag'
+      end if
+    else
+      jobs_flag = ' '
+    end if
+    
     if (verbose_level == 0) then
       ! Quiet mode: capture errors for helpful messages
       command = 'cd "' // trim(project_dir) // '" && ' // &
@@ -105,6 +120,9 @@ contains
       command = 'cd "' // trim(project_dir) // '" && ' // &
                 'fpm build --flag "-fdefault-real-8 -fdefault-double-8"'
     end if
+    
+    ! TODO: Add jobs_flag when FPM supports it
+    ! Future: 'fpm build' // trim(jobs_flag) // '--flag ...
     
     call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat, wait=.true.)
     
