@@ -99,12 +99,102 @@ Implement a preprocessor that transforms `.f` files (simplified syntax) into sta
   use numpy_module, np => numpy
   ```
 
-### Phase 7: Advanced Preprocessor Features
+### Phase 7: Advanced Type Inference System
 
-#### 7.1 Type Inference
-- Optional type declarations for obvious cases
-- Automatic interface generation
-- Smart generic resolution
+#### 7.1 Basic Intrinsic Type Inference
+- **Feature**: Infer types for integer and real variables from usage
+- **Example**:
+  ```fortran
+  ! Simplified .f syntax (no declarations needed)
+  x = 3.14          ! Inferred as real(8)
+  n = 42            ! Inferred as integer
+  flag = .true.     ! Inferred as logical
+  name = "Alice"    ! Inferred as character(len=:), allocatable
+  
+  ! Transforms to standard .f90:
+  program example
+    implicit none
+    real(8) :: x
+    integer :: n
+    logical :: flag
+    character(len=:), allocatable :: name
+    
+    x = 3.14
+    n = 42
+    flag = .true.
+    name = "Alice"
+  end program example
+  ```
+- **Implementation**: Parse RHS expressions to determine types
+- **Safety**: More restrictive than old implicit typing - based on actual usage
+
+#### 7.2 Array and Vector Type Inference
+- **Feature**: Infer array dimensions and types from initialization
+- **Example**:
+  ```fortran
+  ! Simplified syntax
+  vec = [1.0, 2.0, 3.0]      ! Inferred as real(8), dimension(3)
+  mat = reshape([1,2,3,4], [2,2])  ! Inferred as integer, dimension(2,2)
+  dynamic = []               ! Inferred as allocatable array
+  
+  ! Array operations infer size
+  a = vec * 2.0              ! Same shape as vec
+  b = matmul(mat, mat)       ! Shape inferred from matmul rules
+  ```
+- **Implementation**: Track array shapes through operations
+- **Support**: Static arrays, allocatable arrays, array sections
+
+#### 7.3 Interface-Based Type Inference
+- **Feature**: Infer types from subroutine/function signatures
+- **Example**:
+  ```fortran
+  ! Function return type inference
+  function compute(x, y)
+    ! x, y types inferred from call sites
+    compute = x**2 + y**2  ! Return type inferred as same as x,y
+  end function
+  
+  ! Subroutine argument inference
+  subroutine process(input, output)
+    intent(in) :: input    ! Type inferred from caller
+    intent(out) :: output  ! Type must match usage at call site
+    output = input * 2.0
+  end subroutine
+  
+  ! Usage:
+  result = compute(3.14, 2.71)  ! Infers compute takes/returns real(8)
+  call process(100, count)      ! Infers integer types
+  ```
+- **Implementation**: Two-pass analysis - collect constraints, then resolve
+- **Benefits**: Enables generic-like programming without explicit interfaces
+
+#### 7.4 Derived Type Inference
+- **Feature**: Infer custom types from usage patterns
+- **Example**:
+  ```fortran
+  ! Type inferred from field access
+  person.name = "Bob"
+  person.age = 30
+  person.height = 1.75
+  ! Infers: type person_type with character, integer, real fields
+  
+  ! Type inferred from constructor pattern
+  point = Point(3.0, 4.0)  ! Infers Point type with two real components
+  
+  ! Polymorphic inference
+  shape = Circle(5.0)      ! Infers shape is class(Shape), Circle extends Shape
+  area = shape.area()      ! Validates area() method exists
+  ```
+- **Implementation**: Build type constraints from usage, generate type definitions
+- **Validation**: Ensure consistent usage across program
+- **Safety**: Better than auto - catches type mismatches at preprocessing
+
+#### 7.5 Advanced Type System Features
+- **Generic Programming**: Automatic instantiation of generic procedures
+- **Type Classes**: Infer interfaces from usage patterns
+- **Algebraic Types**: Support for sum types and pattern matching
+- **Gradual Typing**: Mix inferred and explicit types smoothly
+- **Error Messages**: Clear diagnostics showing inferred vs expected types
 
 #### 7.2 Modern Control Structures
 - Python-like list comprehensions

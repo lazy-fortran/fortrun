@@ -189,6 +189,38 @@ Key abstractions to maintain:
 - [ ] Preserve logical operators (`.and.`, `.or.`)
 - [ ] Test nested type access
 
+## Phase 6: Type Inference System
+
+### 6.1 Basic Intrinsic Type Inference
+- [ ] Write test for integer literal inference (42 → integer)
+- [ ] Write test for real literal inference (3.14 → real(8))
+- [ ] Write test for logical inference (.true. → logical)
+- [ ] Write test for character inference ("text" → character)
+- [ ] Implement expression parser to detect literal types
+- [ ] Generate variable declarations at procedure start
+- [ ] Handle multiple assignments to same variable (type consistency)
+
+### 6.2 Array Type Inference
+- [ ] Write test for array literal inference ([1,2,3] → integer, dimension(3))
+- [ ] Write test for array operations (shape preservation)
+- [ ] Implement array shape tracking
+- [ ] Support allocatable array inference
+- [ ] Handle reshape and other intrinsics
+
+### 6.3 Interface-Based Inference
+- [ ] Write test for function argument type inference
+- [ ] Write test for intent(out) type propagation
+- [ ] Implement constraint collection system
+- [ ] Implement constraint solver
+- [ ] Handle recursive type dependencies
+
+### 6.4 Derived Type Inference
+- [ ] Write test for field-based type inference
+- [ ] Write test for constructor-based inference
+- [ ] Generate derived type definitions
+- [ ] Support type extension inference
+- [ ] Validate consistent type usage
+
 ## Progress Tracking
 
 - Mark items with [x] when completed
