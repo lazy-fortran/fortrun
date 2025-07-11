@@ -215,6 +215,7 @@ Each example includes:
 - **Caching**: Part of `fortran` tool, not FPM itself
 - **Testing**: Every feature must have tests before merging
 - **Documentation**: Examples serve as both documentation and tests
+- **Debug Apps**: Create debug applications in the `app/` directory and run them with `fpm run --target <app_name>` for testing internal functionality
 
 ## Future Roadmap
 
