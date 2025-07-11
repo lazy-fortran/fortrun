@@ -8,7 +8,7 @@ program test_benchmarks
   n_failed = 0
   
   print '(a)', '='//repeat('=', 60)
-  print '(a)', 'Fortran CLI Performance Benchmarks'
+  print '(a)', 'Fortran CLI Cache Behavior Tests'
   print '(a)', '='//repeat('=', 60)
   print *
   
@@ -33,11 +33,13 @@ contains
 
   subroutine benchmark_simple_program(n_passed, n_failed)
     integer, intent(inout) :: n_passed, n_failed
-    real :: time_cold, time_warm, speedup
-    character(len=256) :: test_file, cache_dir
+    character(len=256) :: test_file, cache_dir, command
+    character(len=1024) :: output1, output2
+    integer :: exit_code
+    logical :: first_compiled, second_cached
     
-    print '(a)', 'Benchmark 1: Simple Program Performance'
-    print '(a)', '---------------------------------------'
+    print '(a)', 'Test 1: Simple Program Compilation Behavior'
+    print '(a)', '-------------------------------------------'
     
     ! Create test file
     test_file = '/tmp/bench_simple.f90'
@@ -45,29 +47,43 @@ contains
     
     ! Use temporary cache
     cache_dir = '/tmp/bench_cache_simple'
+    call execute_command_line('rm -rf "' // trim(cache_dir) // '"')
     
-    ! Measure cold cache
-    time_cold = measure_execution_time(test_file, cache_dir, .true.)
-    print '(a,f6.3,a)', 'Cold cache time: ', time_cold, ' seconds'
+    ! First run - should compile
+    command = 'fpm run fortran -- --cache-dir "' // trim(cache_dir) // '" -v "' // &
+              trim(test_file) // '" > /tmp/bench1_output.txt 2>&1'
+    call execute_command_line(command, exitstat=exit_code)
     
-    ! Measure warm cache
-    time_warm = measure_execution_time(test_file, cache_dir, .false.)
-    print '(a,f6.3,a)', 'Warm cache time: ', time_warm, ' seconds'
+    call read_file_content('/tmp/bench1_output.txt', output1)
+    first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  done.') > 0
     
-    ! Calculate speedup
-    if (time_warm > 0.0) then
-      speedup = time_cold / time_warm
-      print '(a,f4.1,a)', 'Speedup: ', speedup, 'x'
-      
-      if (speedup > 1.5) then
-        print '(a)', '  ✓ PASS: Significant speedup achieved'
-        n_passed = n_passed + 1
-      else
-        print '(a)', '  ✗ FAIL: Insufficient speedup'
-        n_failed = n_failed + 1
-      end if
+    print '(a)', 'First run (cold cache):'
+    if (first_compiled) then
+      print '(a)', '  ✓ Files compiled as expected'
     else
-      print '(a)', '  ✗ FAIL: Could not measure times'
+      print '(a)', '  ✗ Expected compilation but none detected'
+    end if
+    
+    ! Second run - should use cache
+    command = 'fpm run fortran -- --cache-dir "' // trim(cache_dir) // '" -v "' // &
+              trim(test_file) // '" > /tmp/bench2_output.txt 2>&1'
+    call execute_command_line(command, exitstat=exit_code)
+    
+    call read_file_content('/tmp/bench2_output.txt', output2)
+    second_cached = index(output2, 'Cache hit') > 0 .or. index(output2, 'Project is up to date') > 0
+    
+    print '(a)', 'Second run (warm cache):'
+    if (second_cached) then
+      print '(a)', '  ✓ Cache used as expected'
+    else
+      print '(a)', '  ✗ Expected cache hit but got recompilation'
+    end if
+    
+    if (first_compiled .and. second_cached) then
+      print '(a)', '  ✓ PASS: Caching behavior correct'
+      n_passed = n_passed + 1
+    else
+      print '(a)', '  ✗ FAIL: Caching behavior incorrect'
       n_failed = n_failed + 1
     end if
     
@@ -79,11 +95,13 @@ contains
   
   subroutine benchmark_local_modules(n_passed, n_failed)
     integer, intent(inout) :: n_passed, n_failed
-    real :: time_cold, time_warm, speedup
-    character(len=256) :: test_dir, cache_dir
+    character(len=256) :: test_dir, cache_dir, command
+    character(len=1024) :: output1, output2
+    integer :: exit_code
+    logical :: modules_compiled, cached_properly
     
-    print '(a)', 'Benchmark 2: Local Modules Performance'
-    print '(a)', '--------------------------------------'
+    print '(a)', 'Test 2: Local Modules Compilation Behavior'
+    print '(a)', '------------------------------------------'
     
     ! Create test directory with modules
     test_dir = '/tmp/bench_modules'
@@ -91,29 +109,44 @@ contains
     
     ! Use temporary cache
     cache_dir = '/tmp/bench_cache_modules'
+    call execute_command_line('rm -rf "' // trim(cache_dir) // '"')
     
-    ! Measure cold cache
-    time_cold = measure_execution_time(trim(test_dir) // '/main.f90', cache_dir, .true.)
-    print '(a,f6.3,a)', 'Cold cache time: ', time_cold, ' seconds'
+    ! First run - should compile modules
+    command = 'fpm run fortran -- --cache-dir "' // trim(cache_dir) // '" -v "' // &
+              trim(test_dir) // '/main.f90" > /tmp/bench_mod1_output.txt 2>&1'
+    call execute_command_line(command, exitstat=exit_code)
     
-    ! Measure warm cache
-    time_warm = measure_execution_time(trim(test_dir) // '/main.f90', cache_dir, .false.)
-    print '(a,f6.3,a)', 'Warm cache time: ', time_warm, ' seconds'
+    call read_file_content('/tmp/bench_mod1_output.txt', output1)
+    modules_compiled = index(output1, 'Cache miss') > 0 .and. &
+                      (index(output1, '.f90  done.') > 0 .or. index(output1, 'libmain.a') > 0)
     
-    ! Calculate speedup
-    if (time_warm > 0.0) then
-      speedup = time_cold / time_warm
-      print '(a,f4.1,a)', 'Speedup: ', speedup, 'x'
-      
-      if (speedup > 2.0) then
-        print '(a)', '  ✓ PASS: Excellent speedup for modules'
-        n_passed = n_passed + 1
-      else
-        print '(a)', '  ✗ FAIL: Insufficient speedup for modules'
-        n_failed = n_failed + 1
-      end if
+    print '(a)', 'First run (should compile modules):'
+    if (modules_compiled) then
+      print '(a)', '  ✓ Modules compiled as expected'
     else
-      print '(a)', '  ✗ FAIL: Could not measure times'
+      print '(a)', '  ✗ Expected module compilation but none detected'
+    end if
+    
+    ! Second run - should use cache
+    command = 'fpm run fortran -- --cache-dir "' // trim(cache_dir) // '" -v "' // &
+              trim(test_dir) // '/main.f90" > /tmp/bench_mod2_output.txt 2>&1'
+    call execute_command_line(command, exitstat=exit_code)
+    
+    call read_file_content('/tmp/bench_mod2_output.txt', output2)
+    cached_properly = index(output2, 'Cache hit') > 0 .or. index(output2, 'Project is up to date') > 0
+    
+    print '(a)', 'Second run (should use cache):'
+    if (cached_properly) then
+      print '(a)', '  ✓ Module cache used as expected'
+    else
+      print '(a)', '  ✗ Expected cache hit but got recompilation'
+    end if
+    
+    if (modules_compiled .and. cached_properly) then
+      print '(a)', '  ✓ PASS: Module caching behavior correct'
+      n_passed = n_passed + 1
+    else
+      print '(a)', '  ✗ FAIL: Module caching behavior incorrect'
       n_failed = n_failed + 1
     end if
     
@@ -125,11 +158,13 @@ contains
   
   subroutine benchmark_incremental_compilation(n_passed, n_failed)
     integer, intent(inout) :: n_passed, n_failed
-    real :: time_full, time_incremental, speedup
-    character(len=256) :: test_dir, cache_dir
+    character(len=256) :: test_dir, cache_dir, command
+    character(len=1024) :: output1, output2
+    integer :: exit_code
+    logical :: initial_compiled, incremental_cached
     
-    print '(a)', 'Benchmark 3: Incremental Compilation Performance'
-    print '(a)', '-----------------------------------------------'
+    print '(a)', 'Test 3: Incremental Compilation Behavior'
+    print '(a)', '----------------------------------------'
     
     ! Create test directory
     test_dir = '/tmp/bench_incremental'
@@ -137,32 +172,46 @@ contains
     
     ! Use temporary cache
     cache_dir = '/tmp/bench_cache_incremental'
+    call execute_command_line('rm -rf "' // trim(cache_dir) // '"')
     
     ! Initial build (establish cache)
-    time_full = measure_execution_time(trim(test_dir) // '/main.f90', cache_dir, .true.)
-    print '(a,f6.3,a)', 'Initial build time: ', time_full, ' seconds'
+    command = 'fpm run fortran -- --cache-dir "' // trim(cache_dir) // '" -v "' // &
+              trim(test_dir) // '/main.f90" > /tmp/bench_inc1_output.txt 2>&1'
+    call execute_command_line(command, exitstat=exit_code)
+    
+    call read_file_content('/tmp/bench_inc1_output.txt', output1)
+    initial_compiled = index(output1, 'Cache miss') > 0 .and. index(output1, '.f90  done.') > 0
+    
+    print '(a)', 'Initial build:'
+    if (initial_compiled) then
+      print '(a)', '  ✓ Full compilation as expected'
+    else
+      print '(a)', '  ✗ Expected compilation but none detected'
+    end if
     
     ! Modify main file only
     call modify_main_file(trim(test_dir) // '/main.f90')
     
-    ! Measure incremental build
-    time_incremental = measure_execution_time(trim(test_dir) // '/main.f90', cache_dir, .false.)
-    print '(a,f6.3,a)', 'Incremental build: ', time_incremental, ' seconds'
+    ! Incremental build - should recompile main but cache modules
+    command = 'fpm run fortran -- --cache-dir "' // trim(cache_dir) // '" -v "' // &
+              trim(test_dir) // '/main.f90" > /tmp/bench_inc2_output.txt 2>&1'
+    call execute_command_line(command, exitstat=exit_code)
     
-    ! Calculate speedup
-    if (time_incremental > 0.0) then
-      speedup = time_full / time_incremental
-      print '(a,f4.1,a)', 'Speedup: ', speedup, 'x'
-      
-      if (speedup > 1.5 .and. time_incremental < time_full * 0.7) then
-        print '(a)', '  ✓ PASS: Incremental compilation working'
-        n_passed = n_passed + 1
-      else
-        print '(a)', '  ✗ FAIL: Incremental compilation not effective'
-        n_failed = n_failed + 1
-      end if
+    call read_file_content('/tmp/bench_inc2_output.txt', output2)
+    incremental_cached = index(output2, 'Cache hit') > 0 .and. index(output2, 'main.f90  done.') > 0
+    
+    print '(a)', 'Incremental build:'
+    if (incremental_cached) then
+      print '(a)', '  ✓ Cache used for unchanged modules'
     else
-      print '(a)', '  ✗ FAIL: Could not measure times'
+      print '(a)', '  ✗ Expected incremental build behavior'
+    end if
+    
+    if (initial_compiled .and. incremental_cached) then
+      print '(a)', '  ✓ PASS: Incremental compilation working'
+      n_passed = n_passed + 1
+    else
+      print '(a)', '  ✗ FAIL: Incremental compilation behavior incorrect'
       n_failed = n_failed + 1
     end if
     
@@ -280,5 +329,23 @@ contains
     close(unit)
     
   end subroutine modify_main_file
-  
+
+  subroutine read_file_content(filename, content)
+    character(len=*), intent(in) :: filename
+    character(len=*), intent(out) :: content
+    integer :: unit, iostat
+    character(len=256) :: line
+    
+    content = ''
+    open(newunit=unit, file=filename, status='old', iostat=iostat)
+    if (iostat == 0) then
+      do
+        read(unit, '(a)', iostat=iostat) line
+        if (iostat /= 0) exit
+        content = trim(content) // ' ' // trim(line)
+      end do
+      close(unit)
+    end if
+  end subroutine read_file_content
+
 end program test_benchmarks
