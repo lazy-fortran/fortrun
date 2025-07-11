@@ -135,7 +135,8 @@ contains
   subroutine test_basic_execution()
     print *, 'Test 4: Basic execution'
     
-    command = './build/gfortran_*/app/fortran ' // trim(test_file) // ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
+    command = './build/gfortran_*/app/fortran ' // trim(test_file) // &
+              ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command)
     
     call check_program_output('/tmp/cli_test_output.txt', 'CLI System Test Output', test_passed)
@@ -156,7 +157,8 @@ contains
     ! Clean cache to force rebuild and see verbose output
     call execute_command_line('rm -rf ~/.cache/fortran/test_system_cli_*')
     
-    command = './build/gfortran_*/app/fortran -v ' // trim(test_file) // ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
+    command = './build/gfortran_*/app/fortran -v ' // trim(test_file) // &
+              ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command)
     
     call check_program_output('/tmp/cli_test_output.txt', 'CLI System Test Output', test_passed)
@@ -175,7 +177,8 @@ contains
   subroutine test_vv_flag()
     print *, 'Test 6: -vv flag'
     
-    command = './build/gfortran_*/app/fortran -vv ' // trim(test_file) // ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
+    command = './build/gfortran_*/app/fortran -vv ' // trim(test_file) // &
+              ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command)
     
     call check_program_output('/tmp/cli_test_output.txt', 'CLI System Test Output', test_passed)
@@ -197,7 +200,8 @@ contains
     ! Clean cache to force rebuild and see verbose output
     call execute_command_line('rm -rf ~/.cache/fortran/test_system_cli_*')
     
-    command = './build/gfortran_*/app/fortran --verbose ' // trim(test_file) // ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
+    command = './build/gfortran_*/app/fortran --verbose ' // trim(test_file) // &
+              ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command)
     
     call check_program_output('/tmp/cli_test_output.txt', 'CLI System Test Output', test_passed)
@@ -219,7 +223,8 @@ contains
     ! Clean cache to force rebuild and see verbose output
     call execute_command_line('rm -rf ~/.cache/fortran/test_system_cli_*')
     
-    command = './build/gfortran_*/app/fortran --verbose 1 ' // trim(test_file) // ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
+    command = './build/gfortran_*/app/fortran --verbose 1 ' // trim(test_file) // &
+              ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command)
     
     call check_program_output('/tmp/cli_test_output.txt', 'CLI System Test Output', test_passed)
@@ -238,7 +243,8 @@ contains
   subroutine test_verbose_2()
     print *, 'Test 9: --verbose 2'
     
-    command = './build/gfortran_*/app/fortran --verbose 2 ' // trim(test_file) // ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
+    command = './build/gfortran_*/app/fortran --verbose 2 ' // trim(test_file) // &
+              ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command)
     
     call check_program_output('/tmp/cli_test_output.txt', 'CLI System Test Output', test_passed)
@@ -257,7 +263,8 @@ contains
   subroutine test_cache_dir()
     print *, 'Test 10: --cache-dir'
     
-    command = './build/gfortran_*/app/fortran --cache-dir /tmp/custom_cache ' // trim(test_file) // ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
+    command = './build/gfortran_*/app/fortran --cache-dir /tmp/custom_cache ' // trim(test_file) // &
+              ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command)
     
     call check_program_output('/tmp/cli_test_output.txt', 'CLI System Test Output', test_passed)
@@ -282,7 +289,8 @@ contains
     call execute_command_line('mkdir -p /tmp/custom_config')
     call execute_command_line('cp registry.toml /tmp/custom_config/')
     
-    command = './build/gfortran_*/app/fortran --config-dir /tmp/custom_config ' // trim(test_file) // ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
+    command = './build/gfortran_*/app/fortran --config-dir /tmp/custom_config ' // trim(test_file) // &
+              ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command)
     
     call check_program_output('/tmp/cli_test_output.txt', 'CLI System Test Output', test_passed)
@@ -301,7 +309,8 @@ contains
     print *, 'Test 12: Invalid arguments'
     
     ! Test missing cache directory argument
-    command = './build/gfortran_*/app/fortran --cache-dir > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
+    command = './build/gfortran_*/app/fortran --cache-dir > /tmp/cli_test_output.txt 2>&1; ' // &
+              'echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command)
     
     call check_help_output('/tmp/cli_test_output.txt', test_passed)

@@ -45,8 +45,8 @@ program test_preprocessor_integration
   
   ! Test 4: Verbose mode shows preprocessing message
   test_count = test_count + 1
-  call execute_command_line('./build/gfortran_*/app/fortran -v example/preprocessor/hello.f 2>&1 | grep -q "Preprocessing"', &
-                           exitstat=exit_status)
+  call execute_command_line('./build/gfortran_*/app/fortran -v example/preprocessor/hello.f ' // &
+                           '2>&1 | grep -q "Preprocessing"', exitstat=exit_status)
   if (exit_status == 0) then
     pass_count = pass_count + 1
     print '(a)', 'PASS: Verbose mode shows preprocessing message'
