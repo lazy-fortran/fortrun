@@ -174,8 +174,17 @@ contains
       all_pass = .false.
     end if
     
+    ! Ensure target directory exists
+    call execute_command_line('mkdir -p ' // trim(test_target_dir))
+    
     ! Retrieve module
     call cache%retrieve_module(cache_key, test_target_dir, srcfile, found, error)
+    
+    ! Debug: Check what happened
+    print '(a,l1)', '  Debug: found = ', found
+    if (allocated(error)) then
+      print '(a,a)', '  Debug: error = ', error%message
+    end if
     
     test_pass = found .and. .not. allocated(error)
     if (test_pass) then
