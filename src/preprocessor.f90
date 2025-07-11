@@ -1,5 +1,6 @@
 module preprocessor
   use cache, only: get_cache_dir
+  use type_inference
   implicit none
   private
   
@@ -32,14 +33,23 @@ contains
     integer :: line_num, ext_pos
     logical :: in_subroutine, in_function
     logical :: has_program_statement, contains_written
+    logical :: enable_type_inference
     character(len=:), allocatable :: indent
+    type(type_environment) :: type_env
+    character(len=2048) :: declarations
     
     error_msg = ''
     in_subroutine = .false.
     in_function = .false.
     has_program_statement = .false.
     contains_written = .false.
+    enable_type_inference = .true.  ! Enable by default for .f files
     line_num = 0
+    
+    ! Initialize type inference environment
+    if (enable_type_inference) then
+      call init_type_environment(type_env)
+    end if
     
     ! Generate output filename in cache directory
     cache_dir = get_cache_dir()
@@ -131,6 +141,11 @@ contains
         in_subroutine = .false.
         write(unit_out, '(A)') line
       else
+        ! Check for assignments for type inference
+        if (enable_type_inference .and. .not. in_subroutine .and. .not. in_function) then
+          call detect_and_process_assignment(type_env, line)
+        end if
+        
         ! Regular line - add proper indentation if we added program wrapper
         if (.not. has_program_statement .and. .not. in_subroutine .and. .not. in_function) then
           write(unit_out, '(A)') '  ' // trim(line)
@@ -147,6 +162,16 @@ contains
     
     close(unit_in)
     close(unit_out)
+    
+    ! Now post-process to add declarations if type inference was used
+    if (enable_type_inference .and. type_env%var_count > 0) then
+      call inject_declarations(output_file, type_env, error_msg)
+    end if
+    
+    ! Cleanup type environment
+    if (enable_type_inference) then
+      call cleanup_type_environment(type_env)
+    end if
     
   end subroutine preprocess_file
   
@@ -211,5 +236,118 @@ contains
     trimmed = adjustl(line)
     is_end = index(trimmed, 'end ' // trim(construct_type)) == 1
   end function is_end_statement
+  
+  subroutine detect_and_process_assignment(type_env, line)
+    type(type_environment), intent(inout) :: type_env
+    character(len=*), intent(in) :: line
+    
+    integer :: eq_pos
+    character(len=256) :: var_name, expr
+    character(len=256) :: trimmed_line
+    
+    trimmed_line = adjustl(line)
+    
+    ! Look for assignment operator (=)
+    eq_pos = index(trimmed_line, '=')
+    if (eq_pos > 1) then
+      ! Extract variable name and expression
+      var_name = adjustl(trimmed_line(1:eq_pos-1))
+      expr = adjustl(trimmed_line(eq_pos+1:))
+      
+      ! Remove any leading/trailing whitespace
+      var_name = trim(var_name)
+      expr = trim(expr)
+      
+      ! Skip if it's not a simple variable (e.g., array access)
+      if (index(var_name, '(') == 0 .and. index(var_name, '%') == 0) then
+        call process_assignment(type_env, var_name, expr)
+      end if
+    end if
+    
+  end subroutine detect_and_process_assignment
+  
+  subroutine inject_declarations(filename, type_env, error_msg)
+    character(len=*), intent(in) :: filename
+    type(type_environment), intent(in) :: type_env
+    character(len=*), intent(out) :: error_msg
+    
+    character(len=2048) :: declarations
+    character(len=1024) :: line, temp_filename
+    integer :: unit_in, unit_out, ios
+    logical :: declarations_added
+    
+    error_msg = ''
+    declarations_added = .false.
+    temp_filename = trim(filename) // '.tmp'
+    
+    ! Generate declarations
+    call generate_declarations(type_env, declarations)
+    if (len_trim(declarations) == 0) return
+    
+    ! Open original file for reading
+    open(newunit=unit_in, file=filename, status='old', action='read', iostat=ios)
+    if (ios /= 0) then
+      error_msg = 'Failed to open file for declaration injection'
+      return
+    end if
+    
+    ! Open temporary file for writing
+    open(newunit=unit_out, file=temp_filename, status='replace', action='write', iostat=ios)
+    if (ios /= 0) then
+      close(unit_in)
+      error_msg = 'Failed to create temporary file'
+      return
+    end if
+    
+    ! Copy file, inserting declarations after implicit none
+    do
+      read(unit_in, '(A)', iostat=ios) line
+      if (ios /= 0) exit
+      
+      write(unit_out, '(A)') line
+      
+      ! Insert declarations after implicit none
+      if (.not. declarations_added .and. index(adjustl(line), 'implicit none') == 1) then
+        write(unit_out, '(A)') '  '  ! Blank line
+        write(unit_out, '(A)') '  ! Auto-generated variable declarations:'
+        call write_formatted_declarations(unit_out, declarations)
+        write(unit_out, '(A)') '  '  ! Blank line
+        declarations_added = .true.
+      end if
+    end do
+    
+    close(unit_in)
+    close(unit_out)
+    
+    ! Replace original with temporary
+    call execute_command_line('mv "' // trim(temp_filename) // '" "' // trim(filename) // '"')
+    
+  end subroutine inject_declarations
+  
+  subroutine write_formatted_declarations(unit, declarations)
+    integer, intent(in) :: unit
+    character(len=*), intent(in) :: declarations
+    
+    integer :: pos, next_pos
+    character(len=256) :: single_decl
+    
+    pos = 1
+    do while (pos <= len_trim(declarations))
+      next_pos = index(declarations(pos:), '; ')
+      if (next_pos == 0) then
+        single_decl = trim(declarations(pos:))
+        pos = len_trim(declarations) + 1
+      else
+        next_pos = pos + next_pos - 1
+        single_decl = trim(declarations(pos:next_pos-1))
+        pos = next_pos + 2
+      end if
+      
+      if (len_trim(single_decl) > 0) then
+        write(unit, '(A)') '  ' // trim(single_decl)
+      end if
+    end do
+    
+  end subroutine write_formatted_declarations
 
 end module preprocessor
