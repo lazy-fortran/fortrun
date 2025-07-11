@@ -12,6 +12,10 @@ The `fortran` CLI tool aims to make Fortran development as seamless as Python, w
 - **Local Dependencies**: Automatically includes local `.f90` modules from the same directory
 - **FPM Integration**: Leverages FPM for building and dependency management
 - **Module Registry**: TOML-based registry with smart module resolution (prefix and underscore rules)
+- **Modern Defaults**:
+  - `implicit none` enforced by default (via fpm.toml `implicit-typing = false`)
+  - Double precision (`real*8`) as default for `real` type
+  - Compiler flags automatically applied: `-fdefault-real-8 -fdefault-double-8`
 
 ## Near-term Roadmap
 
@@ -56,13 +60,13 @@ Implement a preprocessor that transforms `.f` files (simplified syntax) into sta
 - **Program Detection**: Look for `call`, main execution statements
 - **Default**: Module name = filename (without extension)
 
-#### 5.2 Modern Defaults
-- **Feature**: `implicit none` by default (no need to write it)
-- **Feature**: `real(kind=8)` as default real type
+#### 5.2 Modern Defaults ✅ (Partially Complete)
+- **Feature**: `implicit none` by default (no need to write it) ✅
+  - **Implemented**: Using `implicit-typing = false` in fpm.toml
+- **Feature**: `real(kind=8)` as default real type ✅
+  - **Implemented**: Using `--flag "-fdefault-real-8 -fdefault-double-8"`
 - **Feature**: Automatic `use, intrinsic :: iso_fortran_env`
-- **Implementation**: Can start with compiler flags:
-  - `-fimplicit-none`
-  - `-fdefault-real-8`
+  - **Status**: Not yet implemented
 
 ### Phase 6: Syntax Enhancements
 

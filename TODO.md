@@ -177,10 +177,10 @@ Key abstractions to maintain:
 - [ ] Use filename as default module name
 
 ### 5.3 Modern Defaults
-- [ ] Add `implicit none` to all generated units
-- [ ] Set compiler flags for double precision default
+- [x] Add `implicit none` to all generated units (via fpm.toml implicit-typing = false)
+- [x] Set compiler flags for double precision default (--flag "-fdefault-real-8 -fdefault-double-8")
 - [ ] Auto-import common intrinsic modules
-- [ ] Write tests for default behaviors
+- [x] Write tests for default behaviors (real_default_test.f90)
 
 ### 5.4 Dot Notation Transform
 - [ ] Write test for simple member access (`.` to `%`)
