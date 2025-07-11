@@ -27,15 +27,15 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
 - [ ] Write test: `test_run_simple_program`
   - Test .f90 file without external dependencies
   - Verify execution via our tool
-- [ ] Implement basic execution in `src/runner.f90`
-  - Create temporary directory
+- [x] Implement basic execution in `src/runner.f90`
+  - Create temporary directory in OS cache location
   - Generate fpm.toml with the .f90 file as app
   - Execute `fpm run` 
-  - Clean up
+  - Keep builds cached for future use
 - [ ] Write test: `test_run_with_local_module`
   - Test .f90 that uses a local module file
   - Both files in same directory
-- [ ] Enhance runner to copy all local .f90 files to temp project
+- [x] Enhance runner to copy all local .f90 files to temp project
 
 ### 1.3 Registry-based Module Resolution
 - [ ] Write test: `test_detect_external_module`
