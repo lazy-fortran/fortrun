@@ -212,3 +212,7 @@ Each example includes:
 **Goal**: **Make Python Fortran again** - making Fortran development as seamless as Python, where you can just run a file without worrying about compilation, linking, or dependency management.
 
 *"Fortran is the Python of scientific computing - it just doesn't know it yet."*
+
+## Development Memories
+
+- Check FPM API before implementing on our own

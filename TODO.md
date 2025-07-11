@@ -106,7 +106,7 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
   - ✅ **Implemented**: `-v`, `-vv`, `--verbose`, `--verbose 1`, `--verbose 2`
   - ✅ **Tested by**: `test_verbose.f90`, `test_cli_system.f90`
 
-## Phase 3: Caching System - IN PROGRESS
+## Phase 3: Caching System - COMPLETE
 
 ### 3.1 Cache Design
 - [x] Write test for cache directory structure
@@ -140,7 +140,16 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
 - [x] Write system test for incremental compilation
 - [x] Implement incremental build support
 - [ ] Write test for partial cache hits (some deps cached)
-- [ ] Test with complex dependency changes
+  - Note: Current implementation caches at project level, not module level
+  - True partial cache hits would require architectural changes:
+    - Cache individual compiled modules separately
+    - Share cached modules between projects
+    - This is a future enhancement for Phase 4
+- [x] Test with complex dependency changes
+  - Test modifying dependency modules
+  - Test adding new dependencies
+  - Current behavior: dependency changes create new cache directories
+  - This ensures correctness but could be optimized in future phases
 - [x] Write test for source file modification with cached dependencies
   - Run .f90 file first time: compiles everything including dependencies
   - Run same file second time: compiles nothing (full cache hit)
@@ -155,6 +164,10 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
 - [ ] Implement parallel dependency resolution
 - [ ] Write test for concurrent cache access
 - [ ] Implement cache locking mechanism
+- [ ] Implement module-level caching for partial cache hits
+  - Cache individual compiled modules separately
+  - Share cached modules between projects
+  - Enable true partial rebuilds across projects
 
 ### 4.2 Cross-Package Support
 - [ ] Write test for namespace support

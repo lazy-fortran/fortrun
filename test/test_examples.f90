@@ -81,6 +81,9 @@ program test_examples
   ! Test source file modification with cached dependencies
   call test_source_modification_with_cached_deps(n_passed, n_failed)
   
+  ! Test complex dependency changes
+  call test_complex_dependency_changes(n_passed, n_failed)
+  
   ! Summary
   print '(a)', '='//repeat('=', 60)
   print '(a)', 'Test Summary'
@@ -471,5 +474,200 @@ contains
     end do
     
   end subroutine replace_spaces_with_underscores
+  
+  subroutine test_complex_dependency_changes(n_passed, n_failed)
+    integer, intent(inout) :: n_passed, n_failed
+    character(len=1024) :: output1, output2, output3
+    integer :: exit_code1, exit_code2, exit_code3
+    character(len=256) :: temp_cache_dir, temp_source_dir
+    character(len=512) :: command
+    character(len=16) :: timestamp
+    integer :: unit, iostat
+    
+    print '(a)', '='//repeat('=', 60)
+    print '(a)', 'Testing Complex Dependency Changes'
+    print '(a)', '='//repeat('=', 60)
+    print *
+    
+    ! Create a clean timestamp without spaces
+    timestamp = get_test_timestamp()
+    call replace_spaces_with_underscores(timestamp)
+    
+    ! Create temporary directories
+    temp_cache_dir = '/tmp/fortran_complex_dep_cache_' // trim(timestamp)
+    temp_source_dir = '/tmp/fortran_complex_dep_source_' // trim(timestamp)
+    
+    print '(a,a)', 'Using temporary cache: ', trim(temp_cache_dir)
+    print '(a,a)', 'Using temporary source: ', trim(temp_source_dir)
+    
+    ! Create test source directory
+    command = 'mkdir -p "' // trim(temp_source_dir) // '"'
+    call execute_command_line(trim(command))
+    
+    ! Create initial version of files
+    call create_initial_dependency_files(temp_source_dir)
+    
+    ! First run - compile everything
+    print '(a)', 'Test 1: Initial compilation with dependencies...'
+    call run_example_with_cache(trim(temp_source_dir) // '/main.f90', &
+                                 temp_cache_dir, output1, exit_code1)
+    
+    if (exit_code1 /= 0) then
+      print '(a)', '  ✗ FAIL: Initial compilation failed'
+      print '(a,a)', '    Output: ', trim(output1)
+      n_failed = n_failed + 1
+      goto 999
+    end if
+    
+    if (index(output1, '[  0%]') > 0 .and. index(output1, '[100%]') > 0) then
+      print '(a)', '  ✓ Initial compilation successful'
+    else
+      print '(a)', '  ✗ FAIL: Expected compilation not detected'
+      n_failed = n_failed + 1
+      goto 999
+    end if
+    
+    ! Modify a dependency module
+    print '(a)', 'Test 2: Modifying dependency module...'
+    call modify_dependency_module(temp_source_dir)
+    
+    call run_example_with_cache(trim(temp_source_dir) // '/main.f90', &
+                                 temp_cache_dir, output2, exit_code2)
+    
+    if (exit_code2 /= 0) then
+      print '(a)', '  ✗ FAIL: Compilation after dependency change failed'
+      print '(a,a)', '    Output: ', trim(output2)
+      n_failed = n_failed + 1
+      goto 999
+    end if
+    
+    ! When dependency changes, it creates a new cache (current behavior)
+    if (index(output2, 'Cache miss: Setting up new build') > 0) then
+      print '(a)', '  ✓ Dependency change created new cache (expected behavior)'
+    else
+      print '(a)', '  ✗ FAIL: Expected cache miss for dependency change'
+      print '(a,a)', '    Output: ', trim(output2)
+      n_failed = n_failed + 1
+      goto 999
+    end if
+    
+    ! Verify compilation occurred
+    if (index(output2, '[  0%]') > 0 .and. index(output2, '[100%]') > 0) then
+      print '(a)', '  ✓ Recompilation occurred for changed dependency'
+    else
+      print '(a)', '  ✗ FAIL: Expected recompilation not detected'
+      print '(a,a)', '    Output: ', trim(output2)
+      n_failed = n_failed + 1
+      goto 999
+    end if
+    
+    ! Add new dependency
+    print '(a)', 'Test 3: Adding new dependency...'
+    call add_new_dependency(temp_source_dir)
+    
+    call run_example_with_cache(trim(temp_source_dir) // '/main.f90', &
+                                 temp_cache_dir, output3, exit_code3)
+    
+    if (exit_code3 /= 0) then
+      print '(a)', '  ✗ FAIL: Compilation with new dependency failed'
+      print '(a,a)', '    Output: ', trim(output3)
+      n_failed = n_failed + 1
+      goto 999
+    end if
+    
+    print '(a)', '  ✓ PASS: Complex dependency changes handled correctly'
+    n_passed = n_passed + 1
+    
+999 continue
+    ! Clean up
+    command = 'rm -rf "' // trim(temp_cache_dir) // '" "' // trim(temp_source_dir) // '"'
+    call execute_command_line(trim(command))
+    print '(a)', 'Cleaned up temporary directories'
+    print *
+    
+  end subroutine test_complex_dependency_changes
+  
+  subroutine create_initial_dependency_files(dir)
+    character(len=*), intent(in) :: dir
+    integer :: unit
+    
+    ! Create helper_mod.f90
+    open(newunit=unit, file=trim(dir)//'/helper_mod.f90', status='replace')
+    write(unit, '(a)') 'module helper_mod'
+    write(unit, '(a)') '  implicit none'
+    write(unit, '(a)') '  integer, parameter :: HELPER_VERSION = 1'
+    write(unit, '(a)') 'contains'
+    write(unit, '(a)') '  function helper_function(x) result(y)'
+    write(unit, '(a)') '    integer, intent(in) :: x'
+    write(unit, '(a)') '    integer :: y'
+    write(unit, '(a)') '    y = x * 2'
+    write(unit, '(a)') '  end function helper_function'
+    write(unit, '(a)') 'end module helper_mod'
+    close(unit)
+    
+    ! Create main.f90 that uses helper_mod
+    open(newunit=unit, file=trim(dir)//'/main.f90', status='replace')
+    write(unit, '(a)') 'program test_deps'
+    write(unit, '(a)') '  use helper_mod'
+    write(unit, '(a)') '  implicit none'
+    write(unit, '(a)') '  integer :: result'
+    write(unit, '(a)') '  result = helper_function(5)'
+    write(unit, '(a)') '  print *, "Result:", result'
+    write(unit, '(a)') '  print *, "Helper version:", HELPER_VERSION'
+    write(unit, '(a)') 'end program test_deps'
+    close(unit)
+    
+  end subroutine create_initial_dependency_files
+  
+  subroutine modify_dependency_module(dir)
+    character(len=*), intent(in) :: dir
+    integer :: unit
+    
+    ! Modify helper_mod.f90
+    open(newunit=unit, file=trim(dir)//'/helper_mod.f90', status='replace')
+    write(unit, '(a)') 'module helper_mod'
+    write(unit, '(a)') '  implicit none'
+    write(unit, '(a)') '  integer, parameter :: HELPER_VERSION = 2  ! Modified'
+    write(unit, '(a)') 'contains'
+    write(unit, '(a)') '  function helper_function(x) result(y)'
+    write(unit, '(a)') '    integer, intent(in) :: x'
+    write(unit, '(a)') '    integer :: y'
+    write(unit, '(a)') '    y = x * 3  ! Modified formula'
+    write(unit, '(a)') '  end function helper_function'
+    write(unit, '(a)') 'end module helper_mod'
+    close(unit)
+    
+  end subroutine modify_dependency_module
+  
+  subroutine add_new_dependency(dir)
+    character(len=*), intent(in) :: dir
+    integer :: unit
+    
+    ! Create new_mod.f90
+    open(newunit=unit, file=trim(dir)//'/new_mod.f90', status='replace')
+    write(unit, '(a)') 'module new_mod'
+    write(unit, '(a)') '  implicit none'
+    write(unit, '(a)') 'contains'
+    write(unit, '(a)') '  subroutine new_feature()'
+    write(unit, '(a)') '    print *, "New feature added!"'
+    write(unit, '(a)') '  end subroutine new_feature'
+    write(unit, '(a)') 'end module new_mod'
+    close(unit)
+    
+    ! Update main.f90 to use new module
+    open(newunit=unit, file=trim(dir)//'/main.f90', status='replace')
+    write(unit, '(a)') 'program test_deps'
+    write(unit, '(a)') '  use helper_mod'
+    write(unit, '(a)') '  use new_mod  ! Added new dependency'
+    write(unit, '(a)') '  implicit none'
+    write(unit, '(a)') '  integer :: result'
+    write(unit, '(a)') '  result = helper_function(5)'
+    write(unit, '(a)') '  print *, "Result:", result'
+    write(unit, '(a)') '  print *, "Helper version:", HELPER_VERSION'
+    write(unit, '(a)') '  call new_feature()  ! Use new module'
+    write(unit, '(a)') 'end program test_deps'
+    close(unit)
+    
+  end subroutine add_new_dependency
   
 end program test_examples
