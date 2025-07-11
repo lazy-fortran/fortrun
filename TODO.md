@@ -58,7 +58,7 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
     - Fallback to module name as package name
   - Generate fpm.toml with resolved dependencies
 
-## Phase 2: Enhanced Features (Leveraging FPM)
+## Phase 2: Enhanced Features (Leveraging FPM) - COMPLETE
 
 ### 2.1 Improved Local File Handling
 - [x] Write test for multiple local files with interdependencies
@@ -106,7 +106,7 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
   - ✅ **Implemented**: `-v`, `-vv`, `--verbose`, `--verbose 1`, `--verbose 2`
   - ✅ **Tested by**: `test_verbose.f90`, `test_cli_system.f90`
 
-## Phase 3: Caching System
+## Phase 3: Caching System - IN PROGRESS
 
 ### 3.1 Cache Design
 - [x] Write test for cache directory structure
@@ -123,12 +123,14 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
   - ✅ **Approach**: Leverage FPM's `srcfile_t%digest` instead of creating parallel system
 
 ### 3.2 Build Artifact Caching
-- [ ] Write test for storing compiled modules
-- [ ] Implement module cache storage
-- [ ] Write test for storing executables
-- [ ] Implement executable cache storage
-- [ ] Write test for cache invalidation
-- [ ] Implement cache invalidation logic
+- [x] Write test for storing compiled modules
+- [x] Implement module cache storage
+- [x] Write test for storing executables
+- [x] Implement executable cache storage
+- [x] Write test for cache invalidation
+- [x] Implement cache invalidation logic
+- [x] Implement FPM-based content hashing
+- [x] Create comprehensive test suite for artifact caching
 
 ### 3.3 Cache Retrieval
 - [ ] Write test for cache hit detection

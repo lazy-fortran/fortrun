@@ -1,8 +1,17 @@
 module cache
   use, intrinsic :: iso_c_binding
+  use, intrinsic :: iso_fortran_env, only: int64
+  use fpm_sources, only: add_sources_from_dir
+  use fpm_model, only: srcfile_t, FPM_SCOPE_APP
+  use fpm_error, only: error_t
+  use fpm_filesystem, only: list_files, read_lines
+  use fpm_strings, only: string_t, fnv_1a
   implicit none
   private
-  public :: get_cache_dir, ensure_cache_dir, ensure_cache_structure, get_cache_subdir
+  public :: get_cache_dir, ensure_cache_dir, ensure_cache_structure, get_cache_subdir, &
+            store_module_cache, store_executable_cache, get_cache_key, get_fpm_digest, &
+            store_build_artifacts, retrieve_build_artifacts, cache_exists, invalidate_cache, &
+            get_content_hash
   
 contains
 
@@ -84,12 +93,266 @@ contains
     
   end subroutine ensure_cache_structure
   
-  function get_cache_subdir(cache_dir, subdir_name) result(subdir_path)
-    character(len=*), intent(in) :: cache_dir, subdir_name
+  function get_cache_subdir(subdir_name) result(subdir_path)
+    character(len=*), intent(in) :: subdir_name
     character(len=512) :: subdir_path
+    character(len=256) :: cache_dir
     
+    cache_dir = get_cache_dir()
     subdir_path = trim(cache_dir) // '/' // trim(subdir_name)
     
   end function get_cache_subdir
+  
+  subroutine store_module_cache(cache_key, module_files, success)
+    character(len=*), intent(in) :: cache_key
+    character(len=*), intent(in) :: module_files(:)
+    logical, intent(out) :: success
+    character(len=512) :: modules_dir, dest_file, command
+    integer :: i, exitstat, cmdstat
+    
+    ! Get modules cache directory
+    modules_dir = get_cache_subdir('modules')
+    
+    ! Create cache key subdirectory
+    modules_dir = trim(modules_dir) // '/' // trim(cache_key)
+    call ensure_cache_dir(modules_dir, success)
+    if (.not. success) return
+    
+    ! Copy each module file
+    success = .true.
+    do i = 1, size(module_files)
+      if (len_trim(module_files(i)) > 0) then
+        dest_file = trim(modules_dir) // '/' // extract_filename(module_files(i))
+        command = 'cp "' // trim(module_files(i)) // '" "' // trim(dest_file) // '"'
+        call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
+        if (cmdstat /= 0 .or. exitstat /= 0) then
+          success = .false.
+          return
+        end if
+      end if
+    end do
+    
+  end subroutine store_module_cache
+  
+  subroutine store_executable_cache(cache_key, executable_path, success)
+    character(len=*), intent(in) :: cache_key, executable_path
+    logical, intent(out) :: success
+    character(len=512) :: executables_dir, dest_file, command
+    integer :: exitstat, cmdstat
+    
+    ! Get executables cache directory
+    executables_dir = get_cache_subdir('executables')
+    
+    ! Create cache key subdirectory
+    executables_dir = trim(executables_dir) // '/' // trim(cache_key)
+    call ensure_cache_dir(executables_dir, success)
+    if (.not. success) return
+    
+    ! Copy executable
+    dest_file = trim(executables_dir) // '/' // extract_filename(executable_path)
+    command = 'cp "' // trim(executable_path) // '" "' // trim(dest_file) // '"'
+    call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
+    success = (cmdstat == 0 .and. exitstat == 0)
+    
+    if (success) then
+      ! Make executable
+      command = 'chmod +x "' // trim(dest_file) // '"'
+      call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
+      success = (cmdstat == 0 .and. exitstat == 0)
+    end if
+    
+  end subroutine store_executable_cache
+  
+  function get_cache_key(source_files, dependencies) result(cache_key)
+    character(len=*), intent(in) :: source_files(:)
+    character(len=*), intent(in) :: dependencies(:)
+    character(len=64) :: cache_key
+    character(len=512) :: combined_string
+    integer :: i
+    
+    ! Simple cache key generation based on file names and dependencies
+    ! In a real implementation, this would use file content hashes
+    combined_string = ''
+    
+    do i = 1, size(source_files)
+      if (len_trim(source_files(i)) > 0) then
+        combined_string = trim(combined_string) // trim(source_files(i)) // ';'
+      end if
+    end do
+    
+    do i = 1, size(dependencies)
+      if (len_trim(dependencies(i)) > 0) then
+        combined_string = trim(combined_string) // trim(dependencies(i)) // ';'
+      end if
+    end do
+    
+    ! Generate a simple hash-like key (placeholder)
+    cache_key = 'cache_' // adjustl(trim(combined_string(1:min(50, len_trim(combined_string)))))
+    
+    ! Replace problematic characters
+    do i = 1, len_trim(cache_key)
+      if (cache_key(i:i) == '/' .or. cache_key(i:i) == '\' .or. &
+          cache_key(i:i) == ' ' .or. cache_key(i:i) == ';') then
+        cache_key(i:i) = '_'
+      end if
+    end do
+    
+  end function get_cache_key
+  
+  function get_fpm_digest(source_dir) result(digest_key)
+    character(len=*), intent(in) :: source_dir
+    character(len=32) :: digest_key
+    type(srcfile_t), allocatable :: sources(:)
+    type(error_t), allocatable :: error
+    integer :: i
+    character(len=16) :: hex_digest
+    
+    ! Use FPM API to discover sources and get their digests
+    call add_sources_from_dir(sources, source_dir, FPM_SCOPE_APP, error=error)
+    
+    if (allocated(error)) then
+      ! Fallback to simple naming if FPM fails
+      digest_key = 'fallback_' // adjustl(extract_filename(source_dir))
+      return
+    end if
+    
+    if (.not. allocated(sources) .or. size(sources) == 0) then
+      digest_key = 'empty_' // adjustl(extract_filename(source_dir))
+      return
+    end if
+    
+    ! Combine all source file digests into a single cache key
+    ! Use the first source file's digest as the primary key
+    write(hex_digest, '(z0)') sources(1)%digest
+    digest_key = 'fpm_' // trim(hex_digest)
+    
+    ! For multiple sources, XOR their digests together
+    do i = 2, size(sources)
+      write(hex_digest, '(z0)') ieor(sources(1)%digest, sources(i)%digest)
+      digest_key = 'fpm_' // trim(hex_digest)
+    end do
+    
+  end function get_fpm_digest
+  
+  function extract_filename(filepath) result(filename)
+    character(len=*), intent(in) :: filepath
+    character(len=256) :: filename
+    integer :: last_slash
+    
+    last_slash = index(filepath, '/', back=.true.)
+    if (last_slash > 0) then
+      filename = filepath(last_slash+1:)
+    else
+      filename = filepath
+    end if
+    
+  end function extract_filename
+  
+  subroutine store_build_artifacts(hash_key, build_dir, success)
+    !> Store compiled modules and executables in cache
+    character(len=*), intent(in) :: hash_key, build_dir
+    logical, intent(out) :: success
+    character(len=512) :: cache_path, command
+    integer :: exitstat, cmdstat
+    
+    ! Create cache directory for this hash
+    cache_path = get_cache_subdir('builds') // '/' // trim(hash_key)
+    call ensure_cache_dir(cache_path, success)
+    if (.not. success) return
+    
+    ! Copy build artifacts to cache
+    command = 'cp -r "' // trim(build_dir) // '"/* "' // trim(cache_path) // '/"'
+    call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
+    success = (cmdstat == 0 .and. exitstat == 0)
+    
+  end subroutine store_build_artifacts
+  
+  subroutine retrieve_build_artifacts(hash_key, target_dir, success)
+    !> Retrieve cached build artifacts
+    character(len=*), intent(in) :: hash_key, target_dir
+    logical, intent(out) :: success
+    character(len=512) :: cache_path, command
+    integer :: exitstat, cmdstat
+    logical :: exists
+    
+    ! Check if cache exists
+    cache_path = get_cache_subdir('builds') // '/' // trim(hash_key)
+    ! Check if directory exists by checking for a marker file
+    inquire(file=trim(cache_path) // '/.', exist=exists)
+    if (.not. exists) then
+      success = .false.
+      return
+    end if
+    
+    ! Create target directory
+    call ensure_cache_dir(target_dir, success)
+    if (.not. success) return
+    
+    ! Copy cached artifacts to target
+    command = 'cp -r "' // trim(cache_path) // '"/* "' // trim(target_dir) // '/"'
+    call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
+    success = (cmdstat == 0 .and. exitstat == 0)
+    
+  end subroutine retrieve_build_artifacts
+  
+  function cache_exists(hash_key) result(exists)
+    !> Check if cache entry exists
+    character(len=*), intent(in) :: hash_key
+    logical :: exists
+    character(len=512) :: cache_path
+    
+    cache_path = get_cache_subdir('builds') // '/' // trim(hash_key)
+    ! Check if directory exists by checking for current directory marker
+    inquire(file=trim(cache_path) // '/.', exist=exists)
+    
+  end function cache_exists
+  
+  subroutine invalidate_cache(hash_key, success)
+    !> Remove cache entry
+    character(len=*), intent(in) :: hash_key
+    logical, intent(out) :: success
+    character(len=512) :: cache_path, command
+    integer :: exitstat, cmdstat
+    
+    cache_path = get_cache_subdir('builds') // '/' // trim(hash_key)
+    command = 'rm -rf "' // trim(cache_path) // '"'
+    call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
+    success = (cmdstat == 0 .and. exitstat == 0)
+    
+  end subroutine invalidate_cache
+  
+  function get_content_hash(source_files) result(hash_key)
+    !> Generate content-based hash using FPM's fnv_1a algorithm
+    character(len=*), intent(in) :: source_files(:)
+    character(len=32) :: hash_key
+    type(string_t), allocatable :: file_contents(:)
+    character(len=16) :: hex_digest
+    integer(kind=8) :: combined_digest
+    integer :: i
+    
+    ! Read all source files and combine their content using FPM's read_lines
+    combined_digest = 0_int64
+    
+    do i = 1, size(source_files)
+      if (len_trim(source_files(i)) == 0) cycle
+      
+      ! Use FPM's read_lines function like fpm_source_parsing.f90 does
+      file_contents = read_lines(trim(source_files(i)))
+      
+      ! Use FPM's fnv_1a hash function like fmp_source_parsing.f90 does
+      if (size(file_contents) > 0) then
+        combined_digest = ieor(combined_digest, fnv_1a(file_contents))
+      end if
+    end do
+    
+    ! Convert to hex string
+    if (combined_digest /= 0) then
+      write(hex_digest, '(z0)') combined_digest
+      hash_key = 'fpm_' // trim(hex_digest)
+    else
+      hash_key = 'fallback_unknown'
+    end if
+    
+  end function get_content_hash
   
 end module cache

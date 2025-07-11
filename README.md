@@ -1,6 +1,6 @@
 # ![fortran logo](media/logo.png)
 
-**Making Fortran as easy as Python** - A command-line tool that enables running Fortran programs as easily as Python scripts, with automatic dependency resolution, modern defaults, and zero configuration.
+**Make Python Fortran again.** - A command-line tool that enables running Fortran programs as easily as Python scripts, with automatic dependency resolution, modern defaults, and zero configuration.
 
 ## Overview
 
@@ -159,7 +159,7 @@ git = "https://github.com/jacobwilliams/pyplot-fortran"
 ## Design Philosophy
 
 ### **Opinionated for Good**
-We make **opinionated design choices** to help **make Fortran as easy as Python**:
+We make **opinionated design choices**:
 
 1. **Modern defaults by default** - No more `implicit none` boilerplate
 2. **Double precision by default** - Scientific computing needs precision
@@ -189,16 +189,23 @@ We make **opinionated design choices** to help **make Fortran as easy as Python*
 - ✅ Package registry with smart module resolution
 - ✅ Comprehensive test coverage (unit, integration, system tests)
 
-### 🚧 **Phase 2 In Progress**: Enhanced Features
+### ✅ **Phase 2 Complete**: Enhanced Features
 - ✅ Interdependent local modules
 - ✅ Custom cache/config directories
 - ✅ Organized example structure
-- ⚠️ Advanced file handling (subdirectories, relative imports)
-- ⚠️ Registry enhancements (version constraints, validation)
-- ⚠️ Error handling improvements
+- ✅ Registry enhancements (version constraints, validation)
+- ✅ Error handling improvements
+- ✅ Multiple modules from same package support
+- ✅ Conflicting dependencies resolution
+
+### 🚧 **Phase 3 In Progress**: Smart Caching
+- ✅ Cache directory structure and management
+- ✅ FPM API integration for content-based hashing
+- ✅ Cache key generation using FPM's digest system
+- ⚠️ Build artifact caching (Phase 3.2)
+- ⚠️ Cache retrieval and validation (Phase 3.3)
 
 ### 🔮 **Future Phases**: Advanced Features
-- **Phase 3**: Smart caching with content hashing
 - **Phase 4**: Cross-package support and performance optimization
 - **Phase 5**: Integration with official FPM registry
 - **Phase 6**: Simplified Fortran preprocessor (`.f` files)
