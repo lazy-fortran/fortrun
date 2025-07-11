@@ -296,15 +296,18 @@ contains
     class(module_cache_t), intent(in) :: this
     character(*), intent(in) :: cache_key
     logical :: is_cached
-    character(:), allocatable :: module_dir
+    character(:), allocatable :: module_dir, metadata_file
     
     is_cached = .false.
     if (.not. this%enabled) return
     
     module_dir = this%get_module_dir(cache_key)
-    is_cached = exists(module_dir)
     
-    ! Could add more validation here (check metadata, etc.)
+    ! Check if directory exists AND contains metadata file
+    if (exists(module_dir)) then
+      metadata_file = join_path(module_dir, 'metadata.txt')
+      is_cached = exists(metadata_file)
+    end if
     
   end function cache_is_cached
   
@@ -316,7 +319,7 @@ contains
     
     dir = join_path(this%cache_dir, this%compiler_id)
     dir = join_path(dir, this%compiler_version)
-    dir = join_path(dir, cache_key)
+    dir = join_path(dir, trim(cache_key))
     
   end function cache_get_module_dir
   
@@ -372,22 +375,31 @@ contains
   function get_object_name(source_file, build_dir) result(object_file)
     character(*), intent(in) :: source_file, build_dir
     character(:), allocatable :: object_file
-    integer :: i
+    character(:), allocatable :: base_name
+    integer :: i, last_slash
     
-    ! Extract base name and change extension
-    i = index(source_file, '.', back=.true.)
-    if (i > 0) then
-      object_file = join_path(build_dir, source_file(1:i-1) // '.o')
-    else
-      object_file = join_path(build_dir, source_file // '.o')
-    end if
-    
-    ! Handle path separators
-    do i = 1, len(object_file)
-      if (object_file(i:i) == '/' .or. object_file(i:i) == '\') then
-        object_file(i:i) = '_'
+    ! Extract just the base filename from source_file (remove any path)
+    last_slash = 0
+    do i = len_trim(source_file), 1, -1
+      if (source_file(i:i) == '/' .or. source_file(i:i) == '\') then
+        last_slash = i
+        exit
       end if
     end do
+    
+    if (last_slash > 0) then
+      base_name = source_file(last_slash+1:)
+    else
+      base_name = source_file
+    end if
+    
+    ! Change extension to .o
+    i = index(base_name, '.', back=.true.)
+    if (i > 0) then
+      object_file = join_path(build_dir, base_name(1:i-1) // '.o')
+    else
+      object_file = join_path(build_dir, base_name // '.o')
+    end if
     
   end function get_object_name
   
