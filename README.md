@@ -1,6 +1,6 @@
 # ![fortran logo](media/logo.png)
 
-**The ultimate Fortran development experience.** - A command-line tool that surpasses existing solutions in Python, Rust, Julia, and other languages by combining the best of all worlds: leveraging half a century of Fortran history, modern FPM ecosystem, with zero-configuration dependency management that just works.
+**Make Python Fortran again.** - A command-line tool that surpasses existing solutions in Python, Rust, Julia, and other languages by combining the best of all worlds: leveraging half a century of Fortran history, modern FPM ecosystem, with zero-configuration dependency management that just works.
 
 ## Overview
 
