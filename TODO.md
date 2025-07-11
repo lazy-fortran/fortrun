@@ -12,14 +12,14 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
 ## Phase 1: Foundation and Basic CLI (Simplified with FPM)
 
 ### 1.1 Project Setup
-- [ ] Set up basic CLI structure in `app/main.f90`
+- [x] Set up basic CLI structure in `app/main.f90`
   - Parse command line arguments using Fortran intrinsics
   - Support: `fortran <file.f90>` and `fortran --help`
   - Exit with proper codes (0 for success, 1 for errors)
-- [ ] Create initial registry files
+- [x] Create initial registry files
   - `registry.toml` with fortplotlib and pyplot-fortran
   - `module_index.toml` mapping modules to packages
-- [ ] Define minimal core modules in `src/`
+- [x] Define minimal core modules in `src/`
   - `src/cli.f90`: Command line parsing
   - `src/runner.f90`: Main execution logic
 
