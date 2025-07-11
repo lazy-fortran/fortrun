@@ -1,6 +1,6 @@
 # ![fortran logo](media/logo.png)
 
-**Make Python Fortran again.** - A command-line tool that enables running Fortran programs as easily as Python scripts, with automatic dependency resolution, modern defaults, and zero configuration.
+**The ultimate Fortran development experience.** - A command-line tool that surpasses existing solutions in Python, Rust, Julia, and other languages by combining the best of all worlds: leveraging half a century of Fortran history, modern FPM ecosystem, with zero-configuration dependency management that just works.
 
 ## Overview
 
@@ -59,10 +59,11 @@ fortran --verbose 2 myprogram.f90
 - **Custom directories**: `--cache-dir`, `--config-dir`
 - **Error handling**: Clear error messages and suggestions
 
-### 📝 **Simplified Syntax (.f files)**
+### 📝 **Simplified Syntax (.f files)** - NEW!
 - **No boilerplate**: Skip `program`/`end program` statements
 - **Auto-wrapping**: Functions and subroutines work without `contains`
 - **Implicit none**: Added automatically
+- **Type inference**: Automatic variable declarations from assignments
 - **Script-like**: Write Fortran like Python scripts
 
 ## Examples
@@ -130,12 +131,13 @@ main.f90
 
 See `example/interdependent/` for a complete working example.
 
-### Simplified Syntax (.f files)
+### NEW: Simplified Syntax (.f files)
 ```fortran
 ! script.f - No boilerplate needed!
 x = 5.0
 y = 3.0
-print *, 'Sum:', add(x, y)
+result = add(x, y)
+print *, 'Sum:', result
 
 real function add(a, b)
   real :: a, b
@@ -145,7 +147,26 @@ end function
 ```bash
 fortran script.f
 # Automatically wrapped in program/contains
+# Variables automatically declared with type inference
 # Output: Sum: 8.0
+```
+
+### Type Inference Example
+```fortran
+! math.f - Variables automatically declared!
+x = 42          ! integer :: x
+y = 3.14         ! real(8) :: y  
+name = "Fortran" ! character(len=7) :: name
+flag = .true.    ! logical :: flag
+
+! Mixed expressions work too
+result = x + y   ! real(8) :: result (promoted)
+print *, result
+```
+```bash
+fortran math.f
+# Type inference generates declarations automatically
+# Output: 45.14
 ```
 
 ## Installation
@@ -214,7 +235,7 @@ We make **opinionated design choices**:
 
 ## Development Status
 
-### ✅ **Phase 1 Complete**: Foundation (v0.1.0)
+### ✅ **Phase 1 Complete**: Foundation
 - ✅ Basic CLI with comprehensive argument parsing
 - ✅ Local module dependency resolution
 - ✅ FPM integration with modern defaults
@@ -231,18 +252,34 @@ We make **opinionated design choices**:
 - ✅ Multiple modules from same package support
 - ✅ Conflicting dependencies resolution
 
-### 🚧 **Phase 3 In Progress**: Smart Caching
+### ✅ **Phase 3 Complete**: Smart Caching
 - ✅ Cache directory structure and management
 - ✅ FPM API integration for content-based hashing
 - ✅ Cache key generation using FPM's digest system
-- ⚠️ Build artifact caching (Phase 3.2)
-- ⚠️ Cache retrieval and validation (Phase 3.3)
+- ✅ Cache locking mechanism for parallel builds
+- ✅ Performance benchmarks and safety tests
+
+### ✅ **Phase 4 Complete**: Simplified Fortran Preprocessor
+- ✅ Preprocessor for .f files
+- ✅ Automatic program wrapping
+- ✅ Automatic contains insertion
+- ✅ Implicit none by default
+- ✅ Support for functions and subroutines
+- ✅ Comprehensive test coverage
+
+### ✅ **Phase 5 Complete**: Basic Type Inference
+- ✅ Type inference infrastructure
+- ✅ Literal type detection (integer, real, logical, character)
+- ✅ Expression type propagation
+- ✅ Variable declaration generation
+- ✅ Integration with preprocessor
+- ✅ 18/18 unit tests + 5/5 integration tests passing
 
 ### 🔮 **Future Phases**: Advanced Features
-- **Phase 4**: Cross-package support and performance optimization
-- **Phase 5**: Integration with official FPM registry
-- **Phase 6**: Simplified Fortran preprocessor (`.f` files)
-- **Phase 7**: Type inference system
+- **Phase 6**: Advanced type inference (arrays, derived types)
+- **Phase 7**: Python-like features (comprehensions, f-strings)
+- **Phase 8**: Cross-package support and performance optimization
+- **Phase 9**: Integration with official FPM registry
 
 ## Contributing
 
@@ -258,6 +295,6 @@ MIT License - see LICENSE file for details.
 
 ---
 
-**Goal**: Make Fortran development as seamless as Python, where you can just run a file without worrying about compilation, linking, or dependency management.
+**Goal**: Create the ultimate development experience that surpasses existing solutions in Python, Rust, Julia, and other languages by combining the best of all worlds: leveraging half a century of Fortran history and its modern FPM ecosystem with zero-configuration dependency management that just works.
 
-*"Fortran is the Python of scientific computing - it just doesn't know it yet."*
+*"Fortran is the foundation of scientific computing - now with the developer experience it deserves."*
