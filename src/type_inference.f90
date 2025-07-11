@@ -43,11 +43,13 @@ module type_inference
   
 contains
 
-  subroutine infer_type_from_expression(expr, inferred_type)
+  subroutine infer_type_from_expression(expr, inferred_type, env)
     character(len=*), intent(in) :: expr
     type(type_info), intent(out) :: inferred_type
+    type(type_environment), intent(in), optional :: env
     
     character(len=len(expr)) :: trimmed_expr
+    logical :: found
     
     ! Initialize to unknown
     inferred_type%base_type = TYPE_UNKNOWN
@@ -68,13 +70,20 @@ contains
       inferred_type%base_type = TYPE_REAL
     else if (is_integer_literal(trimmed_expr, inferred_type%kind)) then
       inferred_type%base_type = TYPE_INTEGER
-    else if (is_arithmetic_expression(trimmed_expr, inferred_type)) then
+    else if (is_arithmetic_expression(trimmed_expr, inferred_type, env)) then
       ! Type already set by is_arithmetic_expression
-    else if (is_intrinsic_function(trimmed_expr, inferred_type)) then
+    else if (is_intrinsic_function(trimmed_expr, inferred_type, env)) then
       ! Type already set by is_intrinsic_function
     else
-      ! Unknown type
-      inferred_type%base_type = TYPE_UNKNOWN
+      ! Check if it's a known variable
+      if (present(env)) then
+        call get_variable_type(env, trimmed_expr, inferred_type, found)
+        if (.not. found) then
+          inferred_type%base_type = TYPE_UNKNOWN
+        end if
+      else
+        inferred_type%base_type = TYPE_UNKNOWN
+      end if
     end if
     
   end subroutine infer_type_from_expression
@@ -192,9 +201,10 @@ contains
     
   end function is_character_literal
   
-  function is_arithmetic_expression(expr, result_type) result(is_arith)
+  function is_arithmetic_expression(expr, result_type, env) result(is_arith)
     character(len=*), intent(in) :: expr
     type(type_info), intent(out) :: result_type
+    type(type_environment), intent(in), optional :: env
     logical :: is_arith
     
     integer :: plus_pos, minus_pos, mult_pos, div_pos
@@ -209,13 +219,25 @@ contains
     mult_pos = index(expr, '*')
     div_pos = index(expr, '/')
     
-    ! For now, handle simple binary operations
+    ! Handle different binary operations
     if (plus_pos > 1) then
       left_expr = adjustl(expr(1:plus_pos-1))
       right_expr = adjustl(expr(plus_pos+1:))
-      
-      call infer_type_from_expression(left_expr, left_type)
-      call infer_type_from_expression(right_expr, right_type)
+    else if (minus_pos > 1) then
+      left_expr = adjustl(expr(1:minus_pos-1))
+      right_expr = adjustl(expr(minus_pos+1:))
+    else if (mult_pos > 1) then
+      left_expr = adjustl(expr(1:mult_pos-1))
+      right_expr = adjustl(expr(mult_pos+1:))
+    else if (div_pos > 1) then
+      left_expr = adjustl(expr(1:div_pos-1))
+      right_expr = adjustl(expr(div_pos+1:))
+    end if
+    
+    ! If we found an operator, analyze the operands
+    if (plus_pos > 1 .or. minus_pos > 1 .or. mult_pos > 1 .or. div_pos > 1) then
+      call infer_type_from_expression(left_expr, left_type, env)
+      call infer_type_from_expression(right_expr, right_type, env)
       
       if (left_type%base_type /= TYPE_UNKNOWN .and. &
           right_type%base_type /= TYPE_UNKNOWN) then
@@ -233,9 +255,10 @@ contains
     
   end function is_arithmetic_expression
   
-  function is_intrinsic_function(expr, result_type) result(is_intrinsic)
+  function is_intrinsic_function(expr, result_type, env) result(is_intrinsic)
     character(len=*), intent(in) :: expr
     type(type_info), intent(out) :: result_type
+    type(type_environment), intent(in), optional :: env
     logical :: is_intrinsic
     
     is_intrinsic = .false.
@@ -289,7 +312,7 @@ contains
     logical :: found
     
     ! Infer type from expression
-    call infer_type_from_expression(expr, expr_type)
+    call infer_type_from_expression(expr, expr_type, env)
     
     ! Find or create variable entry
     call find_variable(env, var_name, var_idx, found)
@@ -408,7 +431,7 @@ contains
         end select
         
         ! Build declaration
-        write(var_decl, '(a,a,a,a)') trim(type_str), ' :: ', trim(env%vars(i)%name), '; '
+        write(var_decl, '(a,a,a)') trim(type_str), ' :: ', trim(env%vars(i)%name)
         
         ! Append to declarations (simple concatenation)
         if (pos + len_trim(var_decl) <= len(declarations)) then
