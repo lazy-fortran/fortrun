@@ -144,29 +144,34 @@ Implement a preprocessor that transforms `.f` files (simplified syntax) into sta
 - **Implementation**: Track array shapes through operations
 - **Support**: Static arrays, allocatable arrays, array sections
 
-#### 7.3 Interface-Based Type Inference
-- **Feature**: Infer types from subroutine/function signatures
+#### 7.3 Function Return Type and Intent-Based Inference
+- **Feature**: Infer function return types from return statements and propagate types through intent declarations
 - **Example**:
   ```fortran
-  ! Function return type inference
+  ! Function return type inference from return value
   function compute(x, y)
-    ! x, y types inferred from call sites
-    compute = x**2 + y**2  ! Return type inferred as same as x,y
+    real(8), intent(in) :: x, y  ! These are declared
+    compute = x**2 + y**2  ! Return type inferred as real(8) from expression
   end function
   
-  ! Subroutine argument inference
+  ! Intent(out) type propagation
   subroutine process(input, output)
-    intent(in) :: input    ! Type inferred from caller
-    intent(out) :: output  ! Type must match usage at call site
-    output = input * 2.0
+    integer, intent(in) :: input
+    intent(out) :: output  ! Type will be inferred from usage
+    output = input * 2     ! Infers output as integer
   end subroutine
   
-  ! Usage:
-  result = compute(3.14, 2.71)  ! Infers compute takes/returns real(8)
-  call process(100, count)      ! Infers integer types
+  ! Function with inferred return type
+  function get_pi()
+    get_pi = 3.14159265359  ! Return type inferred as real(8)
+  end function
+  
+  ! Usage propagates inferred types:
+  radius = 5.0
+  area = radius * get_pi()  ! get_pi() known to return real(8)
   ```
-- **Implementation**: Two-pass analysis - collect constraints, then resolve
-- **Benefits**: Enables generic-like programming without explicit interfaces
+- **Implementation**: Analyze function body to determine return type from assignments to function name
+- **Benefits**: No need to declare function return types when obvious from implementation
 
 #### 7.4 Derived Type Inference
 - **Feature**: Infer custom types from usage patterns

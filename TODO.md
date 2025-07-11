@@ -207,12 +207,13 @@ Key abstractions to maintain:
 - [ ] Support allocatable array inference
 - [ ] Handle reshape and other intrinsics
 
-### 6.3 Interface-Based Inference
-- [ ] Write test for function argument type inference
-- [ ] Write test for intent(out) type propagation
-- [ ] Implement constraint collection system
-- [ ] Implement constraint solver
-- [ ] Handle recursive type dependencies
+### 6.3 Function Return Type and Intent-Based Inference
+- [ ] Write test for function return type inference from body
+- [ ] Write test for intent(out) type inference from assignments
+- [ ] Implement function body analyzer for return statements
+- [ ] Track assignments to function name for return type
+- [ ] Propagate inferred return types to call sites
+- [ ] Handle intent(out) variables with deferred type declaration
 
 ### 6.4 Derived Type Inference
 - [ ] Write test for field-based type inference
