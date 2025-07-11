@@ -78,6 +78,9 @@ program test_examples
   ! Test incremental compilation (caching)
   call test_incremental_compilation(n_passed, n_failed)
   
+  ! Test source file modification with cached dependencies
+  call test_source_modification_with_cached_deps(n_passed, n_failed)
+  
   ! Summary
   print '(a)', '='//repeat('=', 60)
   print '(a)', 'Test Summary'
@@ -302,5 +305,171 @@ contains
           time_values(5), time_values(6), time_values(7)
           
   end function get_test_timestamp
+  
+  subroutine test_source_modification_with_cached_deps(n_passed, n_failed)
+    integer, intent(inout) :: n_passed, n_failed
+    character(len=1024) :: output1, output2, output3
+    integer :: exit_code1, exit_code2, exit_code3
+    character(len=*), parameter :: test_file = 'example/interdependent/main.f90'
+    character(len=256) :: temp_cache_dir, temp_source_file, temp_source_dir
+    character(len=512) :: cleanup_command, copy_command
+    integer :: unit, iostat
+    character(len=16) :: timestamp
+    
+    print '(a)', '='//repeat('=', 60)
+    print '(a)', 'Testing Source Modification with Cached Dependencies'
+    print '(a)', '='//repeat('=', 60)
+    print *
+    
+    ! Create a clean timestamp without spaces
+    timestamp = get_test_timestamp()
+    ! Remove any spaces from timestamp
+    call replace_spaces_with_underscores(timestamp)
+    
+    ! Create temporary directories and files
+    temp_cache_dir = '/tmp/fortran_test_cache_' // trim(timestamp)
+    temp_source_dir = '/tmp/fortran_test_source_' // trim(timestamp)
+    temp_source_file = trim(temp_source_dir) // '/main.f90'
+    
+    print '(a,a)', 'Using temporary cache: ', trim(temp_cache_dir)
+    print '(a,a)', 'Using temporary source: ', trim(temp_source_file)
+    
+    ! Create temporary source directory
+    copy_command = 'mkdir -p "' // trim(temp_source_dir) // '"'
+    call execute_command_line(trim(copy_command))
+    
+    ! Copy the entire interdependent directory to temp location
+    copy_command = 'cp -r example/interdependent/* "' // trim(temp_source_dir) // '/"'
+    call execute_command_line(trim(copy_command))
+    
+    ! First run - should compile everything
+    print '(a)', 'First run (should compile everything)...'
+    call run_example_with_cache(temp_source_file, temp_cache_dir, output1, exit_code1)
+    
+    if (exit_code1 /= 0) then
+      print '(a)', '  ✗ FAIL: First run failed'
+      print '(a,a)', '    Output: ', trim(output1)
+      n_failed = n_failed + 1
+      goto 999  ! cleanup and return
+    end if
+    
+    ! Verify first run compiled dependencies
+    if (index(output1, '[  0%]') > 0 .and. index(output1, '[100%]') > 0) then
+      print '(a)', '  ✓ First run compiled files as expected'
+    else
+      print '(a)', '  ✗ FAIL: Expected compilation messages not found in first run'
+      print '(a,a)', '    Output: ', trim(output1)
+      n_failed = n_failed + 1
+      goto 999  ! cleanup and return
+    end if
+    
+    ! Second run - should use cache completely
+    print '(a)', 'Second run (should use cache completely)...'
+    call run_example_with_cache(temp_source_file, temp_cache_dir, output2, exit_code2)
+    
+    if (exit_code2 /= 0) then
+      print '(a)', '  ✗ FAIL: Second run failed'
+      print '(a,a)', '    Output: ', trim(output2)
+      n_failed = n_failed + 1
+      goto 999  ! cleanup and return
+    end if
+    
+    ! Verify second run used cache
+    if (index(output2, 'Cache hit: Using existing build') > 0) then
+      print '(a)', '  ✓ Cache hit detected on second run'
+    else
+      print '(a)', '  ✗ FAIL: Cache hit not detected on second run'
+      print '(a,a)', '    Output: ', trim(output2)
+      n_failed = n_failed + 1
+      goto 999  ! cleanup and return
+    end if
+    
+    if (index(output2, 'Project is up to date') > 0) then
+      print '(a)', '  ✓ FPM detected no compilation needed on second run'
+    else
+      print '(a)', '  ✗ FAIL: FPM should have detected no compilation needed'
+      print '(a,a)', '    Output: ', trim(output2)
+      n_failed = n_failed + 1
+      goto 999  ! cleanup and return
+    end if
+    
+    ! Modify the source file (add a comment)
+    print '(a)', 'Modifying source file...'
+    open(newunit=unit, file=temp_source_file, position='append', iostat=iostat)
+    if (iostat == 0) then
+      write(unit, '(a)') '! Modified for testing incremental compilation'
+      close(unit)
+    else
+      print '(a)', '  ✗ FAIL: Could not modify source file'
+      n_failed = n_failed + 1
+      goto 999  ! cleanup and return
+    end if
+    
+    ! Third run - should compile only the modified file, not dependencies
+    print '(a)', 'Third run (should compile only modified file)...'
+    call run_example_with_cache(temp_source_file, temp_cache_dir, output3, exit_code3)
+    
+    if (exit_code3 /= 0) then
+      print '(a)', '  ✗ FAIL: Third run failed'
+      print '(a,a)', '    Output: ', trim(output3)
+      n_failed = n_failed + 1
+      goto 999  ! cleanup and return
+    end if
+    
+    ! Verify third run detected file change and recompiled incrementally
+    if (index(output3, 'Cache hit: Using existing build') > 0) then
+      print '(a)', '  ✓ Cache hit detected on third run (reusing project)'
+    else
+      print '(a)', '  ✗ FAIL: Should reuse cached project on third run'
+      print '(a,a)', '    Output: ', trim(output3)
+      n_failed = n_failed + 1
+      goto 999  ! cleanup and return
+    end if
+    
+    ! Check that some compilation occurred (but not full rebuild)
+    if (index(output3, 'Project is up to date') == 0) then
+      print '(a)', '  ✓ FPM detected file changes and recompiled'
+    else
+      print '(a)', '  ✗ FAIL: FPM should have detected file changes'
+      print '(a,a)', '    Output: ', trim(output3)
+      n_failed = n_failed + 1
+      goto 999  ! cleanup and return
+    end if
+    
+    ! Verify it's not a full rebuild (should be much faster)
+    if (index(output3, '[  0%]') > 0 .and. index(output3, '[100%]') > 0) then
+      print '(a)', '  ✓ Incremental compilation occurred'
+    else
+      print '(a)', '  ✗ FAIL: Should have incremental compilation messages'
+      print '(a,a)', '    Output: ', trim(output3)
+      n_failed = n_failed + 1
+      goto 999  ! cleanup and return
+    end if
+    
+    print '(a)', '  ✓ PASS: Source modification with cached dependencies working correctly'
+    n_passed = n_passed + 1
+    
+999 continue
+    ! Clean up temporary files and cache directory
+    cleanup_command = 'rm -rf "' // trim(temp_cache_dir) // '"'
+    call execute_command_line(trim(cleanup_command))
+    cleanup_command = 'rm -rf "' // trim(temp_source_dir) // '"'
+    call execute_command_line(trim(cleanup_command))
+    print '(a)', 'Cleaned up temporary files and cache directory'
+    print *
+    
+  end subroutine test_source_modification_with_cached_deps
+  
+  subroutine replace_spaces_with_underscores(str)
+    character(len=*), intent(inout) :: str
+    integer :: i
+    
+    do i = 1, len_trim(str)
+      if (str(i:i) == ' ') then
+        str(i:i) = '_'
+      end if
+    end do
+    
+  end subroutine replace_spaces_with_underscores
   
 end program test_examples

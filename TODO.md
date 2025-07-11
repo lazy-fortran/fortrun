@@ -141,6 +141,12 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
 - [x] Implement incremental build support
 - [ ] Write test for partial cache hits (some deps cached)
 - [ ] Test with complex dependency changes
+- [x] Write test for source file modification with cached dependencies
+  - Run .f90 file first time: compiles everything including dependencies
+  - Run same file second time: compiles nothing (full cache hit)
+  - Modify .f90 file and run third time: compiles only the modified file, not dependencies
+  - This requires keeping same cache directory name but updating source file in place
+  - FPM should handle incremental compilation of modified source vs cached dependencies
 
 ## Phase 4: Advanced Features
 
