@@ -22,17 +22,21 @@ contains
   subroutine test_fpm_source_discovery()
     type(srcfile_t), allocatable :: sources(:)
     type(error_t), allocatable :: error
-    character(len=256) :: test_dir
+    character(len=:), allocatable :: test_dir
+    character(len=:), allocatable :: test_file
     integer :: unit
     
     print *, 'Test 1: FPM source discovery'
     
-    ! Create a test directory with Fortran files
-    test_dir = '/tmp/fpm_test_sources_' // trim(get_timestamp())
-    call execute_command_line('mkdir -p ' // trim(test_dir))
+    ! Create a test directory with Fortran files (FPM expects app/ subdirectory)
+    test_dir = '/tmp/fpm_test'
+    test_file = test_dir // '/app/test.f90'
+    print *, 'Creating test directory: ', test_dir
+    call execute_command_line('rm -rf ' // test_dir // ' && mkdir -p ' // test_dir // '/app')
     
-    ! Create a test source file
-    open(newunit=unit, file=trim(test_dir) // '/test.f90', status='replace')
+    ! Create a test source file in app/ subdirectory
+    print *, 'Creating file: ', test_file
+    open(newunit=unit, file=test_file, status='replace')
     write(unit, '(a)') 'program test_program'
     write(unit, '(a)') '  implicit none'
     write(unit, '(a)') '  print *, "Hello from FPM API test"'
