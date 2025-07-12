@@ -32,7 +32,7 @@ jobs:
         run: pip install ford
         
       - name: Build documentation
-        run: ford FORD.md
+        run: ford --config fpm.toml
         
       - name: Setup Pages
         uses: actions/configure-pages@v5
