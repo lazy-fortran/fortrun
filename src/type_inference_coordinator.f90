@@ -1,6 +1,7 @@
 module type_inference_coordinator
   use type_system
-  use type_environment
+  use type_environment, type_env_init => init_type_environment, &
+                        type_env_cleanup => cleanup_type_environment
   use literal_analyzer
   use expression_analyzer
   use declaration_generator
@@ -48,14 +49,14 @@ contains
   subroutine init_type_environment(env)
     type(type_environment), intent(out) :: env
     
-    call init_type_environment(env%env)
+    call type_env_init(env%env)
     
   end subroutine init_type_environment
 
   subroutine cleanup_type_environment(env)
     type(type_environment), intent(inout) :: env
     
-    call cleanup_type_environment(env%env)
+    call type_env_cleanup(env%env)
     
   end subroutine cleanup_type_environment
 
