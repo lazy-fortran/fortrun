@@ -167,6 +167,17 @@ contains
           call extract_function_name_from_line(line, scope_function_names(current_scope))
           ! Extract and store function parameters
           call extract_function_parameters(line, scope_function_params(current_scope, :), scope_param_count(current_scope))
+          
+          ! Add function name as a variable if it's not typed
+          if (index(line, 'real function') == 0 .and. &
+              index(line, 'integer function') == 0 .and. &
+              index(line, 'logical function') == 0 .and. &
+              index(line, 'character function') == 0 .and. &
+              index(line, 'complex function') == 0) then
+            ! Untyped function - add return variable
+            call add_variable(scope_envs(current_scope)%env, trim(scope_function_names(current_scope)), &
+                              create_type_info(TYPE_REAL, 8), success)
+          end if
         end if
         output_line_count = output_line_count + 1
         output_lines(output_line_count) = line
@@ -310,20 +321,16 @@ contains
           write(unit_out, '(A)') '  '
           write(unit_out, '(A)') '  ! Auto-generated variable declarations:'
           
-          ! SKIP function parameter declarations for now
-          ! if (scope_param_count(current_scope) > 0) then
-          !   call write_function_parameter_declarations(unit_out, current_scope, scope_envs, scope_function_params, scope_param_count, &
-          !                                              param_is_assigned(current_scope, :), param_is_read(current_scope, :))
-          ! end if
+          ! Write function parameter declarations
+          if (scope_param_count(current_scope) > 0) then
+            call write_function_parameter_declarations(unit_out, current_scope, scope_envs, scope_function_params, scope_param_count, &
+                                                       param_is_assigned(current_scope, :), param_is_read(current_scope, :))
+          end if
+          
           
           ! FIXED: Variable declaration injection (function name issue resolved with F90WRAP.md insights)
           if (scope_has_vars(current_scope)) then
-            if (current_scope > 1 .and. len_trim(scope_function_names(current_scope)) > 0) then
-              call write_formatted_declarations_skip_function(unit_out, scope_envs(current_scope), &
-                                                                    scope_function_names(current_scope))
-            else
-              call write_formatted_declarations(unit_out, scope_envs(current_scope))
-            end if
+            call write_formatted_declarations(unit_out, scope_envs(current_scope))
           end if
           
           ! Detect missing variables using dedicated module
