@@ -190,27 +190,36 @@
 - **Implementation**: Track array shapes through operations
 - **Support**: Static arrays, allocatable arrays, array sections
 
-#### 7.3 Function Parameter Type Inference (Future)
-- **Feature**: Infer function parameter types from call sites (requires whole-program analysis)
-- **Status**: ⚠️ **Deferred - Requires multiple dispatch capabilities**
-- **Challenges**:
-  - Need to analyze all function call sites
-  - Handle polymorphic functions called with different types
-  - Requires sophisticated type unification algorithm
-  - May need multiple dispatch or generic function generation
-- **Example**:
-  ```fortran
-  ! Current limitation - parameters need explicit types
-  function add(a, b)
-    ! Cannot infer types of a, b without analyzing all calls
-    add = a + b
-  end function
-  
-  ! Would need to analyze:
-  result1 = add(1.0, 2.0)     ! Suggests real types
-  result2 = add(1, 2)         ! Suggests integer types
-  ! This requires multiple dispatch or compile-time polymorphism
-  ```
+#### 7.3 Function Parameter Type Inference
+- **7.3a Input Parameter Inference (Future)**:
+  - **Status**: ⚠️ **Deferred - Requires multiple dispatch capabilities**
+  - **Challenge**: Inferring types of input parameters requires whole-program analysis
+  - **Example**:
+    ```fortran
+    function add(a, b)  ! Cannot infer input types without analyzing all calls
+      add = a + b
+    end function
+    ```
+
+- **7.3b Output Parameter Inference (Feasible)**:
+  - **Status**: 🎯 **Near-term roadmap - can be implemented**
+  - **Feature**: Infer types from call site usage when used as output/return values
+  - **Example**:
+    ```fortran
+    ! At call site:
+    real(8) :: result
+    result = compute(x, y)  ! Can infer compute returns real(8)
+    
+    ! Or with subroutine output parameters:
+    integer :: count
+    call get_count(filename, count)  ! Can infer count is intent(out) integer
+    
+    ! Function definition can be enhanced:
+    function compute(x, y)
+      ! Return type inferred from usage at call sites
+      compute = x**2 + y**2
+    end function
+    ```
 
 #### 7.4 Function Return Type Inference (Partial)
 - **Feature**: Infer function return types from return statements
