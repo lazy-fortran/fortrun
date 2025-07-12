@@ -171,7 +171,7 @@ contains
         
         if (len_trim(error_msg) == 0) then
             ! Check that integer and real types are properly inferred
-            success = check_output_contains(output_file, 'integer :: count')
+            success = check_output_contains(output_file, 'integer(4) :: count')
             success = success .and. check_output_contains(output_file, 'real(8) :: rate')
             success = success .and. check_output_contains(output_file, 'real(8) :: total')
             success = success .and. check_output_contains(output_file, 'real(8) function get_rate')
