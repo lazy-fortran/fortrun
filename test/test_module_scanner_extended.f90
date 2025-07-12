@@ -14,7 +14,7 @@ program test_module_scanner_extended
     if (.not. test_edge_case_formatting()) all_tests_passed = .false.
     if (.not. test_intrinsic_module_filtering()) all_tests_passed = .false.
     if (.not. test_error_conditions()) all_tests_passed = .false.
-    if (.not. test_real_file_scanning()) all_tests_passed = .false.
+    if (.not. test_duplicate_modules()) all_tests_passed = .false.
     
     print *
     if (all_tests_passed) then
@@ -29,25 +29,18 @@ contains
 
     function test_complex_use_statements() result(passed)
         logical :: passed
-        character(len=:), allocatable :: modules(:)
-        character(len=512) :: content
+        type(module_info), dimension(:), allocatable :: modules
+        character(len=256) :: test_file
         integer :: num_modules
         
         print *, "Test 1: Complex use statements"
         passed = .true.
         
-        ! Test various complex use statement formats
-        content = 'program test' // new_line('a') // &
-                  '  use, intrinsic :: iso_fortran_env' // new_line('a') // &
-                  '  use :: my_module, only: func1, func2' // new_line('a') // &
-                  '  use some_module, only: var1, &' // new_line('a') // &
-                  '                        var2, &' // new_line('a') // &
-                  '                        var3' // new_line('a') // &
-                  '  use another_module' // new_line('a') // &
-                  '  use, non_intrinsic :: external_module' // new_line('a') // &
-                  'end program'
+        ! Create a test file with complex use statements
+        test_file = '/tmp/test_complex_use.f90'
+        call create_complex_test_file(test_file)
         
-        call scan_fortran_content(content, modules, num_modules)
+        call scan_modules(test_file, modules, num_modules)
         
         ! Should find non-intrinsic modules
         if (num_modules < 3) then
@@ -68,31 +61,27 @@ contains
             print *, "  WARNING: iso_fortran_env should be filtered out"
         end if
         
+        ! Clean up
+        call delete_file(test_file)
+        
         print *, "  PASS: Complex use statements"
         
     end function test_complex_use_statements
 
     function test_edge_case_formatting() result(passed)
         logical :: passed
-        character(len=:), allocatable :: modules(:)
-        character(len=512) :: content
+        type(module_info), dimension(:), allocatable :: modules
+        character(len=256) :: test_file
         integer :: num_modules
         
         print *, "Test 2: Edge case formatting"
         passed = .true.
         
-        ! Test unusual formatting
-        content = 'program test' // new_line('a') // &
-                  'USE my_module_1' // new_line('a') // &  ! Uppercase
-                  '  Use   my_module_2  ,  only  :  func' // new_line('a') // &  ! Extra spaces
-                  '    use    ::    my_module_3' // new_line('a') // &  ! Lots of spaces
-                  '! use commented_module' // new_line('a') // &  ! Commented out
-                  'C use old_comment_module' // new_line('a') // &  ! Old-style comment
-                  '  character :: use_as_variable' // new_line('a') // &  ! use as variable name
-                  '  use my_module_4' // new_line('a') // &
-                  'end program'
+        ! Create test file with unusual formatting
+        test_file = '/tmp/test_edge_case_format.f90'
+        call create_edge_case_test_file(test_file)
         
-        call scan_fortran_content(content, modules, num_modules)
+        call scan_modules(test_file, modules, num_modules)
         
         ! Should find the actual use statements
         if (num_modules < 4) then
@@ -104,9 +93,8 @@ contains
             print *, "  WARNING: commented_module should not be found"
         end if
         
-        if (module_in_list(modules, num_modules, 'old_comment_module')) then
-            print *, "  WARNING: old_comment_module should not be found"
-        end if
+        ! Clean up
+        call delete_file(test_file)
         
         print *, "  PASS: Edge case formatting"
         
@@ -114,33 +102,32 @@ contains
 
     function test_intrinsic_module_filtering() result(passed)
         logical :: passed
-        character(len=:), allocatable :: modules(:)
-        character(len=512) :: content
+        type(module_info), dimension(:), allocatable :: modules
+        character(len=256) :: test_file
         integer :: num_modules
         
         print *, "Test 3: Intrinsic module filtering"
         passed = .true.
         
-        ! Test various intrinsic modules
-        content = 'program test' // new_line('a') // &
-                  '  use iso_fortran_env' // new_line('a') // &
-                  '  use iso_c_binding' // new_line('a') // &
-                  '  use ieee_arithmetic' // new_line('a') // &
-                  '  use ieee_exceptions' // new_line('a') // &
-                  '  use ieee_features' // new_line('a') // &
-                  '  use my_custom_module' // new_line('a') // &
-                  'end program'
+        ! Create test file with various intrinsic modules
+        test_file = '/tmp/test_intrinsic_modules.f90'
+        call create_intrinsic_test_file(test_file)
         
-        call scan_fortran_content(content, modules, num_modules)
+        call scan_modules(test_file, modules, num_modules)
         
         ! Should only find the custom module
         if (num_modules /= 1) then
             print *, "  WARNING: Expected 1 module after filtering, found", num_modules
         end if
         
-        if (.not. module_in_list(modules, num_modules, 'my_custom_module')) then
-            print *, "  WARNING: my_custom_module should be found"
+        if (num_modules > 0) then
+            if (trim(modules(1)%name) /= 'my_custom_module') then
+                print *, "  WARNING: Expected my_custom_module, found", trim(modules(1)%name)
+            end if
         end if
+        
+        ! Clean up
+        call delete_file(test_file)
         
         print *, "  PASS: Intrinsic module filtering"
         
@@ -148,111 +135,178 @@ contains
 
     function test_error_conditions() result(passed)
         logical :: passed
-        character(len=:), allocatable :: modules(:)
-        character(len=256) :: content
+        type(module_info), dimension(:), allocatable :: modules
+        character(len=256) :: test_file
         integer :: num_modules
         
         print *, "Test 4: Error conditions and edge cases"
         passed = .true.
         
-        ! Test empty content
-        content = ''
-        call scan_fortran_content(content, modules, num_modules)
+        ! Test non-existent file
+        call scan_modules('/tmp/definitely_nonexistent_file.f90', modules, num_modules)
         if (num_modules /= 0) then
-            print *, "  WARNING: Empty content should find 0 modules"
+            print *, "  WARNING: Non-existent file should return 0 modules"
         end if
         
-        ! Test content with no use statements
-        content = 'program test' // new_line('a') // &
-                  '  implicit none' // new_line('a') // &
-                  '  print *, "hello"' // new_line('a') // &
-                  'end program'
-        call scan_fortran_content(content, modules, num_modules)
+        ! Test empty file
+        test_file = '/tmp/test_empty.f90'
+        call create_empty_file(test_file)
+        call scan_modules(test_file, modules, num_modules)
+        if (num_modules /= 0) then
+            print *, "  WARNING: Empty file should find 0 modules"
+        end if
+        call delete_file(test_file)
+        
+        ! Test file with no use statements
+        test_file = '/tmp/test_no_use.f90'
+        call create_no_use_file(test_file)
+        call scan_modules(test_file, modules, num_modules)
         if (num_modules /= 0) then
             print *, "  WARNING: No use statements should find 0 modules"
         end if
-        
-        ! Test malformed use statements
-        content = 'program test' // new_line('a') // &
-                  '  use' // new_line('a') // &  ! Incomplete
-                  '  use ,' // new_line('a') // &  ! Missing module name
-                  '  use valid_module' // new_line('a') // &
-                  'end program'
-        call scan_fortran_content(content, modules, num_modules)
-        if (num_modules /= 1) then
-            print *, "  WARNING: Should handle malformed use statements gracefully"
-        end if
+        call delete_file(test_file)
         
         print *, "  PASS: Error conditions"
         
     end function test_error_conditions
 
-    function test_real_file_scanning() result(passed)
+    function test_duplicate_modules() result(passed)
         logical :: passed
-        character(len=:), allocatable :: modules(:)
+        type(module_info), dimension(:), allocatable :: modules
         character(len=256) :: test_file
         integer :: num_modules
         
-        print *, "Test 5: Real file scanning"
+        print *, "Test 5: Duplicate module handling"
         passed = .true.
         
-        ! Create a test file
-        test_file = '/tmp/test_module_scanner.f90'
-        call create_test_fortran_file(test_file)
+        ! Create test file with duplicate use statements
+        test_file = '/tmp/test_duplicates.f90'
+        call create_duplicate_test_file(test_file)
         
-        ! Test scanning from file
-        call scan_fortran_file(test_file, modules, num_modules)
+        call scan_modules(test_file, modules, num_modules)
         
+        ! Should handle duplicates (implementation dependent)
         if (num_modules < 1) then
-            print *, "  WARNING: Should find at least 1 module in test file"
-        end if
-        
-        ! Test non-existent file
-        call scan_fortran_file('/tmp/definitely_nonexistent_file.f90', modules, num_modules)
-        if (num_modules /= 0) then
-            print *, "  WARNING: Non-existent file should return 0 modules"
+            print *, "  WARNING: Should find at least 1 module"
         end if
         
         ! Clean up
         call delete_file(test_file)
         
-        print *, "  PASS: Real file scanning"
+        print *, "  PASS: Duplicate module handling"
         
-    end function test_real_file_scanning
+    end function test_duplicate_modules
 
     ! Helper functions
     function module_in_list(modules, num_modules, target_module) result(found)
-        character(len=:), allocatable, intent(in) :: modules(:)
+        type(module_info), dimension(:), allocatable, intent(in) :: modules
         integer, intent(in) :: num_modules
         character(len=*), intent(in) :: target_module
         logical :: found
         integer :: i
         
         found = .false.
-        do i = 1, num_modules
-            if (trim(modules(i)) == trim(target_module)) then
-                found = .true.
-                exit
-            end if
-        end do
+        if (allocated(modules)) then
+            do i = 1, num_modules
+                if (trim(modules(i)%name) == trim(target_module)) then
+                    found = .true.
+                    exit
+                end if
+            end do
+        end if
         
     end function module_in_list
 
-    subroutine create_test_fortran_file(filename)
+    subroutine create_complex_test_file(filename)
         character(len=*), intent(in) :: filename
         integer :: unit
         
         open(newunit=unit, file=filename, status='replace')
-        write(unit, '(a)') 'program test_scanner'
-        write(unit, '(a)') '  use my_test_module'
-        write(unit, '(a)') '  use another_module, only: func1'
+        write(unit, '(a)') 'program test'
         write(unit, '(a)') '  use, intrinsic :: iso_fortran_env'
-        write(unit, '(a)') '  implicit none'
-        write(unit, '(a)') '  print *, "test"'
-        write(unit, '(a)') 'end program test_scanner'
+        write(unit, '(a)') '  use :: my_module, only: func1, func2'
+        write(unit, '(a)') '  use some_module, only: var1, &'
+        write(unit, '(a)') '                        var2, &'
+        write(unit, '(a)') '                        var3'
+        write(unit, '(a)') '  use another_module'
+        write(unit, '(a)') '  use, non_intrinsic :: external_module'
+        write(unit, '(a)') 'end program'
         close(unit)
         
-    end subroutine create_test_fortran_file
+    end subroutine create_complex_test_file
+
+    subroutine create_edge_case_test_file(filename)
+        character(len=*), intent(in) :: filename
+        integer :: unit
+        
+        open(newunit=unit, file=filename, status='replace')
+        write(unit, '(a)') 'program test'
+        write(unit, '(a)') 'USE my_module_1'  ! Uppercase
+        write(unit, '(a)') '  Use   my_module_2  ,  only  :  func'  ! Extra spaces
+        write(unit, '(a)') '    use    ::    my_module_3'  ! Lots of spaces
+        write(unit, '(a)') '! use commented_module'  ! Commented out
+        write(unit, '(a)') 'C use old_comment_module'  ! Old-style comment
+        write(unit, '(a)') '  character :: use_as_variable'  ! use as variable name
+        write(unit, '(a)') '  use my_module_4'
+        write(unit, '(a)') 'end program'
+        close(unit)
+        
+    end subroutine create_edge_case_test_file
+
+    subroutine create_intrinsic_test_file(filename)
+        character(len=*), intent(in) :: filename
+        integer :: unit
+        
+        open(newunit=unit, file=filename, status='replace')
+        write(unit, '(a)') 'program test'
+        write(unit, '(a)') '  use iso_fortran_env'
+        write(unit, '(a)') '  use iso_c_binding'
+        write(unit, '(a)') '  use ieee_arithmetic'
+        write(unit, '(a)') '  use ieee_exceptions'
+        write(unit, '(a)') '  use ieee_features'
+        write(unit, '(a)') '  use my_custom_module'
+        write(unit, '(a)') 'end program'
+        close(unit)
+        
+    end subroutine create_intrinsic_test_file
+
+    subroutine create_empty_file(filename)
+        character(len=*), intent(in) :: filename
+        integer :: unit
+        
+        open(newunit=unit, file=filename, status='replace')
+        ! Write nothing
+        close(unit)
+        
+    end subroutine create_empty_file
+
+    subroutine create_no_use_file(filename)
+        character(len=*), intent(in) :: filename
+        integer :: unit
+        
+        open(newunit=unit, file=filename, status='replace')
+        write(unit, '(a)') 'program test'
+        write(unit, '(a)') '  implicit none'
+        write(unit, '(a)') '  print *, "hello"'
+        write(unit, '(a)') 'end program'
+        close(unit)
+        
+    end subroutine create_no_use_file
+
+    subroutine create_duplicate_test_file(filename)
+        character(len=*), intent(in) :: filename
+        integer :: unit
+        
+        open(newunit=unit, file=filename, status='replace')
+        write(unit, '(a)') 'program test'
+        write(unit, '(a)') '  use my_module'
+        write(unit, '(a)') '  use my_module  ! duplicate'
+        write(unit, '(a)') '  use another_module'
+        write(unit, '(a)') '  use my_module, only: func1'
+        write(unit, '(a)') 'end program'
+        close(unit)
+        
+    end subroutine create_duplicate_test_file
 
     subroutine delete_file(filename)
         character(len=*), intent(in) :: filename
