@@ -58,15 +58,26 @@ command = 'find "' // trim(source_dir) // '" -maxdepth 1 -type f \( -name "*.f90
 ```fortran
 ! New function in src/cache.f90:
 function get_f_file_content_hash(file_path) result(hash)
+    use fortplotlib, only: crc32  ! Use existing CRC32 from fortplotlib
+    character(len=*), intent(in) :: file_path
+    character(len=8) :: hash
+    character(len=:), allocatable :: content
+    integer :: crc_value
+    
     ! Read .f file content
-    ! Generate SHA256 hash
-    ! Return hash string (e.g., "ABC123DEF456")
+    call read_file_content(file_path, content)
+    
+    ! Generate CRC32 hash (much simpler than SHA256!)
+    crc_value = crc32(content)
+    
+    ! Convert to hex string (e.g., "A1B2C3D4")
+    write(hash, '(Z8.8)') crc_value
 end function
 
 ! Modify src/runner.f90:
 if (is_preprocessor_file(source_file)) then
     content_hash = get_f_file_content_hash(source_file)
-    preprocessed_file = cache_dir // '/preprocessed_' // content_hash // '.f90'
+    preprocessed_file = cache_dir // '/preprocessed_' // content_hash // '.f90'  ! e.g., preprocessed_A1B2C3D4.f90
     
     ! Check if already cached
     if (.not. file_exists(preprocessed_file)) then
@@ -82,9 +93,9 @@ end if
 ```fortran
 ! For notebook .f files:
 if (notebook_mode) then
-    ! Parse cells and compute combined hash
-    combined_hash = get_notebook_content_hash(source_file)
-    notebook_f90 = cache_dir // '/notebook_' // combined_hash // '.f90'
+    ! Parse cells and compute combined hash using CRC32
+    combined_hash = get_notebook_content_hash(source_file)  ! Also uses crc32() internally
+    notebook_f90 = cache_dir // '/notebook_' // combined_hash // '.f90'  ! e.g., notebook_B2C3D4E5.f90
     
     ! Special notebook preprocessing and execution
     call process_notebook_with_persistence(source_file, notebook_f90, ...)
