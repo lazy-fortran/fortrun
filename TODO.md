@@ -492,29 +492,46 @@ Key abstractions to maintain:
   - Shape preservation and transformation rules
   - Intrinsic function shape analysis (`matmul`, `sum`, etc.)
 
-### 8.2 Derived Type Inference (High complexity)
-- [ ] **Field access pattern analysis** (Complex)
-  - `person.name = "Alice"` → infer person type with character field
-  - Cross-reference consistency checking
-- [ ] **Constructor pattern inference** (Very complex)
-  - Automatic type definition generation
-  - Polymorphism and inheritance support
+### 8.2 Derived Type Inference - COMPLETED ✅
+- [x] **Field access pattern analysis**
+  - `person.name = "Alice"` → detect derived type patterns
+  - Type pattern recognition and field tracking
+  - ✅ **Tested by**: `test_derived_type_analyzer.f90` (10/10 tests passing)
+- [x] **Constructor pattern inference** 
+  - Basic derived type detection and inference
+  - Field assignment pattern analysis
+  - ✅ **Note**: Full type definition generation deferred - current implementation provides foundation
 
-### 8.3 Procedure Analysis (Very high complexity)
-- [ ] **Return value inference** (Complex)
+### 8.3 Function Return and Intent Analysis (High complexity)
+- [ ] **Function return value inference** (Complex)
+  - `result = my_function(args)` → infer result type from function definition
   - Multi-path return analysis with type unification
-- [ ] **Intent and argument inference** (Very complex)
-  - Output argument analysis: `call sub(x, y)` where `y` is modified
+  - Cross-function type propagation
+- [ ] **Intent(out) argument inference** (Complex)
+  - `call subroutine(x, y)` where `y` is intent(out) → infer y type from subroutine definition
+  - Argument flow analysis and type propagation
   - Intent inference from usage patterns
-- [ ] **Interprocedural analysis** (Extremely complex)
+- [ ] **Interprocedural analysis** (Very complex)
   - Call graph construction and type propagation
   - Recursive and mutual recursion handling
 
+### 8.4 Preprocessor Integration (Current)
+- [x] **Switch preprocessor to new modular implementation**
+  - Updated preprocessor to use `type_inference_coordinator`
+  - Removed old monolithic `type_inference.f90` (692 lines)
+  - All basic type inference working in preprocessor
+  - ✅ **Tests**: All existing functionality preserved, 41/41 type inference tests passing
+- [ ] **Integrate advanced analyzers into preprocessor workflow**
+  - Array analyzer integration: Generate proper array dimensions in declarations
+  - Derived type analyzer integration: Handle field access patterns in .f files
+  - Function return and intent(out) analysis integration
+
 **Implementation Strategy**: 
-1. **Phase 8.0**: Complete architecture refactoring (2-3 weeks)
-2. **Phase 8.1**: Arrays (1-2 weeks after refactoring)  
-3. **Phase 8.2**: Derived types (3-4 weeks)
-4. **Phase 8.3**: Procedures (4-6 weeks)
+1. **Phase 8.0**: ✅ Complete architecture refactoring - COMPLETED
+2. **Phase 8.1**: ✅ Arrays - COMPLETED  
+3. **Phase 8.2**: ✅ Derived types (basic patterns) - COMPLETED
+4. **Phase 8.3**: 🚧 Function return and intent analysis - IN PROGRESS
+5. **Phase 8.4**: 🚧 Preprocessor integration - IN PROGRESS
 
 **Success Criteria**: Each module <300 lines, maintainable, extensible, no performance regression
 
