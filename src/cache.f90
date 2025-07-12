@@ -11,7 +11,7 @@ module cache
   public :: get_cache_dir, ensure_cache_dir, ensure_cache_structure, get_cache_subdir, &
             store_module_cache, store_executable_cache, get_cache_key, get_fpm_digest, &
             store_build_artifacts, retrieve_build_artifacts, cache_exists, invalidate_cache, &
-            get_content_hash
+            get_content_hash, get_single_file_content_hash
   
 contains
 
@@ -354,5 +354,17 @@ contains
     end if
     
   end function get_content_hash
+  
+  function get_single_file_content_hash(file_path) result(hash_key)
+    !> Generate content-based hash for a single file using FPM's fnv_1a algorithm
+    character(len=*), intent(in) :: file_path
+    character(len=32) :: hash_key
+    character(len=256), dimension(1) :: single_file_array
+    
+    ! Convert single file to array and use existing function
+    single_file_array(1) = file_path
+    hash_key = get_content_hash(single_file_array)
+    
+  end function get_single_file_content_hash
   
 end module cache

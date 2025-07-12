@@ -23,14 +23,12 @@ contains
   
   subroutine preprocess_file(input_file, output_file, error_msg)
     character(len=*), intent(in) :: input_file
-    character(len=*), intent(out) :: output_file
+    character(len=*), intent(in) :: output_file
     character(len=*), intent(out) :: error_msg
     
     character(len=1024) :: line
-    character(len=256) :: cache_dir
-    character(len=256) :: base_name
     integer :: unit_in, unit_out, ios
-    integer :: line_num, ext_pos
+    integer :: line_num
     logical :: in_subroutine, in_function
     logical :: has_program_statement, contains_written
     logical :: enable_type_inference
@@ -50,23 +48,6 @@ contains
     if (enable_type_inference) then
       call init_type_environment(type_env)
     end if
-    
-    ! Generate output filename in cache directory
-    cache_dir = get_cache_dir()
-    ext_pos = index(input_file, '.', back=.true.)
-    if (ext_pos > 0) then
-      base_name = input_file(1:ext_pos-1)
-    else
-      base_name = input_file
-    end if
-    
-    ! Extract just the filename without path
-    ext_pos = index(base_name, '/', back=.true.)
-    if (ext_pos > 0) then
-      base_name = base_name(ext_pos+1:)
-    end if
-    
-    write(output_file, '(a,a,a,a)') trim(cache_dir), '/', trim(base_name), '_preprocessed.f90'
     
     ! Open input file
     open(newunit=unit_in, file=input_file, status='old', action='read', iostat=ios)
