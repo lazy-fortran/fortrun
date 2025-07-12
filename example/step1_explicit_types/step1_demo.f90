@@ -10,7 +10,7 @@ program main
   ! Step 1: Explicit function types with opinionated defaults
   ! This demonstrates how the preprocessor applies modern defaults to explicit types
   
-  result = square(5.0)
+  result = square(5.0_8)
   print *, "Square of 5.0 is:", result
 
 contains

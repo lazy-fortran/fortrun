@@ -11,8 +11,8 @@ program test_examples
   
   ! List of example files to test
   ! Note: preprocessor/ examples tested separately in test_preprocessor_integration.f90
-  ! Note: plotting/ examples disabled due to external dependencies
-  n_examples = 25
+  ! Note: plotting/ examples may have external dependencies
+  n_examples = 33
   allocate(example_files(n_examples))
   
   ! Hello examples (.f90 and .f versions)
@@ -53,6 +53,20 @@ program test_examples
   example_files(23) = 'example/notebook/arrays_loops.f90'
   example_files(24) = 'example/notebook/arrays_loops_simple.f'
   example_files(25) = 'example/notebook/control_flow.f90'
+  example_files(26) = 'example/notebook/control_flow_simple.f'
+  
+  ! Step 1 explicit types examples (our new Step 1 work)
+  example_files(27) = 'example/step1_explicit_types/step1_demo.f90'
+  example_files(28) = 'example/step1_explicit_types/step1_demo.f'
+  
+  ! Advanced inference function returns and intrinsics
+  example_files(29) = 'example/advanced_inference/function_returns.f90'
+  example_files(30) = 'example/advanced_inference/function_returns.f'
+  example_files(31) = 'example/advanced_inference/intrinsic_functions.f90'
+  example_files(32) = 'example/advanced_inference/intrinsic_functions.f'
+  
+  ! Plotting examples (may have external deps but should be testable)
+  example_files(33) = 'example/plotting/plot_demo.f90'
   
   n_passed = 0
   n_failed = 0
@@ -147,6 +161,27 @@ program test_examples
           print '(a)', '    ✓ Notebook math example working correctly'
         else
           print '(a)', '    WARNING: Notebook math example may not be working'
+        end if
+        
+      case ('example/step1_explicit_types/step1_demo.f90', 'example/step1_explicit_types/step1_demo.f')
+        if (index(output, 'Square of 5.0 is:') > 0 .and. index(output, '25.') > 0) then
+          print '(a)', '    ✓ Step 1 explicit types working correctly'
+        else
+          print '(a)', '    WARNING: Step 1 explicit types may not be working'
+        end if
+        
+      case ('example/advanced_inference/function_returns.f90', 'example/advanced_inference/function_returns.f')
+        if (index(output, 'calculate(') > 0) then
+          print '(a)', '    ✓ Function returns inference working'
+        else
+          print '(a)', '    WARNING: Function returns inference may not be working'
+        end if
+        
+      case ('example/advanced_inference/intrinsic_functions.f90', 'example/advanced_inference/intrinsic_functions.f')
+        if (index(output, 'sqrt') > 0 .or. index(output, 'sin') > 0) then
+          print '(a)', '    ✓ Intrinsic functions example working'
+        else
+          print '(a)', '    WARNING: Intrinsic functions example may not be working'
         end if
         
       end select
