@@ -1,0 +1,19 @@
+# Fortran Package Registry
+# Maps module names to their packages for automatic dependency resolution
+#
+# Module resolution rules:
+# 1. Check explicit modules list
+# 2. Check if module starts with a custom prefix
+# 3. Use default behavior: package name = module name before first underscore
+# 4. If no underscore, package name = module name itself
+
+[packages]
+
+[packages.fortplotlib]
+git = "https://github.com/krystophny/fortplotlib"
+prefix = "fortplot"  # Any module starting with "fortplot" belongs to this package
+
+[packages.pyplot-fortran]
+git = "https://github.com/jacobwilliams/pyplot-fortran"
+# No prefix specified, will use default behavior:
+# pyplot_module -> package name = "pyplot" (before underscore)
