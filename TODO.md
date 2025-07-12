@@ -6,48 +6,62 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
 
 ### ISSUE 1: Cache Directory Copy Error (HIGH PRIORITY) ✅ COMPLETED
 - [x] **Fix "cp: -r not specified; omitting directory" error**
-  - **Root Cause**: Cache directories incorrectly named with `.f90` extensions (e.g., `test_multiple_simple_test_multiple.f90/`)
-  - **Location**: `src/runner.f90:455-461` in `copy_local_modules` subroutine
-  - **Problem**: `find` command matches directories with `.f90` extensions, `cp` tries to copy them without `-r` flag
-  - **Solution Options**:
-    1. Use `find ... -type f` to only match files, not directories
-    2. Use `cp -r` instead of `cp` 
-    3. Fix basename handling inconsistency between `get_basename()` and `extract_basename()`
-  - **Test**: Create .f file, run it, verify no "cp: -r" errors in output
+  - **Solution**: Added `-type f` flag to `find` command in `src/runner.f90:492`
+  - **Status**: ✅ **VERIFIED WORKING** - No more "cp: -r" errors during .f file processing
+  - **Test Results**: Created .f file, ran it, confirmed no copy errors in output
 
-### ISSUE 2: Inefficient .f File Caching (HIGH PRIORITY) ✅ COMPLETED
+### ISSUE 2: Inefficient .f File Caching (HIGH PRIORITY) ✅ COMPLETED  
 - [x] **Implement content-based caching for .f files**
-  - **Root Cause**: .f files use filename-based cache keys (`simple_basename`) instead of content-based hashing
-  - **Current Problem**: 
-    - Cache doesn't invalidate when .f file content changes
-    - Same cache directory used regardless of content modifications
-    - Poor cache efficiency compared to .f90 files
-  - **Clean Solution Design**:
+  - **Solution**: Implemented `get_single_file_content_hash()` with FNV-1a hashing
+  - **Status**: ✅ **VERIFIED WORKING** - Content-based cache keys like `preprocessed_fmp_7E68EA5DDE9FBF3A.f90`
+  - **Test Results**: File modifications create new cache entries, proper cache invalidation confirmed
+
+### ISSUE 3: Missing Figure Capture Function (HIGH PRIORITY) ❌ CRITICAL
+- [ ] **Fix missing `get_next_figure_path` function causing compilation failure**
+  - **Root Cause**: `test_figure_capture_coverage.f90:186` calls undefined `get_next_figure_path()`
+  - **Location**: `src/figure_capture.f90` - function not implemented but called in tests
+  - **Problem**: Compilation fails with "implicit interface" error, blocks all tests
+  - **Impact**: 
+    - ❌ Test suite cannot compile (`fpm test` fails)
+    - ❌ Figure capture functionality incomplete
+    - ❌ Notebook mode figure embedding broken
+  - **Solution Options**:
+    1. **Quick Fix**: Implement missing `get_next_figure_path()` subroutine in `figure_capture.f90`
+    2. **Clean Fix**: Remove problematic test calls and implement proper figure path management
+    3. **Complete Fix**: Implement full figure capture path generation system
+  - **Test**: Run `fpm test` successfully, verify figure capture tests pass
+
+### ISSUE 4: Notebook Cell Execution Silent Failure (HIGH PRIORITY) ❌ CRITICAL  
+- [ ] **Fix notebook cell execution not capturing output**
+  - **Root Cause**: Notebook mode parses and renders correctly but doesn't execute cells
+  - **Location**: `src/notebook_executor.f90` - execution infrastructure exists but fails silently
+  - **Problem**: 
+    - ✅ Notebook parsing works (cells detected correctly)
+    - ✅ Markdown generation works (code blocks created)
+    - ❌ Cell execution fails (no output captured)
+    - ❌ `print *` statements not appearing in output
+    - ❌ Variable persistence not working between cells
+  - **Current Symptoms**:
+    ```bash
+    fortran --notebook example.f  # Runs but produces empty output sections
     ```
-    .f file content → CRC32 hash (from fortplotlib) → cache/preprocessed_<hash>.f90
+  - **Expected Behavior**:
+    ```markdown
+    ```fortran
+    x = 5.0
+    print *, "x =", x
+    ```
     
-    For notebook mode:
-    .f notebook cells → combined content CRC32 → cache/notebook_<hash>.f90
+    **Output:**
     ```
-  - **Implementation Plan**:
-    1. **Phase 1**: Simple .f files
-       - Generate CRC32 hash of original .f file content (using fortplotlib)
-       - Create preprocessed file as `cache/preprocessed_<crc32>.f90`  
-       - Run as regular .f90 file with existing cache system
-       - Cache key: CRC32 content hash instead of filename
-    2. **Phase 2**: Notebook mode complexity
-       - For notebook .f files: hash combined cell content
-       - Handle cell execution state and variable persistence
-       - Separate caching strategy for notebook execution vs single-file execution
-    3. **Phase 3**: Integration and testing
-       - Ensure cache invalidation works correctly
-       - Test with file modifications, dependency changes
-       - Performance benchmarks vs current system
-  - **Benefits**:
-    - Proper cache invalidation on content changes
-    - Consistent caching strategy for .f and .f90 files
-    - Better cache efficiency and performance
-    - Cleaner cache directory structure
+    x = 5.0000000000000000
+    ```
+    ```
+  - **Investigation Needed**:
+    1. Check if FPM project generation for notebooks works
+    2. Verify cell procedure execution in generated modules  
+    3. Test output capture mechanism functionality
+    4. Debug variable persistence between cells
 
 ## Development Principles
 - Follow TDD (Test-Driven Development) - write tests first
