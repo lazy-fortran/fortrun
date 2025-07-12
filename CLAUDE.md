@@ -116,6 +116,7 @@ fpm test test_name
 - ✅ Cache key generation using FPM's digest system
 - ✅ Cache locking mechanism for parallel builds
 - ✅ Performance benchmarks and safety tests
+- ⚠️ **Limitation**: Currently caches complete projects; FPM package sharing across different programs not yet implemented
 
 ### ✅ **Phase 4 Complete**: Simplified Fortran Preprocessor
 - ✅ Preprocessor for .f files
@@ -222,7 +223,10 @@ Each example includes:
 - **Phase 5**: Basic type inference for .f files
 - **Phase 6**: Advanced type inference (arrays, derived types)
 - **Phase 7**: Python-like features (comprehensions, f-strings)  
-- **Phase 8**: Cross-package support and performance optimization
+- **Phase 8**: Enhanced caching with FPM package sharing and cross-package support
+  - **Goal**: Enable scenario where `fortran calc.f90` and `fortran plot.f90` share compiled FPM packages
+  - **Implementation**: Include FPM dependencies in cache keys, separate package-level caching
+  - **Benefits**: Dramatically faster builds when multiple programs use same external packages
 - **Phase 9**: Integration with official FPM registry
 - **Phase 10**: Interactive REPL mode
 

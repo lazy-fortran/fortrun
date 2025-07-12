@@ -27,16 +27,28 @@ The `function_returns.f` example shows:
 
 ## Running the Examples
 
+**Standard Fortran (.f90 files) - Working:**
 ```bash
-fortran arrays.f
-fortran derived_types.f
-fortran function_returns.f
+fortran arrays.f90           # ✅ Working
+fortran derived_types.f90    # ✅ Working  
+fortran function_returns.f90 # ✅ Working
+fortran intrinsic_functions.f90 # ✅ Working
 ```
 
-The CLI tool will automatically:
-1. Detect array literals and field access patterns
-2. Infer function return types from calls
-3. Generate proper Fortran declarations
-4. Compile and run the code
+**Simplified syntax (.f files) - Current Status:**
+```bash
+fortran arrays.f           # ❌ Array inference not implemented yet
+fortran derived_types.f    # ❌ Derived type inference not implemented yet
+fortran function_returns.f # ❌ Complex inference patterns not ready
+fortran intrinsic_functions.f # ❌ Function return inference not ready
+```
 
-Note: These examples use the new modular type inference system (Phase 8) which provides more accurate and comprehensive type detection than the basic system.
+## Current Implementation Status
+- ✅ **Basic type inference**: integer, real(8), character(len=N), logical
+- 🔄 **Array inference**: Array literals and multi-dimensional arrays (planned)
+- 🔄 **Derived type inference**: Field access pattern recognition (planned) 
+- 🔄 **Function return inference**: Return type detection from calls (planned)
+- 🔄 **Advanced patterns**: Complex expressions and mixed types (planned)
+
+These examples demonstrate the **target capabilities** for future development phases. 
+The .f90 versions show the expected output that the preprocessor should eventually generate.

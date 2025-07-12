@@ -84,3 +84,11 @@ This demonstrates the Fortran CLI tool's ability to:
 - Resolve interdependencies between modules
 - Handle both simplified and standard syntax
 - Automatically generate type declarations for complex dependency chains
+
+## Current Status
+- ✅ **main.f90**: Fully working with interdependent modules
+- ⚠️ **main.f**: Known limitation - USE statements after variable declarations not yet supported
+- ✅ **All .f90 modules**: Standard module format working perfectly
+- 🔄 **All .f modules**: Module preprocessing not yet implemented
+
+**Workaround**: Use .f90 for all modules, only main programs can use .f syntax currently.
