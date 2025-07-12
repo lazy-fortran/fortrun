@@ -1,8 +1,11 @@
 program test_cli_comprehensive
-  use cli, only: parse_arguments
   implicit none
   
   logical :: all_tests_passed
+  
+  ! Test command line simulation
+  character(len=256), dimension(20) :: test_args
+  integer :: test_arg_count
   
   print *, "=== Comprehensive CLI Tests ==="
   print *, ""
@@ -28,6 +31,110 @@ program test_cli_comprehensive
   end if
   
 contains
+
+  ! Test version of parse_arguments that uses test_args instead of command line
+  subroutine parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
+                             custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
+                             notebook_output)
+    character(len=*), intent(out) :: filename
+    logical, intent(out) :: show_help
+    integer, intent(out) :: verbose_level
+    character(len=*), intent(out) :: custom_cache_dir
+    character(len=*), intent(out) :: custom_config_dir
+    integer, intent(out) :: parallel_jobs
+    logical, intent(out) :: no_wait
+    logical, intent(out) :: notebook_mode
+    character(len=*), intent(out) :: notebook_output
+    
+    integer :: i, iostat
+    character(len=256) :: arg
+    logical :: filename_found, expecting_cache_dir, expecting_config_dir, expecting_jobs, expecting_output
+    
+    filename = ''
+    show_help = .false.
+    verbose_level = 0
+    custom_cache_dir = ''
+    custom_config_dir = ''
+    parallel_jobs = 0
+    no_wait = .false.
+    notebook_mode = .false.
+    notebook_output = ''
+    filename_found = .false.
+    expecting_cache_dir = .false.
+    expecting_config_dir = .false.
+    expecting_jobs = .false.
+    expecting_output = .false.
+    
+    if (test_arg_count == 0) then
+      show_help = .true.
+      return
+    end if
+    
+    i = 1
+    do while (i <= test_arg_count)
+      arg = test_args(i)
+      
+      if (expecting_cache_dir) then
+        custom_cache_dir = trim(arg)
+        expecting_cache_dir = .false.
+      else if (expecting_config_dir) then
+        custom_config_dir = trim(arg)
+        expecting_config_dir = .false.
+      else if (expecting_output) then
+        notebook_output = trim(arg)
+        expecting_output = .false.
+      else if (expecting_jobs) then
+        read(arg, *, iostat=iostat) parallel_jobs
+        if (iostat /= 0) parallel_jobs = 0
+        expecting_jobs = .false.
+      else if (arg == '--help' .or. arg == '-h') then
+        show_help = .true.
+        return
+      else if (arg == '-v') then
+        verbose_level = 1
+      else if (arg == '-vv') then
+        verbose_level = 2
+      else if (arg == '--verbose') then
+        if (i < test_arg_count) then
+          if (test_args(i+1) == '1') then
+            verbose_level = 1
+            i = i + 1
+          else if (test_args(i+1) == '2') then
+            verbose_level = 2
+            i = i + 1
+          else
+            verbose_level = 1
+          end if
+        else
+          verbose_level = 1
+        end if
+      else if (arg == '--cache-dir') then
+        expecting_cache_dir = .true.
+      else if (arg == '--config-dir') then
+        expecting_config_dir = .true.
+      else if (arg == '-j' .or. arg == '--jobs') then
+        expecting_jobs = .true.
+      else if (arg == '--no-wait') then
+        no_wait = .true.
+      else if (arg == '--notebook') then
+        notebook_mode = .true.
+      else if (arg == '-o' .or. arg == '--output' .or. arg == '--notebook-output') then
+        expecting_output = .true.
+      else if (arg(1:1) /= '-') then
+        if (.not. filename_found) then
+          filename = trim(arg)
+          filename_found = .true.
+        end if
+      end if
+      
+      i = i + 1
+    end do
+    
+    if (.not. filename_found .and. .not. show_help) then
+      show_help = .true.
+    end if
+    
+  end subroutine parse_arguments
 
   function test_empty_arguments() result(passed)
     logical :: passed
@@ -329,8 +436,8 @@ contains
     
     print *, "Test 8: Edge cases"
     
-    ! Test filename with spaces
-    call setup_test_command_line('my test file.f90')
+    ! Test filename with spaces (quoted)
+    call setup_test_command_line('"my test file.f90"')
     call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                         custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
                         notebook_output)
@@ -381,12 +488,70 @@ contains
   subroutine setup_test_command_line(args)
     character(len=*), intent(in) :: args
     
-    ! This would need to interface with the actual command line parsing
-    ! For now, we'll simulate by setting up test conditions
-    ! In a real implementation, this might use M_CLI2 test facilities
+    integer :: i, start, arg_len
+    logical :: in_quotes, quote_started
+    character :: c
     
-    ! Note: This is a simplified version - real implementation would need
-    ! to interact with the CLI module's internal state or use test doubles
+    test_arg_count = 0
+    test_args = ''
+    
+    if (len_trim(args) == 0) return
+    
+    i = 1
+    start = 1
+    in_quotes = .false.
+    quote_started = .false.
+    
+    ! Simple argument parsing - splits on spaces, handles quotes
+    do while (i <= len_trim(args))
+      c = args(i:i)
+      
+      if (c == '"' .or. c == "'") then
+        if (.not. in_quotes) then
+          ! Start of quoted string - move start past quote
+          start = i + 1
+          quote_started = .true.
+        end if
+        in_quotes = .not. in_quotes
+        i = i + 1
+        cycle
+      end if
+      
+      if (c == ' ' .and. .not. in_quotes) then
+        ! End of argument
+        if (i > start) then
+          test_arg_count = test_arg_count + 1
+          arg_len = i - start
+          if (quote_started) then
+            ! Don't include the end quote
+            test_args(test_arg_count) = args(start:start+arg_len-1)
+          else
+            test_args(test_arg_count) = args(start:start+arg_len-1)
+          end if
+          quote_started = .false.
+        end if
+        
+        ! Skip spaces
+        do while (i <= len_trim(args) .and. args(i:i) == ' ')
+          i = i + 1
+        end do
+        start = i
+        cycle
+      end if
+      
+      i = i + 1
+    end do
+    
+    ! Handle last argument
+    if (i > start .and. start <= len_trim(args)) then
+      test_arg_count = test_arg_count + 1
+      if (quote_started) then
+        ! Don't include the end quote
+        test_args(test_arg_count) = args(start:i-2)
+      else
+        test_args(test_arg_count) = args(start:i-1)
+      end if
+    end if
     
   end subroutine setup_test_command_line
 

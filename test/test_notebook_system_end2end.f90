@@ -41,7 +41,7 @@ contains
         print *, 'Test 1: CLI help includes notebook options'
         
         ! Execute help command
-        command = './build/gfortran_*/app/fortran --help'
+        command = 'fpm run fortran -- --help'
         call execute_and_capture(command, output, exit_code)
         
         ! Check for notebook-related content
@@ -80,7 +80,7 @@ contains
         call execute_command_line('rm -f /tmp/test_system_notebook.md')
         
         ! Execute notebook command
-        command = './build/gfortran_*/app/fortran --notebook ' // &
+        command = 'fpm run fortran -- --notebook ' // &
                  'example/notebook/simple_math.f -o /tmp/test_system_notebook.md'
         call execute_and_capture(command, output, exit_code)
         
@@ -153,7 +153,7 @@ contains
         
         ! First run (cache miss)
         call cpu_time(start_time)
-        command = './build/gfortran_*/app/fortran --notebook ' // &
+        command = 'fpm run fortran -- --notebook ' // &
                  'example/notebook/arrays_loops.f -o /tmp/test_cache_perf1.md'
         call execute_and_capture(command, output1, exit_code1)
         call cpu_time(end_time)
@@ -161,7 +161,7 @@ contains
         
         ! Second run (cache hit)
         call cpu_time(start_time)
-        command = './build/gfortran_*/app/fortran --notebook ' // &
+        command = 'fpm run fortran -- --notebook ' // &
                  'example/notebook/arrays_loops.f -o /tmp/test_cache_perf2.md'
         call execute_and_capture(command, output2, exit_code2)
         call cpu_time(end_time)
