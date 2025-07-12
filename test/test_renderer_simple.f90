@@ -77,7 +77,7 @@ contains
         ! Save
         test_file = "/tmp/test_renderer_save.md"
         if (allocated(rendered)) then
-            call save_notebook_markdown(rendered, test_file)
+            call save_notebook_markdown(notebook, results, test_file)
             
             inquire(file=test_file, exist=file_exists)
             if (.not. file_exists) then
