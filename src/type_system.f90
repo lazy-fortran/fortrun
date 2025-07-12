@@ -22,11 +22,13 @@ module type_system
   
   ! Public procedures
   public :: create_type_info
+  public :: create_array_type_info
   public :: is_numeric_type
   public :: can_promote_types
   public :: promote_types
   public :: types_compatible
   public :: type_to_string
+  public :: array_shapes_compatible
   
 contains
 
@@ -47,6 +49,24 @@ contains
     if (present(char_len)) tinfo%char_len = char_len
     
   end function create_type_info
+
+  function create_array_type_info(base_type, kind, shape_array) result(tinfo)
+    integer, intent(in) :: base_type
+    integer, intent(in), optional :: kind
+    integer, dimension(:), intent(in) :: shape_array
+    type(type_info) :: tinfo
+    
+    integer :: i
+    
+    tinfo = create_type_info(base_type, kind)
+    tinfo%is_array = .true.
+    tinfo%array_rank = size(shape_array)
+    
+    do i = 1, min(size(shape_array), 7)
+      tinfo%array_shape(i) = shape_array(i)
+    end do
+    
+  end function create_array_type_info
 
   function is_numeric_type(tinfo) result(is_numeric)
     type(type_info), intent(in) :: tinfo
@@ -96,43 +116,77 @@ contains
   function type_to_string(tinfo) result(type_str)
     type(type_info), intent(in) :: tinfo
     character(len=64) :: type_str
+    character(len=32) :: base_str
     
+    ! Get base type string
     select case (tinfo%base_type)
     case (TYPE_INTEGER)
       if (tinfo%kind == 4) then
-        type_str = 'integer'
+        base_str = 'integer'
       else
-        write(type_str, '(a,i0,a)') 'integer(', tinfo%kind, ')'
+        write(base_str, '(a,i0,a)') 'integer(', tinfo%kind, ')'
       end if
       
     case (TYPE_REAL)
       if (tinfo%kind == 4) then
-        type_str = 'real'
+        base_str = 'real'
       else
-        write(type_str, '(a,i0,a)') 'real(', tinfo%kind, ')'
+        write(base_str, '(a,i0,a)') 'real(', tinfo%kind, ')'
       end if
       
     case (TYPE_LOGICAL)
-      type_str = 'logical'
+      base_str = 'logical'
       
     case (TYPE_CHARACTER)
       if (tinfo%char_len >= 0) then
-        write(type_str, '(a,i0,a)') 'character(len=', tinfo%char_len, ')'
+        write(base_str, '(a,i0,a)') 'character(len=', tinfo%char_len, ')'
       else
-        type_str = 'character(len=*)'
+        base_str = 'character(len=*)'
       end if
       
     case (TYPE_COMPLEX)
       if (tinfo%kind == 4) then
-        type_str = 'complex'
+        base_str = 'complex'
       else
-        write(type_str, '(a,i0,a)') 'complex(', tinfo%kind, ')'
+        write(base_str, '(a,i0,a)') 'complex(', tinfo%kind, ')'
       end if
       
     case default
-      type_str = 'unknown'
+      base_str = 'unknown'
     end select
     
+    ! Add array dimensions if needed
+    if (tinfo%is_array) then
+      if (tinfo%array_rank == 1) then
+        write(type_str, '(a,a,i0,a)') trim(base_str), ', dimension(', tinfo%array_shape(1), ')'
+      else if (tinfo%array_rank == 2) then
+        write(type_str, '(a,a,i0,a,i0,a)') trim(base_str), ', dimension(', &
+          tinfo%array_shape(1), ',', tinfo%array_shape(2), ')'
+      else
+        write(type_str, '(a,a)') trim(base_str), ', dimension(?)'
+      end if
+    else
+      type_str = base_str
+    end if
+    
   end function type_to_string
+
+  function array_shapes_compatible(type1, type2) result(compatible)
+    type(type_info), intent(in) :: type1, type2
+    logical :: compatible
+    
+    integer :: i
+    
+    compatible = .false.
+    
+    if (type1%array_rank /= type2%array_rank) return
+    
+    do i = 1, type1%array_rank
+      if (type1%array_shape(i) /= type2%array_shape(i)) return
+    end do
+    
+    compatible = .true.
+    
+  end function array_shapes_compatible
 
 end module type_system
