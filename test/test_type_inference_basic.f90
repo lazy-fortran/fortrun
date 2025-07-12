@@ -1,7 +1,8 @@
 ! Test basic type inference functionality
 program test_type_inference_basic
     use, intrinsic :: iso_fortran_env, only: error_unit
-    use preprocessor, only: preprocess_file, infer_variable_types
+    use type_inference_coordinator
+    use type_system
     implicit none
     
     integer :: test_count = 0
@@ -40,38 +41,45 @@ contains
 
     subroutine test_integer_literal()
         character(len=100) :: result
-        character(len=*), parameter :: input = "x = 42"
-        character(len=*), parameter :: expected = "integer :: x"
+        character(len=*), parameter :: input = "42"
+        character(len=*), parameter :: expected = "integer"
+        type(type_info) :: inferred_type
         
-        ! This is a placeholder - actual implementation would call type inference
-        result = "integer :: x"  ! Simulated result
+        call infer_type_from_expression(input, inferred_type)
+        result = type_to_string(inferred_type)
         call assert_equal_str(result, expected, "Integer literal inference")
     end subroutine
 
     subroutine test_real_literal()
         character(len=100) :: result
-        character(len=*), parameter :: input = "y = 3.14159"
-        character(len=*), parameter :: expected = "real(8) :: y"
+        character(len=*), parameter :: input = "3.14159"
+        character(len=*), parameter :: expected = "real(8)"
+        type(type_info) :: inferred_type
         
-        result = "real(8) :: y"  ! Simulated result
+        call infer_type_from_expression(input, inferred_type)
+        result = type_to_string(inferred_type)
         call assert_equal_str(result, expected, "Real literal inference")
     end subroutine
 
     subroutine test_character_literal()
         character(len=100) :: result
-        character(len=*), parameter :: input = 'name = "Hello World"'
-        character(len=*), parameter :: expected = "character(len=11) :: name"
+        character(len=*), parameter :: input = '"Hello World"'
+        character(len=*), parameter :: expected = "character(len=11)"
+        type(type_info) :: inferred_type
         
-        result = "character(len=11) :: name"  ! Simulated result
+        call infer_type_from_expression(input, inferred_type)
+        result = type_to_string(inferred_type)
         call assert_equal_str(result, expected, "Character literal inference")
     end subroutine
 
     subroutine test_logical_literal()
         character(len=100) :: result
-        character(len=*), parameter :: input = "flag = .true."
-        character(len=*), parameter :: expected = "logical :: flag"
+        character(len=*), parameter :: input = ".true."
+        character(len=*), parameter :: expected = "logical"
+        type(type_info) :: inferred_type
         
-        result = "logical :: flag"  ! Simulated result
+        call infer_type_from_expression(input, inferred_type)
+        result = type_to_string(inferred_type)
         call assert_equal_str(result, expected, "Logical literal inference")
     end subroutine
 
