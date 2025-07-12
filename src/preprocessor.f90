@@ -169,14 +169,36 @@ contains
           call extract_function_parameters(line, scope_function_params(current_scope, :), scope_param_count(current_scope))
           
           ! Add function name as a variable if it's not typed
-          if (index(line, 'real function') == 0 .and. &
-              index(line, 'integer function') == 0 .and. &
-              index(line, 'logical function') == 0 .and. &
-              index(line, 'character function') == 0 .and. &
-              index(line, 'complex function') == 0) then
+          if (index(adjustl(line), 'real function') /= 1 .and. &
+              index(adjustl(line), 'integer function') /= 1 .and. &
+              index(adjustl(line), 'logical function') /= 1 .and. &
+              index(adjustl(line), 'character function') /= 1 .and. &
+              index(adjustl(line), 'complex function') /= 1 .and. &
+              index(adjustl(line), 'double precision function') /= 1) then
             ! Untyped function - add return variable
             call add_variable(scope_envs(current_scope)%env, trim(scope_function_names(current_scope)), &
                               create_type_info(TYPE_REAL, 8), success)
+          else
+            ! Typed function - track its return type for type inference
+            if (num_functions < size(function_names)) then
+              num_functions = num_functions + 1
+              function_names(num_functions) = trim(scope_function_names(current_scope))
+              
+              ! Determine return type from function declaration
+              if (index(adjustl(line), 'real function') == 1) then
+                function_return_types(num_functions) = create_type_info(TYPE_REAL, 8)
+              else if (index(adjustl(line), 'integer function') == 1) then
+                function_return_types(num_functions) = create_type_info(TYPE_INTEGER, 4)
+              else if (index(adjustl(line), 'logical function') == 1) then
+                function_return_types(num_functions) = create_type_info(TYPE_LOGICAL, 4)
+              else if (index(adjustl(line), 'character function') == 1) then
+                function_return_types(num_functions) = create_type_info(TYPE_CHARACTER, -1)
+              else if (index(adjustl(line), 'complex function') == 1) then
+                function_return_types(num_functions) = create_type_info(TYPE_REAL, 8)  ! Complex not supported yet
+              else if (index(adjustl(line), 'double precision function') == 1) then
+                function_return_types(num_functions) = create_type_info(TYPE_REAL, 8)
+              end if
+            end if
           end if
         end if
         output_line_count = output_line_count + 1
@@ -244,7 +266,7 @@ contains
           end if
           ! In main scope, analyze function calls to infer variable types from function return types
           if (current_scope == 1) then
-            call infer_types_from_function_calls(scope_envs(current_scope), line)
+            call infer_types_from_function_calls(scope_envs(current_scope), line, function_names, function_return_types, num_functions)
           end if
           
           ! Detect variable usage in sizeof() calls and other patterns
@@ -282,6 +304,16 @@ contains
     end if
     
     close(unit_in)
+    
+    ! Second pass: Re-analyze main scope for function calls now that all functions are known
+    if (enable_type_inference .and. num_functions > 0) then
+      do i = 1, output_line_count
+        if (index(output_lines(i), 'contains') > 0) exit  ! Stop at contains
+        if (index(output_lines(i), '=') > 0) then
+          call infer_types_from_function_calls(scope_envs(1), output_lines(i), function_names, function_return_types, num_functions)
+        end if
+      end do
+    end if
     
     ! Check which scopes have variables
     do i = 1, max_scope
@@ -330,7 +362,12 @@ contains
           
           ! FIXED: Variable declaration injection (function name issue resolved with F90WRAP.md insights)
           if (scope_has_vars(current_scope)) then
-            call write_formatted_declarations(unit_out, scope_envs(current_scope))
+            ! For function scopes, skip declaring the function name as a variable
+            if (current_scope > 1 .and. len_trim(scope_function_names(current_scope)) > 0) then
+              call write_formatted_declarations_skip_function(unit_out, scope_envs(current_scope), scope_function_names(current_scope))
+            else
+              call write_formatted_declarations(unit_out, scope_envs(current_scope))
+            end if
           end if
           
           ! Detect missing variables using dedicated module
@@ -574,6 +611,7 @@ contains
       ! F90WRAP.md insight: Function names act as return variables and should NOT be declared as regular variables
       if (len_trim(function_name) > 0 .and. trim(var_name) == trim(function_name)) then
         ! This is a function return assignment - skip variable declaration to avoid duplicate
+        ! DEBUG: Skipping function return assignment
         return
       end if
       
@@ -714,9 +752,12 @@ contains
     
   end subroutine analyze_function_return_assignment
   
-  subroutine infer_types_from_function_calls(type_env, line)
+  subroutine infer_types_from_function_calls(type_env, line, func_names, func_types, num_funcs)
     type(type_environment), intent(inout) :: type_env
     character(len=*), intent(in) :: line
+    character(len=64), dimension(:), intent(in) :: func_names
+    type(type_info), dimension(:), intent(in) :: func_types
+    integer, intent(in) :: num_funcs
     
     character(len=256) :: trimmed_line, var_name, expr, func_name
     integer :: eq_pos, paren_pos
@@ -743,7 +784,7 @@ contains
         if (is_intrinsic_function(func_name)) return
         
         ! Try to get the return type of this function from our function registry
-        call get_function_return_type(func_name, return_type)
+        call get_function_return_type(func_name, return_type, func_names, func_types, num_funcs)
         
         if (return_type%base_type /= TYPE_UNKNOWN) then
           ! Add variable with inferred type to environment
@@ -757,23 +798,32 @@ contains
     
   end subroutine infer_types_from_function_calls
   
-  subroutine get_function_return_type(func_name, return_type)
+  subroutine get_function_return_type(func_name, return_type, func_names, func_types, num_funcs)
     character(len=*), intent(in) :: func_name
     type(type_info), intent(out) :: return_type
+    character(len=64), dimension(:), intent(in) :: func_names
+    type(type_info), dimension(:), intent(in) :: func_types
+    integer, intent(in) :: num_funcs
     
-    ! For now, this is a placeholder that looks up common function types
-    ! In a full implementation, this would parse function declarations
-    ! from the current file or a symbol table
-    
+    integer :: i
     character(len=64) :: lower_name
-    
-    lower_name = trim(func_name)
-    call to_lower(lower_name)
     
     ! Default to unknown
     return_type = create_type_info(TYPE_UNKNOWN)
     
-    ! Some common patterns - this would be replaced with actual parsing
+    ! First check our tracked user-defined functions
+    do i = 1, num_funcs
+      if (trim(func_names(i)) == trim(func_name)) then
+        return_type = func_types(i)
+        return
+      end if
+    end do
+    
+    ! If not found, check common intrinsic functions
+    lower_name = trim(func_name)
+    call to_lower(lower_name)
+    
+    ! Some common patterns
     if (lower_name == 'square' .or. lower_name == 'cube') then
       return_type = create_type_info(TYPE_REAL, 8)
     else if (lower_name == 'add' .or. lower_name == 'multiply' .or. &
@@ -850,6 +900,15 @@ contains
     
     ! Check if this is a function declaration
     if (index(trimmed, 'function ') > 0) then
+      ! Skip if it's already a typed function
+      if (index(trimmed, 'real function') > 0 .or. &
+          index(trimmed, 'integer function') > 0 .or. &
+          index(trimmed, 'logical function') > 0 .or. &
+          index(trimmed, 'character function') > 0 .or. &
+          index(trimmed, 'complex function') > 0 .or. &
+          index(trimmed, 'double precision function') > 0) then
+        return
+      end if
       ! Extract function name
       func_pos = index(trimmed, 'function ') + 9
       paren_pos = index(trimmed(func_pos:), '(')
@@ -882,11 +941,7 @@ contains
     
     select case (var_type%base_type)
     case (TYPE_INTEGER)
-      if (var_type%kind == 4) then
-        type_str = 'integer'
-      else
-        write(type_str, '(a,i0,a)') 'integer(', var_type%kind, ')'
-      end if
+      write(type_str, '(a,i0,a)') 'integer(', var_type%kind, ')'
     case (TYPE_REAL)
       if (var_type%kind == 4) then
         type_str = 'real'
@@ -922,11 +977,7 @@ contains
         ! Generate type string
         select case (type_env%env%vars(i)%var_type%base_type)
         case (TYPE_INTEGER)
-          if (type_env%env%vars(i)%var_type%kind == 4) then
-            type_str = 'integer'
-          else
-            write(type_str, '(a,i0,a)') 'integer(', type_env%env%vars(i)%var_type%kind, ')'
-          end if
+          write(type_str, '(a,i0,a)') 'integer(', type_env%env%vars(i)%var_type%kind, ')'
           
         case (TYPE_REAL)
           if (type_env%env%vars(i)%var_type%kind == 4) then
@@ -977,11 +1028,7 @@ contains
         ! Generate type string
         select case (type_env%env%vars(i)%var_type%base_type)
         case (TYPE_INTEGER)
-          if (type_env%env%vars(i)%var_type%kind == 4) then
-            type_str = 'integer'
-          else
-            write(type_str, '(a,i0,a)') 'integer(', type_env%env%vars(i)%var_type%kind, ')'
-          end if
+          write(type_str, '(a,i0,a)') 'integer(', type_env%env%vars(i)%var_type%kind, ')'
           
         case (TYPE_REAL)
           if (type_env%env%vars(i)%var_type%kind == 4) then
