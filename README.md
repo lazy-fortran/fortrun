@@ -33,8 +33,13 @@ z = sqrt(x**2 + y**2)
 print *, "Distance:", z
 
 ! Functions work too - automatic contains insertion
-distance(a, b) = sqrt(a**2 + b**2)
-print *, "Function result:", distance(3.0, 4.0)
+result = distance(3.0, 4.0)
+print *, "Function result:", result
+
+real function distance(a, b)
+  real :: a, b
+  distance = sqrt(a**2 + b**2)
+end function distance
 ```
 
 **Runs as:** `fortran calculate.f`
@@ -53,14 +58,13 @@ print *, "Function result:", distance(3.0, 4.0)
 - Automatic dependency detection and resolution
 - Smart caching with 2-4x performance improvements
 
-🎯 **Opinionated Modern Defaults**  
-- Modern implicit typing via type inference (`.f` files)
-- `implicit none` enforced for `.f90` files  
-- Double precision (`real(8)`) as default
-- Modern compiler flags applied
+🎯 **Two Execution Modes**  
+- **Standard Fortran** (`.f90` files): Modern Fortran with no opinionated changes
+- **Opinionated Preprocessing** (`.f` files): Automatic type inference, no boilerplate, `real(8)` defaults
+- **Notebook Mode**: Interactive analysis with figure capture (`.f` files only)
 
 📦 **Smart Dependencies**
-- Local modules: Auto-includes `.f90` files from same directory
+- Local modules: Auto-includes Fortran files from same directory
 - Package registry: Resolves external modules to git repositories  
 - FPM integration: Leverages existing Fortran ecosystem
 
@@ -97,14 +101,17 @@ cd fortran
 ## Usage
 
 ```bash
-# Basic usage
-fortran file.f90              # Run Fortran program
-fortran file.f                # Run simplified .f file  
+# Two execution modes
+fortran program.f90           # Standard Fortran mode (no preprocessing)
+fortran script.f              # Opinionated preprocessing mode
+
+# Notebook mode (preprocessed .f files only)
+fortran --notebook analysis.f # Interactive analysis with figure capture
 
 # Options
 fortran -v file.f90           # Verbose output
 fortran --cache-dir DIR file  # Custom cache directory
-fortran --notebook file.f     # Notebook mode with markdown output
+fortran --flag "-O3" file.f90 # Pass custom flags to FPM compiler
 
 # Help
 fortran --help                # Show all options
