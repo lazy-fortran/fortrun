@@ -140,26 +140,64 @@ Demonstrates standard Fortran precision behavior for .f90 files.
 ### Notebook-Style Execution
 **Location:** [example/notebook/](https://github.com/krystophny/fortran/tree/main/example/notebook)
 
+**Simple mathematical computations:**
 ```fortran
-! simple_math.f
+! simple_math.f (simplified syntax)
 x = 10
 y = 20  
 sum = x + y
 print *, 'Sum:', sum
+```
 
-! arrays_loops.f
-integer :: i
+**Array operations and loops:**
+```fortran
+! arrays_loops_simple.f (simplified syntax)
 do i = 1, 5
-    print *, i*i
+    numbers(i) = i**2
 end do
+print *, "Array of squares:", numbers
+```
+
+**Control flow examples:**
+```fortran
+! control_flow_simple.f (simplified syntax)
+temperature = 25.5
+if (temperature < 30.0) then
+    print *, "It's mild"
+end if
+```
+
+**Scientific computing with visualization:**
+```fortran
+! plotting_demo.f (notebook with multiple cells)
+! %% [markdown]
+! # Scientific Computing with Fortran
+
+! %%
+n_points = 100
+do i = 1, n_points
+    x_data(i) = (i-1) * 6.28318 / (n_points - 1)
+    y_sin(i) = sin(x_data(i))
+end do
+
+! Create plots with fortplotlib - auto-converted to base64 PNG in notebook mode
+use fortplotlib
+call figure()
+call plot(x_data, y_sin, 'b-', label='sin(x)')
+call xlabel('x')
+call ylabel('y')
+call title('Sine Wave')
+call show()  ! Auto-converted to base64 PNG image
 ```
 
 ```bash
 fortran simple_math.f
-fortran arrays_loops.f
+fortran arrays_loops_simple.f  
+fortran control_flow_simple.f
+fortran plotting_demo.f
 ```
 
-Quick script-like execution for exploratory programming.
+Demonstrates script-like execution for exploratory programming and notebook-style analysis.
 
 ### External Dependencies
 **Location:** [example/plotting/](https://github.com/krystophny/fortran/tree/main/example/plotting)

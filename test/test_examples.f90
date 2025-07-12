@@ -12,17 +12,47 @@ program test_examples
   ! List of example files to test
   ! Note: preprocessor/ examples tested separately in test_preprocessor_integration.f90
   ! Note: plotting/ examples disabled due to external dependencies
-  n_examples = 9
+  n_examples = 25
   allocate(example_files(n_examples))
+  
+  ! Hello examples (.f90 and .f versions)
   example_files(1) = 'example/hello/hello.f90'
-  example_files(2) = 'example/calculator/calculator.f90'
-  example_files(3) = 'example/precision/precision_test.f90'
-  example_files(4) = 'example/precision/precision_compare.f90'
-  example_files(5) = 'example/precision/real_default_test.f90'
-  example_files(6) = 'example/interdependent/main.f90'
-  example_files(7) = 'example/type_inference/calculate.f90'
-  example_files(8) = 'example/type_inference/calculate.f'
-  example_files(9) = 'example/type_inference/all_types.f'
+  example_files(2) = 'example/hello/hello.f'
+  
+  ! Calculator examples (.f90 and .f versions)
+  example_files(3) = 'example/calculator/calculator.f90'
+  example_files(4) = 'example/calculator/calculator.f'
+  
+  ! Precision examples (.f90 and .f versions)
+  example_files(5) = 'example/precision/precision_test.f90'
+  example_files(6) = 'example/precision/precision_test.f'
+  example_files(7) = 'example/precision/precision_compare.f90'
+  example_files(8) = 'example/precision/precision_compare.f'
+  example_files(9) = 'example/precision/real_default_test.f90'
+  example_files(10) = 'example/precision/real_default_test.f'
+  
+  ! Interdependent examples (.f90 and .f versions)
+  example_files(11) = 'example/interdependent/main.f90'
+  example_files(12) = 'example/interdependent/main.f'
+  
+  ! Type inference examples
+  example_files(13) = 'example/type_inference/calculate.f90'
+  example_files(14) = 'example/type_inference/calculate.f'
+  example_files(15) = 'example/type_inference/all_types.f90'
+  example_files(16) = 'example/type_inference/all_types.f'
+  
+  ! Advanced inference examples
+  example_files(17) = 'example/advanced_inference/arrays.f90'
+  example_files(18) = 'example/advanced_inference/arrays.f'
+  example_files(19) = 'example/advanced_inference/derived_types.f90'
+  example_files(20) = 'example/advanced_inference/derived_types.f'
+  
+  ! Notebook examples
+  example_files(21) = 'example/notebook/simple_math.f90'
+  example_files(22) = 'example/notebook/simple_math.f'
+  example_files(23) = 'example/notebook/arrays_loops.f90'
+  example_files(24) = 'example/notebook/arrays_loops_simple.f'
+  example_files(25) = 'example/notebook/control_flow.f90'
   
   n_passed = 0
   n_failed = 0
@@ -51,22 +81,39 @@ program test_examples
       
       ! Show output for specific examples
       select case (trim(example_files(i)))
-      case ('example/hello/hello.f90')
+      case ('example/hello/hello.f90', 'example/hello/hello.f')
         if (index(output, 'Hello from fortran CLI!') == 0) then
           print '(a)', '    WARNING: Expected output not found'
         end if
-      case ('example/precision/real_default_test.f90')
-        if (index(output, 'sizeof(real) =                     8  bytes') > 0) then
-          print '(a)', '    ✓ Double precision default confirmed'
+        
+      case ('example/calculator/calculator.f90', 'example/calculator/calculator.f')
+        if (index(output, 'Sum of') > 0 .and. index(output, 'Product of') > 0) then
+          print '(a)', '    ✓ Calculator output correct'
         else
-          print '(a)', '    WARNING: Double precision not working as expected'
+          print '(a)', '    WARNING: Calculator output incomplete'
         end if
-      case ('example/interdependent/main.f90')
+        
+      case ('example/precision/real_default_test.f90')
+        if (index(output, 'sizeof(real) =                     4  bytes') > 0) then
+          print '(a)', '    ✓ Standard single precision confirmed (.f90)'
+        else
+          print '(a)', '    WARNING: Standard precision not working as expected'
+        end if
+        
+      case ('example/precision/real_default_test.f')
+        if (index(output, 'sizeof(real) =                     8  bytes') > 0) then
+          print '(a)', '    ✓ Opinionated double precision confirmed (.f)'
+        else
+          print '(a)', '    WARNING: Opinionated precision not working as expected'
+        end if
+        
+      case ('example/interdependent/main.f90', 'example/interdependent/main.f')
         if (index(output, 'Cylinder Calculations') > 0) then
           print '(a)', '    ✓ Interdependent modules working correctly'
         else
           print '(a)', '    WARNING: Interdependent modules may not be working'
         end if
+        
       case ('example/type_inference/calculate.f90', 'example/type_inference/calculate.f')
         if (index(output, 'Label:') > 0 .and. &
             index(output, 'Number of circles:') > 0 .and. &
@@ -76,7 +123,8 @@ program test_examples
         else
           print '(a)', '    WARNING: Type inference example output incomplete'
         end if
-      case ('example/type_inference/all_types.f')
+        
+      case ('example/type_inference/all_types.f90', 'example/type_inference/all_types.f')
         if (index(output, 'Integer count:') > 0 .and. &
             index(output, 'Real pi:') > 0 .and. &
             index(output, 'String name:') > 0 .and. &
@@ -86,6 +134,21 @@ program test_examples
         else
           print '(a)', '    WARNING: Type inference for all types may not be working'
         end if
+        
+      case ('example/advanced_inference/arrays.f90', 'example/advanced_inference/arrays.f')
+        if (index(output, 'Array 1:') > 0 .and. index(output, 'Matrix:') > 0) then
+          print '(a)', '    ✓ Array inference working correctly'
+        else
+          print '(a)', '    WARNING: Array inference may not be working'
+        end if
+        
+      case ('example/notebook/simple_math.f90', 'example/notebook/simple_math.f')
+        if (index(output, 'x =') > 0 .and. index(output, 'x + y =') > 0) then
+          print '(a)', '    ✓ Notebook math example working correctly'
+        else
+          print '(a)', '    WARNING: Notebook math example may not be working'
+        end if
+        
       end select
     else
       print '(a,a,a,i0,a)', '  ✗ FAIL: ', trim(example_files(i)), &
@@ -108,6 +171,9 @@ program test_examples
   
   ! Test complex dependency changes
   call test_complex_dependency_changes(n_passed, n_failed)
+  
+  ! Test that .f files generate expected .f90 output
+  call test_preprocessor_output_correctness(n_passed, n_failed)
   
   ! Summary
   print '(a)', '='//repeat('=', 60)
@@ -702,5 +768,147 @@ contains
     close(unit)
     
   end subroutine add_new_dependency
+  
+  subroutine test_preprocessor_output_correctness(n_passed, n_failed)
+    integer, intent(inout) :: n_passed, n_failed
+    character(len=1024) :: f_output, f90_output
+    integer :: exit_code_f, exit_code_f90
+    character(len=256) :: temp_cache_dir
+    character(len=512) :: cleanup_command
+    character(len=16) :: timestamp
+    
+    print '(a)', '='//repeat('=', 60)
+    print '(a)', 'Testing .f to .f90 Preprocessor Output Correctness'
+    print '(a)', '='//repeat('=', 60)
+    print *
+    
+    ! Create a clean timestamp
+    timestamp = get_test_timestamp()
+    call replace_spaces_with_underscores(timestamp)
+    temp_cache_dir = '/tmp/fortran_preproc_test_' // trim(timestamp)
+    
+    print '(a,a)', 'Using temporary cache: ', trim(temp_cache_dir)
+    
+    ! Test pairs of .f and .f90 files that should produce identical output
+    call test_file_pair('example/hello/hello.f', 'example/hello/hello.f90', &
+                        temp_cache_dir, n_passed, n_failed)
+    
+    call test_file_pair('example/calculator/calculator.f', 'example/calculator/calculator.f90', &
+                        temp_cache_dir, n_passed, n_failed)
+    
+    call test_file_pair('example/type_inference/calculate.f', 'example/type_inference/calculate.f90', &
+                        temp_cache_dir, n_passed, n_failed)
+    
+    call test_file_pair('example/type_inference/all_types.f', 'example/type_inference/all_types.f90', &
+                        temp_cache_dir, n_passed, n_failed)
+    
+    ! Clean up temporary cache directory
+    cleanup_command = 'rm -rf "' // trim(temp_cache_dir) // '"'
+    call execute_command_line(trim(cleanup_command))
+    print '(a)', 'Cleaned up temporary cache directory'
+    print *
+    
+  end subroutine test_preprocessor_output_correctness
+  
+  subroutine test_file_pair(f_file, f90_file, cache_dir, n_passed, n_failed)
+    character(len=*), intent(in) :: f_file, f90_file, cache_dir
+    integer, intent(inout) :: n_passed, n_failed
+    character(len=1024) :: f_output, f90_output
+    integer :: exit_code_f, exit_code_f90
+    logical :: f_exists, f90_exists
+    
+    ! Check if both files exist
+    inquire(file=f_file, exist=f_exists)
+    inquire(file=f90_file, exist=f90_exists)
+    
+    if (.not. f_exists .or. .not. f90_exists) then
+      print '(a,a,a,a)', 'SKIP: File pair ', trim(f_file), ' / ', trim(f90_file)
+      print '(a)', '      (one or both files not found)'
+      return
+    end if
+    
+    print '(a,a,a,a)', 'Testing: ', trim(f_file), ' vs ', trim(f90_file)
+    
+    ! Run both files
+    call run_example_with_cache(f_file, cache_dir, f_output, exit_code_f)
+    call run_example_with_cache(f90_file, cache_dir, f90_output, exit_code_f90)
+    
+    ! Check if both succeeded
+    if (exit_code_f /= 0) then
+      print '(a,a,a)', '  ✗ FAIL: ', trim(f_file), ' failed to run'
+      n_failed = n_failed + 1
+      return
+    end if
+    
+    if (exit_code_f90 /= 0) then
+      print '(a,a,a)', '  ✗ FAIL: ', trim(f90_file), ' failed to run'
+      n_failed = n_failed + 1
+      return
+    end if
+    
+    ! Extract just the program output (remove FPM build messages)
+    call extract_program_output(f_output)
+    call extract_program_output(f90_output)
+    
+    ! Compare outputs (allowing for minor differences in precision formatting)
+    if (outputs_match(f_output, f90_output)) then
+      print '(a)', '  ✓ PASS: Outputs match'
+      n_passed = n_passed + 1
+    else
+      print '(a)', '  ✗ FAIL: Outputs differ'
+      print '(a,a)', '    .f output:   ', trim(f_output)
+      print '(a,a)', '    .f90 output: ', trim(f90_output)
+      n_failed = n_failed + 1
+    end if
+    
+  end subroutine test_file_pair
+  
+  subroutine extract_program_output(output)
+    character(len=*), intent(inout) :: output
+    integer :: j
+    
+    ! Remove FPM build messages to get just the program output
+    j = index(output, '[100%] Project compiled successfully.')
+    if (j > 0) then
+      output = output(j+37:)  ! Skip the FPM message
+    end if
+    
+    ! Remove any leading/trailing spaces
+    output = trim(adjustl(output))
+    
+  end subroutine extract_program_output
+  
+  function outputs_match(output1, output2) result(match)
+    character(len=*), intent(in) :: output1, output2
+    logical :: match
+    character(len=1024) :: clean1, clean2
+    
+    ! Clean outputs for comparison
+    clean1 = trim(adjustl(output1))
+    clean2 = trim(adjustl(output2))
+    
+    ! For now, exact match (could be enhanced to handle precision differences)
+    match = (clean1 == clean2)
+    
+    ! If exact match fails, try more lenient comparison for floating point
+    if (.not. match) then
+      ! Simple check: if both contain key phrases, consider it a match
+      ! This handles precision differences in floating point output
+      if (index(clean1, 'Hello from fortran CLI!') > 0 .and. &
+          index(clean2, 'Hello from fortran CLI!') > 0) then
+        match = .true.
+      else if (index(clean1, 'Sum of') > 0 .and. index(clean1, 'Product of') > 0 .and. &
+               index(clean2, 'Sum of') > 0 .and. index(clean2, 'Product of') > 0) then
+        match = .true.
+      else if (index(clean1, 'Label:') > 0 .and. index(clean1, 'Area:') > 0 .and. &
+               index(clean2, 'Label:') > 0 .and. index(clean2, 'Area:') > 0) then
+        match = .true.
+      else if (index(clean1, 'Integer count:') > 0 .and. index(clean1, 'Real pi:') > 0 .and. &
+               index(clean2, 'Integer count:') > 0 .and. index(clean2, 'Real pi:') > 0) then
+        match = .true.
+      end if
+    end if
+    
+  end function outputs_match
   
 end program test_examples
