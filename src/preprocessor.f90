@@ -292,11 +292,14 @@ contains
         if (enable_type_inference .and. is_declaration_line(line)) then
           call mark_declared_variables(scope_envs(current_scope), line)
           ! In function scope, check if this is a parameter declaration
-          if (current_scope > 1 .and. is_parameter_declaration(line, scope_function_params(current_scope, :), scope_param_count(current_scope))) then
+          if (current_scope > 1 .and. is_parameter_declaration(line, &
+               scope_function_params(current_scope, :), scope_param_count(current_scope))) then
             ! Enhance explicit parameter declarations with intent(in)
-            call enhance_parameter_declaration(line, scope_function_params(current_scope, :), scope_param_count(current_scope))
+            call enhance_parameter_declaration(line, &
+                 scope_function_params(current_scope, :), scope_param_count(current_scope))
             ! Mark parameters as already declared to avoid auto-generation
-            call mark_parameters_as_declared(scope_envs(current_scope), scope_function_params(current_scope, :), scope_param_count(current_scope))
+            call mark_parameters_as_declared(scope_envs(current_scope), &
+                 scope_function_params(current_scope, :), scope_param_count(current_scope))
           end if
           ! For main program scope, we want to enhance the declarations rather than skip them
           ! This ensures that explicit declarations like "real :: x, y" are preserved but enhanced
@@ -322,7 +325,8 @@ contains
           end if
           ! In main scope, analyze function calls to infer variable types from function return types
           if (current_scope == 1) then
-            call infer_types_from_function_calls(scope_envs(current_scope), line, function_names, function_return_types, num_functions)
+            call infer_types_from_function_calls(scope_envs(current_scope), line, &
+                 function_names, function_return_types, num_functions)
           end if
           
           ! Detect variable usage in sizeof() calls and other patterns
@@ -458,7 +462,7 @@ contains
                                                                             scope_function_names(j), input_file, line_num)
               else
                 call write_formatted_declarations_skip_params(unit_out, scope_envs(j), &
-                                                               scope_function_params(j, :), scope_param_count(j), input_file, line_num)
+                     scope_function_params(j, :), scope_param_count(j), input_file, line_num)
               end if
             else
               ! Use filtered version for all scopes to avoid duplicates with explicit declarations
@@ -1291,7 +1295,8 @@ contains
     
   end subroutine write_formatted_declarations_skip_params
   
-  subroutine write_formatted_declarations_skip_params_and_function(unit, type_env, param_names, param_count, function_name, source_file, line_num)
+  subroutine write_formatted_declarations_skip_params_and_function(unit, type_env, param_names, &
+       param_count, function_name, source_file, line_num)
     integer, intent(in) :: unit
     type(type_environment), intent(in) :: type_env
     character(len=64), dimension(:), intent(in) :: param_names
