@@ -1,24 +1,3 @@
----
-project: fortran
-summary: Makes Python Fortran again - Run Fortran programs directly without manual compilation
-author: krystophny
-src_dir: ./src
-         ./app
-output_dir: ./build/doc
-exclude_dir: ./build
-             ./test
-page_dir: ./doc
-project_github: https://github.com/krystophny/fortran
-project_download: https://github.com/krystophny/fortran/releases
-project_website: https://krystophny.github.io/fortran/
-display: public
-         protected
-source: true
-graph: true
-search: true
-extra_mods: iso_fortran_env:https://gcc.gnu.org/onlinedocs/gfortran/ISO_005fFORTRAN_005fENV.html
----
-
 @Note
 This is the documentation for the `fortran` command-line tool that enables running Fortran programs directly without manual compilation, automatically resolving and building module dependencies using FPM.
 @endnote
