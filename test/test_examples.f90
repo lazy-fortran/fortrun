@@ -70,19 +70,13 @@ program test_examples
   example_files(33) = 'example/plotting/plot_demo.f90'
   
   ! List of expected failures - .f files with known preprocessor issues
-  ! TODO: Fix these in Phase 5 (Basic Type Inference) improvements
-  n_expected_failures = 10
+  ! These require advanced type inference and complex syntax support
+  n_expected_failures = 4
   allocate(expected_failures(n_expected_failures))
-  expected_failures(1) = 'example/calculator/calculator.f'                   ! USE after declarations
-  expected_failures(2) = 'example/precision/real_default_test.f'            ! No IMPLICIT type
-  expected_failures(3) = 'example/interdependent/main.f'                    ! USE after declarations
-  expected_failures(4) = 'example/advanced_inference/arrays.f'              ! No IMPLICIT type
-  expected_failures(5) = 'example/advanced_inference/derived_types.f'       ! Syntax errors
-  expected_failures(6) = 'example/notebook/arrays_loops_simple.f'           ! No IMPLICIT type
-  expected_failures(7) = 'example/notebook/control_flow_simple.f'           ! No IMPLICIT type
-  expected_failures(8) = 'example/advanced_inference/function_returns.f'    ! No IMPLICIT type
-  expected_failures(9) = 'example/notebook/simple_math.f'                   ! No IMPLICIT type
-  expected_failures(10) = 'example/notebook/control_flow.f'                 ! No IMPLICIT type
+  expected_failures(1) = 'example/advanced_inference/arrays.f'              ! Complex array type inference
+  expected_failures(2) = 'example/advanced_inference/derived_types.f'       ! Derived type syntax
+  expected_failures(3) = 'example/notebook/arrays_loops_simple.f'           ! Complex array functions
+  expected_failures(4) = 'example/advanced_inference/function_returns.f'    ! Function interfaces
   
   n_passed = 0
   n_failed = 0
