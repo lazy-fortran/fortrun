@@ -21,7 +21,11 @@ cp build/gfortran_*/app/fortran /usr/local/bin/
 **Traditional Fortran (.f90):**
 ```bash
 # Create hello.f90
-echo 'print *, "Hello, World!"' > hello.f90
+cat > hello.f90 << 'EOF'
+program hello
+    print *, "Hello, World!"
+end program hello
+EOF
 
 # Run it
 fortran hello.f90
