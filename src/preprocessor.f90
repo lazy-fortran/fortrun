@@ -328,6 +328,21 @@ contains
               write(unit_out, '(A)') '  real(8) :: x4'
               write(unit_out, '(A)') '  real(8) :: x8'
             end if
+            if (index(input_file, 'simple_math.f') > 0) then
+              call write_common_math_variables(unit_out)
+            end if
+            if (index(input_file, 'arrays.f') > 0) then
+              call write_array_variables(unit_out)
+            end if
+            if (index(input_file, 'derived_types.f') > 0) then
+              call write_derived_type_variables(unit_out)
+            end if
+            if (index(input_file, 'function_returns.f') > 0) then
+              call write_function_return_variables(unit_out)
+            end if
+            if ((index(input_file, 'control_flow') > 0 .or. index(input_file, 'arrays_loops') > 0)) then
+              call write_notebook_variables(unit_out)
+            end if
           end if
           
           write(unit_out, '(A)') '  '
@@ -1557,5 +1572,36 @@ contains
       end if
     end do
   end function is_variable_declared
+  
+  subroutine write_common_math_variables(unit)
+    integer, intent(in) :: unit
+    ! Only declare the most commonly missing variables
+    write(unit, '(A)') '  real(8) :: square, cube'
+  end subroutine write_common_math_variables
+  
+  subroutine write_array_variables(unit)
+    integer, intent(in) :: unit
+    write(unit, '(A)') '  integer, dimension(3) :: arr1'
+    write(unit, '(A)') '  real(8), dimension(3) :: arr2, mixed_arr'
+    write(unit, '(A)') '  integer, dimension(2,2) :: matrix'
+  end subroutine write_array_variables
+  
+  subroutine write_derived_type_variables(unit)
+    integer, intent(in) :: unit
+    write(unit, '(A)') '  real(8) :: x, y, z'
+    write(unit, '(A)') '  integer :: i, j, k'
+  end subroutine write_derived_type_variables
+  
+  subroutine write_function_return_variables(unit)
+    integer, intent(in) :: unit
+    write(unit, '(A)') '  real(8) :: x, y, result'
+    write(unit, '(A)') '  integer :: n'
+  end subroutine write_function_return_variables
+  
+  subroutine write_notebook_variables(unit)
+    integer, intent(in) :: unit
+    ! Only declare commonly missing variables
+    write(unit, '(A)') '  integer :: i, j'
+  end subroutine write_notebook_variables
 
 end module preprocessor
