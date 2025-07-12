@@ -1,3 +1,9 @@
+---
+project: fortran
+summary: Makes Python Fortran again - Run Fortran programs directly without manual compilation
+author: krystophny
+---
+
 # Getting Started
 
 **Make Python Fortran again** - Run Fortran programs directly without compilation hassles.
