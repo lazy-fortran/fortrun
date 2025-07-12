@@ -14,25 +14,30 @@ module variable_pattern_detector
 contains
 
   !> Detect missing variables based on file patterns and content
+  !! Note: This module is now largely obsolete as type inference handles most cases
+  !! Kept for backward compatibility and potential future pattern-based extensions
   subroutine detect_missing_variables(input_file, unit_out, scope_var_count)
     character(len=*), intent(in) :: input_file
     integer, intent(in) :: unit_out
     integer, intent(in) :: scope_var_count
     
+    ! Type inference now handles variable detection automatically
+    ! This module remains available for future extensibility but is no longer needed
+    ! for the core .f file examples that previously required hardcoded patterns
+    
     ! Only apply patterns if no variables were already detected
     if (scope_var_count > 0) return
     
-    ! Only apply to .f files
+    ! Only apply to .f files  
     if (index(input_file, '.f') == 0 .or. index(input_file, '.f90') > 0) return
     
-    ! Apply file-specific patterns
-    call apply_calculator_pattern(input_file, unit_out)
-    call apply_precision_test_pattern(input_file, unit_out)
-    call apply_math_pattern(input_file, unit_out)
-    call apply_array_pattern(input_file, unit_out)
-    call apply_derived_types_pattern(input_file, unit_out)
-    call apply_function_returns_pattern(input_file, unit_out)
-    call apply_notebook_pattern(input_file, unit_out)
+    ! All previous hardcoded patterns removed - type inference handles these cases:
+    ! - calculator.f: assignment detection finds x, y, sum, product
+    ! - real_default_test.f: sizeof() detection finds x, x4, x8
+    ! - simple_math.f: assignment detection finds variables
+    ! - Function calls and arithmetic expressions properly analyzed
+    
+    ! Future: Could add sophisticated pattern matching here if needed for edge cases
     
   end subroutine detect_missing_variables
 
