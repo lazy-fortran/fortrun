@@ -122,24 +122,60 @@ The tool automatically finds `math_utils.f90`, compiles it, and links everything
 
 ## What Makes This Different?
 
-**Standard Fortran:**
+**Existing tools and their complexity:**
+
+*Direct compiler usage (for single files):*
 ```bash
-gfortran -c math_utils.f90
-gfortran -c main.f90  
-gfortran -o main main.o math_utils.o
+gfortran myprogram.f90 -o myprogram
+./myprogram
+```
+
+*Multiple files with dependencies:*
+```bash
+gfortran -c module1.f90
+gfortran -c module2.f90  
+gfortran -c main.f90
+gfortran -o main main.o module1.o module2.o
 ./main
 ```
 
-**With fortran tool:**
+*Using build systems (CMake):*
+```cmake
+# CMakeLists.txt
+cmake_minimum_required(VERSION 3.10)
+project(MyProject Fortran)
+add_executable(main main.f90 module1.f90 module2.f90)
+```
+```bash
+mkdir build && cd build
+cmake ..
+make
+./main
+```
+
+*Using FPM:*
+```toml
+# fpm.toml
+name = "myproject"
+[dependencies]
+stdlib = "*"
+```
+```bash
+fpm build
+fpm run
+```
+
+**With fortran tool - all complexity hidden:**
 ```bash
 fortran main.f90
 ```
 
-**Python-like workflow:**
-```bash
-python script.py    # Python
-fortran script.f90  # Fortran - same simplicity
-```
+The fortran tool:
+- ✅ No build directories cluttering your workspace
+- ✅ No manual dependency tracking
+- ✅ No build configuration files needed
+- ✅ Automatic caching in system directories
+- ✅ Python-like simplicity: just run your code
 
 ## Common Usage
 
