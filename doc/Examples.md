@@ -276,4 +276,4 @@ Each example includes:
 - Explore the [example/](../example/) directory
 - Try modifying examples to see how caching works
 - Add your own examples following the same structure
-- Check [[Manual]] for detailed CLI options
+- Check the [Manual](index.html) for detailed CLI options
