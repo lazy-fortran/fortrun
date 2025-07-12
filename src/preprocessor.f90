@@ -117,6 +117,33 @@ contains
     ! Second pass: collect all USE statements using dedicated module
     call collect_use_statements(unit_in, use_statements, use_count)
     
+    ! Rewind for explicit declaration scanning
+    rewind(unit_in)
+    
+    ! Third pass: scan for explicit variable declarations in main scope
+    ! This must be done before processing to avoid duplicate declarations
+    if (enable_type_inference) then
+      do
+        read(unit_in, '(A)', iostat=ios) line
+        if (ios /= 0) exit
+        
+        ! Skip function/subroutine blocks for now
+        if (is_function_declaration(line) .or. is_subroutine_declaration(line)) then
+          do
+            read(unit_in, '(A)', iostat=ios) line
+            if (ios /= 0) exit
+            if (is_end_statement(line, 'function') .or. is_end_statement(line, 'subroutine')) exit
+          end do
+          cycle
+        end if
+        
+        ! Check for declarations in main scope
+        if (is_declaration_line(line)) then
+          call mark_declared_variables(scope_envs(1), line)
+        end if
+      end do
+    end if
+    
     ! Rewind for actual processing
     rewind(unit_in)
     
@@ -239,7 +266,14 @@ contains
         in_function = .false.
         if (current_scope > 1) current_scope = current_scope - 1
         output_line_count = output_line_count + 1
-        output_lines(output_line_count) = line
+        ! Ensure we output the original line, not an enhanced version
+        ! Fix: ensure we only store the actual end function line
+        if (index(line, 'end function') > 0) then
+          ! Extract just the "end function" part
+          output_lines(output_line_count) = trim(line(index(line, 'end function'):))
+        else
+          output_lines(output_line_count) = trim(line)
+        end if
       else if (is_end_statement(line, 'subroutine')) then
         in_subroutine = .false.
         if (current_scope > 1) current_scope = current_scope - 1
@@ -258,6 +292,10 @@ contains
             ! Skip outputting explicit parameter declarations - we'll auto-generate them
             cycle
           end if
+          ! For main program scope, we want to enhance the declarations rather than skip them
+          ! This ensures that explicit declarations like "real :: x, y" are preserved but enhanced
+          ! For functions/subroutines, we still want to output the declaration
+          ! but mark the variables so we don't duplicate them later
         end if
         
         ! Check for assignments for type inference  
@@ -303,7 +341,16 @@ contains
           output_lines(output_line_count) = '  ' // trim(line)
         else
           output_line_count = output_line_count + 1
-          output_lines(output_line_count) = line
+          ! Special handling for end function/subroutine lines that might have gotten a type prefix
+          if (index(line, ' end function') > 0 .and. index(line, 'end function') /= 1) then
+            ! Remove any type prefix before "end function"
+            output_lines(output_line_count) = trim(line(index(line, 'end function'):))
+          else if (index(line, ' end subroutine') > 0 .and. index(line, 'end subroutine') /= 1) then
+            ! Remove any type prefix before "end subroutine"
+            output_lines(output_line_count) = trim(line(index(line, 'end subroutine'):))
+          else
+            output_lines(output_line_count) = line
+          end if
         end if
       end if
     end do
@@ -360,6 +407,15 @@ contains
       call enhance_explicit_function_types(output_lines(i))
       ! Also enhance variable declarations for consistency
       call enhance_explicit_variable_types(output_lines(i))
+      
+      ! Final cleanup: ensure end function/subroutine lines don't have type prefixes
+      if (index(output_lines(i), 'end function') > 0 .and. &
+          (index(output_lines(i), 'real') > 0 .or. index(output_lines(i), 'integer') > 0) .and. &
+          index(output_lines(i), 'end function') > 1) then
+        ! Extract just the end function part
+        output_lines(i) = trim(output_lines(i)(index(output_lines(i), 'end function'):))
+      end if
+      
       write(unit_out, '(A)') trim(output_lines(i))
       
       ! Check if we need to inject declarations after this line
@@ -1411,6 +1467,9 @@ contains
     
     trimmed = adjustl(line)
     
+    ! Skip end function lines
+    if (index(trimmed, 'end function') > 0) return
+    
     ! Convert explicit function type declarations to use opinionated defaults
     if (index(trimmed, 'real function ') == 1) then
       line = 'real(8) function ' // trim(adjustl(trimmed(15:)))
@@ -1436,15 +1495,18 @@ contains
     double_colon_pos = index(trimmed, '::')
     if (double_colon_pos == 0) return
     
+    ! Skip lines containing 'end function' or 'end subroutine'
+    if (index(trimmed, 'end function') > 0 .or. index(trimmed, 'end subroutine') > 0) return
+    
     ! Convert explicit type declarations to use opinionated defaults
     if (index(trimmed, 'real ::') == 1) then
       line = 'real(8) ::' // trim(trimmed(8:))
     else if (index(trimmed, 'integer ::') == 1) then
       line = 'integer(4) ::' // trim(trimmed(11:))
-    else if (index(trimmed, 'real ') == 1 .and. index(trimmed, 'real(') /= 1) then
+    else if (index(trimmed, 'real ') == 1 .and. index(trimmed, 'real(') /= 1 .and. double_colon_pos > 0) then
       ! Handle "real :: x" with spaces
       line = 'real(8) ' // trim(adjustl(trimmed(5:)))
-    else if (index(trimmed, 'integer ') == 1 .and. index(trimmed, 'integer(') /= 1) then
+    else if (index(trimmed, 'integer ') == 1 .and. index(trimmed, 'integer(') /= 1 .and. double_colon_pos > 0) then
       ! Handle "integer :: x" with spaces  
       line = 'integer(4) ' // trim(adjustl(trimmed(8:)))
     end if
