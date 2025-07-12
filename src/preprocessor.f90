@@ -260,7 +260,8 @@ contains
           ! FIXED: Variable declaration injection (function name issue resolved with F90WRAP.md insights)
           if (scope_has_vars(current_scope)) then
             if (current_scope > 1 .and. len_trim(scope_function_names(current_scope)) > 0) then
-              call write_formatted_declarations_skip_function(unit_out, scope_envs(current_scope), scope_function_names(current_scope))
+              call write_formatted_declarations_skip_function(unit_out, scope_envs(current_scope), &
+                                                                    scope_function_names(current_scope))
             else
               call write_formatted_declarations(unit_out, scope_envs(current_scope))
             end if
@@ -993,7 +994,8 @@ contains
     param_name = trim(adjustl(param_name))
   end subroutine clean_parameter_name
   
-  subroutine write_function_parameter_declarations(unit, scope_idx, scope_envs, scope_function_params, scope_param_count, is_assigned, is_read)
+  subroutine write_function_parameter_declarations(unit, scope_idx, scope_envs, scope_function_params, &
+                                                   scope_param_count, is_assigned, is_read)
     integer, intent(in) :: unit, scope_idx
     type(type_environment), dimension(:), intent(in) :: scope_envs
     character(len=64), dimension(:, :), intent(in) :: scope_function_params
