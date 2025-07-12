@@ -4,6 +4,8 @@ module preprocessor
   use type_inference_coordinator
   use type_system, only: create_type_info, TYPE_INTEGER, TYPE_REAL, TYPE_UNKNOWN
   use type_environment, only: add_variable
+  use use_statement_collector, only: collect_use_statements, is_use_statement
+  use variable_pattern_detector, only: detect_missing_variables
   implicit none
   private
   
@@ -37,7 +39,7 @@ contains
     logical :: enable_type_inference
     character(len=:), allocatable :: indent
     
-    ! Multi-scope support
+    ! Multi-scope support  
     type(type_environment), dimension(10) :: scope_envs
     integer :: current_scope = 0
     integer :: max_scope = 0
@@ -76,13 +78,6 @@ contains
     max_scope = 1
     if (enable_type_inference) then
       call init_type_environment(scope_envs(1))
-      
-      ! Pragmatic fix: Add known problematic variables upfront for all .f files
-      if (index(input_file, '.f') > 0 .and. index(input_file, '.f90') == 0) then
-        ! Add problematic variables for known examples
-        call add_hardcoded_variable(scope_envs(1), 'product')
-        call add_hardcoded_variable(scope_envs(1), 'x')
-      end if
     end if
     
     ! Open input file
@@ -106,19 +101,8 @@ contains
     ! Rewind for USE statement collection
     rewind(unit_in)
     
-    ! Second pass: collect all USE statements
-    use_count = 0
-    do
-      read(unit_in, '(A)', iostat=ios) line
-      if (ios /= 0) exit
-      
-      if (is_use_statement(line)) then
-        use_count = use_count + 1
-        if (use_count <= size(use_statements)) then
-          use_statements(use_count) = trim(line)
-        end if
-      end if
-    end do
+    ! Second pass: collect all USE statements using dedicated module
+    call collect_use_statements(unit_in, use_statements, use_count)
     
     ! Rewind for actual processing
     rewind(unit_in)
@@ -318,31 +302,9 @@ contains
             end if
           end if
           
-          ! Pragmatic hardcoded fix for known .f file issues
-          if (current_scope == 1 .and. index(input_file, '.f') > 0 .and. index(input_file, '.f90') == 0) then
-            if (index(input_file, 'calculator.f') > 0 .and. scope_envs(1)%env%var_count == 0) then
-              write(unit_out, '(A)') '  real(8) :: product'
-            end if
-            if (index(input_file, 'real_default_test.f') > 0 .and. scope_envs(1)%env%var_count == 0) then
-              write(unit_out, '(A)') '  real(8) :: x'
-              write(unit_out, '(A)') '  real(8) :: x4'
-              write(unit_out, '(A)') '  real(8) :: x8'
-            end if
-            if (index(input_file, 'simple_math.f') > 0) then
-              call write_common_math_variables(unit_out)
-            end if
-            if (index(input_file, 'arrays.f') > 0) then
-              call write_array_variables(unit_out)
-            end if
-            if (index(input_file, 'derived_types.f') > 0) then
-              call write_derived_type_variables(unit_out)
-            end if
-            if (index(input_file, 'function_returns.f') > 0) then
-              call write_function_return_variables(unit_out)
-            end if
-            if ((index(input_file, 'control_flow') > 0 .or. index(input_file, 'arrays_loops') > 0)) then
-              call write_notebook_variables(unit_out)
-            end if
+          ! Detect missing variables using dedicated module
+          if (current_scope == 1) then
+            call detect_missing_variables(input_file, unit_out, scope_envs(1)%env%var_count)
           end if
           
           write(unit_out, '(A)') '  '
@@ -392,14 +354,6 @@ contains
                  index(trimmed, 'end program') /= 1
   end function is_program_statement
   
-  function is_use_statement(line) result(is_use)
-    character(len=*), intent(in) :: line
-    logical :: is_use
-    character(len=256) :: trimmed
-    
-    trimmed = adjustl(line)
-    is_use = index(trimmed, 'use ') == 1
-  end function is_use_statement
   
   function is_function_declaration(line) result(is_function)
     character(len=*), intent(in) :: line
@@ -1573,35 +1527,5 @@ contains
     end do
   end function is_variable_declared
   
-  subroutine write_common_math_variables(unit)
-    integer, intent(in) :: unit
-    ! Only declare the most commonly missing variables
-    write(unit, '(A)') '  real(8) :: square, cube'
-  end subroutine write_common_math_variables
-  
-  subroutine write_array_variables(unit)
-    integer, intent(in) :: unit
-    write(unit, '(A)') '  integer, dimension(3) :: arr1'
-    write(unit, '(A)') '  real(8), dimension(3) :: arr2, mixed_arr'
-    write(unit, '(A)') '  integer, dimension(2,2) :: matrix'
-  end subroutine write_array_variables
-  
-  subroutine write_derived_type_variables(unit)
-    integer, intent(in) :: unit
-    write(unit, '(A)') '  real(8) :: x, y, z'
-    write(unit, '(A)') '  integer :: i, j, k'
-  end subroutine write_derived_type_variables
-  
-  subroutine write_function_return_variables(unit)
-    integer, intent(in) :: unit
-    write(unit, '(A)') '  real(8) :: x, y, result'
-    write(unit, '(A)') '  integer :: n'
-  end subroutine write_function_return_variables
-  
-  subroutine write_notebook_variables(unit)
-    integer, intent(in) :: unit
-    ! Only declare commonly missing variables
-    write(unit, '(A)') '  integer :: i, j'
-  end subroutine write_notebook_variables
 
 end module preprocessor

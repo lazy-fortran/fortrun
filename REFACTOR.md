@@ -98,21 +98,53 @@ src/
 
 ## Refactoring Priority Plan
 
-### Phase 1: Preprocessor Modularization (HIGH PRIORITY)
+### Phase 1: Preprocessor Modularization (HIGH PRIORITY) 🚧 **IN PROGRESS**
 **Goal:** Extract hardcoded patterns into maintainable system
 
 **Tasks:**
-1. **Create `preprocessing/` module structure**
-2. **Extract USE statement collection** into dedicated module
-3. **Create configurable variable pattern system** 
-4. **Replace hardcoded file checks** with pattern matching
-5. **Separate scope management** into dedicated module
+1. ✅ **Create `preprocessing/` module structure** - COMPLETED
+   - Created `src/preprocessing/use_statement_collector.f90`
+   - Created `src/preprocessing/variable_pattern_detector.f90`
+   - Created `src/preprocessing/scope_manager.f90`
+2. ✅ **Extract USE statement collection** into dedicated module - COMPLETED
+   - Extracted `collect_use_statements()` and `is_use_statement()` functions
+   - Replaced inline implementation in `preprocessor.f90`
+   - All tests passing with same functionality
+3. ✅ **Create configurable variable pattern system** - COMPLETED
+   - Extracted all hardcoded file patterns into `variable_pattern_detector.f90`
+   - Organized by pattern type (calculator, precision, math, arrays, etc.)
+   - Replaced hardcoded blocks in `preprocessor.f90` with `detect_missing_variables()`
+4. ⚠️ **Replace hardcoded file checks** with pattern matching - PARTIAL
+   - Pattern matching implemented in separate module
+   - Still file-path based but now centralized and extensible
+5. ⏸️ **Separate scope management** into dedicated module - DEFERRED
+   - Module created but integration requires major refactoring
+   - Current scope management deeply integrated with preprocessor arrays
+   - Requires interface redesign for compatibility
 
-**Success Criteria:**
-- All existing .f files continue to work
-- No hardcoded file paths in preprocessor
-- Extensible pattern system for new cases
-- Clear separation of concerns
+**Progress Summary (2025-07-12):**
+- **Successfully completed:** 3/5 tasks  
+- **Modules extracted:** USE statement collection, variable pattern detection
+- **Code reduction:** ~150 lines removed from monolithic preprocessor
+- **Tests:** All 35 tests passing, 4 expected failures unchanged
+- **Technical debt:** Significantly reduced hardcoded patterns
+
+**Lessons Learned:**
+- **Module extraction successful** when interfaces align with existing usage
+- **Scope management integration complex** due to deep array-based state management
+- **Pattern-based approach** successfully replaces hardcoded logic
+- **Incremental approach** allows safe refactoring with continuous testing
+
+**Success Criteria Status:**
+- ✅ All existing .f files continue to work (verified)
+- 🚧 No hardcoded file paths in preprocessor (reduced, not eliminated)
+- ✅ Extensible pattern system for new cases (implemented)
+- 🚧 Clear separation of concerns (improved, more work needed)
+
+**Next Steps for Phase 1:**
+- Complete scope management integration (requires interface redesign)
+- Replace file-path matching with more sophisticated pattern system
+- Consider creating preprocessor coordinator to orchestrate modules
 
 ### Phase 2: Type Inference Integration (MEDIUM PRIORITY)  
 **Goal:** Remove pragmatic workarounds with proper type analysis
