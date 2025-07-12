@@ -141,6 +141,7 @@ The tool enforces modern Fortran practices by default:
 2. **Double precision** - `real` defaults to `real(8)` via compiler flags
 3. **Free form** - Modern source format
 4. **Standard compliance** - Generates Fortran 2018 code
+5. **Safe parameter intent** - Function parameters default to `intent(in)` instead of standard Fortran's `intent(inout)`
 
 ### Compiler Flags Applied
 ```bash
