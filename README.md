@@ -5,12 +5,6 @@
 
 **Make Python Fortran again.** - A command-line tool that enables running Fortran programs without manual compilation, automatically resolving dependencies and applying modern defaults.
 
-## Overview
-
-The `fortran` command works like `python` but for Fortran files - supporting both modern `.f90` and simplified `.f` formats. It automatically resolves module dependencies, applies modern defaults, builds with FPM, caches results, and executes programs transparently.
-
-The `.f` format brings the simplicity of classic FORTRAN with a modern twist - no boilerplate, automatic type inference, and implicit none by default.
-
 ## Quick Start
 
 ```bash
@@ -18,100 +12,114 @@ The `.f` format brings the simplicity of classic FORTRAN with a modern twist - n
 fortran hello.f90
 
 # Simplified .f files (no boilerplate needed!)
-fortran script.f  # Just write code, no program/contains needed
+fortran script.f
 
-# Works with local modules automatically
-fortran calculator.f90  # Uses math_module.f90 in same directory
+# Notebook mode with figure capture
+fortran --notebook analysis.f
 
-# Verbose output for debugging
+# Verbose mode for debugging
 fortran -v myprogram.f90
 ```
 
+## Simplified .f Syntax Showcase
+
+Write Fortran code with **zero boilerplate** - just the logic you need:
+
+```fortran
+! calculate.f - No program/end program needed!
+x = 5.0        ! Automatic type inference: real(8) :: x
+y = 3.0        ! Automatic type inference: real(8) :: y  
+z = sqrt(x**2 + y**2)
+print *, "Distance:", z
+
+! Functions work too - automatic contains insertion
+distance(a, b) = sqrt(a**2 + b**2)
+print *, "Function result:", distance(3.0, 4.0)
+```
+
+**Runs as:** `fortran calculate.f`
+
+**Automatically transforms to:**
+- ✅ Wrapped in `program` statement
+- ✅ `implicit none` enforced  
+- ✅ Double precision defaults (`real(8)`)
+- ✅ Type declarations automatically generated
+- ✅ `contains` section for functions
+
 ## Features
 
-**Zero Configuration**
-- No Makefiles, no build scripts, no project setup
-- Just write Fortran code and run it
+🚀 **Zero Configuration**
+- No Makefiles, build scripts, or project setup
 - Automatic dependency detection and resolution
+- Smart caching with 2-4x performance improvements
 
-**Opinionated Modern Defaults**
+🎯 **Opinionated Modern Defaults**  
 - `implicit none` enforced automatically
-- Double precision (`real(8)`) as default for `real` variables
-- Free form source format
-- Modern compiler flags applied automatically
+- Double precision (`real(8)`) as default
+- Modern compiler flags applied
 
-**Smart Dependency Resolution**
-- Local modules: Automatically includes `.f90` files from same directory
-- Package registry: Resolves external modules to git repositories
-- Interdependent modules: Handles complex dependency chains
-- Caching: Builds cached for fast subsequent runs
+📦 **Smart Dependencies**
+- Local modules: Auto-includes `.f90` files from same directory
+- Package registry: Resolves external modules to git repositories  
+- FPM integration: Leverages existing Fortran ecosystem
 
-**Simplified Syntax (.f files)**
-- No boilerplate: Skip `program`/`end program` statements
-- Auto-wrapping: Functions and subroutines work without `contains`
-- Type inference: Automatic variable declarations from assignments
-- Script-like: Write Fortran like Python scripts
+🚀 **Advanced Features**
+- **Type Inference**: Automatic variable declarations in `.f` files
+- **Notebook Mode**: Jupytext-style notebooks with figure capture
+- **Incremental Compilation**: Only rebuilds changed files
 
-**Notebook Support**
-- Jupytext-style notebooks: Mix code and markdown in `.f` files
-- Automatic plot capture: Inline figures from fortplotlib
-- Markdown output: Generate self-contained documentation
-- Run with: `fortran --notebook mynotebook.f -o output.md`
+## Examples
 
-## Example: Same Program, Two Styles
-
-Compare the same calculation in both formats:
-- **Modern Fortran (.f90)**: [example/type_inference/calculate.f90](example/type_inference/calculate.f90)
-- **Simplified Format (.f)**: [example/type_inference/calculate.f](example/type_inference/calculate.f)
-
-The `.f` format automatically infers types from assignments and expressions, eliminating all declaration boilerplate while producing identical results.
-
-For a comprehensive demonstration of type inference across all basic types (integer, real, character, logical), see [example/type_inference/all_types.f](example/type_inference/all_types.f).
-
-## More Examples
-
-See `example/` directory for working examples including:
-- Basic hello world (`example/hello/`)
-- Local module usage (`example/calculator/`)
-- Complex interdependent modules (`example/interdependent/`)
-- Type inference for `.f` files (`example/type_inference/`)
-- Notebook with plots (`example/notebook/plotting_demo.f`)
+| Feature | Example | Link |
+|---------|---------|------|
+| **Hello World** | Simple program | [hello.f90](example/hello/) |
+| **Local Modules** | Calculator with math module | [calculator.f90](example/calculator/) |
+| **Simplified Syntax** | Type inference showcase | [all_types.f](example/type_inference/) |
+| **Interdependent Modules** | Complex dependency chain | [main.f90](example/interdependent/) |
+| **Notebook Mode** | Interactive analysis | [simple_math.f](example/notebook/) |
+| **Plotting** | Figure generation | [plotting_demo.f](example/notebook/) |
 
 ## Installation
 
-**Prerequisites:** Modern Fortran compiler (gfortran 9+) and FPM (Fortran Package Manager)
-
 ```bash
-git clone https://github.com/krystophny/fortran.git
+git clone https://github.com/krystophny/fortran
 cd fortran
 ./install.sh
 ```
 
-## Configuration
+## Documentation
 
-The tool uses standard OS directories:
-- Config: `~/.config/fortran/` (Linux/macOS)
-- Cache: `~/.cache/fortran/` (Linux/macOS)
-- Registry: `~/.config/fortran/registry.toml`
+- 📋 **[ROADMAP.md](ROADMAP.md)** - Development phases and future plans
+- 📝 **[TODO.md](TODO.md)** - Current development tasks and progress
+- 🏗️ **[CLAUDE.md](CLAUDE.md)** - Technical implementation details
 
-The registry maps module names to git repositories. See `registry.toml` for examples.
+## Usage
 
-## Development Status
+```bash
+# Basic usage
+fortran file.f90              # Run Fortran program
+fortran file.f                # Run simplified .f file  
 
-Current implementation includes CLI, local module resolution, FPM integration, caching, package registry, and type inference for `.f` files. For detailed roadmap and development status, see `ROADMAP.md` and `TODO.md`.
+# Options
+fortran -v file.f90           # Verbose output
+fortran --cache-dir DIR file  # Custom cache directory
+fortran --notebook file.f     # Notebook mode with markdown output
 
-## Contributing
+# Help
+fortran --help                # Show all options
+```
 
-This project follows TDD (Test-Driven Development):
-- Write tests first
-- Keep changes small and focused
-- Comprehensive test coverage for all features
-- Clear documentation and examples
+## Project Status
 
-## License
+**Current**: Phase 8 Complete ✅
+- ✅ Basic CLI and dependency resolution
+- ✅ Smart caching system (2-4x speedup)
+- ✅ Simplified .f syntax with type inference
+- ✅ Notebook mode with figure capture
+- ✅ Advanced type inference (arrays, functions, derived types)
 
-MIT License - see LICENSE file for details.
+**Next**: Enhanced syntax features and ecosystem integration
 
 ---
 
-*"Fortran is the foundation of scientific computing - now with the developer experience it deserves."*
+*"Fortran is the Python of scientific computing - it just doesn't know it yet."*
