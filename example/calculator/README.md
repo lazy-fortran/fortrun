@@ -63,5 +63,13 @@ end program calculator
 
 This demonstrates the Fortran CLI tool's ability to:
 - Detect local module dependencies
-- Handle both simplified and standard syntax
+- Handle both simplified and standard syntax  
 - Automatically generate type declarations and program structure
+
+## Current Status
+- ✅ **calculator.f90**: Fully working with standard modules
+- ⚠️ **calculator.f**: Known limitation - USE statements after variable declarations not yet supported
+- ✅ **math_module.f90**: Standard module format working
+- 🔄 **math_module.f**: Module preprocessing not yet implemented
+
+**Workaround**: Use .f90 modules with .f main programs until module preprocessing is implemented.
