@@ -120,26 +120,30 @@ contains
     ! Rewind for explicit declaration scanning
     rewind(unit_in)
     
-    ! Third pass: scan for explicit variable declarations in main scope
+    ! Third pass: scan for explicit variable declarations in all scopes
     ! This must be done before processing to avoid duplicate declarations
     if (enable_type_inference) then
+      current_scope = 1  ! Start with main scope
       do
         read(unit_in, '(A)', iostat=ios) line
         if (ios /= 0) exit
         
-        ! Skip function/subroutine blocks for now
+        ! Track scope changes
         if (is_function_declaration(line) .or. is_subroutine_declaration(line)) then
-          do
-            read(unit_in, '(A)', iostat=ios) line
-            if (ios /= 0) exit
-            if (is_end_statement(line, 'function') .or. is_end_statement(line, 'subroutine')) exit
-          end do
-          cycle
+          current_scope = current_scope + 1
+          if (current_scope > max_scope) max_scope = current_scope
+          if (current_scope <= size(scope_envs)) then
+            call init_type_environment(scope_envs(current_scope))
+          end if
+        else if (is_end_statement(line, 'function') .or. is_end_statement(line, 'subroutine')) then
+          ! Don't decrement scope - maintain unique scope numbers
         end if
         
-        ! Check for declarations in main scope
+        ! Check for declarations in current scope
         if (is_declaration_line(line)) then
-          call mark_declared_variables(scope_envs(1), line)
+          if (current_scope <= size(scope_envs)) then
+            call mark_declared_variables(scope_envs(current_scope), line)
+          end if
         end if
       end do
     end if
@@ -264,7 +268,7 @@ contains
         implicit_lines(current_scope) = output_line_count
       else if (is_end_statement(line, 'function')) then
         in_function = .false.
-        if (current_scope > 1) current_scope = current_scope - 1
+        ! Don't decrement scope - let each function keep its unique scope number
         output_line_count = output_line_count + 1
         ! Ensure we output the original line, not an enhanced version
         ! Fix: ensure we only store the actual end function line
@@ -276,7 +280,7 @@ contains
         end if
       else if (is_end_statement(line, 'subroutine')) then
         in_subroutine = .false.
-        if (current_scope > 1) current_scope = current_scope - 1
+        ! Don't decrement scope - let each subroutine keep its unique scope number
         output_line_count = output_line_count + 1
         output_lines(output_line_count) = line
       else if (index(adjustl(line), 'implicit none') == 1) then
@@ -290,6 +294,9 @@ contains
           ! In function scope, check if this is a parameter declaration
           if (current_scope > 1 .and. is_parameter_declaration(line, scope_function_params(current_scope, :), scope_param_count(current_scope))) then
             ! Skip outputting explicit parameter declarations - we'll auto-generate them
+            ! But we need to maintain line numbering for proper injection points
+            output_line_count = output_line_count + 1
+            output_lines(output_line_count) = '  ! [Parameter declarations will be auto-generated]'
             cycle
           end if
           ! For main program scope, we want to enhance the declarations rather than skip them
@@ -419,36 +426,47 @@ contains
       write(unit_out, '(A)') trim(output_lines(i))
       
       ! Check if we need to inject declarations after this line
-      do current_scope = 1, 10
-        if (implicit_lines(current_scope) == i .and. (scope_has_vars(current_scope) .or. scope_param_count(current_scope) > 0)) then
+      do j = 1, max_scope
+        if (implicit_lines(j) == i .and. (scope_has_vars(j) .or. scope_param_count(j) > 0)) then
           write(unit_out, '(A)') '  '
           write(unit_out, '(A)') '  ! Auto-generated variable declarations:'
           
           ! Write function parameter declarations
-          if (scope_param_count(current_scope) > 0) then
-            call write_function_parameter_declarations(unit_out, current_scope, scope_envs, scope_function_params, scope_param_count, &
-                                                       param_is_assigned(current_scope, :), param_is_read(current_scope, :))
+          if (scope_param_count(j) > 0) then
+            call write_function_parameter_declarations(unit_out, j, scope_envs, scope_function_params, scope_param_count, &
+                                                       param_is_assigned(j, :), param_is_read(j, :))
           end if
           
           
           ! FIXED: Variable declaration injection (function name issue resolved with F90WRAP.md insights)
-          if (scope_has_vars(current_scope)) then
+          if (scope_has_vars(j)) then
             ! For function scopes, skip declaring the function name as a variable ONLY for typed functions
-            if (current_scope > 1 .and. len_trim(scope_function_names(current_scope)) > 0) then
+            if (j > 1 .and. len_trim(scope_function_names(j)) > 0) then
               ! Check if this is a typed function by looking for the function in our tracked typed functions
               is_typed_func = .false.
               do func_idx = 1, num_functions
-                if (trim(function_names(func_idx)) == trim(scope_function_names(current_scope))) then
+                if (trim(function_names(func_idx)) == trim(scope_function_names(j))) then
                   is_typed_func = .true.
                   exit
                 end if
               end do
               
-              ! For all functions, skip parameters (they're handled separately)
-              call write_formatted_declarations_skip_params(unit_out, scope_envs(current_scope), &
-                                                             scope_function_params(current_scope, :), scope_param_count(current_scope))
+              ! For all functions, skip parameters and function name for typed functions
+              if (is_typed_func) then
+                call write_formatted_declarations_skip_params_and_function(unit_out, scope_envs(j), &
+                                                                            scope_function_params(j, :), scope_param_count(j), &
+                                                                            scope_function_names(j))
+              else
+                call write_formatted_declarations_skip_params(unit_out, scope_envs(j), &
+                                                               scope_function_params(j, :), scope_param_count(j))
+              end if
             else
-              call write_formatted_declarations(unit_out, scope_envs(current_scope))
+              ! For main scope, use filtered version to avoid duplicates with explicit declarations
+              if (j == 1) then
+                call write_formatted_declarations_filtered(unit_out, scope_envs(j), output_lines, output_line_count, i)
+              else
+                call write_formatted_declarations(unit_out, scope_envs(j))
+              end if
             end if
           end if
           
@@ -600,6 +618,11 @@ contains
       else
         var_name = adjustl(trim(var_list(i:i+comma_pos-2)))
         i = i + comma_pos
+      end if
+      
+      ! Handle initialization syntax - remove everything after '='
+      if (index(var_name, '=') > 0) then
+        var_name = adjustl(trim(var_name(1:index(var_name, '=')-1)))
       end if
       
       ! Add to type environment as already declared (with special marker)
@@ -1200,6 +1223,77 @@ contains
     
   end subroutine write_formatted_declarations_skip_params
   
+  subroutine write_formatted_declarations_skip_params_and_function(unit, type_env, param_names, param_count, function_name)
+    integer, intent(in) :: unit
+    type(type_environment), intent(in) :: type_env
+    character(len=64), dimension(:), intent(in) :: param_names
+    integer, intent(in) :: param_count
+    character(len=64), intent(in) :: function_name
+    
+    integer :: i, j
+    character(len=64) :: type_str
+    logical :: is_param, is_function
+    
+    ! Generate declaration for each variable except parameters and function name
+    do i = 1, type_env%env%var_count
+      if (type_env%env%vars(i)%in_use .and. &
+          type_env%env%vars(i)%var_type%base_type /= TYPE_UNKNOWN .and. &
+          type_env%env%vars(i)%var_type%base_type /= -1 .and. &          ! Skip already declared
+          type_env%env%vars(i)%var_type%base_type /= -2) then           ! Skip old parameter marker
+        
+        ! Check if this variable is a parameter
+        is_param = .false.
+        do j = 1, param_count
+          if (trim(type_env%env%vars(i)%name) == trim(param_names(j))) then
+            is_param = .true.
+            exit
+          end if
+        end do
+        
+        ! Check if this variable is the function name
+        is_function = .false.
+        if (len_trim(function_name) > 0) then
+          if (trim(type_env%env%vars(i)%name) == trim(function_name)) then
+            is_function = .true.
+          end if
+        end if
+        
+        ! Skip if it's a parameter or function name
+        if (is_param .or. is_function) cycle
+        
+        ! Generate type string
+        select case (type_env%env%vars(i)%var_type%base_type)
+        case (TYPE_INTEGER)
+          write(type_str, '(a,i0,a)') 'integer(', type_env%env%vars(i)%var_type%kind, ')'
+          
+        case (TYPE_REAL)
+          if (type_env%env%vars(i)%var_type%kind == 4) then
+            type_str = 'real'
+          else
+            write(type_str, '(a,i0,a)') 'real(', type_env%env%vars(i)%var_type%kind, ')'
+          end if
+          
+        case (TYPE_LOGICAL)
+          type_str = 'logical'
+          
+        case (TYPE_CHARACTER)
+          if (type_env%env%vars(i)%var_type%char_len >= 0) then
+            write(type_str, '(a,i0,a)') 'character(len=', type_env%env%vars(i)%var_type%char_len, ')'
+          else
+            type_str = 'character(*)'
+          end if
+          
+        case default
+          cycle
+        end select
+        
+        ! Write the declaration
+        write(unit, '(a,a,a,a)') '  ', trim(type_str), ' :: ', trim(type_env%env%vars(i)%name)
+      end if
+    end do
+    
+  end subroutine write_formatted_declarations_skip_params_and_function
+  
   function is_variable_in_output_lines(var_name, output_lines, num_lines) result(found)
     character(len=*), intent(in) :: var_name
     character(len=*), dimension(:), intent(in) :: output_lines
@@ -1230,6 +1324,56 @@ contains
     end do
     
   end function is_variable_in_output_lines
+  
+  subroutine write_formatted_declarations_filtered(unit, type_env, output_lines, num_lines, start_line)
+    integer, intent(in) :: unit
+    type(type_environment), intent(in) :: type_env
+    character(len=*), dimension(:), intent(in) :: output_lines
+    integer, intent(in) :: num_lines, start_line
+    
+    integer :: i
+    character(len=64) :: type_str
+    
+    ! Generate declaration for each variable
+    do i = 1, type_env%env%var_count
+      if (type_env%env%vars(i)%in_use .and. &
+          type_env%env%vars(i)%var_type%base_type /= TYPE_UNKNOWN .and. &
+          type_env%env%vars(i)%var_type%base_type /= -1) then  ! Skip already declared
+        
+        ! Check if this variable is explicitly declared elsewhere in the output
+        if (is_variable_in_output_lines(type_env%env%vars(i)%name, output_lines(start_line:), num_lines - start_line + 1)) then
+          cycle  ! Skip this variable
+        end if
+        
+        ! Generate type string
+        select case (type_env%env%vars(i)%var_type%base_type)
+        case (TYPE_INTEGER)
+          write(type_str, '(a,i0,a)') 'integer(', type_env%env%vars(i)%var_type%kind, ')'
+        case (TYPE_REAL)
+          if (type_env%env%vars(i)%var_type%kind == 4) then
+            type_str = 'real'
+          else
+            write(type_str, '(a,i0,a)') 'real(', type_env%env%vars(i)%var_type%kind, ')'
+          end if
+        case (TYPE_LOGICAL)
+          type_str = 'logical'
+        case (TYPE_CHARACTER)
+          if (type_env%env%vars(i)%var_type%char_len >= 0) then
+            write(type_str, '(a,i0,a)') 'character(len=', type_env%env%vars(i)%var_type%char_len, ')'
+          else
+            type_str = 'character(len=*)'
+          end if
+        case default
+          type_str = ''
+        end select
+        
+        ! Write the declaration
+        write(unit, '(a,a,a,a)') '  ', trim(type_str), ' :: ', trim(type_env%env%vars(i)%name)
+        
+      end if
+    end do
+    
+  end subroutine write_formatted_declarations_filtered
   
   subroutine extract_function_parameters(line, param_names, param_count)
     character(len=*), intent(in) :: line
