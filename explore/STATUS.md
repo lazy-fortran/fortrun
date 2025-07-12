@@ -750,6 +750,177 @@ call compute_stats(data_points, 5, avg, var)
 
 This enhancement addresses the critical gap that prevents Step 1 from working with real Fortran code that uses modules.
 
+### **Additional Requirement: Module File Preprocessing**
+
+#### **Problem Statement**
+Currently the preprocessor only handles program files (.f → program main). We also need to support preprocessing module files where the .f file contains only module definitions without a main program.
+
+#### **Example Scenario:**
+```fortran
+! constants.f - Module file (no program, no main)
+pi = 3.14159265359
+e = 2.71828182846
+golden_ratio = 1.61803398875
+
+real function get_pi()
+    get_pi = pi
+end function
+
+integer function get_version()
+    get_version = 1
+end function
+```
+
+Expected preprocessing output:
+```fortran
+! constants.f90 - Generated module wrapper
+module constants  ! Module name = filename without suffix
+    implicit none
+    
+    ! Auto-generated variable declarations:
+    real(8) :: pi
+    real(8) :: e  
+    real(8) :: golden_ratio
+    
+    ! Module variable initialization
+    pi = 3.14159265359_8
+    e = 2.71828182846_8
+    golden_ratio = 1.61803398875_8
+
+contains
+    real(8) function get_pi()
+        implicit none
+        get_pi = pi
+    end function
+
+    integer(4) function get_version()
+        implicit none
+        get_version = 1
+    end function
+end module constants
+```
+
+#### **Technical Requirements**
+
+**Detection Logic:**
+1. **Parse .f file** - Identify if it contains programs, modules, or neither
+2. **If no program detected** - Check for module-like content:
+   - Variable assignments (module variables)
+   - Function/subroutine definitions
+   - No main program logic
+3. **Module name inference** - Use filename without extension as module name
+
+**Preprocessing Changes:**
+```fortran
+! Current:
+if (.not. has_program_statement) then
+    write(unit_out, '(A)') 'program main'
+    
+! Enhanced:
+if (.not. has_program_statement .and. .not. has_module_statement) then
+    if (detected_module_content) then
+        write(unit_out, '(A)') 'module ' // trim(module_name)
+    else
+        write(unit_out, '(A)') 'program main'
+    end if
+end if
+```
+
+**Module Content Detection:**
+- **Variable assignments**: `pi = 3.14` (module variables)
+- **Function definitions**: `function get_pi()` (module procedures)
+- **No executable statements**: No print, call, etc. in main scope
+- **Default value initialization**: Variable assignments that look like constants
+
+#### **Implementation Steps**
+
+**Phase 1: Module Detection Logic**
+```fortran
+! Add to preprocessor.f90:
+logical :: has_module_statement, detected_module_content
+character(len=64) :: module_name
+
+! During file analysis:
+call detect_module_content(lines, detected_module_content)
+call extract_module_name_from_filename(input_file, module_name)
+```
+
+**Phase 2: Module Wrapper Generation**
+```fortran
+! Module structure:
+! 1. module declaration with inferred name
+! 2. implicit none
+! 3. variable declarations (inferred types)
+! 4. variable initialization assignments
+! 5. contains (if functions/subroutines present)
+! 6. function/subroutine definitions
+! 7. end module
+```
+
+**Phase 3: Test Cases**
+```fortran
+! test/test_module_preprocessing.f90
+test "Module detection from content"
+test "Module name from filename"  
+test "Module variable type inference"
+test "Module functions preprocessing"
+test "Mixed module and program files"
+```
+
+#### **Example Test Cases**
+
+**Test Case 1: Pure Module Variables**
+```fortran
+! math_constants.f
+pi = 3.14159
+e = 2.718
+version = 1
+
+! Expected: Module with variable declarations and initialization
+```
+
+**Test Case 2: Module with Functions**
+```fortran
+! utilities.f
+debug_level = 0
+
+subroutine set_debug(level)
+    debug_level = level
+end subroutine
+
+logical function is_debug()
+    is_debug = debug_level > 0
+end function
+
+! Expected: Module with variables and contains section
+```
+
+**Test Case 3: Ambiguous Cases**
+```fortran
+! main.f - Has assignments but also main logic
+x = 5
+print *, x  ! This makes it a program, not a module
+
+! Expected: program main (not module)
+```
+
+#### **Benefits**
+
+1. **Complete .f file support** - Handle both program and module .f files
+2. **Module ecosystem** - Enable .f modules that can be used by other .f files
+3. **Consistent preprocessing** - Same type inference for modules and programs
+4. **Dependency chain** - Modules processed by Step 1 can be used by other Step 1 files
+
+#### **Integration with Module Dependency Resolution**
+
+This feature complements the module type inference issue:
+1. **Module source discovery** finds both .f90 and .f module files
+2. **Function signature extraction** works on .f modules processed by this feature
+3. **Type registry** includes functions from preprocessed .f modules
+
+Together, these features enable a complete .f ecosystem where modules and programs can all use simplified syntax with automatic type inference.
+
 ---
 *Module Dependency Analysis: 2025-07-12*
+*Module File Preprocessing Requirement: 2025-07-12*
 *Implementation Plan: TDD-Driven Approach*
