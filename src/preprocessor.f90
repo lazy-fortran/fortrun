@@ -186,9 +186,14 @@ contains
           end if
         end if
         
-        ! Check for assignments for type inference
+        ! Check for assignments for type inference  
         if (enable_type_inference) then
-          call detect_and_process_assignment(scope_envs(current_scope), line)
+          ! Pass function name context to avoid treating function return assignments as variable declarations
+          if (current_scope > 1) then
+            call detect_and_process_assignment_with_context(scope_envs(current_scope), line, scope_function_names(current_scope))
+          else
+            call detect_and_process_assignment(scope_envs(current_scope), line)
+          end if
           ! Track parameter usage for intent inference
           if (current_scope > 1) then
             call track_parameter_usage(line, scope_function_params(current_scope, :), scope_param_count(current_scope), &
@@ -253,15 +258,14 @@ contains
           !                                              param_is_assigned(current_scope, :), param_is_read(current_scope, :))
           ! end if
           
-          ! DISABLED: Variable declaration injection (causes duplicate function name declarations)
-          ! TODO: Fix the function name vs variable conflict before re-enabling
-          ! if (scope_has_vars(current_scope)) then
-          !   if (current_scope > 1 .and. len_trim(scope_function_names(current_scope)) > 0) then
-          !     call write_formatted_declarations_skip_function(unit_out, scope_envs(current_scope), scope_function_names(current_scope))
-          !   else
-          !     call write_formatted_declarations(unit_out, scope_envs(current_scope))
-          !   end if
-          ! end if
+          ! FIXED: Variable declaration injection (function name issue resolved with F90WRAP.md insights)
+          if (scope_has_vars(current_scope)) then
+            if (current_scope > 1 .and. len_trim(scope_function_names(current_scope)) > 0) then
+              call write_formatted_declarations_skip_function(unit_out, scope_envs(current_scope), scope_function_names(current_scope))
+            else
+              call write_formatted_declarations(unit_out, scope_envs(current_scope))
+            end if
+          end if
           
           write(unit_out, '(A)') '  '
         end if
@@ -458,6 +462,51 @@ contains
     end if
     
   end subroutine detect_and_process_assignment
+  
+  subroutine detect_and_process_assignment_with_context(type_env, line, function_name)
+    type(type_environment), intent(inout) :: type_env  
+    character(len=*), intent(in) :: line
+    character(len=*), intent(in) :: function_name
+    
+    integer :: eq_pos
+    character(len=256) :: var_name, expr
+    character(len=256) :: trimmed_line
+    
+    trimmed_line = adjustl(line)
+    
+    ! Skip lines that are not assignments (print, write, read, etc.)
+    if ((index(trimmed_line, 'print ') == 1 .or. index(trimmed_line, 'print*') == 1) .or. &
+        (index(trimmed_line, 'write ') == 1 .or. index(trimmed_line, 'write(') == 1) .or. &
+        (index(trimmed_line, 'read ') == 1 .or. index(trimmed_line, 'read(') == 1) .or. &
+        (index(trimmed_line, 'call ') == 1) .or. &
+        (index(trimmed_line, '!') == 1)) then
+      return
+    end if
+    
+    ! Look for assignment operator (=)
+    eq_pos = index(trimmed_line, '=')
+    if (eq_pos > 1) then
+      ! Extract variable name and expression
+      var_name = adjustl(trimmed_line(1:eq_pos-1))
+      expr = adjustl(trimmed_line(eq_pos+1:))
+      
+      ! Remove any leading/trailing whitespace
+      var_name = trim(var_name)
+      expr = trim(expr)
+      
+      ! F90WRAP.md insight: Function names act as return variables and should NOT be declared as regular variables
+      if (len_trim(function_name) > 0 .and. trim(var_name) == trim(function_name)) then
+        ! This is a function return assignment - skip variable declaration to avoid duplicate
+        return
+      end if
+      
+      ! Skip if it's not a simple variable (e.g., array access)
+      if (index(var_name, '(') == 0 .and. index(var_name, '%') == 0) then
+        call process_assignment(type_env, var_name, expr)
+      end if
+    end if
+    
+  end subroutine detect_and_process_assignment_with_context
   
   subroutine analyze_function_call(line, func_names, func_types, num_funcs)
     character(len=*), intent(in) :: line
