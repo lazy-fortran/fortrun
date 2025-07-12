@@ -7,6 +7,7 @@ module type_inference_coordinator
   use expression_analyzer
   use array_analyzer
   use derived_type_analyzer
+  use function_analyzer
   use declaration_generator, decl_gen_generate => generate_declarations
   implicit none
   private
@@ -49,11 +50,16 @@ contains
     
     ! If that failed, try advanced analyzers
     if (inferred_type%base_type == TYPE_UNKNOWN) then
+      ! Try function return analysis
+      call analyze_function_return(expr, '', inferred_type)
+      
       ! Try derived type analysis
-      if (present(env)) then
-        call analyze_derived_type_expression(expr, inferred_type, env%env)
-      else
-        call analyze_derived_type_expression(expr, inferred_type)
+      if (inferred_type%base_type == TYPE_UNKNOWN) then
+        if (present(env)) then
+          call analyze_derived_type_expression(expr, inferred_type, env%env)
+        else
+          call analyze_derived_type_expression(expr, inferred_type)
+        end if
       end if
       
       ! If still unknown, try array analysis

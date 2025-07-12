@@ -17,16 +17,25 @@ The `derived_types.f` example shows:
 - Multiple field assignments automatically infer the derived type structure
 - Different derived types in the same program
 
+## Function Return Type Inference
+
+The `function_returns.f` example shows:
+- Intrinsic function return types: `sin(x)` → `real(8)`
+- String functions: `len_trim(text)` → `integer`
+- Math functions: `sqrt(number)` → `real(8)`
+- Future: User-defined function inference from definitions
+
 ## Running the Examples
 
 ```bash
 fortran arrays.f
 fortran derived_types.f
+fortran function_returns.f
 ```
 
 The CLI tool will automatically:
 1. Detect array literals and field access patterns
-2. Infer appropriate types and dimensions
+2. Infer function return types from calls
 3. Generate proper Fortran declarations
 4. Compile and run the code
 
