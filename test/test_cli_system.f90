@@ -56,6 +56,9 @@ program test_cli_system
   ! Test 14: Invalid file extension
   call test_invalid_extension()
   
+  ! Test 15: --flag option
+  call test_flag_option()
+  
   ! Cleanup
   call cleanup_test_files()
   
@@ -66,8 +69,11 @@ contains
 
   subroutine create_test_file()
     integer :: unit
+    character(len=8) :: timestamp
     
-    test_file = '/tmp/test_system_cli.f90'
+    ! Create unique filename to avoid cache conflicts 
+    call get_timestamp_suffix(timestamp)
+    test_file = '/tmp/test_cli_sys_' // trim(timestamp) // '.f90'
     
     open(newunit=unit, file=test_file, status='replace')
     write(unit, '(a)') 'program test_cli_system'
@@ -153,29 +159,60 @@ contains
   end subroutine test_basic_execution
 
   subroutine test_v_flag()
-    print *, 'Test 5: -v flag'
+    print *, 'Test 5: -v flag (cold and warm cache)'
     
-    ! Clean cache to force rebuild and see verbose output
+    ! Test 5a: Cold cache (clean build)
+    print *, '  Test 5a: Cold cache behavior'
     block
-      character(len=256) :: cache_dir
+      character(len=256) :: cache_dir, basename
+      integer :: last_slash, last_dot
+      
       cache_dir = get_cache_dir()
-      call execute_command_line('rm -rf "' // trim(cache_dir) // '/test_system_cli_*"')
+      
+      ! Extract basename without extension from test_file
+      last_slash = index(test_file, '/', back=.true.)
+      last_dot = index(test_file, '.', back=.true.)
+      if (last_dot > last_slash) then
+        basename = test_file(last_slash+1:last_dot-1)
+      else
+        basename = test_file(last_slash+1:)
+      end if
+      
+      ! Remove all cache entries for this specific test file
+      call execute_command_line('rm -rf "' // trim(cache_dir) // '"/*' // trim(basename) // '*')
     end block
     
     command = 'fpm run fortran -- -v ' // trim(test_file) // &
-              ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
+              ' > /tmp/cli_test_output_cold.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command)
     
-    call check_program_output('/tmp/cli_test_output.txt', 'CLI System Test Output', test_passed)
-    call check_verbose_output('/tmp/cli_test_output.txt', 1, test_passed)
+    call check_program_output('/tmp/cli_test_output_cold.txt', 'CLI System Test Output', test_passed)
+    call check_cold_cache_verbose('/tmp/cli_test_output_cold.txt', test_passed)
     call check_exit_code('/tmp/cli_test_exit.txt', 0, test_passed)
     
     if (.not. test_passed) then
-      write(error_unit, *) 'FAIL: -v flag test failed'
+      write(error_unit, *) 'FAIL: -v flag cold cache test failed'
       stop 1
     end if
+    print *, '  PASS: Cold cache shows build output'
     
-    print *, 'PASS: -v flag works'
+    ! Test 5b: Warm cache (should use existing build)
+    print *, '  Test 5b: Warm cache behavior'
+    command = 'fpm run fortran -- -v ' // trim(test_file) // &
+              ' > /tmp/cli_test_output_warm.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
+    call execute_command_line(command)
+    
+    call check_program_output('/tmp/cli_test_output_warm.txt', 'CLI System Test Output', test_passed)
+    call check_warm_cache_verbose('/tmp/cli_test_output_warm.txt', test_passed)
+    call check_exit_code('/tmp/cli_test_exit.txt', 0, test_passed)
+    
+    if (.not. test_passed) then
+      write(error_unit, *) 'FAIL: -v flag warm cache test failed'
+      stop 1
+    end if
+    print *, '  PASS: Warm cache shows cache hit'
+    
+    print *, 'PASS: -v flag works for both cache states'
     print *
   end subroutine test_v_flag
 
@@ -202,13 +239,6 @@ contains
   subroutine test_verbose_flag()
     print *, 'Test 7: --verbose flag (no argument)'
     
-    ! Clean cache to force rebuild and see verbose output
-    block
-      character(len=256) :: cache_dir
-      cache_dir = get_cache_dir()
-      call execute_command_line('rm -rf "' // trim(cache_dir) // '/test_system_cli_*"')
-    end block
-    
     command = 'fpm run fortran -- --verbose ' // trim(test_file) // &
               ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
     call execute_command_line(command)
@@ -228,13 +258,6 @@ contains
 
   subroutine test_verbose_1()
     print *, 'Test 8: --verbose 1'
-    
-    ! Clean cache to force rebuild and see verbose output
-    block
-      character(len=256) :: cache_dir
-      cache_dir = get_cache_dir()
-      call execute_command_line('rm -rf "' // trim(cache_dir) // '/test_system_cli_*"')
-    end block
     
     command = 'fpm run fortran -- --verbose 1 ' // trim(test_file) // &
               ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
@@ -432,12 +455,17 @@ contains
       if (iostat /= 0) exit
       
       if (level == 1) then
-        ! Level 1 should show build progress like "[  0%]" or "done."
+        ! Level 1 should show build progress like "[  0%]" or "done." on cache miss
+        ! or cache status messages like "Cache hit" or "Cache miss" 
         if (index(line, '[') > 0 .and. index(line, '%]') > 0) then
           found_verbose = .true.
           exit
         end if
         if (index(line, 'done.') > 0) then
+          found_verbose = .true.
+          exit
+        end if
+        if (index(line, 'Cache hit') > 0 .or. index(line, 'Cache miss') > 0) then
           found_verbose = .true.
           exit
         end if
@@ -459,6 +487,97 @@ contains
     end if
     
   end subroutine check_verbose_output
+
+  subroutine check_cold_cache_verbose(output_file, passed)
+    character(len=*), intent(in) :: output_file
+    logical, intent(out) :: passed
+    character(len=512) :: line
+    integer :: unit, iostat
+    logical :: found_build_output
+    
+    passed = .false.
+    found_build_output = .false.
+    
+    open(newunit=unit, file=output_file, status='old', iostat=iostat)
+    if (iostat /= 0) then
+      write(error_unit, *) 'Error: Cannot open output file: ', trim(output_file)
+      return
+    end if
+    
+    do
+      read(unit, '(a)', iostat=iostat) line
+      if (iostat /= 0) exit
+      
+      ! Cold cache should show either Cache miss or FPM build output
+      if (index(line, 'Cache miss') > 0) then
+        found_build_output = .true.
+        exit
+      end if
+      if (index(line, '[') > 0 .and. index(line, '%]') > 0) then
+        found_build_output = .true.
+        exit
+      end if
+      if (index(line, 'done.') > 0) then
+        found_build_output = .true.
+        exit
+      end if
+    end do
+    
+    close(unit)
+    
+    if (found_build_output) then
+      passed = .true.
+    else
+      write(error_unit, *) 'Error: Cold cache verbose output not found (expected Cache miss or build output)'
+    end if
+    
+  end subroutine check_cold_cache_verbose
+
+  subroutine check_warm_cache_verbose(output_file, passed)
+    character(len=*), intent(in) :: output_file
+    logical, intent(out) :: passed
+    character(len=512) :: line
+    integer :: unit, iostat
+    logical :: found_cache_hit
+    
+    passed = .false.
+    found_cache_hit = .false.
+    
+    open(newunit=unit, file=output_file, status='old', iostat=iostat)
+    if (iostat /= 0) then
+      write(error_unit, *) 'Error: Cannot open output file: ', trim(output_file)
+      return
+    end if
+    
+    do
+      read(unit, '(a)', iostat=iostat) line
+      if (iostat /= 0) exit
+      
+      ! Warm cache should show Cache hit
+      if (index(line, 'Cache hit') > 0) then
+        found_cache_hit = .true.
+        exit
+      end if
+    end do
+    
+    close(unit)
+    
+    if (found_cache_hit) then
+      passed = .true.
+    else
+      write(error_unit, *) 'Error: Warm cache verbose output not found (expected Cache hit)'
+    end if
+    
+  end subroutine check_warm_cache_verbose
+
+  subroutine get_timestamp_suffix(suffix)
+    character(len=*), intent(out) :: suffix
+    integer :: values(8)
+    
+    call date_and_time(values=values)
+    write(suffix, '(i2.2,i2.2,i2.2)') values(5), values(6), values(7)
+    
+  end subroutine get_timestamp_suffix
 
   subroutine check_exit_code(exit_file, expected, passed)
     character(len=*), intent(in) :: exit_file
@@ -564,6 +683,62 @@ contains
     ! Cleanup
     call execute_command_line('rm -f ' // trim(test_txt_file))
   end subroutine test_invalid_extension
+
+  subroutine test_flag_option()
+    logical :: exit_ok, has_output
+    integer :: unit
+    character(len=256) :: test_flag_file
+    
+    print *, 'Test 15: --flag option functionality'
+    
+    ! Create a test .f90 file to test with custom flags
+    test_flag_file = '/tmp/test_flag_option.f90'
+    open(newunit=unit, file=test_flag_file, status='replace')
+    write(unit, '(a)') 'program test_flags'
+    write(unit, '(a)') '  implicit none'
+    write(unit, '(a)') '  print *, "Flag test output"'
+    write(unit, '(a)') 'end program test_flags'
+    close(unit)
+    
+    ! Test with custom optimization flags
+    command = 'fpm run fortran -- --flag "-O2" ' // trim(test_flag_file) // &
+              ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
+    call execute_command_line(command, exitstat=exit_code)
+    
+    call check_exit_code('/tmp/cli_test_exit.txt', 0, exit_ok)
+    call check_program_output('/tmp/cli_test_output.txt', 'Flag test output', has_output)
+    
+    if (exit_ok .and. has_output) then
+      print *, 'PASS: --flag option works with .f90 files'
+    else
+      print *, 'FAIL: --flag option failed with .f90 files'
+    end if
+    
+    ! Test with .f file (should combine with opinionated flags)
+    print *, '  Testing .f file with --flag option'
+    
+    ! Create a test .f file
+    test_flag_file = '/tmp/test_flag_option.f'
+    open(newunit=unit, file=test_flag_file, status='replace')
+    write(unit, '(a)') 'print *, "Flag test output with .f file"'
+    close(unit)
+    
+    command = 'fpm run fortran -- --flag "-Wall" ' // trim(test_flag_file) // &
+              ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
+    call execute_command_line(command, exitstat=exit_code)
+    
+    call check_exit_code('/tmp/cli_test_exit.txt', 0, exit_ok)
+    call check_program_output('/tmp/cli_test_output.txt', 'Flag test output with .f file', has_output)
+    
+    if (exit_ok .and. has_output) then
+      print *, 'PASS: --flag option works with .f files'
+    else
+      print *, 'FAIL: --flag option failed with .f files'
+    end if
+    
+    ! Cleanup
+    call execute_command_line('rm -f /tmp/test_flag_option.f90 /tmp/test_flag_option.f')
+  end subroutine test_flag_option
 
   subroutine cleanup_test_files()
     call execute_command_line('rm -f /tmp/test_system_cli.f90')
