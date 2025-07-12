@@ -21,7 +21,7 @@ module type_environment
   public :: cleanup_type_environment
   public :: add_variable
   public :: update_variable_type
-  public :: find_variable
+  public :: find_variable_index
   public :: get_variable_type
   public :: has_variable
   

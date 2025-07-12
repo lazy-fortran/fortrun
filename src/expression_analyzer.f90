@@ -2,8 +2,6 @@ module expression_analyzer
   use type_system
   use type_environment
   use literal_analyzer
-  use array_analyzer
-  use derived_type_analyzer
   implicit none
   private
   
@@ -23,7 +21,7 @@ contains
     type(type_environment_t), intent(in), optional :: env
     
     character(len=len(expr)) :: trimmed_expr
-    logical :: is_literal
+    logical :: is_literal, found
     
     ! Initialize to unknown
     result_type = create_type_info(TYPE_UNKNOWN)
@@ -42,29 +40,18 @@ contains
     else if (is_intrinsic_function(trimmed_expr, result_type, env)) then
       ! Type already set by is_intrinsic_function
     else
-      ! Check for derived type expressions
-      call analyze_derived_type_expression(trimmed_expr, result_type, env)
+      ! Check for literals
+      call analyze_literal(trimmed_expr, result_type, is_literal)
       
-      if (result_type%base_type == TYPE_UNKNOWN) then
-        ! Check for array expressions
-        call analyze_array_expression(trimmed_expr, result_type, env)
-        
-        if (result_type%base_type == TYPE_UNKNOWN) then
-          ! Check for literals
-          call analyze_literal(trimmed_expr, result_type, is_literal)
-          
-          if (.not. is_literal) then
-            ! Check if it's a known variable
-            if (present(env)) then
-              logical :: found
-              call get_variable_type(env, trimmed_expr, result_type, found)
-              if (.not. found) then
-                result_type = create_type_info(TYPE_UNKNOWN)
-              end if
-            else
-              result_type = create_type_info(TYPE_UNKNOWN)
-            end if
+      if (.not. is_literal) then
+        ! Check if it's a known variable
+        if (present(env)) then
+          call get_variable_type(env, trimmed_expr, result_type, found)
+          if (.not. found) then
+            result_type = create_type_info(TYPE_UNKNOWN)
           end if
+        else
+          result_type = create_type_info(TYPE_UNKNOWN)
         end if
       end if
     end if

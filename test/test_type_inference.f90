@@ -1,5 +1,5 @@
 program test_type_inference
-  use type_inference
+  use type_inference_coordinator
   implicit none
   
   integer :: test_count, pass_count
