@@ -128,7 +128,8 @@ contains
         end if
         
         ! Check for assignments for type inference
-        if (enable_type_inference .and. .not. in_subroutine .and. .not. in_function) then
+        ! Enable type inference inside functions and subroutines too
+        if (enable_type_inference) then
           call detect_and_process_assignment(type_env, line)
         end if
         
