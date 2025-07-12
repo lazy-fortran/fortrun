@@ -34,7 +34,6 @@ contains
     logical :: has_program_statement, contains_written
     logical :: enable_type_inference
     character(len=:), allocatable :: indent
-    type(type_environment) :: type_env
     
     ! Multi-scope support
     type(type_environment), dimension(10) :: scope_envs
@@ -120,6 +119,7 @@ contains
         if (current_scope > max_scope) max_scope = current_scope
         if (enable_type_inference) then
           call init_type_environment(scope_envs(current_scope))
+          ! TODO: Parse function parameters and add them to scope
         end if
         output_line_count = output_line_count + 1
         output_lines(output_line_count) = line
