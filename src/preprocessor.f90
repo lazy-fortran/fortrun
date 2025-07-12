@@ -461,12 +461,8 @@ contains
                                                                scope_function_params(j, :), scope_param_count(j))
               end if
             else
-              ! For main scope, use filtered version to avoid duplicates with explicit declarations
-              if (j == 1) then
-                call write_formatted_declarations_filtered(unit_out, scope_envs(j), output_lines, output_line_count, i)
-              else
-                call write_formatted_declarations(unit_out, scope_envs(j))
-              end if
+              ! Use filtered version for all scopes to avoid duplicates with explicit declarations
+              call write_formatted_declarations_filtered(unit_out, scope_envs(j), output_lines, output_line_count, i)
             end if
           end if
           
@@ -663,6 +659,11 @@ contains
       return
     end if
     
+    ! Skip explicit variable declarations - these should not be processed as assignments
+    if (is_declaration_line(line)) then
+      return
+    end if
+    
     ! Look for assignment operator (=)
     eq_pos = index(trimmed_line, '=')
     if (eq_pos > 1) then
@@ -699,6 +700,11 @@ contains
         (index(trimmed_line, 'read ') == 1 .or. index(trimmed_line, 'read(') == 1) .or. &
         (index(trimmed_line, 'call ') == 1) .or. &
         (index(trimmed_line, '!') == 1)) then
+      return
+    end if
+    
+    ! Skip explicit variable declarations - these should not be processed as assignments
+    if (is_declaration_line(line)) then
       return
     end if
     
@@ -1341,7 +1347,7 @@ contains
           type_env%env%vars(i)%var_type%base_type /= -1) then  ! Skip already declared
         
         ! Check if this variable is explicitly declared elsewhere in the output
-        if (is_variable_in_output_lines(type_env%env%vars(i)%name, output_lines(start_line:), num_lines - start_line + 1)) then
+        if (is_variable_in_output_lines(type_env%env%vars(i)%name, output_lines, num_lines)) then
           cycle  ! Skip this variable
         end if
         
