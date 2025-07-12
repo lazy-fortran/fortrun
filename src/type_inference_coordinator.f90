@@ -1,10 +1,13 @@
 module type_inference_coordinator
   use type_system
   use type_environment, type_env_init => init_type_environment, &
-                        type_env_cleanup => cleanup_type_environment
+                        type_env_cleanup => cleanup_type_environment, &
+                        type_env_get_var => get_variable_type
   use literal_analyzer
   use expression_analyzer
-  use declaration_generator
+  use array_analyzer
+  use derived_type_analyzer
+  use declaration_generator, decl_gen_generate => generate_declarations
   implicit none
   private
   
@@ -31,16 +34,36 @@ module type_inference_coordinator
   
 contains
 
-  ! Main type inference entry point - backward compatible
+  ! Main type inference entry point - backward compatible with advanced features
   subroutine infer_type_from_expression(expr, inferred_type, env)
     character(len=*), intent(in) :: expr
     type(type_info), intent(out) :: inferred_type
     type(type_environment), intent(in), optional :: env
     
+    ! First try basic expression analysis
     if (present(env)) then
       call analyze_expression(expr, inferred_type, env%env)
     else
       call analyze_expression(expr, inferred_type)
+    end if
+    
+    ! If that failed, try advanced analyzers
+    if (inferred_type%base_type == TYPE_UNKNOWN) then
+      ! Try derived type analysis
+      if (present(env)) then
+        call analyze_derived_type_expression(expr, inferred_type, env%env)
+      else
+        call analyze_derived_type_expression(expr, inferred_type)
+      end if
+      
+      ! If still unknown, try array analysis
+      if (inferred_type%base_type == TYPE_UNKNOWN) then
+        if (present(env)) then
+          call analyze_array_expression(expr, inferred_type, env%env)
+        else
+          call analyze_array_expression(expr, inferred_type)
+        end if
+      end if
     end if
     
   end subroutine infer_type_from_expression
@@ -65,8 +88,8 @@ contains
     type(type_environment), intent(inout) :: env
     character(len=*), intent(in) :: var_name, expr
     
-    type(type_info) :: expr_type
-    logical :: success
+    type(type_info) :: expr_type, current_type
+    logical :: success, found
     
     ! Ignore array subscripts - only process simple variable names
     if (index(var_name, '(') > 0) then
@@ -87,9 +110,7 @@ contains
     
     ! Handle pre-declared variables (base_type = -1)
     if (success) then
-      type(type_info) :: current_type
-      logical :: found
-      call get_variable_type(env%env, var_name, current_type, found)
+      call type_env_get_var(env%env, var_name, current_type, found)
       if (found .and. current_type%base_type == -1) then
         ! Variable already declared - skip type inference by setting unknown
         call update_variable_type(env%env, var_name, create_type_info(TYPE_UNKNOWN), success)
@@ -105,7 +126,7 @@ contains
     type(type_info), intent(out) :: var_type
     logical, intent(out) :: found
     
-    call get_variable_type(env%env, var_name, var_type, found)
+    call type_env_get_var(env%env, var_name, var_type, found)
     
   end subroutine get_variable_type
 
@@ -114,7 +135,7 @@ contains
     type(type_environment), intent(in) :: env
     character(len=*), intent(out) :: declarations
     
-    call generate_declarations(env%env, declarations)
+    call decl_gen_generate(env%env, declarations)
     
   end subroutine generate_declarations
 
