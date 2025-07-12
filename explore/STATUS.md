@@ -505,16 +505,16 @@ Created and deployed multi-scope preprocessor with the following approach:
    - Track implicit none line numbers for each scope
    - Store all output lines in memory for proper injection
 
-2. **Current Issues:**
-   - ❌ Variable declarations still being injected at wrong scope
-   - ❌ Function parameters and return types not handled
-   - ❌ Scope tracking logic needs debugging
+2. **Progress Update:**
+   - ✅ Fixed scope tracking - variables now injected at correct scope levels
+   - ✅ Function-local variables (like `factor`) correctly declared inside functions
+   - ❌ Function parameters and return types still not handled
+   - ❌ Function name treated as variable assignment needs special handling
 
-3. **Root Problem:**
-   The multi-scope implementation is more complex than anticipated. The main challenges are:
-   - Tracking output line numbers correctly when modifying the file
-   - Managing separate type environments per scope
+3. **Remaining Challenges:**
    - Function signature type inference (parameters and return types)
+   - Distinguishing function names from regular variables
+   - Handling function parameters that appear in expressions
 
 4. **Next Steps:**
    - Debug the scope tracking to ensure variables are associated with correct scopes

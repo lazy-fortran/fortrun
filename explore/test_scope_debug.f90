@@ -1,0 +1,24 @@
+program main
+  implicit none
+  
+  ! Auto-generated variable declarations:
+  real(8) :: x
+  real(8) :: result
+  
+  ! Simple test to verify scope behavior
+  x = 5.0
+  result = double_it(x)
+  print *, "Result:", result
+
+contains
+function double_it(input)
+    implicit none
+  
+  ! Auto-generated variable declarations:
+  real(8) :: factor
+  
+    ! Variables inside function
+    factor = 2.0
+    double_it = input * factor
+end function
+end program main
