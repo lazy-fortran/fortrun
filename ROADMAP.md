@@ -190,13 +190,36 @@
 - **Implementation**: Track array shapes through operations
 - **Support**: Static arrays, allocatable arrays, array sections
 
-#### 7.3 Function Return Type and Intent-Based Inference
-- **Feature**: Infer function return types from return statements and propagate types through intent declarations
+#### 7.3 Function Parameter Type Inference (Future)
+- **Feature**: Infer function parameter types from call sites (requires whole-program analysis)
+- **Status**: ⚠️ **Deferred - Requires multiple dispatch capabilities**
+- **Challenges**:
+  - Need to analyze all function call sites
+  - Handle polymorphic functions called with different types
+  - Requires sophisticated type unification algorithm
+  - May need multiple dispatch or generic function generation
+- **Example**:
+  ```fortran
+  ! Current limitation - parameters need explicit types
+  function add(a, b)
+    ! Cannot infer types of a, b without analyzing all calls
+    add = a + b
+  end function
+  
+  ! Would need to analyze:
+  result1 = add(1.0, 2.0)     ! Suggests real types
+  result2 = add(1, 2)         ! Suggests integer types
+  ! This requires multiple dispatch or compile-time polymorphism
+  ```
+
+#### 7.4 Function Return Type Inference (Partial)
+- **Feature**: Infer function return types from return statements
+- **Status**: ✅ Basic implementation complete for simple cases
 - **Example**:
   ```fortran
   ! Function return type inference from return value
   function compute(x, y)
-    real(8), intent(in) :: x, y  ! These are declared
+    real(8), intent(in) :: x, y  ! Parameters still need declarations
     compute = x**2 + y**2  ! Return type inferred as real(8) from expression
   end function
   
