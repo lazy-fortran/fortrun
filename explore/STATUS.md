@@ -493,3 +493,33 @@ This enhancement would complete the "Python-like" experience for Fortran by enab
 
 ---
 *Solution Documented: 2025-07-12*
+
+## 🔧 **Implementation Attempt: Multi-Scope Preprocessor**
+
+### **Implementation Status (2025-07-12)**
+
+Created and deployed multi-scope preprocessor with the following approach:
+
+1. **Architecture Changes:**
+   - Array of type environments for each scope (up to 10 nested scopes)
+   - Track implicit none line numbers for each scope
+   - Store all output lines in memory for proper injection
+
+2. **Current Issues:**
+   - ❌ Variable declarations still being injected at wrong scope
+   - ❌ Function parameters and return types not handled
+   - ❌ Scope tracking logic needs debugging
+
+3. **Root Problem:**
+   The multi-scope implementation is more complex than anticipated. The main challenges are:
+   - Tracking output line numbers correctly when modifying the file
+   - Managing separate type environments per scope
+   - Function signature type inference (parameters and return types)
+
+4. **Next Steps:**
+   - Debug the scope tracking to ensure variables are associated with correct scopes
+   - Add function parameter and return type inference
+   - Consider alternative approaches if complexity remains high
+
+---
+*Implementation Attempted: 2025-07-12*

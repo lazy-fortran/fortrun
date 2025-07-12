@@ -1,5 +1,4 @@
 module preprocessor
-  ! Replace the original preprocessor with multi-scope support
   use cache, only: get_cache_dir
   use type_inference_coordinator
   implicit none
@@ -35,15 +34,7 @@ contains
     logical :: enable_type_inference
     character(len=:), allocatable :: indent
     type(type_environment) :: type_env
-    
-    ! Multi-scope support
-    type(type_environment), dimension(10) :: scope_envs
-    integer :: current_scope = 0
-    logical, dimension(10) :: scope_has_vars = .false.
-    character(len=1024), dimension(10000) :: output_lines
-    integer :: output_line_count = 0
-    integer, dimension(10) :: implicit_lines = 0
-    integer :: i
+    character(len=2048) :: declarations
     
     error_msg = ''
     in_subroutine = .false.
@@ -53,16 +44,23 @@ contains
     enable_type_inference = .true.  ! Enable by default for .f files
     line_num = 0
     
-    ! Initialize type inference environment for main scope
-    current_scope = 1
+    ! Initialize type inference environment
     if (enable_type_inference) then
-      call init_type_environment(scope_envs(1))
+      call init_type_environment(type_env)
     end if
     
     ! Open input file
     open(newunit=unit_in, file=input_file, status='old', action='read', iostat=ios)
     if (ios /= 0) then
       error_msg = 'Failed to open input file: ' // trim(input_file)
+      return
+    end if
+    
+    ! Open output file
+    open(newunit=unit_out, file=output_file, status='replace', action='write', iostat=ios)
+    if (ios /= 0) then
+      close(unit_in)
+      error_msg = 'Failed to create output file: ' // trim(output_file)
       return
     end if
     
@@ -82,11 +80,8 @@ contains
     
     ! If no program statement, wrap everything in a program
     if (.not. has_program_statement) then
-      output_line_count = output_line_count + 1
-      output_lines(output_line_count) = 'program main'
-      output_line_count = output_line_count + 1
-      output_lines(output_line_count) = '  implicit none'
-      implicit_lines(1) = output_line_count
+      write(unit_out, '(A)') 'program main'
+      write(unit_out, '(A)') '  implicit none'
     end if
     
     ! Process file line by line
@@ -98,8 +93,7 @@ contains
       
       ! Skip empty lines
       if (len_trim(line) == 0) then
-        output_line_count = output_line_count + 1
-        output_lines(output_line_count) = ''
+        write(unit_out, '(A)') ''
         cycle
       end if
       
@@ -109,114 +103,64 @@ contains
       ! Check for function/subroutine declarations
       if (is_function_declaration(line)) then
         if (.not. has_program_statement .and. .not. contains_written) then
-          output_line_count = output_line_count + 1
-          output_lines(output_line_count) = 'contains'
+          write(unit_out, '(A)') 'contains'
           contains_written = .true.
         end if
         in_function = .true.
-        current_scope = current_scope + 1
-        if (enable_type_inference) then
-          call init_type_environment(scope_envs(current_scope))
-        end if
-        output_line_count = output_line_count + 1
-        output_lines(output_line_count) = line
+        write(unit_out, '(A)') line
       else if (is_subroutine_declaration(line)) then
         if (.not. has_program_statement .and. .not. contains_written) then
-          output_line_count = output_line_count + 1
-          output_lines(output_line_count) = 'contains'
+          write(unit_out, '(A)') 'contains'
           contains_written = .true.
         end if
         in_subroutine = .true.
-        current_scope = current_scope + 1
-        if (enable_type_inference) then
-          call init_type_environment(scope_envs(current_scope))
-        end if
-        output_line_count = output_line_count + 1
-        output_lines(output_line_count) = line
+        write(unit_out, '(A)') line
       else if (is_end_statement(line, 'function')) then
         in_function = .false.
-        if (current_scope > 1) current_scope = current_scope - 1
-        output_line_count = output_line_count + 1
-        output_lines(output_line_count) = line
+        write(unit_out, '(A)') line
       else if (is_end_statement(line, 'subroutine')) then
         in_subroutine = .false.
-        if (current_scope > 1) current_scope = current_scope - 1
-        output_line_count = output_line_count + 1
-        output_lines(output_line_count) = line
-      else if (index(adjustl(line), 'implicit none') == 1) then
-        implicit_lines(current_scope) = output_line_count + 1
-        output_line_count = output_line_count + 1
-        output_lines(output_line_count) = line
+        write(unit_out, '(A)') line
       else
         ! Check for existing declarations
         if (enable_type_inference .and. is_declaration_line(line)) then
-          call mark_declared_variables(scope_envs(current_scope), line)
+          call mark_declared_variables(type_env, line)
         end if
         
         ! Check for assignments for type inference
+        ! Enable type inference inside functions and subroutines too
         if (enable_type_inference) then
-          call detect_and_process_assignment(scope_envs(current_scope), line)
+          call detect_and_process_assignment(type_env, line)
         end if
         
         ! Regular line - add proper indentation if we added program wrapper
         if (.not. has_program_statement .and. .not. in_subroutine .and. .not. in_function) then
-          output_line_count = output_line_count + 1
-          output_lines(output_line_count) = '  ' // trim(line)
+          write(unit_out, '(A)') '  ' // trim(line)
         else
-          output_line_count = output_line_count + 1
-          output_lines(output_line_count) = line
+          write(unit_out, '(A)') line
         end if
       end if
     end do
     
     ! Close program wrapper if we added one
     if (.not. has_program_statement) then
-      output_line_count = output_line_count + 1
-      output_lines(output_line_count) = 'end program main'
+      write(unit_out, '(A)') 'end program main'
     end if
     
     close(unit_in)
-    
-    ! Check which scopes have variables
-    do i = 1, current_scope
-      scope_has_vars(i) = scope_envs(i)%env%var_count > 0
-    end do
-    
-    ! Now write output with injected declarations
-    open(newunit=unit_out, file=output_file, status='replace', action='write', iostat=ios)
-    if (ios /= 0) then
-      error_msg = 'Failed to create output file: ' // trim(output_file)
-      return
-    end if
-    
-    do i = 1, output_line_count
-      write(unit_out, '(A)') trim(output_lines(i))
-      
-      ! Check if we need to inject declarations after this line
-      do current_scope = 1, 10
-        if (implicit_lines(current_scope) == i .and. scope_has_vars(current_scope)) then
-          write(unit_out, '(A)') '  '
-          write(unit_out, '(A)') '  ! Auto-generated variable declarations:'
-          call write_formatted_declarations(unit_out, scope_envs(current_scope))
-          write(unit_out, '(A)') '  '
-        end if
-      end do
-    end do
-    
     close(unit_out)
     
-    ! Cleanup type environments
+    ! Now post-process to add declarations if type inference was used
+    if (enable_type_inference .and. type_env%env%var_count > 0) then
+      call inject_declarations(output_file, type_env, error_msg)
+    end if
+    
+    ! Cleanup type environment
     if (enable_type_inference) then
-      do i = 1, 10
-        if (scope_has_vars(i)) then
-          call cleanup_type_environment(scope_envs(i))
-        end if
-      end do
+      call cleanup_type_environment(type_env)
     end if
     
   end subroutine preprocess_file
-  
-  ! Helper functions remain the same...
   
   function get_indentation(line) result(indent)
     character(len=*), intent(in) :: line
@@ -393,6 +337,64 @@ contains
     end if
     
   end subroutine detect_and_process_assignment
+  
+  subroutine inject_declarations(filename, type_env, error_msg)
+    character(len=*), intent(in) :: filename
+    type(type_environment), intent(in) :: type_env
+    character(len=*), intent(out) :: error_msg
+    
+    character(len=2048) :: declarations
+    character(len=1024) :: line, temp_filename
+    integer :: unit_in, unit_out, ios
+    logical :: declarations_added
+    
+    error_msg = ''
+    declarations_added = .false.
+    temp_filename = trim(filename) // '.tmp'
+    
+    ! Generate declarations
+    call generate_declarations(type_env, declarations)
+    if (len_trim(declarations) == 0) return
+    
+    ! Open original file for reading
+    open(newunit=unit_in, file=filename, status='old', action='read', iostat=ios)
+    if (ios /= 0) then
+      error_msg = 'Failed to open file for declaration injection'
+      return
+    end if
+    
+    ! Open temporary file for writing
+    open(newunit=unit_out, file=temp_filename, status='replace', action='write', iostat=ios)
+    if (ios /= 0) then
+      close(unit_in)
+      error_msg = 'Failed to create temporary file'
+      return
+    end if
+    
+    ! Copy file, inserting declarations after implicit none
+    do
+      read(unit_in, '(A)', iostat=ios) line
+      if (ios /= 0) exit
+      
+      write(unit_out, '(A)') line
+      
+      ! Insert declarations after implicit none
+      if (.not. declarations_added .and. index(adjustl(line), 'implicit none') == 1) then
+        write(unit_out, '(A)') '  '  ! Blank line
+        write(unit_out, '(A)') '  ! Auto-generated variable declarations:'
+        call write_formatted_declarations(unit_out, type_env)
+        write(unit_out, '(A)') '  '  ! Blank line
+        declarations_added = .true.
+      end if
+    end do
+    
+    close(unit_in)
+    close(unit_out)
+    
+    ! Replace original with temporary
+    call execute_command_line('mv ' // trim(temp_filename) // ' ' // trim(filename))
+    
+  end subroutine inject_declarations
   
   subroutine write_formatted_declarations(unit, type_env)
     integer, intent(in) :: unit
