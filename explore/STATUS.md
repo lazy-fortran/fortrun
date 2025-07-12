@@ -140,5 +140,134 @@ Systematic exploration of the `fortran` tool capabilities, testing existing exam
 
 The type inference is currently at a very basic level - it only handles simple variable assignments with literal values.
 
+### Additional Findings
+
+#### Working Cases (Added)
+- ✅ `explore/intrinsics_test.f` - Basic intrinsic functions work (sqrt, sin, cos, abs) but complex ones fail
+- ✅ `explore/precision_test.f` - Precision handling works correctly, shows double precision defaults
+
+#### Failed Cases (Added)  
+- ❌ `explore/intrinsics_test.f` - Multi-argument intrinsics fail (`max`, `min` with multiple args)
+
+---
+
+## TDD Plan for Type Inference Improvements
+
+### Phase 1: Unit Tests (test/ directory)
+
+#### test_type_inference_basic.f90
+```fortran
+! Test basic type inference functionality
+- Test literal type detection (integer, real, character, logical)
+- Test variable declaration generation
+- Test simple expression type propagation
+- Edge cases: empty strings, zero values, precision variants
+```
+
+#### test_type_inference_expressions.f90  
+```fortran
+! Test expression type inference
+- Test arithmetic operations (int+real, real*real, etc.)
+- Test intrinsic function return types
+- Test string concatenation and operations
+- Test logical expressions and comparisons
+```
+
+#### test_type_inference_arrays.f90
+```fortran
+! Test array type inference (currently failing)
+- Test array literal detection `[1,2,3]`
+- Test array size inference
+- Test array operations (sum, size, etc.)
+- Test multidimensional arrays
+```
+
+#### test_type_inference_functions.f90
+```fortran
+! Test function type inference (currently failing)
+- Test function parameter type detection
+- Test function return type inference
+- Test nested function calls
+- Test recursive type analysis
+```
+
+### Phase 2: Integration Tests (test/ directory)
+
+#### test_preprocessor_integration.f90
+```fortran
+! Test preprocessor + type inference integration
+- Test .f file preprocessing with various type scenarios
+- Test program wrapping with complex type declarations
+- Test contains insertion with function type inference
+- Test error handling and recovery
+```
+
+#### test_cache_integration.f90
+```fortran
+! Test caching with type inference
+- Test cache invalidation when type inference changes
+- Test performance with large type inference workloads
+- Test concurrent builds with type inference
+```
+
+### Phase 3: System Tests (test/ directory)
+
+#### test_type_inference_system.f90
+```fortran
+! End-to-end system tests
+- Test complete workflows: .f → preprocessing → compilation → execution
+- Test all example files that currently fail
+- Test error messages and user experience
+- Test performance benchmarks
+```
+
+### Phase 4: Implementation Strategy (TDD)
+
+#### Step 1: Fix Expression Analysis
+1. **Write failing tests** for expression type inference
+2. **Implement** expression tree analysis in `src/preprocessor.f90`
+3. **Add** type propagation rules for operators
+4. **Ensure tests pass**
+
+#### Step 2: Add Array Support  
+1. **Write failing tests** for array literal detection
+2. **Implement** array syntax parsing in preprocessor
+3. **Add** array type declaration generation
+4. **Ensure tests pass**
+
+#### Step 3: Function Type Inference
+1. **Write failing tests** for function parameter/return types
+2. **Implement** function signature analysis
+3. **Add** recursive type inference for function bodies
+4. **Ensure tests pass**
+
+#### Step 4: String Operations
+1. **Write failing tests** for string concatenation and functions
+2. **Implement** character length inference for operations
+3. **Fix** trim(), len(), etc. return type handling
+4. **Ensure tests pass**
+
+### Phase 5: Examples and Documentation
+
+#### Fix Broken Examples
+- Fix `example/notebook/simple_math.f` using new function inference
+- Fix `example/notebook/arrays_loops.f` using new array inference
+- Fix `example/notebook/control_flow.f` using improved expression inference
+
+#### Create New Examples
+- Add `example/type_inference_showcase/` with working examples
+- Document limitations and migration paths
+- Add performance comparison .f vs .f90
+
+### Implementation Priority
+1. **High**: Expression type analysis (affects most cases)
+2. **High**: Function type inference (blocks many examples)  
+3. **Medium**: Array support (enables advanced examples)
+4. **Medium**: String operation improvements
+5. **Low**: Performance optimizations
+
+This TDD approach ensures each improvement is tested, documented, and doesn't break existing functionality.
+
 ---
 *Started: 2025-07-12*
+*TDD Plan Added: 2025-07-12*
