@@ -29,7 +29,7 @@ program test_conflicting_dependencies
   call execute_command_line('mkdir -p ' // trim(project_dir))
   
   ! Generate FPM file - this should handle the conflict
-  call generate_fpm_with_deps_from_config(project_dir, 'test_project', test_modules, 2, '/tmp')
+  call generate_fpm_with_deps_from_config(project_dir, 'test_project', test_modules, 2, '/tmp', .false., '')
   
   ! Check the generated fpm.toml for conflict resolution
   fpm_toml_path = trim(project_dir) // '/fpm.toml'

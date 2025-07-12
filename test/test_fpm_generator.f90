@@ -30,7 +30,7 @@ program test_fpm_generator
   call scan_modules(test_file, modules, n_modules)
   
   ! Generate fpm.toml
-  call generate_fpm_with_deps(output_dir, 'test_pyplot', modules, n_modules)
+  call generate_fpm_with_deps(output_dir, 'test_pyplot', modules, n_modules, .false., '')
   
   ! Check generated fpm.toml
   fpm_file = trim(output_dir) // '/fpm.toml'
@@ -78,7 +78,7 @@ program test_fpm_generator
   
   call execute_command_line('mkdir -p ' // trim(output_dir))
   call scan_modules(test_file, modules, n_modules)
-  call generate_fpm_with_deps(output_dir, 'test_multi', modules, n_modules)
+  call generate_fpm_with_deps(output_dir, 'test_multi', modules, n_modules, .false., '')
   
   ! Verify both dependencies are present
   open(newunit=unit, file=fpm_file, status='old', iostat=iostat)
