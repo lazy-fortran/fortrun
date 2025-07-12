@@ -11,8 +11,8 @@ contains
     character(len=*), intent(in) :: project_dir, name
     type(module_info), dimension(:), intent(in) :: modules
     integer, intent(in) :: n_modules
-    logical, intent(in) :: is_preprocessed_file
-    character(len=*), intent(in) :: custom_flags
+    logical, intent(in), optional :: is_preprocessed_file
+    character(len=*), intent(in), optional :: custom_flags
     
     character(len=512) :: toml_path
     character(len=128) :: package_name, package_names(100)
@@ -64,8 +64,10 @@ contains
     
     ! Fortran settings - conditional based on file type
     write(unit, '(a)') '[fortran]'
-    if (is_preprocessed_file) then
-      write(unit, '(a)') 'implicit-typing = false  # Enforces implicit none'
+    if (present(is_preprocessed_file)) then
+      if (is_preprocessed_file) then
+        write(unit, '(a)') 'implicit-typing = false  # Enforces implicit none'
+      end if
     end if
     write(unit, '(a)') 'implicit-external = false'
     write(unit, '(a)') 'source-form = "free"'
@@ -102,8 +104,8 @@ contains
     character(len=*), intent(in) :: project_dir, name, config_dir
     type(module_info), dimension(:), intent(in) :: modules
     integer, intent(in) :: n_modules
-    logical, intent(in) :: is_preprocessed_file
-    character(len=*), intent(in) :: custom_flags
+    logical, intent(in), optional :: is_preprocessed_file
+    character(len=*), intent(in), optional :: custom_flags
     
     character(len=512) :: toml_path, registry_path
     character(len=128) :: package_name, package_names(100)
@@ -156,8 +158,10 @@ contains
     
     ! Fortran settings - conditional based on file type
     write(unit, '(a)') '[fortran]'
-    if (is_preprocessed_file) then
-      write(unit, '(a)') 'implicit-typing = false  # Enforces implicit none'
+    if (present(is_preprocessed_file)) then
+      if (is_preprocessed_file) then
+        write(unit, '(a)') 'implicit-typing = false  # Enforces implicit none'
+      end if
     end if
     write(unit, '(a)') 'implicit-external = false'
     write(unit, '(a)') 'source-form = "free"'
