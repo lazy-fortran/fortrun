@@ -5,7 +5,9 @@ module cli
   
 contains
 
-  subroutine parse_arguments(filename, show_help, verbose_level, custom_cache_dir, custom_config_dir, parallel_jobs, no_wait, notebook_mode, notebook_output)
+  subroutine parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
+                             custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
+                             notebook_output)
     character(len=*), intent(out) :: filename
     logical, intent(out) :: show_help
     integer, intent(out) :: verbose_level
