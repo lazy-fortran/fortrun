@@ -6,14 +6,14 @@ program main
   use notebook_renderer
   implicit none
   
-  character(len=256) :: filename, custom_cache_dir, custom_config_dir, notebook_output
+  character(len=256) :: filename, custom_cache_dir, custom_config_dir, notebook_output, custom_flags
   logical :: show_help, no_wait, notebook_mode
   integer :: exit_code, verbose_level, parallel_jobs
   type(notebook_t) :: notebook
   type(execution_result_t) :: results
   
   call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, custom_config_dir, &
-                      parallel_jobs, no_wait, notebook_mode, notebook_output)
+                      parallel_jobs, no_wait, notebook_mode, notebook_output, custom_flags)
   
   if (show_help) then
     call print_help()
@@ -38,7 +38,8 @@ program main
     call free_execution_results(results)
   else
     ! Normal execution mode
-    call run_fortran_file(filename, exit_code, verbose_level, custom_cache_dir, custom_config_dir, parallel_jobs, no_wait)
+    call run_fortran_file(filename, exit_code, verbose_level, custom_cache_dir, &
+                          custom_config_dir, parallel_jobs, no_wait, custom_flags)
     
     if (exit_code /= 0) then
       stop 1
@@ -48,12 +49,14 @@ program main
 contains
 
   subroutine print_help()
-    print '(a)', 'Usage: fortran [options] <file.f90>'
+    print '(a)', 'Usage: fortran [options] <file>'
     print '(a)', ''
     print '(a)', 'Run a Fortran program file with automatic dependency resolution.'
     print '(a)', ''
     print '(a)', 'Arguments:'
-    print '(a)', '  <file.f90>    Path to the Fortran source file to run (.f90 or .f)'
+    print '(a)', '  <file>        Path to Fortran source file'
+    print '(a)', '                .f90/.F90 = Standard Fortran (no preprocessing)'
+    print '(a)', '                .f/.F     = Preprocessed Fortran (type inference + defaults)'
     print '(a)', ''
     print '(a)', 'Options:'
     print '(a)', '  -h, --help        Show this help message'
@@ -62,6 +65,8 @@ contains
     print '(a)', '  -j, --jobs N      (Reserved for future use)'
     print '(a)', '  --cache-dir DIR   Use custom cache directory'
     print '(a)', '  --config-dir DIR  Use custom config directory'
+    print '(a)', '  --flag FLAGS      Pass custom flags to FPM compiler'
+    print '(a)', '                    (.f90: user flags only, .f: opinionated + user flags)'
     print '(a)', '  --no-wait         Fail immediately if cache is locked'
     print '(a)', ''
     print '(a)', 'Notebook Mode:'

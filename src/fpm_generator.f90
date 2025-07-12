@@ -7,10 +7,12 @@ module fpm_generator
   
 contains
 
-  subroutine generate_fpm_with_deps(project_dir, name, modules, n_modules)
+  subroutine generate_fpm_with_deps(project_dir, name, modules, n_modules, is_preprocessed_file, custom_flags)
     character(len=*), intent(in) :: project_dir, name
     type(module_info), dimension(:), intent(in) :: modules
     integer, intent(in) :: n_modules
+    logical, intent(in) :: is_preprocessed_file
+    character(len=*), intent(in) :: custom_flags
     
     character(len=512) :: toml_path
     character(len=128) :: package_name, package_names(100)
@@ -60,9 +62,11 @@ contains
     ! Build settings - removed to allow auto-discovery of library sources
     ! FPM will auto-discover sources in src/ directory
     
-    ! Fortran settings
+    ! Fortran settings - conditional based on file type
     write(unit, '(a)') '[fortran]'
-    write(unit, '(a)') 'implicit-typing = false  # Enforces implicit none'
+    if (is_preprocessed_file) then
+      write(unit, '(a)') 'implicit-typing = false  # Enforces implicit none'
+    end if
     write(unit, '(a)') 'implicit-external = false'
     write(unit, '(a)') 'source-form = "free"'
     write(unit, '(a)') ''
@@ -93,10 +97,13 @@ contains
     
   end subroutine generate_fpm_with_deps
   
-  subroutine generate_fpm_with_deps_from_config(project_dir, name, modules, n_modules, config_dir)
+  subroutine generate_fpm_with_deps_from_config(project_dir, name, modules, n_modules, config_dir, &
+                                                 is_preprocessed_file, custom_flags)
     character(len=*), intent(in) :: project_dir, name, config_dir
     type(module_info), dimension(:), intent(in) :: modules
     integer, intent(in) :: n_modules
+    logical, intent(in) :: is_preprocessed_file
+    character(len=*), intent(in) :: custom_flags
     
     character(len=512) :: toml_path, registry_path
     character(len=128) :: package_name, package_names(100)
@@ -147,9 +154,11 @@ contains
     ! Build settings - removed to allow auto-discovery of library sources
     ! FPM will auto-discover sources in src/ directory
     
-    ! Fortran settings
+    ! Fortran settings - conditional based on file type
     write(unit, '(a)') '[fortran]'
-    write(unit, '(a)') 'implicit-typing = false  # Enforces implicit none'
+    if (is_preprocessed_file) then
+      write(unit, '(a)') 'implicit-typing = false  # Enforces implicit none'
+    end if
     write(unit, '(a)') 'implicit-external = false'
     write(unit, '(a)') 'source-form = "free"'
     write(unit, '(a)') ''
