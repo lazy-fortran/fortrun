@@ -2,6 +2,15 @@
 
 This document outlines the planned structure for the `fortran` tool documentation using FORD.
 
+## Documentation Style Guidelines
+
+Documentation should be:
+- **Concise and practical** - Get to the point quickly
+- **Example-heavy** - Show, don't just tell with many code snippets
+- **No fancy mumbo jumbo** - Plain language, technical but accessible
+- **Action-oriented** - Focus on what users need to do
+- **Snippet-first** - Lead with working examples, explain after
+
 ## Reference: Fortplotlib Structure
 
 Based on the analysis of `../fortplotlib`, we can see their approach:
