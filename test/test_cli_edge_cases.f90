@@ -82,9 +82,11 @@ contains
         end if
         
         ! Test --jobs without argument
-        command = 'fmp run fortran -- --jobs 2>/dev/null'
+        command = 'fpm run fortran -- --jobs 2>/dev/null'
         call execute_command_line(command, exitstat=exit_code)
-        ! This should fail due to typo in fmp, but tests the concept
+        if (exit_code == 0) then
+            print *, "  WARNING: Missing jobs argument should fail"
+        end if
         
         ! Test -o without argument
         command = 'fpm run fortran -- -o 2>/dev/null'

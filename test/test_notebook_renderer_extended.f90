@@ -177,6 +177,7 @@ contains
         type(notebook_t), intent(out) :: notebook
         
         notebook%num_cells = 3
+        allocate(notebook%cells(3))
         
         ! Markdown cell with headers
         notebook%cells(1)%cell_type = CELL_MARKDOWN
@@ -200,6 +201,7 @@ contains
         type(notebook_t), intent(out) :: notebook
         
         notebook%num_cells = 2
+        allocate(notebook%cells(2))
         
         ! Code cell with simple content
         notebook%cells(1)%cell_type = CELL_CODE
@@ -220,6 +222,7 @@ contains
         character(len=32) :: cell_number
         
         notebook%num_cells = 20
+        allocate(notebook%cells(20))
         
         do i = 1, notebook%num_cells
             write(cell_number, '(i0)') i

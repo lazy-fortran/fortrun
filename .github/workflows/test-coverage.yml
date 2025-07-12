@@ -20,13 +20,22 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y gfortran gcovr
 
-    - name: Build with coverage flags
+    - name: Run install script and build with coverage flags
       run: |
-        fpm build --flag '-fprofile-arcs -ftest-coverage'
+        chmod +x install.sh
+        ./install.sh --flag '-fprofile-arcs -ftest-coverage'
 
     - name: Run tests with coverage
       run: |
         fpm test --flag '-fprofile-arcs -ftest-coverage'
+
+    - name: Test installed binary
+      run: |
+        # Test that the installed binary works
+        export PATH="$HOME/.local/bin:$PATH"
+        echo 'program test_install; print *, "Install test successful"; end program' > test_install.f90
+        fortran test_install.f90
+        rm -f test_install.f90
 
     - name: Generate coverage report
       run: |
