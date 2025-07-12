@@ -1,19 +1,28 @@
 # Precision Examples
 
-Demonstrates the Fortran CLI tool's modern defaults for precision handling.
+Demonstrates the Fortran CLI tool's different behaviors for .f90 and .f files.
 
 ## Files
 
-- **`precision_test.f90`**: Tests default precision settings
+- **`precision_test.f90`**: Tests standard Fortran precision settings
 - **`precision_compare.f90`**: Compares single vs double precision
-- **`real_default_test.f90`**: Verifies that `real` defaults to `real(8)` (double precision)
+- **`real_default_test.f90`**: Verifies standard `real` behavior
 
-## Modern Defaults
+## Precision Behavior
 
-The Fortran CLI tool enforces modern defaults:
-- `implicit none` is enforced automatically
+The Fortran CLI tool handles precision differently for different file types:
+
+### Standard Fortran (.f90 files)
+- Uses standard Fortran defaults
+- `real` variables use default single precision
+- No special compiler flags applied
+- `implicit none` enforced only through fpm.toml configuration
+
+### Script-style (.f files)  
+- Uses opinionated modern defaults
 - `real` variables default to `real(8)` (double precision)
 - Compiler flags: `-fdefault-real-8 -fdefault-double-8`
+- `implicit none` added automatically during preprocessing
 
 ## Running
 
@@ -23,7 +32,7 @@ fortran precision_compare.f90
 fortran real_default_test.f90
 ```
 
-This tests the Fortran CLI tool's ability to:
-- Apply modern compiler defaults
-- Ensure double precision by default
-- Enforce `implicit none` through fpm.toml configuration
+This demonstrates:
+- Standard Fortran behavior for .f90 files (single precision by default)
+- Modern opinionated defaults for .f files (double precision by default)
+- How file extension affects compilation behavior
