@@ -65,6 +65,8 @@ contains
     character(len=256), dimension(50) :: use_statements
     integer :: use_count
     logical :: success
+    logical :: is_typed_func
+    integer :: func_idx
     
     error_msg = ''
     current_scope = 0
@@ -175,9 +177,8 @@ contains
               index(adjustl(line), 'character function') /= 1 .and. &
               index(adjustl(line), 'complex function') /= 1 .and. &
               index(adjustl(line), 'double precision function') /= 1) then
-            ! Untyped function - add return variable
-            call add_variable(scope_envs(current_scope)%env, trim(scope_function_names(current_scope)), &
-                              create_type_info(TYPE_REAL, 8), success)
+            ! Untyped function - don't pre-assign type, let inference determine it
+            ! The function name will be added as a variable when we see assignments to it
           else
             ! Typed function - track its return type for type inference
             if (num_functions < size(function_names)) then
@@ -362,9 +363,22 @@ contains
           
           ! FIXED: Variable declaration injection (function name issue resolved with F90WRAP.md insights)
           if (scope_has_vars(current_scope)) then
-            ! For function scopes, skip declaring the function name as a variable
+            ! For function scopes, skip declaring the function name as a variable ONLY for typed functions
             if (current_scope > 1 .and. len_trim(scope_function_names(current_scope)) > 0) then
-              call write_formatted_declarations_skip_function(unit_out, scope_envs(current_scope), scope_function_names(current_scope))
+              ! Check if this is a typed function by looking for the function in our tracked typed functions
+              is_typed_func = .false.
+              do func_idx = 1, num_functions
+                if (trim(function_names(func_idx)) == trim(scope_function_names(current_scope))) then
+                  is_typed_func = .true.
+                  exit
+                end if
+              end do
+              
+              if (is_typed_func) then
+                call write_formatted_declarations_skip_function(unit_out, scope_envs(current_scope), scope_function_names(current_scope))
+              else
+                call write_formatted_declarations(unit_out, scope_envs(current_scope))
+              end if
             else
               call write_formatted_declarations(unit_out, scope_envs(current_scope))
             end if
@@ -608,12 +622,9 @@ contains
       var_name = trim(var_name)
       expr = trim(expr)
       
-      ! F90WRAP.md insight: Function names act as return variables and should NOT be declared as regular variables
-      if (len_trim(function_name) > 0 .and. trim(var_name) == trim(function_name)) then
-        ! This is a function return assignment - skip variable declaration to avoid duplicate
-        ! DEBUG: Skipping function return assignment
-        return
-      end if
+      ! F90WRAP.md insight: Function names act as return variables
+      ! For untyped functions, we still need to infer the type from assignments
+      ! (We used to skip this entirely, but that prevented type inference)
       
       ! Skip if it's not a simple variable (e.g., array access)
       if (index(var_name, '(') == 0 .and. index(var_name, '%') == 0) then
