@@ -1,7 +1,6 @@
 # Test Notebook
 
 ```fortran
-implicit none
 x = 42
 print *, "x =", x
 

@@ -310,7 +310,8 @@ contains
           ! Assignment detection - core of our excellent type inference system
           ! This automatically detects patterns like: x = 5.0, sum = add(x,y), etc.
           if (current_scope > 1) then
-            call detect_and_process_assignment_with_context(scope_envs(current_scope), line, scope_function_names(current_scope))
+            call detect_and_process_assignment_with_context(scope_envs(current_scope), line, scope_function_names(current_scope), &
+                                                             function_names, num_functions)
           else
             call detect_and_process_assignment(scope_envs(current_scope), line)
           end if
@@ -682,10 +683,12 @@ contains
     
   end subroutine detect_and_process_assignment
   
-  subroutine detect_and_process_assignment_with_context(type_env, line, function_name)
+  subroutine detect_and_process_assignment_with_context(type_env, line, function_name, func_names, num_funcs)
     type(type_environment), intent(inout) :: type_env  
     character(len=*), intent(in) :: line
     character(len=*), intent(in) :: function_name
+    character(len=64), dimension(:), intent(in) :: func_names
+    integer, intent(in) :: num_funcs
     
     integer :: eq_pos
     character(len=256) :: var_name, expr
@@ -720,15 +723,39 @@ contains
       
       ! F90WRAP.md insight: Function names act as return variables
       ! For untyped functions, we still need to infer the type from assignments
-      ! (We used to skip this entirely, but that prevented type inference)
+      ! For typed functions, skip processing function name assignments
       
       ! Skip if it's not a simple variable (e.g., array access)
       if (index(var_name, '(') == 0 .and. index(var_name, '%') == 0) then
+        ! Skip processing assignment to typed function names
+        ! (Typed functions already have their return type known)
+        if (trim(var_name) == trim(function_name) .and. is_function_typed(function_name, func_names, num_funcs)) then
+          ! Skip typed function assignments - they don't need type inference
+          return
+        end if
         call process_assignment(type_env, var_name, expr)
       end if
     end if
     
   end subroutine detect_and_process_assignment_with_context
+  
+  function is_function_typed(func_name, func_names, num_funcs) result(is_typed)
+    character(len=*), intent(in) :: func_name
+    character(len=64), dimension(:), intent(in) :: func_names
+    integer, intent(in) :: num_funcs
+    logical :: is_typed
+    
+    integer :: i
+    
+    is_typed = .false.
+    ! Check if this function is in our typed functions list
+    do i = 1, num_funcs
+      if (trim(func_names(i)) == trim(func_name)) then
+        is_typed = .true.
+        exit
+      end if
+    end do
+  end function is_function_typed
   
   subroutine analyze_function_call(line, func_names, func_types, num_funcs)
     character(len=*), intent(in) :: line
