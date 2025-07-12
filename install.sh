@@ -13,10 +13,8 @@ INSTALL_ARGS=""
 while [[ $# -gt 0 ]]; do
   case $1 in
     --flag)
-      # Handle multiple flags separated by spaces
-      for flag in $2; do
-        FPM_FLAGS="$FPM_FLAGS --flag $flag"
-      done
+      # Combine all flags into a single quoted string
+      FPM_FLAGS="$FPM_FLAGS --flag \"$2\""
       shift 2
       ;;
     --flag=*)
@@ -43,9 +41,9 @@ done
 # Run fpm install with appropriate flags
 if [[ -n "$FPM_FLAGS" ]]; then
   echo "Building with flags: $FPM_FLAGS"
-  fpm build $FPM_FLAGS
+  eval "fpm build $FPM_FLAGS"
   echo "Installing binary..."
-  fpm install $INSTALL_ARGS
+  eval "fpm install $INSTALL_ARGS"
 else
   fpm install $INSTALL_ARGS
 fi

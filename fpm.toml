@@ -4,7 +4,7 @@ license = "license"
 author = "Christopher Albert"
 maintainer = "albert@tugraz.at"
 copyright = "Copyright 2025, Christopher Albert"
-summary = "Make Python Fortran again - Run Fortran programs directly without manual compilation"
+description = "Make Python Fortran again - Run Fortran programs directly without manual compilation"
 [build]
 auto-executables = true
 auto-tests = true
