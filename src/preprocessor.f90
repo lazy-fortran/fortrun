@@ -1200,6 +1200,37 @@ contains
     
   end subroutine write_formatted_declarations_skip_params
   
+  function is_variable_in_output_lines(var_name, output_lines, num_lines) result(found)
+    character(len=*), intent(in) :: var_name
+    character(len=*), dimension(:), intent(in) :: output_lines
+    integer, intent(in) :: num_lines
+    logical :: found
+    
+    integer :: i
+    character(len=1024) :: line
+    
+    found = .false.
+    
+    ! Search output lines for explicit declarations of this variable
+    do i = 1, num_lines
+      line = adjustl(output_lines(i))
+      
+      ! Check if this is a declaration line containing the variable
+      if (index(line, '::') > 0) then
+        ! Check if variable name appears after ::
+        if (index(line(index(line, '::'):), ' ' // trim(var_name)) > 0 .or. &
+            index(line(index(line, '::'):), ',' // trim(var_name)) > 0 .or. &
+            index(line(index(line, '::'):), trim(var_name) // ',') > 0 .or. &
+            (index(line, ':: ' // trim(var_name)) > 0 .and. &
+             len_trim(line(index(line, ':: ' // trim(var_name)) + 3 + len_trim(var_name):)) == 0)) then
+          found = .true.
+          exit
+        end if
+      end if
+    end do
+    
+  end function is_variable_in_output_lines
+  
   subroutine extract_function_parameters(line, param_names, param_count)
     character(len=*), intent(in) :: line
     character(len=64), dimension(:), intent(out) :: param_names
