@@ -557,3 +557,199 @@ This is **forward propagation** - using existing type information to infer unkno
 ---
 *Implementation Attempted: 2025-07-12*
 *Final Status: Partial Success - Core functionality working, advanced features deferred*
+
+## 🚧 **Critical Step 1 Issue: Module Type Inference Dependencies**
+
+### **Problem Discovery (2025-07-12)**
+
+**Root Issue:** When Step 1 processes .f files that USE modules, it needs type information from those modules to perform forward type propagation. However, the current implementation only analyzes the main file in isolation.
+
+**Example Scenario:**
+```fortran
+! geometry.f - Uses external module
+use constants_module
+radius = get_pi() * 2.0  ! What's the return type of get_pi()?
+area = circle_area(radius)  ! What's the return type of circle_area()?
+```
+
+The preprocessor needs to:
+1. **Find module sources** - Locate `constants_module.f90` or `.f` files 
+2. **Parse function signatures** - Extract `get_pi()` and `circle_area()` return types
+3. **Apply forward propagation** - Infer `radius` and `area` types from function returns
+
+### **Technical Challenge**
+
+**Current Limitation:**
+- Type inference only analyzes the main .f file being processed
+- No mechanism to parse external module sources for type information
+- `USE` statements create dependencies that break type inference chain
+
+**Required Capabilities:**
+1. **Module source discovery** - Find module files via cache/FPM mechanisms
+2. **Cross-file parsing** - Extract type information from external sources  
+3. **Dependency resolution** - Handle module dependency graphs
+4. **Type registry** - Cache discovered function/variable types across files
+
+### **Solution Architecture**
+
+#### **Step 1: Module Source Location**
+```fortran
+! We already have infrastructure for this:
+! 1. FPM cache directory structure
+! 2. Module scanner capabilities  
+! 3. Cache location tracking
+```
+
+#### **Step 2: Function Signature Extraction**
+```fortran
+! For each module used:
+! 1. Parse module source file
+! 2. Extract function/subroutine signatures:
+!    - Function return types: real function foo() → foo returns real
+!    - Subroutine intent(out): subroutine bar(x, result) with intent(out) :: result
+! 3. Build type registry: function_name → return_type
+```
+
+#### **Step 3: Forward Type Propagation Integration**
+```fortran
+! During type inference:
+! 1. Encounter assignment: var = function_call(args)
+! 2. Look up function_call in type registry
+! 3. If found, infer var type from function return type
+! 4. Handle intent(out) parameters: call sub(input, output) → infer output type
+```
+
+### **Implementation Plan (TDD Approach)**
+
+#### **Phase 1: Test Infrastructure**
+```fortran
+! test/test_step1_module_integration.f90
+! Test module-dependent type inference scenarios
+
+test "Function from module"
+test "Subroutine with intent(out) from module"  
+test "Nested module dependencies"
+test "Circular dependency handling"
+test "Module not found error handling"
+```
+
+#### **Phase 2: Module Function Registry**
+```fortran
+! src/module_function_registry.f90
+! New module to manage cross-file type information
+
+type :: function_info
+    character(len=64) :: name
+    character(len=32) :: module_name
+    type(type_info) :: return_type
+    character(len=256) :: signature
+end type
+
+subroutine scan_module_for_functions(module_file, registry)
+subroutine get_function_return_type(func_name, registry, return_type, found)
+```
+
+#### **Phase 3: Cache Integration** 
+```fortran
+! Integration with existing cache system:
+! 1. Use cache.f90 to locate module source files
+! 2. Use module_scanner.f90 to find module dependencies
+! 3. Cache parsed function signatures to avoid re-parsing
+```
+
+#### **Phase 4: Preprocessor Enhancement**
+```fortran
+! Modify src/preprocessor.f90:
+! 1. Parse USE statements to identify required modules
+! 2. Scan module sources and build function registry
+! 3. Enhance infer_types_from_function_calls() to use registry
+! 4. Add error handling for missing modules
+```
+
+### **Example Test Cases**
+
+#### **Test Case 1: Simple Module Function**
+```fortran
+! constants.f90
+module constants_module
+contains
+    real(8) function get_pi()
+        get_pi = 3.14159265359_8
+    end function
+end module
+
+! main.f (input)
+use constants_module
+radius = 5.0
+circumference = get_pi() * 2.0 * radius
+
+! Expected: circumference inferred as real(8) from get_pi() return type
+```
+
+#### **Test Case 2: Subroutine with Intent(out)**
+```fortran
+! math_utils.f90  
+module math_utils
+contains
+    subroutine compute_stats(data, n, mean, variance)
+        real(8), intent(in) :: data(:)
+        integer, intent(in) :: n
+        real(8), intent(out) :: mean, variance
+        ! ... computation
+    end subroutine
+end module
+
+! main.f (input)
+use math_utils
+data_points = [1.0, 2.0, 3.0, 4.0, 5.0]
+call compute_stats(data_points, 5, avg, var)
+
+! Expected: avg and var inferred as real(8) from intent(out) parameters
+```
+
+#### **Test Case 3: Nested Dependencies**
+```fortran
+! Level 1: base_types.f90
+! Level 2: math_ops.f90 (uses base_types)  
+! Level 3: main.f (uses math_ops)
+
+! Expected: Handle multi-level dependency resolution
+```
+
+### **Implementation Priority**
+
+#### **Phase 1: Basic Module Functions (High Priority)**
+- Single module, single function calls
+- Essential for making Step 1 practical with real code
+- Clear test cases and expected behavior
+
+#### **Phase 2: Subroutine Intent(out) (Medium Priority)**  
+- More complex parsing (intent analysis)
+- Important for complete Fortran coverage
+- Builds on Phase 1 infrastructure
+
+#### **Phase 3: Complex Dependencies (Lower Priority)**
+- Nested modules, circular dependencies
+- Error handling and edge cases
+- Performance optimization for large codebases
+
+### **Technical Benefits**
+
+1. **Completes Step 1**: Makes type inference practical for real Fortran code
+2. **Leverages existing infrastructure**: Cache, module scanning, FPM integration
+3. **Maintains TDD approach**: Clear test cases drive implementation
+4. **Enables advanced examples**: Real-world use cases in example/
+5. **Foundation for Steps 2-3**: Module parsing infrastructure supports future phases
+
+### **Risk Mitigation**
+
+1. **Start simple**: Single module, single function test case
+2. **Incremental implementation**: Each phase adds capability without breaking existing
+3. **Comprehensive testing**: TDD approach ensures reliability
+4. **Fallback behavior**: If module not found, continue without inference (graceful degradation)
+
+This enhancement addresses the critical gap that prevents Step 1 from working with real Fortran code that uses modules.
+
+---
+*Module Dependency Analysis: 2025-07-12*
+*Implementation Plan: TDD-Driven Approach*
