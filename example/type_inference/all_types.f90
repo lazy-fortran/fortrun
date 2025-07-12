@@ -1,22 +1,28 @@
-! all_types.f90 - Standard Fortran with explicit type declarations
-program all_types
+program main
   implicit none
-  integer :: count, sum_int
-  real(8) :: pi, product_real, mixed
+
+  ! Auto-generated variable declarations:
+  integer :: count
+  real(8) :: pi
   character(len=7) :: name
-  logical :: ready, is_positive
-  
+  logical :: ready
+  integer :: sum_int
+  real(8) :: product_real
+  real(8) :: mixed
+  logical :: is_positive
+
+  ! all_types.f - Demonstrates type inference for all basic types
   count = 42
-  pi = 3.14159_8
+  pi = 3.14159
   name = "Fortran"
   ready = .true.
 
   ! Arithmetic operations preserve types
   sum_int = count + 10
-  product_real = pi * 2.0_8
+  product_real = pi * 2.0
 
   ! Mixed expressions promote to real
-  mixed = real(count, 8) + pi
+  mixed = count + pi
 
   ! Logical from comparison
   is_positive = count > 0
@@ -30,4 +36,4 @@ program all_types
   print *, 'Real product:', product_real
   print *, 'Mixed result:', mixed
   print *, 'Is positive?', is_positive
-end program all_types
+end program main
