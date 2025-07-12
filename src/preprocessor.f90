@@ -250,7 +250,6 @@ contains
         if (implicit_lines(current_scope) == i .and. (scope_has_vars(current_scope) .or. scope_param_count(current_scope) > 0)) then
           write(unit_out, '(A)') '  '
           write(unit_out, '(A)') '  ! Auto-generated variable declarations:'
-          write(unit_out, '(A,I0,A,I0,A,L1,A,A,A)') '  ! DEBUG INJECT: scope=', current_scope, ' has_vars=', scope_envs(current_scope)%env%var_count, ' vars_flag=', scope_has_vars(current_scope), ' func_name="', trim(scope_function_names(current_scope)), '"'
           
           ! SKIP function parameter declarations for now
           ! if (scope_param_count(current_scope) > 0) then
@@ -629,7 +628,7 @@ contains
             num_funcs = num_funcs + 1
             func_names(num_funcs) = var_name
             func_types(num_funcs) = inferred_type
-            print *, "DEBUG: Function", trim(var_name), "inferred return type from assignment"
+            ! Debug: Function return type inferred from assignment
           end if
         end if
       end if
@@ -672,7 +671,7 @@ contains
           ! Add variable with inferred type to environment
           call add_variable(type_env%env, trim(var_name), return_type, success)
           if (success) then
-            print *, "DEBUG: Inferred", trim(var_name), "type from function", trim(func_name)
+            ! Debug: Inferred variable type from function return type
           end if
         end if
       end if
