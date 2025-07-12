@@ -1,39 +1,132 @@
-@Note
-This is the documentation for the `fortran` command-line tool that enables running Fortran programs directly without manual compilation, automatically resolving and building module dependencies using FPM.
-@endnote
+# Getting Started
 
-## Features
+**Make Python Fortran again** - Run Fortran programs directly without compilation hassles.
 
-- **Zero-configuration execution**: Just run `fortran mycode.f90`
-- **Automatic dependency resolution**: Finds and builds required modules
-- **Smart caching**: Reuses compiled modules across runs
-- **Modern defaults**: Enforces best practices (implicit none, double precision)
-- **FPM integration**: Leverages the Fortran Package Manager ecosystem
+## Installation
 
-## Quick Start
+**Prerequisites**: FPM and a Fortran compiler (gfortran, ifort, etc.)
 
 ```bash
-# Run a simple Fortran program
-fortran hello.f90
+# Clone and build
+git clone https://github.com/krystophny/fortran
+cd fortran
+fpm build --profile release
 
-# Run with verbose output
-fortran -v myprogram.f90
-
-# Use custom cache directory
-fortran --cache-dir /tmp/fortran-cache myprogram.f90
+# Add to PATH or copy binary
+cp build/gfortran_*/app/fortran /usr/local/bin/
 ```
 
-## Architecture
+## First Run
 
-The tool consists of several key modules:
+```bash
+# Create hello.f90
+echo 'print *, "Hello, World!"' > hello.f90
 
-- **CLI**: Command-line argument parsing
-- **Runner**: Main execution logic
-- **Module Scanner**: Detects module dependencies
-- **Registry Resolver**: Maps modules to packages
-- **FPM Generator**: Creates dynamic fpm.toml files
-- **Cache**: Manages compiled module cache
+# Run it
+fortran hello.f90
+```
 
-## Contributing
+Output:
+```
+Hello, World!
+```
 
-Contributions are welcome! Please see our [GitHub repository](https://github.com/krystophny/fortran) for more information.
+That's it. No makefiles, no manual compilation.
+
+## Basic Examples
+
+**Simple calculation:**
+```fortran
+! calc.f90
+real :: x = 3.14159
+real :: area = x * x  
+print *, 'Area:', area
+```
+
+```bash
+fortran calc.f90
+# Area: 9.869604
+```
+
+**With modules:**
+```fortran
+! math_utils.f90  
+module math_utils
+    implicit none
+contains
+    function square(x) result(y)
+        real, intent(in) :: x
+        real :: y
+        y = x * x
+    end function
+end module
+
+! main.f90
+program main
+    use math_utils
+    print *, square(5.0)
+end program
+```
+
+```bash
+fortran main.f90
+# 25.0
+```
+
+The tool automatically finds `math_utils.f90`, compiles it, and links everything.
+
+## Key Features
+
+- **Zero configuration** - No build files needed
+- **Smart dependency detection** - Finds local modules automatically  
+- **Package registry** - Resolves external dependencies from FPM registry
+- **Fast caching** - Recompiles only when source changes
+- **Modern defaults** - `implicit none`, double precision by default
+
+## What Makes This Different?
+
+**Traditional Fortran:**
+```bash
+gfortran -c math_utils.f90
+gfortran -c main.f90  
+gfortran -o main main.o math_utils.o
+./main
+```
+
+**With fortran tool:**
+```bash
+fortran main.f90
+```
+
+**Python-like workflow:**
+```bash
+python script.py    # Python
+fortran script.f90  # Fortran - same simplicity
+```
+
+## Common Usage
+
+```bash
+# Basic execution
+fortran myprogram.f90
+
+# Verbose output (see what's happening)
+fortran -v myprogram.f90
+
+# Very verbose (debug mode)  
+fortran -vv myprogram.f90
+
+# Custom cache location
+fortran --cache-dir /tmp/cache myprogram.f90
+
+# Help
+fortran --help
+```
+
+## Next Steps
+
+- See [[Manual|Manual]] for complete CLI reference
+- Browse [[Examples|Examples]] for more usage patterns
+- Check out the [example/](example/) directory for working code
+
+The goal: Make Fortran development as frictionless as Python.
