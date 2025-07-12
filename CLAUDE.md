@@ -16,8 +16,8 @@ This project uses FPM (Fortran Package Manager) as its build system.
 # Build the project
 fpm build
 
-# Run the main application
-fpm run fortran example.f90
+# Run the main application (IMPORTANT: Use -- separator)
+fpm run fortran -- example.f90
 
 # Run tests
 fpm test

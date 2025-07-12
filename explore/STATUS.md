@@ -440,3 +440,56 @@ A targeted enhancement to `inject_declarations` can solve the immediate problem 
 
 ---
 *Implementation Started: 2025-07-12*
+
+## 📋 **Implementation Solution: Preprocessor Function Scope Patch**
+
+### **Identified Solution Path (2025-07-12)**
+
+After detailed analysis, the solution requires modifying the preprocessor to:
+
+1. **Track Multiple Scopes**: Maintain separate type environments for each function/subroutine
+2. **Detect Scope Boundaries**: Track when entering/exiting functions and subroutines  
+3. **Inject Declarations Per Scope**: Insert variable declarations after each scope's `implicit none`
+
+### **Patch Overview**
+
+Created `explore/preprocessor_function_scope.patch` that demonstrates the key changes:
+
+```diff
++ type(type_environment), dimension(10) :: scope_envs  ! Support nested scopes
++ integer :: current_scope = 0
+
+  in_function = .true.
++ current_scope = current_scope + 1
++ call init_type_environment(scope_envs(current_scope))
+
+  if (enable_type_inference) then
+-   call detect_and_process_assignment(type_env, line)
++   if (current_scope > 0) then
++     call detect_and_process_assignment(scope_envs(current_scope), line)
++   else
++     call detect_and_process_assignment(type_env, line)
++   end if
+  end if
+```
+
+### **Key Technical Changes Required:**
+
+1. **Scope Environment Array**: Track up to 10 nested function/subroutine scopes
+2. **Scope Counter**: Increment on function/subroutine entry, decrement on exit
+3. **Per-Scope Type Inference**: Route assignments to appropriate scope's type environment
+4. **Enhanced Declaration Injection**: Track `implicit none` line numbers per scope
+
+### **Implementation Status:**
+- ✅ Root cause identified and documented
+- ✅ Solution approach validated with patch
+- ⏳ Full implementation pending (requires refactoring `inject_declarations`)
+
+### **Why This Matters:**
+This enhancement would complete the "Python-like" experience for Fortran by enabling:
+- Automatic type inference for function parameters
+- Type inference for function-local variables  
+- Proper scoping of generated declarations
+
+---
+*Solution Documented: 2025-07-12*

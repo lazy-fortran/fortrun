@@ -1,0 +1,67 @@
+--- a/src/preprocessor.f90
++++ b/src/preprocessor.f90
+@@ -36,6 +36,10 @@ module preprocessor
+     type(type_environment) :: type_env
+     character(len=2048) :: declarations
+     
++    ! Add scope tracking variables
++    type(type_environment), dimension(10) :: scope_envs  ! Support up to 10 nested scopes
++    integer :: current_scope = 0
++    integer, dimension(10) :: implicit_lines = 0
++    
+     error_msg = ''
+     in_subroutine = .false.
+@@ -104,14 +108,18 @@ module preprocessor
+       if (is_function_declaration(line)) then
+         if (.not. has_program_statement .and. .not. contains_written) then
+           write(unit_out, '(A)') 'contains'
+           contains_written = .true.
+         end if
+         in_function = .true.
++        current_scope = current_scope + 1
++        call init_type_environment(scope_envs(current_scope))
+         write(unit_out, '(A)') line
+       else if (is_subroutine_declaration(line)) then
+         if (.not. has_program_statement .and. .not. contains_written) then
+           write(unit_out, '(A)') 'contains'
+           contains_written = .true.
+         end if
+         in_subroutine = .true.
++        current_scope = current_scope + 1
++        call init_type_environment(scope_envs(current_scope))
+         write(unit_out, '(A)') line
+       else if (is_end_statement(line, 'function')) then
+         in_function = .false.
++        if (current_scope > 0) current_scope = current_scope - 1
+         write(unit_out, '(A)') line
+       else if (is_end_statement(line, 'subroutine')) then
+         in_subroutine = .false.
++        if (current_scope > 0) current_scope = current_scope - 1
+         write(unit_out, '(A)') line
+       else
+         ! Check for existing declarations
+@@ -129,8 +137,13 @@ module preprocessor
+         
+         ! Check for assignments for type inference
+         if (enable_type_inference) then
+-          call detect_and_process_assignment(type_env, line)
++          if (current_scope > 0) then
++            ! Use function/subroutine scope
++            call detect_and_process_assignment(scope_envs(current_scope), line)
++          else
++            ! Use main program scope
++            call detect_and_process_assignment(type_env, line)
++          end if
+         end if
+         
+         ! Regular line - add proper indentation if we added program wrapper
+@@ -340,7 +353,7 @@ module preprocessor
+   
+   subroutine inject_declarations(filename, type_env, error_msg)
+     ! This would need to be enhanced to handle multiple scopes
+-    ! For now, showing the concept in the patch
++    ! The full implementation would track implicit none lines per scope
++    ! and inject declarations after each scope's implicit none
+   end subroutine inject_declarations
+ 
+ end module preprocessor
