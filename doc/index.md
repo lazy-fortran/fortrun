@@ -1,3 +1,6 @@
+title: Manual
+---
+
 # fortran - Makes Python Fortran again
 
 Welcome to the documentation for the `fortran` command-line tool.
