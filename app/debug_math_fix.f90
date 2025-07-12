@@ -16,20 +16,22 @@ program debug_math_fix
   write(10, '(a)') 'print *, result'
   close(10)
   
-  print *, "Testing math.f structure:"
-  call preprocess_file('test_math_structure.f', 'test_math_out.f90', error_msg)
+  print *, "Testing actual math.f:"
+  call preprocess_file('example/preprocessor/math.f', 'math_real_out.f90', error_msg)
   
   if (len_trim(error_msg) == 0) then
     print *, "Output:"
-    call system('cat -n test_math_out.f90')
+    call system('cat -n math_real_out.f90')
     print *, ""
     print *, "Checking for duplicate declarations:"
-    call system('grep ":: x" test_math_out.f90 | nl')
-    call system('grep ":: result" test_math_out.f90 | nl')
+    call system('grep -n "implicit none" math_real_out.f90')
+    print *, ""
+    print *, "Add function:"
+    call system('grep -A 5 "function add" math_real_out.f90')
   else
     print *, "Error: ", trim(error_msg)
   end if
   
-  call system('rm -f test_math_structure.f test_math_out.f90')
+  call system('rm -f test_math_structure.f math_real_out.f90')
   
 end program debug_math_fix

@@ -201,13 +201,13 @@ contains
           ! Extract and store function parameters
           call extract_function_parameters(line, scope_function_params(current_scope, :), scope_param_count(current_scope))
           
-          ! Add function parameters to type environment for type inference
-          ! Parameters need real types for expression analysis to work
+          ! Add function parameters with unknown type for proper type inference
+          ! Types will be inferred from usage, not defaulted
           do i = 1, scope_param_count(current_scope)
-            ! Add parameter with real(8) type for type inference
+            ! Add parameter with unknown type - will be inferred from usage
             call add_variable(scope_envs(current_scope)%env, &
                               trim(scope_function_params(current_scope, i)), &
-                              create_type_info(TYPE_REAL, 8), success)
+                              create_type_info(TYPE_UNKNOWN), success)
           end do
           
           ! Add function name as a variable if it's not typed
@@ -454,14 +454,14 @@ contains
               if (is_typed_func) then
                 call write_formatted_declarations_skip_params_and_function(unit_out, scope_envs(j), &
                                                                             scope_function_params(j, :), scope_param_count(j), &
-                                                                            scope_function_names(j))
+                                                                            scope_function_names(j), input_file, line_num)
               else
                 call write_formatted_declarations_skip_params(unit_out, scope_envs(j), &
-                                                               scope_function_params(j, :), scope_param_count(j))
+                                                               scope_function_params(j, :), scope_param_count(j), input_file, line_num)
               end if
             else
               ! Use filtered version for all scopes to avoid duplicates with explicit declarations
-              call write_formatted_declarations_filtered(unit_out, scope_envs(j), output_lines, output_line_count, i)
+              call write_formatted_declarations_filtered(unit_out, scope_envs(j), output_lines, output_line_count, i, input_file)
             end if
           end if
           
@@ -1068,9 +1068,11 @@ contains
     end select
   end subroutine generate_type_string
   
-  subroutine write_formatted_declarations(unit, type_env)
+  subroutine write_formatted_declarations(unit, type_env, source_file, line_num)
     integer, intent(in) :: unit
     type(type_environment), intent(in) :: type_env
+    character(len=*), intent(in) :: source_file
+    integer, intent(in) :: line_num
     
     integer :: i
     character(len=64) :: type_str
@@ -1078,8 +1080,18 @@ contains
     ! Generate declaration for each variable
     do i = 1, type_env%env%var_count
       if (type_env%env%vars(i)%in_use .and. &
-          type_env%env%vars(i)%var_type%base_type /= TYPE_UNKNOWN .and. &
           type_env%env%vars(i)%var_type%base_type /= -1) then  ! Skip already declared
+        
+        ! Check for unknown types and generate error
+        if (type_env%env%vars(i)%var_type%base_type == TYPE_UNKNOWN) then
+          ! Print error to console
+          write(*, '(a,a,i0,a,a,a)') trim(source_file), ':', line_num, ': ERROR: Cannot infer type for variable "', &
+                                     trim(type_env%env%vars(i)%name), '"'
+          ! Write error comment to output
+          write(unit, '(a,a,a,a,a,i0)') '  ! ERROR: ', trim(source_file), ': Cannot infer type for variable "', &
+                                         trim(type_env%env%vars(i)%name), '" around line ', line_num
+          cycle
+        end if
         
         ! Generate type string
         select case (type_env%env%vars(i)%var_type%base_type)
@@ -1115,10 +1127,12 @@ contains
     
   end subroutine write_formatted_declarations
   
-  subroutine write_formatted_declarations_skip_function(unit, type_env, function_name)
+  subroutine write_formatted_declarations_skip_function(unit, type_env, function_name, source_file, line_num)
     integer, intent(in) :: unit
     type(type_environment), intent(in) :: type_env
     character(len=*), intent(in) :: function_name
+    character(len=*), intent(in) :: source_file
+    integer, intent(in) :: line_num
     
     integer :: i
     character(len=64) :: type_str
@@ -1128,9 +1142,19 @@ contains
     ! Generate declaration for each variable except the function name
     do i = 1, type_env%env%var_count
       if (type_env%env%vars(i)%in_use .and. &
-          type_env%env%vars(i)%var_type%base_type /= TYPE_UNKNOWN .and. &
           type_env%env%vars(i)%var_type%base_type /= -1 .and. &          ! Skip already declared
           trim(type_env%env%vars(i)%name) /= trim(function_name)) then  ! Skip function name
+        
+        ! Check for unknown types and generate error
+        if (type_env%env%vars(i)%var_type%base_type == TYPE_UNKNOWN) then
+          ! Print error to console
+          write(*, '(a,a,i0,a,a,a)') trim(source_file), ':', line_num, ': ERROR: Cannot infer type for variable "', &
+                                     trim(type_env%env%vars(i)%name), '"'
+          ! Write error comment to output
+          write(unit, '(a,a,a,a,a,i0)') '  ! ERROR: ', trim(source_file), ': Cannot infer type for variable "', &
+                                         trim(type_env%env%vars(i)%name), '" around line ', line_num
+          cycle
+        end if
         
         ! Generate type string
         select case (type_env%env%vars(i)%var_type%base_type)
@@ -1166,11 +1190,13 @@ contains
     
   end subroutine write_formatted_declarations_skip_function
   
-  subroutine write_formatted_declarations_skip_params(unit, type_env, param_names, param_count)
+  subroutine write_formatted_declarations_skip_params(unit, type_env, param_names, param_count, source_file, line_num)
     integer, intent(in) :: unit
     type(type_environment), intent(in) :: type_env
     character(len=64), dimension(:), intent(in) :: param_names
     integer, intent(in) :: param_count
+    character(len=*), intent(in) :: source_file
+    integer, intent(in) :: line_num
     
     integer :: i, j
     character(len=64) :: type_str
@@ -1179,9 +1205,19 @@ contains
     ! Generate declaration for each variable except parameters
     do i = 1, type_env%env%var_count
       if (type_env%env%vars(i)%in_use .and. &
-          type_env%env%vars(i)%var_type%base_type /= TYPE_UNKNOWN .and. &
           type_env%env%vars(i)%var_type%base_type /= -1 .and. &          ! Skip already declared
           type_env%env%vars(i)%var_type%base_type /= -2) then           ! Skip old parameter marker
+        
+        ! Check for unknown types and generate error
+        if (type_env%env%vars(i)%var_type%base_type == TYPE_UNKNOWN) then
+          ! Print error to console
+          write(*, '(a,a,i0,a,a,a)') trim(source_file), ':', line_num, ': ERROR: Cannot infer type for variable "', &
+                                     trim(type_env%env%vars(i)%name), '"'
+          ! Write error comment to output
+          write(unit, '(a,a,a,a,a,i0)') '  ! ERROR: ', trim(source_file), ': Cannot infer type for variable "', &
+                                         trim(type_env%env%vars(i)%name), '" around line ', line_num
+          cycle
+        end if
         
         ! Check if this variable is a parameter
         is_param = .false.
@@ -1228,12 +1264,14 @@ contains
     
   end subroutine write_formatted_declarations_skip_params
   
-  subroutine write_formatted_declarations_skip_params_and_function(unit, type_env, param_names, param_count, function_name)
+  subroutine write_formatted_declarations_skip_params_and_function(unit, type_env, param_names, param_count, function_name, source_file, line_num)
     integer, intent(in) :: unit
     type(type_environment), intent(in) :: type_env
     character(len=64), dimension(:), intent(in) :: param_names
     integer, intent(in) :: param_count
     character(len=64), intent(in) :: function_name
+    character(len=*), intent(in) :: source_file
+    integer, intent(in) :: line_num
     
     integer :: i, j
     character(len=64) :: type_str
@@ -1242,9 +1280,19 @@ contains
     ! Generate declaration for each variable except parameters and function name
     do i = 1, type_env%env%var_count
       if (type_env%env%vars(i)%in_use .and. &
-          type_env%env%vars(i)%var_type%base_type /= TYPE_UNKNOWN .and. &
           type_env%env%vars(i)%var_type%base_type /= -1 .and. &          ! Skip already declared
           type_env%env%vars(i)%var_type%base_type /= -2) then           ! Skip old parameter marker
+        
+        ! Check for unknown types and generate error
+        if (type_env%env%vars(i)%var_type%base_type == TYPE_UNKNOWN) then
+          ! Print error to console
+          write(*, '(a,a,i0,a,a,a)') trim(source_file), ':', line_num, ': ERROR: Cannot infer type for variable "', &
+                                     trim(type_env%env%vars(i)%name), '"'
+          ! Write error comment to output
+          write(unit, '(a,a,a,a,a,i0)') '  ! ERROR: ', trim(source_file), ': Cannot infer type for variable "', &
+                                         trim(type_env%env%vars(i)%name), '" around line ', line_num
+          cycle
+        end if
         
         ! Check if this variable is a parameter
         is_param = .false.
@@ -1330,11 +1378,12 @@ contains
     
   end function is_variable_in_output_lines
   
-  subroutine write_formatted_declarations_filtered(unit, type_env, output_lines, num_lines, start_line)
+  subroutine write_formatted_declarations_filtered(unit, type_env, output_lines, num_lines, start_line, source_file)
     integer, intent(in) :: unit
     type(type_environment), intent(in) :: type_env
     character(len=*), dimension(:), intent(in) :: output_lines
     integer, intent(in) :: num_lines, start_line
+    character(len=*), intent(in) :: source_file
     
     integer :: i
     character(len=64) :: type_str
@@ -1342,8 +1391,18 @@ contains
     ! Generate declaration for each variable
     do i = 1, type_env%env%var_count
       if (type_env%env%vars(i)%in_use .and. &
-          type_env%env%vars(i)%var_type%base_type /= TYPE_UNKNOWN .and. &
           type_env%env%vars(i)%var_type%base_type /= -1) then  ! Skip already declared
+        
+        ! Check for unknown types and generate error
+        if (type_env%env%vars(i)%var_type%base_type == TYPE_UNKNOWN) then
+          ! Print error to console
+          write(*, '(a,a,i0,a,a,a)') trim(source_file), ':', start_line, ': ERROR: Cannot infer type for variable "', &
+                                     trim(type_env%env%vars(i)%name), '"'
+          ! Write error comment to output
+          write(unit, '(a,a,a,a,a,i0)') '  ! ERROR: ', trim(source_file), ': Cannot infer type for variable "', &
+                                         trim(type_env%env%vars(i)%name), '" around line ', start_line
+          cycle
+        end if
         
         ! Check if this variable is explicitly declared elsewhere in the output
         if (is_variable_in_output_lines(type_env%env%vars(i)%name, output_lines, num_lines)) then
