@@ -55,6 +55,7 @@ contains
     
     ! Test preprocessing
     test_count = test_count + 1
+    temp_output = '/tmp/test_basic_types.f90'
     call test_preprocess_file(temp_input, temp_output, error_msg, expected_lines, 4, found_declarations)
     
     if (len_trim(error_msg) == 0 .and. found_declarations) then
@@ -68,8 +69,8 @@ contains
     end if
     
     ! Clean up
-    call execute_command_line('rm -f "' // trim(temp_input) // '"')
-    call execute_command_line('rm -f "' // trim(temp_output) // '"')
+    call execute_command_line('rm -f ' // trim(temp_input))
+    call execute_command_line('rm -f ' // trim(temp_output))
     
   end subroutine test_basic_type_inference_integration
   
@@ -107,6 +108,7 @@ contains
     
     ! Test preprocessing
     test_count = test_count + 1
+    temp_output = '/tmp/test_arithmetic.f90'
     call test_preprocess_file(temp_input, temp_output, error_msg, expected_lines, 6, found_declarations)
     
     if (len_trim(error_msg) == 0 .and. found_declarations) then
@@ -120,8 +122,8 @@ contains
     end if
     
     ! Clean up
-    call execute_command_line('rm -f "' // trim(temp_input) // '"')
-    call execute_command_line('rm -f "' // trim(temp_output) // '"')
+    call execute_command_line('rm -f ' // trim(temp_input))
+    call execute_command_line('rm -f ' // trim(temp_output))
     
   end subroutine test_arithmetic_expressions_integration
   
@@ -153,6 +155,7 @@ contains
     
     ! Test preprocessing
     test_count = test_count + 1
+    temp_output = '/tmp/test_mixed.f90'
     call test_preprocess_file(temp_input, temp_output, error_msg, expected_lines, 3, found_declarations)
     
     if (len_trim(error_msg) == 0 .and. found_declarations) then
@@ -166,8 +169,8 @@ contains
     end if
     
     ! Clean up
-    call execute_command_line('rm -f "' // trim(temp_input) // '"')
-    call execute_command_line('rm -f "' // trim(temp_output) // '"')
+    call execute_command_line('rm -f ' // trim(temp_input))
+    call execute_command_line('rm -f ' // trim(temp_output))
     
   end subroutine test_mixed_types_integration
   
@@ -201,6 +204,7 @@ contains
     
     ! Test preprocessing
     test_count = test_count + 1
+    temp_output = '/tmp/test_intrinsics.f90'
     call test_preprocess_file(temp_input, temp_output, error_msg, expected_lines, 4, found_declarations)
     
     if (len_trim(error_msg) == 0 .and. found_declarations) then
@@ -214,8 +218,8 @@ contains
     end if
     
     ! Clean up
-    call execute_command_line('rm -f "' // trim(temp_input) // '"')
-    call execute_command_line('rm -f "' // trim(temp_output) // '"')
+    call execute_command_line('rm -f ' // trim(temp_input))
+    call execute_command_line('rm -f ' // trim(temp_output))
     
   end subroutine test_intrinsic_functions_integration
   
@@ -242,6 +246,7 @@ contains
     
     ! Test preprocessing
     test_count = test_count + 1
+    temp_output = '/tmp/test_print_filter.f90'
     call preprocess_file_wrapper(temp_input, temp_output, error_msg)
     
     if (len_trim(error_msg) == 0) then
@@ -277,14 +282,15 @@ contains
     end if
     
     ! Clean up
-    call execute_command_line('rm -f "' // trim(temp_input) // '"')
-    call execute_command_line('rm -f "' // trim(temp_output) // '"')
+    call execute_command_line('rm -f ' // trim(temp_input))
+    call execute_command_line('rm -f ' // trim(temp_output))
     
   end subroutine test_print_statement_filtering
   
   subroutine test_preprocess_file(input_file, output_file, error_msg, expected_lines, num_expected, found_all)
     character(len=*), intent(in) :: input_file
-    character(len=*), intent(out) :: output_file, error_msg
+    character(len=*), intent(inout) :: output_file
+    character(len=*), intent(out) :: error_msg
     character(len=*), intent(in) :: expected_lines(:)
     integer, intent(in) :: num_expected
     logical, intent(out) :: found_all
@@ -351,7 +357,8 @@ contains
   subroutine preprocess_file_wrapper(input_file, output_file, error_msg)
     use preprocessor, only: preprocess_file
     character(len=*), intent(in) :: input_file
-    character(len=*), intent(out) :: output_file, error_msg
+    character(len=*), intent(in) :: output_file
+    character(len=*), intent(out) :: error_msg
     
     call preprocess_file(input_file, output_file, error_msg)
     

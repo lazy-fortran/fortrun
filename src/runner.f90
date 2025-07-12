@@ -1,5 +1,5 @@
 module runner
-  use cache, only: get_cache_dir, ensure_cache_dir, get_content_hash, cache_exists
+  use cache, only: get_cache_dir, ensure_cache_dir, get_content_hash, get_single_file_content_hash, cache_exists
   use cache_lock, only: acquire_lock, release_lock, cleanup_stale_locks
   use module_scanner, only: scan_modules, module_info
   use fpm_generator, only: generate_fpm_with_deps, generate_fpm_with_deps_from_config
@@ -17,7 +17,8 @@ module runner
   
 contains
 
-  subroutine run_fortran_file(filename, exit_code, verbose_level, custom_cache_dir, custom_config_dir, parallel_jobs, no_wait)
+  subroutine run_fortran_file(filename, exit_code, verbose_level, custom_cache_dir, &
+                               custom_config_dir, parallel_jobs, no_wait, custom_flags)
     character(len=*), intent(in) :: filename
     integer, intent(out) :: exit_code
     integer, intent(in) :: verbose_level
@@ -25,12 +26,13 @@ contains
     character(len=*), intent(in) :: custom_config_dir
     integer, intent(in) :: parallel_jobs
     logical, intent(in) :: no_wait
+    character(len=*), intent(in), optional :: custom_flags
     
-    logical :: file_exists, success
+    logical :: file_exists, success, file_exists_flag
     character(len=256) :: cache_dir, project_dir, basename
-    character(len=512) :: command
+    character(len=512) :: command, flag_string
     character(len=256) :: absolute_path, preprocessed_file, working_file
-    character(len=32) :: jobs_flag
+    character(len=32) :: jobs_flag, content_hash
     character(len=1024) :: preprocess_error
     integer :: exitstat, cmdstat
     integer :: i, last_slash
@@ -69,12 +71,47 @@ contains
         print '(a)', 'Preprocessing .f file...'
       end if
       
-      ! Preprocess the file
-      call preprocess_file(absolute_path, preprocessed_file, preprocess_error)
-      if (len_trim(preprocess_error) > 0) then
-        print '(a,a)', 'Error during preprocessing: ', trim(preprocess_error)
+      ! Get content-based cache directory first
+      if (len_trim(custom_cache_dir) > 0) then
+        cache_dir = custom_cache_dir
+      else
+        cache_dir = get_cache_dir()
+      end if
+      call ensure_cache_dir(cache_dir, success)
+      if (.not. success) then
+        print '(a)', 'Error: Failed to create cache directory'
         exit_code = 1
         return
+      end if
+      
+      ! Generate content-based filename for preprocessed .f file
+      content_hash = get_single_file_content_hash(absolute_path)
+      if (content_hash == 'fallback_unknown') then
+        ! Fallback to basename if hashing fails
+        preprocessed_file = trim(cache_dir) // '/preprocessed_' // trim(basename) // '.f90'
+      else
+        preprocessed_file = trim(cache_dir) // '/preprocessed_' // trim(content_hash) // '.f90'
+      end if
+      
+      ! Check if already cached
+      inquire(file=preprocessed_file, exist=file_exists_flag)
+      
+      if (.not. file_exists_flag) then
+        if (verbose_level >= 2) then
+          print '(a,a)', 'Creating preprocessed file: ', trim(preprocessed_file)
+        end if
+        
+        ! Preprocess the file
+        call preprocess_file(absolute_path, preprocessed_file, preprocess_error)
+        if (len_trim(preprocess_error) > 0) then
+          print '(a,a)', 'Error during preprocessing: ', trim(preprocess_error)
+          exit_code = 1
+          return
+        end if
+      else
+        if (verbose_level >= 2) then
+          print '(a,a)', 'Using cached preprocessed file: ', trim(preprocessed_file)
+        end if
       end if
       
       ! Keep track of preprocessed file
@@ -82,15 +119,17 @@ contains
       was_preprocessed = .true.
       
       if (verbose_level >= 2) then
-        print '(a,a)', 'Preprocessed file created: ', trim(preprocessed_file)
+        print '(a,a)', 'Preprocessed file ready: ', trim(preprocessed_file)
       end if
     end if
     
-    ! Get cache directory (use custom if provided)
-    if (len_trim(custom_cache_dir) > 0) then
-      cache_dir = custom_cache_dir
-    else
-      cache_dir = get_cache_dir()
+    ! Get cache directory (use custom if provided) - for .f90 files or if not set above
+    if (.not. is_preprocessor_file(filename)) then
+      if (len_trim(custom_cache_dir) > 0) then
+        cache_dir = custom_cache_dir
+      else
+        cache_dir = get_cache_dir()
+      end if
     end if
     call ensure_cache_dir(cache_dir, success)
     if (.not. success) then
@@ -141,9 +180,21 @@ contains
       end if
       
       ! Copy source files and generate FPM project only on cache miss
-      call setup_project_files(working_file, project_dir, basename, verbose_level, custom_config_dir)
+      if (present(custom_flags)) then
+        call setup_project_files(working_file, project_dir, basename, verbose_level, &
+                                  custom_config_dir, was_preprocessed, custom_flags)
+      else
+        call setup_project_files(working_file, project_dir, basename, verbose_level, &
+                                  custom_config_dir, was_preprocessed, '')
+      end if
     end if
     
+    ! Generate flag string based on file type and user input
+    if (present(custom_flags)) then
+      call generate_flag_string(was_preprocessed, custom_flags, flag_string)
+    else
+      call generate_flag_string(was_preprocessed, '', flag_string)
+    end if
     
     ! Build first
     ! Prepare parallel jobs flag if specified
@@ -161,16 +212,31 @@ contains
     
     if (verbose_level == 0) then
       ! Quiet mode: capture errors for helpful messages
-      command = 'cd "' // trim(project_dir) // '" && ' // &
-                'fpm build --flag "-fdefault-real-8 -fdefault-double-8" > /tmp/fpm_build_output.txt 2>&1'
+      if (len_trim(flag_string) > 0) then
+        command = 'cd "' // trim(project_dir) // '" && ' // &
+                  'fpm build --flag "' // trim(flag_string) // '" > /tmp/fpm_build_output.txt 2>&1'
+      else
+        command = 'cd "' // trim(project_dir) // '" && ' // &
+                  'fpm build > /tmp/fpm_build_output.txt 2>&1'
+      end if
     else if (verbose_level >= 2) then
       ! Very verbose: show detailed build output
-      command = 'cd "' // trim(project_dir) // '" && ' // &
-                'fpm build --verbose --flag "-fdefault-real-8 -fdefault-double-8"'
+      if (len_trim(flag_string) > 0) then
+        command = 'cd "' // trim(project_dir) // '" && ' // &
+                  'fpm build --verbose --flag "' // trim(flag_string) // '"'
+      else
+        command = 'cd "' // trim(project_dir) // '" && ' // &
+                  'fpm build --verbose'
+      end if
     else
       ! Normal verbose: show build progress
-      command = 'cd "' // trim(project_dir) // '" && ' // &
-                'fpm build --flag "-fdefault-real-8 -fdefault-double-8"'
+      if (len_trim(flag_string) > 0) then
+        command = 'cd "' // trim(project_dir) // '" && ' // &
+                  'fpm build --flag "' // trim(flag_string) // '"'
+      else
+        command = 'cd "' // trim(project_dir) // '" && ' // &
+                  'fpm build'
+      end if
     end if
     
     ! TODO: Add jobs_flag when FPM supports it
@@ -275,10 +341,13 @@ contains
     
   end function get_timestamp
   
-  subroutine generate_fpm_with_dependencies(source_file, project_dir, name, verbose_level, custom_config_dir)
+  subroutine generate_fpm_with_dependencies(source_file, project_dir, name, verbose_level, &
+                                            custom_config_dir, is_preprocessed_file, custom_flags)
     character(len=*), intent(in) :: source_file, project_dir, name
     integer, intent(in) :: verbose_level
     character(len=*), intent(in) :: custom_config_dir
+    logical, intent(in) :: is_preprocessed_file
+    character(len=*), intent(in), optional :: custom_flags
     
     type(module_info), dimension(:), allocatable :: modules
     integer :: n_modules
@@ -308,11 +377,21 @@ contains
       print '(a)', 'Module cache enabled for dependency optimization'
     end if
     
-    ! Generate fmp.toml with dependencies
+    ! Generate fpm.toml with dependencies
     if (len_trim(custom_config_dir) > 0) then
-      call generate_fpm_with_deps_from_config(project_dir, name, modules, n_modules, custom_config_dir)
+      if (present(custom_flags)) then
+        call generate_fpm_with_deps_from_config(project_dir, name, modules, n_modules, custom_config_dir, &
+                                                 is_preprocessed_file, custom_flags)
+      else
+        call generate_fpm_with_deps_from_config(project_dir, name, modules, n_modules, custom_config_dir, &
+                                                 is_preprocessed_file, '')
+      end if
     else
-      call generate_fpm_with_deps(project_dir, name, modules, n_modules)
+      if (present(custom_flags)) then
+        call generate_fpm_with_deps(project_dir, name, modules, n_modules, is_preprocessed_file, custom_flags)
+      else
+        call generate_fpm_with_deps(project_dir, name, modules, n_modules, is_preprocessed_file, '')
+      end if
     end if
     
     ! Implement module cache integration
@@ -451,8 +530,8 @@ contains
     command = 'mkdir -p "' // trim(project_dir) // '/src"'
     call execute_command_line(command)
     
-    ! Copy all .f90 files except the main file
-    command = 'find "' // trim(source_dir) // '" -maxdepth 1 -name "*.f90" -o -name "*.F90" | ' // &
+    ! Copy all .f90 files except the main file (only files, not directories)
+    command = 'find "' // trim(source_dir) // '" -maxdepth 1 -type f \( -name "*.f90" -o -name "*.F90" \) | ' // &
               'while read f; do ' // &
               '  if [ "$f" != "' // trim(main_file) // '" ]; then ' // &
               '    cp "$f" "' // trim(project_dir) // '/src/"; ' // &
@@ -529,9 +608,12 @@ contains
     
   end function directory_exists
   
-  subroutine setup_project_files(absolute_path, project_dir, basename, verbose_level, custom_config_dir)
+  subroutine setup_project_files(absolute_path, project_dir, basename, verbose_level, &
+                                  custom_config_dir, is_preprocessed_file, custom_flags)
     character(len=*), intent(in) :: absolute_path, project_dir, basename, custom_config_dir
     integer, intent(in) :: verbose_level
+    logical, intent(in) :: is_preprocessed_file
+    character(len=*), intent(in), optional :: custom_flags
     character(len=512) :: command
     integer :: exitstat, cmdstat
     
@@ -548,7 +630,13 @@ contains
     call copy_local_modules(absolute_path, project_dir)
     
     ! Scan for module dependencies and generate fpm.toml
-    call generate_fpm_with_dependencies(absolute_path, project_dir, basename, verbose_level, custom_config_dir)
+    if (present(custom_flags)) then
+      call generate_fpm_with_dependencies(absolute_path, project_dir, basename, verbose_level, &
+                                           custom_config_dir, is_preprocessed_file, custom_flags)
+    else
+      call generate_fpm_with_dependencies(absolute_path, project_dir, basename, verbose_level, &
+                                           custom_config_dir, is_preprocessed_file, '')
+    end if
     
   end subroutine setup_project_files
   
@@ -653,5 +741,32 @@ contains
     end if
     
   end function extract_basename
+  
+  subroutine generate_flag_string(is_preprocessed_file, custom_flags, flag_string)
+    logical, intent(in) :: is_preprocessed_file
+    character(len=*), intent(in) :: custom_flags
+    character(len=*), intent(out) :: flag_string
+    
+    character(len=256) :: opinionated_flags
+    
+    ! Define opinionated flags for .f files (preprocessed files)
+    opinionated_flags = '-fdefault-real-8 -fdefault-double-8'
+    
+    ! Generate flag string based on file type and user flags
+    if (is_preprocessed_file .and. len_trim(custom_flags) > 0) then
+      ! Preprocessed file with user flags: combine opinionated + user flags
+      flag_string = trim(opinionated_flags) // ' ' // trim(custom_flags)
+    else if (is_preprocessed_file) then
+      ! Preprocessed file without user flags: use opinionated flags only
+      flag_string = opinionated_flags
+    else if (len_trim(custom_flags) > 0) then
+      ! Standard .f90 file with user flags: use user flags only
+      flag_string = custom_flags
+    else
+      ! Standard .f90 file without user flags: no flags
+      flag_string = ''
+    end if
+    
+  end subroutine generate_flag_string
   
 end module runner

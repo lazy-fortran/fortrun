@@ -14,11 +14,27 @@ module figure_capture
     public :: enable_figure_capture
     public :: disable_figure_capture
     public :: fortplot_show_interceptor
+    public :: get_next_figure_path
+    public :: increment_figure_counter
+    public :: cleanup_figure_capture
+    public :: get_figure_directory
+    public :: convert_to_base64
+    public :: read_base64_file
+    public :: intercept_show
+    public :: get_figure_counter
     
 contains
 
-    subroutine init_figure_capture()
+    subroutine init_figure_capture(custom_dir)
+        character(len=*), intent(in), optional :: custom_dir
         character(len=256) :: command
+        
+        ! Set figure directory (use custom if provided)
+        if (present(custom_dir)) then
+            temp_figure_dir = trim(custom_dir)
+        else
+            temp_figure_dir = "/tmp/fortran_figures"
+        end if
         
         ! Create temporary directory for figures
         command = 'mkdir -p "' // trim(temp_figure_dir) // '"'
@@ -206,5 +222,93 @@ contains
         ! (base64 encoding will handle this gracefully)
         
     end subroutine create_placeholder_png
+    
+    ! Additional subroutines needed by tests
+    subroutine get_next_figure_path(fig_path)
+        character(len=*), intent(out) :: fig_path
+        character(len=:), allocatable :: filename
+        
+        filename = get_next_figure_filename()
+        fig_path = filename
+        
+    end subroutine get_next_figure_path
+    
+    subroutine increment_figure_counter()
+        figure_counter = figure_counter + 1
+    end subroutine increment_figure_counter
+    
+    subroutine cleanup_figure_capture()
+        ! Alias for finalize_figure_capture for test compatibility
+        call finalize_figure_capture()
+    end subroutine cleanup_figure_capture
+    
+    subroutine get_figure_directory(fig_dir)
+        character(len=*), intent(out) :: fig_dir
+        fig_dir = trim(temp_figure_dir)
+    end subroutine get_figure_directory
+    
+    subroutine convert_to_base64(input_file, output_file, success)
+        character(len=*), intent(in) :: input_file, output_file
+        logical, intent(out) :: success
+        character(len=:), allocatable :: base64_data
+        integer :: unit, iostat
+        
+        ! Convert file to base64 using existing function
+        call png_to_base64(input_file, base64_data)
+        
+        success = (len(base64_data) > 0)
+        
+        if (success) then
+            ! Write base64 data to output file
+            open(newunit=unit, file=output_file, status='replace', iostat=iostat)
+            if (iostat == 0) then
+                write(unit, '(a)', iostat=iostat) base64_data
+                close(unit)
+                success = (iostat == 0)
+            else
+                success = .false.
+            end if
+        end if
+        
+    end subroutine convert_to_base64
+    
+    subroutine read_base64_file(filename, base64_data)
+        character(len=*), intent(in) :: filename
+        character(len=:), allocatable, intent(out) :: base64_data
+        integer :: unit, iostat, file_size
+        logical :: file_exists
+        
+        inquire(file=filename, exist=file_exists, size=file_size)
+        
+        if (.not. file_exists .or. file_size <= 0) then
+            base64_data = ""
+            return
+        end if
+        
+        open(newunit=unit, file=filename, status='old', iostat=iostat)
+        if (iostat /= 0) then
+            base64_data = ""
+            return
+        end if
+        
+        allocate(character(len=file_size) :: base64_data)
+        read(unit, '(a)', iostat=iostat) base64_data
+        close(unit)
+        
+        if (iostat /= 0) then
+            base64_data = ""
+        end if
+        
+    end subroutine read_base64_file
+    
+    subroutine intercept_show()
+        ! Alias for fortplot_show_interceptor for test compatibility
+        call fortplot_show_interceptor()
+    end subroutine intercept_show
+    
+    function get_figure_counter() result(counter)
+        integer :: counter
+        counter = figure_counter
+    end function get_figure_counter
 
 end module figure_capture

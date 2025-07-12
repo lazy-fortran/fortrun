@@ -1,6 +1,6 @@
 module preprocessor
   use cache, only: get_cache_dir
-  use type_inference
+  use type_inference_coordinator
   implicit none
   private
   
@@ -23,14 +23,12 @@ contains
   
   subroutine preprocess_file(input_file, output_file, error_msg)
     character(len=*), intent(in) :: input_file
-    character(len=*), intent(out) :: output_file
+    character(len=*), intent(in) :: output_file
     character(len=*), intent(out) :: error_msg
     
     character(len=1024) :: line
-    character(len=256) :: cache_dir
-    character(len=256) :: base_name
     integer :: unit_in, unit_out, ios
-    integer :: line_num, ext_pos
+    integer :: line_num
     logical :: in_subroutine, in_function
     logical :: has_program_statement, contains_written
     logical :: enable_type_inference
@@ -50,23 +48,6 @@ contains
     if (enable_type_inference) then
       call init_type_environment(type_env)
     end if
-    
-    ! Generate output filename in cache directory
-    cache_dir = get_cache_dir()
-    ext_pos = index(input_file, '.', back=.true.)
-    if (ext_pos > 0) then
-      base_name = input_file(1:ext_pos-1)
-    else
-      base_name = input_file
-    end if
-    
-    ! Extract just the filename without path
-    ext_pos = index(base_name, '/', back=.true.)
-    if (ext_pos > 0) then
-      base_name = base_name(ext_pos+1:)
-    end if
-    
-    write(output_file, '(a,a,a,a)') trim(cache_dir), '/', trim(base_name), '_preprocessed.f90'
     
     ! Open input file
     open(newunit=unit_in, file=input_file, status='old', action='read', iostat=ios)
@@ -169,7 +150,7 @@ contains
     close(unit_out)
     
     ! Now post-process to add declarations if type inference was used
-    if (enable_type_inference .and. type_env%var_count > 0) then
+    if (enable_type_inference .and. type_env%env%var_count > 0) then
       call inject_declarations(output_file, type_env, error_msg)
     end if
     
@@ -302,13 +283,13 @@ contains
       ! Add to type environment as already declared (with special marker)
       if (len_trim(var_name) > 0) then
         ! Create an entry marked as already declared
-        if (type_env%var_count < size(type_env%vars)) then
-          type_env%var_count = type_env%var_count + 1
-          var_idx = type_env%var_count
-          type_env%vars(var_idx)%name = var_name
-          type_env%vars(var_idx)%in_use = .true.
+        if (type_env%env%var_count < size(type_env%env%vars)) then
+          type_env%env%var_count = type_env%env%var_count + 1
+          var_idx = type_env%env%var_count
+          type_env%env%vars(var_idx)%name = var_name
+          type_env%env%vars(var_idx)%in_use = .true.
           ! Use a special type to indicate already declared
-          type_env%vars(var_idx)%var_type%base_type = -1  ! Special marker
+          type_env%env%vars(var_idx)%var_type%base_type = -1  ! Special marker
         end if
       end if
       
@@ -410,7 +391,7 @@ contains
     close(unit_out)
     
     ! Replace original with temporary
-    call execute_command_line('mv "' // trim(temp_filename) // '" "' // trim(filename) // '"')
+    call execute_command_line('mv ' // trim(temp_filename) // ' ' // trim(filename))
     
   end subroutine inject_declarations
   
@@ -422,33 +403,33 @@ contains
     character(len=64) :: type_str
     
     ! Generate declaration for each variable
-    do i = 1, type_env%var_count
-      if (type_env%vars(i)%in_use .and. &
-          type_env%vars(i)%var_type%base_type /= TYPE_UNKNOWN .and. &
-          type_env%vars(i)%var_type%base_type /= -1) then  ! Skip already declared
+    do i = 1, type_env%env%var_count
+      if (type_env%env%vars(i)%in_use .and. &
+          type_env%env%vars(i)%var_type%base_type /= TYPE_UNKNOWN .and. &
+          type_env%env%vars(i)%var_type%base_type /= -1) then  ! Skip already declared
         
         ! Generate type string
-        select case (type_env%vars(i)%var_type%base_type)
+        select case (type_env%env%vars(i)%var_type%base_type)
         case (TYPE_INTEGER)
-          if (type_env%vars(i)%var_type%kind == 4) then
+          if (type_env%env%vars(i)%var_type%kind == 4) then
             type_str = 'integer'
           else
-            write(type_str, '(a,i0,a)') 'integer(', type_env%vars(i)%var_type%kind, ')'
+            write(type_str, '(a,i0,a)') 'integer(', type_env%env%vars(i)%var_type%kind, ')'
           end if
           
         case (TYPE_REAL)
-          if (type_env%vars(i)%var_type%kind == 4) then
+          if (type_env%env%vars(i)%var_type%kind == 4) then
             type_str = 'real'
           else
-            write(type_str, '(a,i0,a)') 'real(', type_env%vars(i)%var_type%kind, ')'
+            write(type_str, '(a,i0,a)') 'real(', type_env%env%vars(i)%var_type%kind, ')'
           end if
           
         case (TYPE_LOGICAL)
           type_str = 'logical'
           
         case (TYPE_CHARACTER)
-          if (type_env%vars(i)%var_type%char_len >= 0) then
-            write(type_str, '(a,i0,a)') 'character(len=', type_env%vars(i)%var_type%char_len, ')'
+          if (type_env%env%vars(i)%var_type%char_len >= 0) then
+            write(type_str, '(a,i0,a)') 'character(len=', type_env%env%vars(i)%var_type%char_len, ')'
           else
             type_str = 'character(len=*)'
           end if
@@ -458,7 +439,7 @@ contains
         end select
         
         ! Write properly formatted declaration
-        write(unit, '(a,a,a,a)') '  ', trim(type_str), ' :: ', trim(type_env%vars(i)%name)
+        write(unit, '(a,a,a,a)') '  ', trim(type_str), ' :: ', trim(type_env%env%vars(i)%name)
         
       end if
     end do

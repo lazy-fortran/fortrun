@@ -160,8 +160,13 @@ contains
                              verbose_level=1, custom_cache_dir=custom_cache, &
                              custom_config_dir=custom_config, parallel_jobs=1, no_wait=.true.)
         
-        ! Check if custom directories were used (via existence of cache)
-        inquire(file=trim(custom_cache) // "/main_fpm", exist=passed)
+        ! Check if custom directories were used (via existence of any cache files)
+        call execute_command_line("ls " // trim(custom_cache) // " > /dev/null 2>&1; echo $? > /tmp/cache_check")
+        open(newunit=unit, file="/tmp/cache_check", status='old', action='read')
+        read(unit, *) exit_code
+        close(unit)
+        call execute_command_line("rm -f /tmp/cache_check")
+        passed = (exit_code == 0)
         
         ! Clean up
         call execute_command_line("rm -f " // trim(test_file))

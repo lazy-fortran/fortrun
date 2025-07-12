@@ -29,7 +29,7 @@ program test_fmp_version_generation
   call execute_command_line('mkdir -p ' // trim(project_dir))
   
   ! Generate FPM file using custom config directory
-  call generate_fpm_with_deps_from_config(project_dir, 'test_project', test_modules, 2, '/tmp')
+  call generate_fpm_with_deps_from_config(project_dir, 'test_project', test_modules, 2, '/tmp', .false., '')
   
   ! Check the generated fpm.toml
   fpm_toml_path = trim(project_dir) // '/fpm.toml'

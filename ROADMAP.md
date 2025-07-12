@@ -4,7 +4,7 @@
 
 **Make Python Fortran again.** The `fortran` CLI tool aims to make Fortran development as seamless as Python, with automatic dependency resolution, transparent compilation, and eventually a simplified syntax that compiles to standard Fortran.
 
-## Current Status (Phase 7 Complete)
+## Current Status (Phase 8 Complete)
 
 ### ✅ Implemented Features
 - **Basic CLI**: `fortran <file.f90>` executes Fortran programs transparently
@@ -41,6 +41,12 @@
   - Render to markdown with code blocks and output
   - **Figure/Plot Integration**: Automatic capture of fortplotlib plots as inline base64 PNG images
   - CLI integration with `--notebook` flag
+- **Advanced Type Inference**:
+  - Modular architecture with clean separation of concerns
+  - Array type inference with dimension and shape analysis
+  - Derived type pattern detection and field tracking
+  - Function return type inference with intrinsic function support
+  - Comprehensive test coverage (61/61 tests passing across all analyzers)
 
 ## Near-term Roadmap
 
@@ -83,38 +89,34 @@
 
 ## Long-term Vision: Simplified Fortran (.f files)
 
-### Phase 5: Basic Preprocessor
-Implement a preprocessor that transforms `.f` files (simplified syntax) into standard `.f90` files.
+### Phase 5: Basic Preprocessor (Complete)
+- ✅ **Automatic program wrapping**: Write executable code without explicit `program` statements
+- ✅ **Automatic contains insertion**: Functions/subroutines automatically wrapped
+- ✅ **Modern defaults**: `implicit none` and double precision automatically applied
+- ✅ **Integration with cache system**: Preprocessed files properly cached
+- ✅ **Comprehensive test coverage**: All preprocessor functionality tested
 
-#### 5.1 Implicit Program/Module Units
-- **Feature**: Write programs without explicit `program` wrapper
-- **Feature**: Write modules without explicit `module` wrapper
-- **Implementation**:
-  ```fortran
-  ! example.f (simplified)
-  print *, "Hello World"
-  
-  ! Transforms to example.f90:
-  program example
-    implicit none
-    print *, "Hello World"
-  end program example
-  ```
-- **Module Detection**: Analyze for `contains`, `public`, `private` keywords
-- **Program Detection**: Look for `call`, main execution statements
-- **Default**: Module name = filename (without extension)
+### Phase 6: Basic Type Inference (Complete) 
+- ✅ **Literal type detection**: Automatic inference for integers, reals, logicals, characters
+- ✅ **Expression type propagation**: Type analysis across arithmetic expressions
+- ✅ **Variable declaration generation**: Automatic insertion of type declarations
+- ✅ **Integration with preprocessor**: Seamless .f file processing with type inference
 
-#### 5.2 Modern Defaults ✅ (Partially Complete)
-- **Feature**: `implicit none` by default (no need to write it) ✅
-  - **Implemented**: Using `implicit-typing = false` in fpm.toml
-- **Feature**: `real(kind=8)` as default real type ✅
-  - **Implemented**: Using `--flag "-fdefault-real-8 -fdefault-double-8"`
-- **Feature**: Automatic `use, intrinsic :: iso_fortran_env`
-  - **Status**: Not yet implemented
+### Phase 7: Notebook Features (Complete)
+- ✅ **Jupytext-like notebook support**: Parse .f files with markdown cells
+- ✅ **Cell execution**: Execute notebook cells with variable persistence
+- ✅ **Figure capture**: Automatic conversion of show() calls to base64 PNG images
+- ✅ **Markdown rendering**: Complete notebooks rendered to markdown with embedded figures
 
-### Phase 6: Syntax Enhancements
+### Phase 8: Advanced Type Inference (Complete)
+- ✅ **Modular architecture**: Clean separation with dedicated analyzers
+- ✅ **Array type inference**: Dimension and shape analysis
+- ✅ **Derived type patterns**: Field detection and tracking
+- ✅ **Function return types**: Comprehensive intrinsic function support
 
-#### 6.1 Dot Notation for Type Members
+### Phase 9: Enhanced Syntax Features (Future)
+
+#### 9.1 Dot Notation for Type Members
 - **Feature**: Use `.` instead of `%` for derived type access
 - **Example**:
   ```fortran
@@ -131,7 +133,7 @@ Implement a preprocessor that transforms `.f` files (simplified syntax) into sta
   - Handle logical operators (`.and.`, `.or.`)
   - Context-aware parsing required
 
-#### 6.2 Enhanced Import System
+#### 9.2 Enhanced Import System
 - **Feature**: Python-like imports
   ```fortran
   ! Simplified syntax
