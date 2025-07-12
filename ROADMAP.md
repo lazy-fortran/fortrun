@@ -201,24 +201,28 @@
     end function
     ```
 
-- **7.3b Output Parameter Inference (Feasible)**:
-  - **Status**: 🎯 **Near-term roadmap - can be implemented**
-  - **Feature**: Infer types from call site usage when used as output/return values
+- **7.3b Forward Type Propagation (In Progress)**:
+  - **Status**: 🚧 **Currently implementing**
+  - **Feature**: Propagate types from declared functions/subroutines to variables at call sites
   - **Example**:
     ```fortran
-    ! At call site:
-    real(8) :: result
-    result = compute(x, y)  ! Can infer compute returns real(8)
-    
-    ! Or with subroutine output parameters:
-    integer :: count
-    call get_count(filename, count)  ! Can infer count is intent(out) integer
-    
-    ! Function definition can be enhanced:
-    function compute(x, y)
-      ! Return type inferred from usage at call sites
+    ! With declared function:
+    real(8) function compute(x, y)
       compute = x**2 + y**2
     end function
+    
+    ! At call site, infer variable type:
+    result = compute(a, b)  ! Infer result as real(8) from compute's return type
+    
+    ! With subroutine intent(out):
+    subroutine get_data(filename, count, values)
+      character(*), intent(in) :: filename
+      integer, intent(out) :: count
+      real(8), intent(out) :: values(:)
+    end subroutine
+    
+    ! At call site:
+    call get_data("file.txt", n, data)  ! Infer n as integer, data as real(8) array
     ```
 
 #### 7.4 Function Return Type Inference (Partial)

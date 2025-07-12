@@ -522,18 +522,37 @@ Created and deployed multi-scope preprocessor with the following approach:
    - Add function parameter and return type inference
    - Consider alternative approaches if complexity remains high
 
-### **Conclusion:**
+### **Current Implementation (2025-07-12):**
 The multi-scope preprocessor successfully handles:
 - ✅ Variable declarations at correct scope levels
-- ✅ Type inference for variables assigned literal values
+- ✅ Type inference for variables assigned literal values  
 - ✅ Function-local variable inference
+- 🚧 **Function return type inference** (in progress):
+  - Analyzes function body assignments to infer return types
+  - Uses `function_name = expression` patterns to determine return type
+  - Enhances function declarations with inferred return types
 
-However, **function parameter type inference** is beyond the current scope as it requires:
-- Whole-program analysis of all call sites
-- Multiple dispatch for polymorphic functions
-- Complex type unification algorithms
+### **Technical Approach:**
+**Forward Type Propagation** from declared functions to variables at call sites:
+```fortran
+! When we have a declared function:
+real(8) function square(val)
+    square = val * val
+end function
 
-This has been added to the roadmap for future phases.
+! We can infer variable types from function calls:
+y = square(x)  ! Infer y as real(8) from square's return type
+
+! Same for subroutines with intent(out) parameters:
+call get_count(filename, count)  ! Infer count type from subroutine declaration
+```
+
+This is **forward propagation** - using existing type information to infer unknown types.
+
+### **Limitations:**
+- ❌ Function input parameters still require explicit types or whole-program analysis
+- ❌ Multiple dispatch for polymorphic functions deferred to future phases
+- ⚠️ **Static array sizes** need to be replaced with dynamic allocation
 
 ---
 *Implementation Attempted: 2025-07-12*
