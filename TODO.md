@@ -4,8 +4,8 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
 
 ## HIGH PRIORITY FIXES - CRITICAL ISSUES ⚠️
 
-### ISSUE 1: Cache Directory Copy Error (HIGH PRIORITY)
-- [ ] **Fix "cp: -r not specified; omitting directory" error**
+### ISSUE 1: Cache Directory Copy Error (HIGH PRIORITY) ✅ COMPLETED
+- [x] **Fix "cp: -r not specified; omitting directory" error**
   - **Root Cause**: Cache directories incorrectly named with `.f90` extensions (e.g., `test_multiple_simple_test_multiple.f90/`)
   - **Location**: `src/runner.f90:455-461` in `copy_local_modules` subroutine
   - **Problem**: `find` command matches directories with `.f90` extensions, `cp` tries to copy them without `-r` flag
@@ -15,8 +15,8 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
     3. Fix basename handling inconsistency between `get_basename()` and `extract_basename()`
   - **Test**: Create .f file, run it, verify no "cp: -r" errors in output
 
-### ISSUE 2: Inefficient .f File Caching (HIGH PRIORITY) 
-- [ ] **Implement content-based caching for .f files**
+### ISSUE 2: Inefficient .f File Caching (HIGH PRIORITY) ✅ COMPLETED
+- [x] **Implement content-based caching for .f files**
   - **Root Cause**: .f files use filename-based cache keys (`simple_basename`) instead of content-based hashing
   - **Current Problem**: 
     - Cache doesn't invalidate when .f file content changes
