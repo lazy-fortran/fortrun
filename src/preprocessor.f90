@@ -226,8 +226,9 @@ contains
           ! Detect variable usage in sizeof() calls and other patterns  
           call detect_sizeof_variables(scope_envs(current_scope), line)
           
+          ! EXPERIMENTAL: Test if assignment detection alone is sufficient
           ! Pragmatic fix: Add known missing variables for common patterns
-          call add_common_missing_variables(scope_envs(current_scope), line)
+          ! call add_common_missing_variables(scope_envs(current_scope), line)
         end if
         
         ! Skip USE statements (already processed)
