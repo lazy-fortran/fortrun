@@ -136,9 +136,9 @@ Source File → Module Scanner → Registry Resolver → FPM Generator → Cache
 - Downloads external dependencies
 
 ### FPM Generator (`fpm_generator.f90`)
-- Creates dynamic `fmp.toml` files
-- Applies modern defaults (implicit none, double precision)
-- Configures compiler flags
+- Creates dynamic `fpm.toml` files
+- Applies modern defaults for .f files only
+- Configures compiler flags based on file type
 
 ### Cache Manager (`cache.f90`)
 - Content-based cache keys using FPM's digest
@@ -152,17 +152,23 @@ Source File → Module Scanner → Registry Resolver → FPM Generator → Cache
 
 ## Modern Defaults
 
-The tool enforces modern Fortran practices:
+The tool applies different defaults based on file type:
 
+**For .f90 files (Standard Fortran):**
 ```toml
-# Generated fmp.toml
+# Generated fpm.toml
 [fortran]
 implicit-typing = false      # Enforces 'implicit none'
 implicit-external = false    # No implicit externals
 source-form = "free"         # Modern free-form source
+# No special compiler flags
+```
 
+**For .f files (Opinionated Preprocessing):**
+```toml
+# Generated fpm.toml (same base + additional flags)
 [build]
-flag = "-fdefault-real-8 -fdefault-double-8"  # Double precision by default
+flag = "-fdefault-real-8 -fdefault-double-8"  # Double precision for .f files
 ```
 
 # Advanced Usage
@@ -270,8 +276,8 @@ ls -la ~/.cache/fortran/
 $ fortran -v hello.f90
 [INFO] Scanning for modules in hello.f90
 [INFO] No external dependencies found
-[INFO] Generating fmp.toml
-[INFO] Building with FMP...
+[INFO] Generating fpm.toml
+[INFO] Building with FPM...
 [INFO] Execution completed
 ```
 
@@ -283,7 +289,7 @@ $ fortran -vv hello.f90
 [DEBUG] Source file: hello.f90
 [DEBUG] Module dependencies: []
 [DEBUG] Cache key: abc123def456
-[DEBUG] FMP command: fmp run --flag "-fdefault-real-8 -fdefault-double-8"
+[DEBUG] FPM command: fpm run --flag "-fdefault-real-8 -fdefault-double-8"
 [DEBUG] Build output: [compiler messages]
 ```
 
@@ -292,7 +298,7 @@ $ fortran -vv hello.f90
 | Error | Meaning | Solution |
 |-------|---------|----------|
 | `Module 'X' not found` | Missing package in registry | Add to registry.toml |
-| `FMP build failed` | Compiler error | Check source code, use `-vv` |
+| `FPM build failed` | Compiler error | Check source code, use `-vv` |
 | `Cache lock timeout` | Parallel build conflict | Wait or clear locks |
 | `Permission denied` | Cache directory access | Check permissions |
 

@@ -132,10 +132,10 @@ end program
 
 ```bash
 fortran precision_test.f90
-# Output shows double precision by default
+# Output shows standard single precision for .f90 files
 ```
 
-Demonstrates the tool's modern precision defaults.
+Demonstrates standard Fortran precision behavior for .f90 files.
 
 ### Notebook-Style Execution
 **Location:** [example/notebook/](https://github.com/krystophny/fortran/tree/main/example/notebook)

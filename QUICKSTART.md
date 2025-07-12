@@ -118,7 +118,7 @@ The tool automatically finds `math_utils.f90`, compiles it, and links everything
 - **Smart dependency detection** - Finds local modules automatically  
 - **Package registry** - Resolves external dependencies from FPM registry
 - **Fast caching** - Recompiles only when source changes
-- **Modern defaults** - `implicit none`, double precision by default
+- **Modern defaults** - `implicit none` via fpm.toml, double precision for .f files
 
 ## What Makes This Different?
 
