@@ -241,14 +241,29 @@ contains
       write(unit_out, '(A)') trim(output_lines(i))
       
       ! Check if we need to inject declarations after this line
-      ! TEMPORARILY DISABLE ENTIRE DECLARATION INJECTION TO DEBUG
-      ! do current_scope = 1, 10
-      !   if (implicit_lines(current_scope) == i .and. (scope_has_vars(current_scope) .or. scope_param_count(current_scope) > 0)) then
-      !     write(unit_out, '(A)') '  '
-      !     write(unit_out, '(A)') '  ! Auto-generated variable declarations:'
-      !     write(unit_out, '(A)') '  '
-      !   end if
-      ! end do
+      do current_scope = 1, 10
+        if (implicit_lines(current_scope) == i .and. (scope_has_vars(current_scope) .or. scope_param_count(current_scope) > 0)) then
+          write(unit_out, '(A)') '  '
+          write(unit_out, '(A)') '  ! Auto-generated variable declarations:'
+          write(unit_out, '(A,I0,A,I0,A,L1)') '  ! DEBUG INJECT: scope=', current_scope, ' has_vars=', scope_envs(current_scope)%env%var_count, ' vars_flag=', scope_has_vars(current_scope)
+          
+          ! SKIP function parameter declarations for now
+          ! if (scope_param_count(current_scope) > 0) then
+          !   call write_function_parameter_declarations(unit_out, current_scope, scope_envs, scope_function_params, scope_param_count, &
+          !                                              param_is_assigned(current_scope, :), param_is_read(current_scope, :))
+          ! end if
+          
+          ! Write other variable declarations ONLY for scope 1 for now
+          if (scope_has_vars(current_scope) .and. current_scope == 1) then
+            write(unit_out, '(A)') '  ! DEBUG: Writing scope 1 (main) declarations'
+            call write_formatted_declarations(unit_out, scope_envs(current_scope))
+          else if (scope_has_vars(current_scope) .and. current_scope > 1) then
+            write(unit_out, '(A)') '  ! DEBUG: SKIPPING scope > 1 declarations for now'
+          end if
+          
+          write(unit_out, '(A)') '  '
+        end if
+      end do
     end do
     
     close(unit_out)
@@ -819,8 +834,13 @@ contains
     integer :: i
     character(len=64) :: type_str
     
+    ! DEBUG: Check what we're skipping
+    write(unit, '(A,A,A)') '  ! DEBUG: Skipping function name: "', trim(function_name), '"'
+    
     ! Generate declaration for each variable except the function name
     do i = 1, type_env%env%var_count
+      ! DEBUG: Show what variables we're considering
+      write(unit, '(A,A,A,I0,A)') '  ! DEBUG: Variable "', trim(type_env%env%vars(i)%name), '" type=', type_env%env%vars(i)%var_type%base_type, ''
       if (type_env%env%vars(i)%in_use .and. &
           type_env%env%vars(i)%var_type%base_type /= TYPE_UNKNOWN .and. &
           type_env%env%vars(i)%var_type%base_type /= -1 .and. &
