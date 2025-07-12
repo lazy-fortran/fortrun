@@ -2,16 +2,16 @@
 
 ## Overview
 
-**IMPROVED** test coverage as of 2025-07-12:
+**SIGNIFICANTLY IMPROVED** test coverage as of 2025-07-12:
 
-- **Lines**: 78.7% (6494 out of 8255) ⬆️ **+1.8%**
-- **Functions**: 95.4% (308 out of 323) ⬇️ -3.2% (more functions added)
-- **Branches**: 40.7% (4132 out of 10143) ⬆️ **+3.0%**
+- **Lines**: 79.4% (7082 out of 8925) ⬆️ **+2.5%**
+- **Functions**: 95.7% (334 out of 349) ⬇️ -2.9% (more functions added)
+- **Branches**: 42.0% (4389 out of 10455) ⬆️ **+4.3%**
 
 ### Coverage Improvement Summary
-- **+683 lines covered** (5811 → 6494)
-- **+472 branches covered** (3660 → 4132)
-- **+696 total lines added** to test suite (comprehensive tests)
+- **+1,271 lines covered** (5811 → 7082) 
+- **+729 branches covered** (3660 → 4389)
+- **+1,366 total lines added** to test suite (comprehensive tests)
 
 ## Coverage by Module
 
@@ -22,9 +22,9 @@
 | ~~`runner.f90`~~ | 269 | **83%** ⬆️ | 44 lines | 🟢 **IMPROVED** | **+83%** |
 | `cli.f90` | 99 | **20%** | 79 lines | 🔴 HIGH | No change |
 | ~~`notebook_output.f90`~~ | 93 | **84%** ⬆️ | 14 lines | 🟢 **IMPROVED** | **+64%** |
+| ~~`cache.f90`~~ | 145 | **90%** ⬆️ | 14 lines | 🟢 **IMPROVED** | **+41%** |
+| ~~`registry_resolver.f90`~~ | 257 | **82%** ⬆️ | 44 lines | 🟢 **IMPROVED** | **+15%** |
 | `config.f90` | 21 | **76%** ⬆️ | 5 lines | 🟢 IMPROVED | **+24%** |
-| `cache.f90` | 145 | **49%** | 74 lines | 🟡 MEDIUM | No change |
-| `registry_resolver.f90` | 257 | **67%** ⬆️ | 84 lines | 🟡 IMPROVED | **+3%** |
 | `figure_capture.f90` | 79 | **64%** | 28 lines | 🟡 MEDIUM | No change |
 | `notebook_renderer.f90` | 49 | **67%** | 16 lines | 🟡 MEDIUM | No change |
 | `module_scanner.f90` | 63 | **79%** | 13 lines | 🟢 LOW | No change |
@@ -65,6 +65,36 @@
 - ✅ Lock management
 
 **Remaining gaps (17%):** Some error recovery paths and edge cases
+
+### ✅ **RESOLVED: `cache.f90` (90% coverage)**
+
+**MAJOR IMPROVEMENT:** From 49% to 90% coverage! Now thoroughly tested with:
+
+- ✅ Cache directory creation and management
+- ✅ Cache structure setup (builds, modules, executables, metadata)
+- ✅ Module and executable caching operations
+- ✅ Build artifacts storage and retrieval
+- ✅ Cache key generation and validation
+- ✅ Content hash generation using FPM's fnv_1a
+- ✅ FPM digest integration
+- ✅ Cache existence checking and invalidation
+- ✅ Error handling and edge cases
+
+**Remaining gaps (10%):** Some OS-specific error paths
+
+### ✅ **RESOLVED: `registry_resolver.f90` (82% coverage)**
+
+**MAJOR IMPROVEMENT:** From 67% to 82% coverage! Now thoroughly tested with:
+
+- ✅ Registry creation and loading from custom paths
+- ✅ Module resolution (exact match, prefix, underscore inference)
+- ✅ Version resolution and constraint handling
+- ✅ Registry validation with error reporting
+- ✅ Custom configuration directory support
+- ✅ Error handling for malformed/missing registries
+- ✅ Edge cases with special characters and empty inputs
+
+**Remaining gaps (18%):** Some complex TOML parsing paths
 
 ### ✅ **RESOLVED: `notebook_output.f90` (84% coverage)**
 
@@ -181,15 +211,17 @@ Current branch coverage is only **37.7%**. Focus areas:
 
 1. ✅ ~~Create comprehensive tests for `runner.f90`~~ **COMPLETED** (+83% coverage)
 2. ✅ ~~Add notebook output format testing~~ **COMPLETED** (+64% coverage)
-3. 🔄 **IN PROGRESS:** Enhance CLI argument testing with M_CLI2 integration
-4. 🎯 **NEXT:** Focus on branch coverage improvement through error scenario testing
-5. 🎯 **NEXT:** Add performance and stress testing for cache operations
-6. 🎯 **NEXT:** Create comprehensive tests for `cache.f90` (still at 49%)
-7. 🎯 **NEXT:** Improve `registry_resolver.f90` coverage (currently 67%)
+3. ✅ ~~Create comprehensive tests for `cache.f90`~~ **COMPLETED** (+41% coverage)
+4. ✅ ~~Improve `registry_resolver.f90` coverage~~ **COMPLETED** (+15% coverage)
+5. 🔄 **IN PROGRESS:** Enhance CLI argument testing with M_CLI2 integration
+6. 🎯 **NEXT:** Focus on branch coverage improvement through error scenario testing
+7. 🎯 **NEXT:** Add performance and stress testing for cache operations
 
 ### Additional Tests Created
 - **`test_runner_comprehensive.f90`** (259 lines) - Complete runner testing
 - **`test_notebook_output_comprehensive.f90`** (255 lines) - Complete notebook output testing  
+- **`test_cache_comprehensive.f90`** (366 lines) - Complete cache testing
+- **`test_registry_resolver_comprehensive.f90`** (304 lines) - Complete registry resolver testing
 - **`test_cli_comprehensive.f90`** (182 lines) - CLI testing framework
 
 ---
