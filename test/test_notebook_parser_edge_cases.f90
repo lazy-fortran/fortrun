@@ -172,7 +172,8 @@ contains
     function test_large_content() result(passed)
         logical :: passed
         type(notebook_t) :: notebook
-        character(len=:), allocatable :: content, line
+        character(len=:), allocatable :: content
+        character(len=100) :: line
         integer :: i
         
         print *, "Test 4: Large content handling"
