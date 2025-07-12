@@ -28,7 +28,8 @@ program debug_preprocess_direct
     
     ! Check output
     print *, 'Checking for required strings...'
-    print *, 'Looking for "integer(4), intent(in) :: a, b":', check_contains('debug_step1_test.f90', 'integer(4), intent(in) :: a, b')
+    print *, 'Looking for "integer(4), intent(in) :: a, b":', &
+             check_contains('debug_step1_test.f90', 'integer(4), intent(in) :: a, b')
     print *, 'Looking for "integer(4) :: y":', check_contains('debug_step1_test.f90', 'integer(4) :: y')
     
 contains
