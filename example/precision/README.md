@@ -4,8 +4,14 @@ Demonstrates the Fortran CLI tool's different behaviors for .f90 and .f files.
 
 ## Files
 
+**Simplified syntax (.f files):**
+- **`precision_test.f`**: Tests opinionated precision settings (real(8) default)
+- **`precision_compare.f`**: Compares single vs double precision with .f behavior
+- **`real_default_test.f`**: Verifies `real` becomes `real(8)` with .f files
+
+**Standard Fortran (.f90 files):**
 - **`precision_test.f90`**: Tests standard Fortran precision settings
-- **`precision_compare.f90`**: Compares single vs double precision
+- **`precision_compare.f90`**: Compares single vs double precision  
 - **`real_default_test.f90`**: Verifies standard `real` behavior
 
 ## Precision Behavior
@@ -26,6 +32,14 @@ The Fortran CLI tool handles precision differently for different file types:
 
 ## Running
 
+**Simplified syntax (opinionated double precision):**
+```bash
+fortran precision_test.f
+fortran precision_compare.f
+fortran real_default_test.f
+```
+
+**Standard Fortran (standard single precision):**
 ```bash
 fortran precision_test.f90
 fortran precision_compare.f90
