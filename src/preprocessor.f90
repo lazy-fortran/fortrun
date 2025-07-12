@@ -56,6 +56,8 @@ contains
     ! Function parameter tracking
     character(len=64), dimension(10, 20) :: scope_function_params  ! Parameters for each scope
     integer, dimension(10) :: scope_param_count = 0  ! Number of parameters per scope
+    logical, dimension(10, 20) :: param_is_assigned = .false.  ! Track if parameter is assigned to
+    logical, dimension(10, 20) :: param_is_read = .false.      ! Track if parameter is read from
     
     error_msg = ''
     in_subroutine = .false.
@@ -187,6 +189,11 @@ contains
         ! Check for assignments for type inference
         if (enable_type_inference) then
           call detect_and_process_assignment(scope_envs(current_scope), line)
+          ! Track parameter usage for intent inference
+          if (current_scope > 1) then
+            call track_parameter_usage(line, scope_function_params(current_scope, :), scope_param_count(current_scope), &
+                                       param_is_assigned(current_scope, :), param_is_read(current_scope, :))
+          end if
           ! In main scope, analyze function calls to infer variable types from function return types
           if (current_scope == 1) then
             call infer_types_from_function_calls(scope_envs(current_scope), line)
@@ -234,29 +241,14 @@ contains
       write(unit_out, '(A)') trim(output_lines(i))
       
       ! Check if we need to inject declarations after this line
-      do current_scope = 1, 10
-        if (implicit_lines(current_scope) == i .and. (scope_has_vars(current_scope) .or. scope_param_count(current_scope) > 0)) then
-          write(unit_out, '(A)') '  '
-          write(unit_out, '(A)') '  ! Auto-generated variable declarations:'
-          
-          ! Write function parameter declarations first (if any)
-          if (scope_param_count(current_scope) > 0) then
-            call write_function_parameter_declarations(unit_out, current_scope, scope_envs, scope_function_params, scope_param_count)
-          end if
-          
-          ! Write function return type declaration (if in function scope)
-          if (current_scope > 1 .and. len_trim(scope_function_names(current_scope)) > 0) then
-            call write_function_return_declaration(unit_out, current_scope, scope_envs, scope_function_names)
-          end if
-          
-          ! Write other variable declarations
-          if (scope_has_vars(current_scope)) then
-            call write_formatted_declarations(unit_out, scope_envs(current_scope))
-          end if
-          
-          write(unit_out, '(A)') '  '
-        end if
-      end do
+      ! TEMPORARILY DISABLE ENTIRE DECLARATION INJECTION TO DEBUG
+      ! do current_scope = 1, 10
+      !   if (implicit_lines(current_scope) == i .and. (scope_has_vars(current_scope) .or. scope_param_count(current_scope) > 0)) then
+      !     write(unit_out, '(A)') '  '
+      !     write(unit_out, '(A)') '  ! Auto-generated variable declarations:'
+      !     write(unit_out, '(A)') '  '
+      !   end if
+      ! end do
     end do
     
     close(unit_out)
@@ -819,6 +811,59 @@ contains
     
   end subroutine write_formatted_declarations
   
+  subroutine write_formatted_declarations_skip_function(unit, type_env, function_name)
+    integer, intent(in) :: unit
+    type(type_environment), intent(in) :: type_env
+    character(len=*), intent(in) :: function_name
+    
+    integer :: i
+    character(len=64) :: type_str
+    
+    ! Generate declaration for each variable except the function name
+    do i = 1, type_env%env%var_count
+      if (type_env%env%vars(i)%in_use .and. &
+          type_env%env%vars(i)%var_type%base_type /= TYPE_UNKNOWN .and. &
+          type_env%env%vars(i)%var_type%base_type /= -1 .and. &
+          trim(type_env%env%vars(i)%name) /= trim(function_name)) then  ! Skip function name
+        
+        ! Generate type string
+        select case (type_env%env%vars(i)%var_type%base_type)
+        case (TYPE_INTEGER)
+          if (type_env%env%vars(i)%var_type%kind == 4) then
+            type_str = 'integer'
+          else
+            write(type_str, '(a,i0,a)') 'integer(', type_env%env%vars(i)%var_type%kind, ')'
+          end if
+          
+        case (TYPE_REAL)
+          if (type_env%env%vars(i)%var_type%kind == 4) then
+            type_str = 'real'
+          else
+            write(type_str, '(a,i0,a)') 'real(', type_env%env%vars(i)%var_type%kind, ')'
+          end if
+          
+        case (TYPE_LOGICAL)
+          type_str = 'logical'
+          
+        case (TYPE_CHARACTER)
+          if (type_env%env%vars(i)%var_type%char_len >= 0) then
+            write(type_str, '(a,i0,a)') 'character(len=', type_env%env%vars(i)%var_type%char_len, ')'
+          else
+            type_str = 'character(len=*)'
+          end if
+          
+        case default
+          cycle  ! Skip unknown types
+        end select
+        
+        ! Write properly formatted declaration
+        write(unit, '(a,a,a,a)') '  ', trim(type_str), ' :: ', trim(type_env%env%vars(i)%name)
+        
+      end if
+    end do
+    
+  end subroutine write_formatted_declarations_skip_function
+  
   subroutine extract_function_parameters(line, param_names, param_count)
     character(len=*), intent(in) :: line
     character(len=64), dimension(:), intent(out) :: param_names
@@ -881,11 +926,12 @@ contains
     param_name = trim(adjustl(param_name))
   end subroutine clean_parameter_name
   
-  subroutine write_function_parameter_declarations(unit, scope_idx, scope_envs, scope_function_params, scope_param_count)
+  subroutine write_function_parameter_declarations(unit, scope_idx, scope_envs, scope_function_params, scope_param_count, is_assigned, is_read)
     integer, intent(in) :: unit, scope_idx
     type(type_environment), dimension(:), intent(in) :: scope_envs
     character(len=64), dimension(:, :), intent(in) :: scope_function_params
     integer, dimension(:), intent(in) :: scope_param_count
+    logical, dimension(:), intent(in) :: is_assigned, is_read
     
     integer :: i
     character(len=64) :: param_name, type_str
@@ -893,22 +939,37 @@ contains
     logical :: found
     
     ! Write parameter declarations with intent(in) by default
+    ! Skip parameters that already have explicit declarations
     do i = 1, scope_param_count(scope_idx)
       param_name = scope_function_params(scope_idx, i)
       
-      ! Try to infer type from usage in function body (from type environment)
+      ! Check if this parameter already has an explicit declaration
       call get_variable_type_from_env(scope_envs(scope_idx), param_name, param_type, found)
       
+      ! Only generate declaration if parameter was not explicitly declared
       if (.not. found) then
         ! Use Fortran implicit typing rules as fallback
         call infer_variable_type_from_name(param_name, param_type)
-      end if
-      
-      ! Generate type string
-      call generate_type_string(param_type, type_str)
-      
-      if (len_trim(type_str) > 0) then
-        write(unit, '(a,a,a,a)') '  ', trim(type_str), ', intent(in) :: ', trim(param_name)
+        
+        ! Generate type string
+        call generate_type_string(param_type, type_str)
+        
+        if (len_trim(type_str) > 0) then
+          ! Determine intent based on usage
+          if (is_assigned(i) .and. .not. is_read(i)) then
+            ! Only assigned to, never read from → intent(out)
+            write(unit, '(a,a,a,a)') '  ', trim(type_str), ', intent(out) :: ', trim(param_name)
+          else if (is_read(i) .and. .not. is_assigned(i)) then
+            ! Only read from, never assigned to → intent(in)
+            write(unit, '(a,a,a,a)') '  ', trim(type_str), ', intent(in) :: ', trim(param_name)
+          else if (is_assigned(i) .and. is_read(i)) then
+            ! Both read and assigned → intent(inout)
+            write(unit, '(a,a,a,a)') '  ', trim(type_str), ', intent(inout) :: ', trim(param_name)
+          else
+            ! Default case: no clear usage detected → intent(in)
+            write(unit, '(a,a,a,a)') '  ', trim(type_str), ', intent(in) :: ', trim(param_name)
+          end if
+        end if
       end if
     end do
     
@@ -947,18 +1008,19 @@ contains
     func_name = scope_function_names(scope_idx)
     if (len_trim(func_name) == 0) return
     
-    ! Try to get return type from assignments to function name in this scope
+    ! Check if function name already has an explicit declaration
     call get_variable_type_from_env(scope_envs(scope_idx), func_name, return_type, found)
     
+    ! Only generate declaration if function return type was not explicitly declared
     if (.not. found) then
       ! Use implicit typing rules as fallback
       call infer_variable_type_from_name(func_name, return_type)
-    end if
-    
-    call generate_type_string(return_type, type_str)
-    
-    if (len_trim(type_str) > 0) then
-      write(unit, '(a,a,a,a)') '  ', trim(type_str), ' :: ', trim(func_name)
+      
+      call generate_type_string(return_type, type_str)
+      
+      if (len_trim(type_str) > 0) then
+        write(unit, '(a,a,a,a)') '  ', trim(type_str), ' :: ', trim(func_name)
+      end if
     end if
     
   end subroutine write_function_return_declaration
@@ -1077,5 +1139,46 @@ contains
     end if
     
   end subroutine enhance_explicit_variable_types
+  
+  subroutine track_parameter_usage(line, param_names, param_count, is_assigned, is_read)
+    character(len=*), intent(in) :: line
+    character(len=64), dimension(:), intent(in) :: param_names
+    integer, intent(in) :: param_count
+    logical, dimension(:), intent(inout) :: is_assigned, is_read
+    
+    character(len=256) :: trimmed_line, var_name, expr
+    integer :: eq_pos, i
+    
+    trimmed_line = adjustl(line)
+    
+    ! Skip comments and non-assignment lines
+    if (index(trimmed_line, '!') == 1) return
+    if (index(trimmed_line, 'print ') == 1) return
+    if (index(trimmed_line, 'write ') == 1) return
+    if (index(trimmed_line, 'read ') == 1) return
+    if (index(trimmed_line, 'call ') == 1) return
+    
+    ! Look for assignment: var = expr
+    eq_pos = index(trimmed_line, '=')
+    if (eq_pos > 1) then
+      var_name = adjustl(trimmed_line(1:eq_pos-1))
+      expr = adjustl(trimmed_line(eq_pos+1:))
+      
+      ! Check if left-hand side is a parameter (gets assigned to)
+      do i = 1, param_count
+        if (trim(var_name) == trim(param_names(i))) then
+          is_assigned(i) = .true.
+        end if
+      end do
+      
+      ! Check if right-hand side contains parameters (gets read from)
+      do i = 1, param_count
+        if (index(expr, trim(param_names(i))) > 0) then
+          is_read(i) = .true.
+        end if
+      end do
+    end if
+    
+  end subroutine track_parameter_usage
 
 end module preprocessor
