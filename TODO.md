@@ -24,17 +24,17 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
     - Poor cache efficiency compared to .f90 files
   - **Clean Solution Design**:
     ```
-    .f file content → SHA256 hash → cache/preprocessed_<hash>.f90
+    .f file content → CRC32 hash (from fortplotlib) → cache/preprocessed_<hash>.f90
     
     For notebook mode:
-    .f notebook cells → combined content hash → cache/notebook_<hash>.f90
+    .f notebook cells → combined content CRC32 → cache/notebook_<hash>.f90
     ```
   - **Implementation Plan**:
     1. **Phase 1**: Simple .f files
-       - Generate content hash of original .f file
-       - Create preprocessed file as `cache/preprocessed_<hash>.f90`  
+       - Generate CRC32 hash of original .f file content (using fortplotlib)
+       - Create preprocessed file as `cache/preprocessed_<crc32>.f90`  
        - Run as regular .f90 file with existing cache system
-       - Cache key: content hash instead of filename
+       - Cache key: CRC32 content hash instead of filename
     2. **Phase 2**: Notebook mode complexity
        - For notebook .f files: hash combined cell content
        - Handle cell execution state and variable persistence
