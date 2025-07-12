@@ -7,7 +7,7 @@ contains
 
   subroutine parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                              custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
-                             notebook_output)
+                             notebook_output, custom_flags)
     character(len=*), intent(out) :: filename
     logical, intent(out) :: show_help
     integer, intent(out) :: verbose_level
@@ -17,10 +17,11 @@ contains
     logical, intent(out) :: no_wait
     logical, intent(out) :: notebook_mode
     character(len=*), intent(out) :: notebook_output
+    character(len=*), intent(out) :: custom_flags
     
     integer :: nargs, i, iostat
     character(len=256) :: arg
-    logical :: filename_found, expecting_cache_dir, expecting_config_dir, expecting_jobs, expecting_output
+    logical :: filename_found, expecting_cache_dir, expecting_config_dir, expecting_jobs, expecting_output, expecting_flags
     
     filename = ''
     show_help = .false.
@@ -31,11 +32,13 @@ contains
     no_wait = .false.
     notebook_mode = .false.
     notebook_output = ''
+    custom_flags = ''
     filename_found = .false.
     expecting_cache_dir = .false.
     expecting_config_dir = .false.
     expecting_jobs = .false.
     expecting_output = .false.
+    expecting_flags = .false.
     
     nargs = command_argument_count()
     
@@ -57,6 +60,9 @@ contains
       else if (expecting_output) then
         notebook_output = trim(arg)
         expecting_output = .false.
+      else if (expecting_flags) then
+        custom_flags = trim(arg)
+        expecting_flags = .false.
       else if (expecting_jobs) then
         read(arg, *, iostat=iostat) parallel_jobs
         if (iostat /= 0 .or. parallel_jobs < 1) then
@@ -101,6 +107,8 @@ contains
         notebook_mode = .true.
       else if (arg == '-o' .or. arg == '--output') then
         expecting_output = .true.
+      else if (arg == '--flag') then
+        expecting_flags = .true.
       else if (arg(1:1) /= '-') then
         ! Not a flag, must be filename
         if (.not. filename_found) then
@@ -129,6 +137,11 @@ contains
     
     if (expecting_output) then
       print '(a)', 'Error: -o/--output requires an argument'
+      show_help = .true.
+    end if
+    
+    if (expecting_flags) then
+      print '(a)', 'Error: --flag requires an argument'
       show_help = .true.
     end if
     
