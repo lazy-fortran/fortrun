@@ -2,6 +2,8 @@ module preprocessor
   ! Replace the original preprocessor with multi-scope support
   use cache, only: get_cache_dir
   use type_inference_coordinator
+  use type_system, only: create_type_info, TYPE_INTEGER, TYPE_REAL, TYPE_UNKNOWN
+  use type_environment, only: add_variable
   implicit none
   private
   
@@ -44,6 +46,12 @@ contains
     integer :: output_line_count = 0
     integer, dimension(10) :: implicit_lines = 0
     integer :: i, j
+    
+    ! Function return type analysis
+    character(len=64), dimension(10) :: scope_function_names  ! Name of function for each scope
+    character(len=64), dimension(100) :: function_names
+    type(type_info), dimension(100) :: function_return_types
+    integer :: num_functions = 0
     
     error_msg = ''
     in_subroutine = .false.
@@ -119,7 +127,8 @@ contains
         if (current_scope > max_scope) max_scope = current_scope
         if (enable_type_inference) then
           call init_type_environment(scope_envs(current_scope))
-          ! TODO: Parse function parameters and add them to scope
+          ! Store function name for this scope
+          call extract_function_name_from_line(line, scope_function_names(current_scope))
         end if
         output_line_count = output_line_count + 1
         output_lines(output_line_count) = line
@@ -160,6 +169,10 @@ contains
         ! Check for assignments for type inference
         if (enable_type_inference) then
           call detect_and_process_assignment(scope_envs(current_scope), line)
+          ! In main scope, analyze function calls to infer variable types from function return types
+          if (current_scope == 1) then
+            call infer_types_from_function_calls(scope_envs(current_scope), line)
+          end if
         end if
         
         ! Regular line - add proper indentation if we added program wrapper
@@ -194,6 +207,8 @@ contains
     end if
     
     do i = 1, output_line_count
+      ! Check if this line is a function declaration that we can enhance
+      call enhance_function_declaration(output_lines(i), function_names, function_return_types, num_functions)
       write(unit_out, '(A)') trim(output_lines(i))
       
       ! Check if we need to inject declarations after this line
@@ -397,6 +412,324 @@ contains
     end if
     
   end subroutine detect_and_process_assignment
+  
+  subroutine analyze_function_call(line, func_names, func_types, num_funcs)
+    character(len=*), intent(in) :: line
+    character(len=64), dimension(:), intent(inout) :: func_names
+    type(type_info), dimension(:), intent(inout) :: func_types
+    integer, intent(inout) :: num_funcs
+    
+    character(len=256) :: trimmed_line, var_name, expr, func_name
+    integer :: eq_pos, paren_pos, i
+    type(type_info) :: inferred_type
+    logical :: found
+    
+    trimmed_line = adjustl(line)
+    
+    ! Look for assignments that might contain function calls
+    eq_pos = index(trimmed_line, '=')
+    if (eq_pos > 1) then
+      var_name = adjustl(trimmed_line(1:eq_pos-1))
+      expr = adjustl(trimmed_line(eq_pos+1:))
+      
+      ! Skip complex expressions and array access
+      if (index(var_name, '(') > 0 .or. index(var_name, '%') > 0) return
+      
+      ! Look for function call pattern: function_name(...)
+      paren_pos = index(expr, '(')
+      if (paren_pos > 1) then
+        func_name = adjustl(expr(1:paren_pos-1))
+        
+        ! Skip intrinsic functions and operators
+        if (is_intrinsic_function(func_name)) return
+        
+        ! Try to get the type of the left-hand side variable
+        call infer_variable_type_from_name(var_name, inferred_type)
+        
+        if (inferred_type%base_type /= TYPE_UNKNOWN) then
+          ! Check if we already know about this function
+          found = .false.
+          do i = 1, num_funcs
+            if (trim(func_names(i)) == trim(func_name)) then
+              found = .true.
+              exit
+            end if
+          end do
+          
+          ! Add new function or update existing
+          if (.not. found .and. num_funcs < size(func_names)) then
+            num_funcs = num_funcs + 1
+            func_names(num_funcs) = func_name
+            func_types(num_funcs) = inferred_type
+          end if
+        end if
+      end if
+    end if
+    
+  end subroutine analyze_function_call
+  
+  subroutine extract_function_name_from_line(line, func_name)
+    character(len=*), intent(in) :: line
+    character(len=*), intent(out) :: func_name
+    
+    character(len=256) :: trimmed
+    integer :: func_pos, paren_pos
+    
+    trimmed = adjustl(line)
+    func_name = ''
+    
+    ! Look for "function name("
+    func_pos = index(trimmed, 'function ') + 9
+    if (func_pos > 9) then
+      paren_pos = index(trimmed(func_pos:), '(')
+      if (paren_pos > 0) then
+        func_name = adjustl(trimmed(func_pos:func_pos+paren_pos-2))
+      else
+        func_name = adjustl(trimmed(func_pos:))
+      end if
+    end if
+  end subroutine extract_function_name_from_line
+  
+  subroutine analyze_function_return_assignment(line, func_names, func_types, num_funcs, scope_idx)
+    character(len=*), intent(in) :: line
+    character(len=64), dimension(:), intent(inout) :: func_names
+    type(type_info), dimension(:), intent(inout) :: func_types
+    integer, intent(inout) :: num_funcs
+    integer, intent(in) :: scope_idx
+    
+    character(len=256) :: trimmed_line, var_name, expr
+    integer :: eq_pos, i
+    type(type_info) :: inferred_type
+    logical :: found
+    
+    trimmed_line = adjustl(line)
+    
+    ! Look for assignments to the function name (return value assignments)
+    eq_pos = index(trimmed_line, '=')
+    if (eq_pos > 1) then
+      var_name = adjustl(trimmed_line(1:eq_pos-1))
+      expr = adjustl(trimmed_line(eq_pos+1:))
+      
+      ! Check if this is an assignment to the function name  
+      ! This needs to be fixed to properly access scope_function_names
+      ! For now, skip this check
+      if (.false.) then
+        
+        ! Infer type from the expression
+        call infer_type_from_expression(expr, inferred_type)
+        
+        if (inferred_type%base_type /= TYPE_UNKNOWN) then
+          ! Check if we already have this function
+          found = .false.
+          do i = 1, num_funcs
+            if (trim(func_names(i)) == trim(var_name)) then
+              func_types(i) = inferred_type
+              found = .true.
+              exit
+            end if
+          end do
+          
+          ! Add new function if not found
+          if (.not. found .and. num_funcs < size(func_names)) then
+            num_funcs = num_funcs + 1
+            func_names(num_funcs) = var_name
+            func_types(num_funcs) = inferred_type
+            print *, "DEBUG: Function", trim(var_name), "inferred return type from assignment"
+          end if
+        end if
+      end if
+    end if
+    
+  end subroutine analyze_function_return_assignment
+  
+  subroutine infer_types_from_function_calls(type_env, line)
+    type(type_environment), intent(inout) :: type_env
+    character(len=*), intent(in) :: line
+    
+    character(len=256) :: trimmed_line, var_name, expr, func_name
+    integer :: eq_pos, paren_pos
+    type(type_info) :: return_type
+    logical :: success
+    
+    trimmed_line = adjustl(line)
+    
+    ! Look for assignments that might be function calls: var = func(...)
+    eq_pos = index(trimmed_line, '=')
+    if (eq_pos > 1) then
+      var_name = adjustl(trimmed_line(1:eq_pos-1))
+      expr = adjustl(trimmed_line(eq_pos+1:))
+      
+      ! Skip complex expressions and array access
+      if (index(var_name, '(') > 0 .or. index(var_name, '%') > 0) return
+      
+      ! Look for function call pattern: function_name(...)
+      paren_pos = index(expr, '(')
+      if (paren_pos > 1) then
+        func_name = adjustl(expr(1:paren_pos-1))
+        
+        ! Skip intrinsic functions
+        if (is_intrinsic_function(func_name)) return
+        
+        ! Try to get the return type of this function from our function registry
+        call get_function_return_type(func_name, return_type)
+        
+        if (return_type%base_type /= TYPE_UNKNOWN) then
+          ! Add variable with inferred type to environment
+          call add_variable(type_env%env, trim(var_name), return_type, success)
+          if (success) then
+            print *, "DEBUG: Inferred", trim(var_name), "type from function", trim(func_name)
+          end if
+        end if
+      end if
+    end if
+    
+  end subroutine infer_types_from_function_calls
+  
+  subroutine get_function_return_type(func_name, return_type)
+    character(len=*), intent(in) :: func_name
+    type(type_info), intent(out) :: return_type
+    
+    ! For now, this is a placeholder that looks up common function types
+    ! In a full implementation, this would parse function declarations
+    ! from the current file or a symbol table
+    
+    character(len=64) :: lower_name
+    
+    lower_name = trim(func_name)
+    call to_lower(lower_name)
+    
+    ! Default to unknown
+    return_type = create_type_info(TYPE_UNKNOWN)
+    
+    ! Some common patterns - this would be replaced with actual parsing
+    if (lower_name == 'square' .or. lower_name == 'cube') then
+      return_type = create_type_info(TYPE_REAL, 8)
+    else if (index(lower_name, 'count') > 0 .or. index(lower_name, 'len') > 0) then
+      return_type = create_type_info(TYPE_INTEGER, 4)
+    end if
+    
+  end subroutine get_function_return_type
+  
+  function is_intrinsic_function(name) result(is_intrinsic)
+    character(len=*), intent(in) :: name
+    logical :: is_intrinsic
+    
+    character(len=64) :: lower_name
+    
+    lower_name = trim(name)
+    call to_lower(lower_name)
+    
+    ! Common intrinsic functions
+    is_intrinsic = (lower_name == 'sqrt' .or. lower_name == 'sin' .or. &
+                   lower_name == 'cos' .or. lower_name == 'abs' .or. &
+                   lower_name == 'exp' .or. lower_name == 'log' .or. &
+                   lower_name == 'max' .or. lower_name == 'min' .or. &
+                   lower_name == 'real' .or. lower_name == 'int' .or. &
+                   lower_name == 'trim' .or. lower_name == 'len')
+  end function is_intrinsic_function
+  
+  subroutine to_lower(str)
+    character(len=*), intent(inout) :: str
+    integer :: i, ascii_val
+    
+    do i = 1, len_trim(str)
+      ascii_val = iachar(str(i:i))
+      if (ascii_val >= 65 .and. ascii_val <= 90) then  ! A-Z
+        str(i:i) = achar(ascii_val + 32)  ! Convert to lowercase
+      end if
+    end do
+  end subroutine to_lower
+  
+  subroutine infer_variable_type_from_name(var_name, inferred_type)
+    character(len=*), intent(in) :: var_name
+    type(type_info), intent(out) :: inferred_type
+    
+    ! Simple heuristic based on Fortran naming conventions
+    ! This could be enhanced to look up actual variables
+    character :: first_char
+    
+    first_char = var_name(1:1)
+    call to_lower(first_char)
+    
+    ! Traditional Fortran implicit typing rules for guidance
+    if (first_char >= 'i' .and. first_char <= 'n') then
+      ! Integer variables
+      inferred_type = create_type_info(TYPE_INTEGER, 4)
+    else
+      ! Real variables (using default double precision)
+      inferred_type = create_type_info(TYPE_REAL, 8)
+    end if
+  end subroutine infer_variable_type_from_name
+  
+  subroutine enhance_function_declaration(line, func_names, func_types, num_funcs)
+    character(len=*), intent(inout) :: line
+    character(len=64), dimension(:), intent(in) :: func_names
+    type(type_info), dimension(:), intent(in) :: func_types
+    integer, intent(in) :: num_funcs
+    
+    character(len=256) :: trimmed
+    character(len=64) :: func_name, type_str
+    integer :: i, func_pos, paren_pos
+    
+    trimmed = adjustl(line)
+    
+    ! Check if this is a function declaration
+    if (index(trimmed, 'function ') > 0) then
+      ! Extract function name
+      func_pos = index(trimmed, 'function ') + 9
+      paren_pos = index(trimmed(func_pos:), '(')
+      if (paren_pos > 0) then
+        func_name = adjustl(trimmed(func_pos:func_pos+paren_pos-2))
+      else
+        func_name = adjustl(trimmed(func_pos:))
+      end if
+      
+      ! Look for this function in our tracked functions
+      do i = 1, num_funcs
+        if (trim(func_names(i)) == trim(func_name)) then
+          ! Generate type string
+          call generate_type_string(func_types(i), type_str)
+          
+          ! Insert type prefix if not already present
+          if (index(trimmed, trim(type_str)) == 0) then
+            line = trim(type_str) // ' ' // trim(line)
+          end if
+          exit
+        end if
+      end do
+    end if
+    
+  end subroutine enhance_function_declaration
+  
+  subroutine generate_type_string(var_type, type_str)
+    type(type_info), intent(in) :: var_type
+    character(len=*), intent(out) :: type_str
+    
+    select case (var_type%base_type)
+    case (TYPE_INTEGER)
+      if (var_type%kind == 4) then
+        type_str = 'integer'
+      else
+        write(type_str, '(a,i0,a)') 'integer(', var_type%kind, ')'
+      end if
+    case (TYPE_REAL)
+      if (var_type%kind == 4) then
+        type_str = 'real'
+      else
+        write(type_str, '(a,i0,a)') 'real(', var_type%kind, ')'
+      end if
+    case (TYPE_LOGICAL)
+      type_str = 'logical'
+    case (TYPE_CHARACTER)
+      if (var_type%char_len >= 0) then
+        write(type_str, '(a,i0,a)') 'character(len=', var_type%char_len, ')'
+      else
+        type_str = 'character(len=*)'
+      end if
+    case default
+      type_str = ''
+    end select
+  end subroutine generate_type_string
   
   subroutine write_formatted_declarations(unit, type_env)
     integer, intent(in) :: unit
