@@ -393,3 +393,50 @@ The preprocessor needs to:
 *TDD Infrastructure: 2025-07-12*  
 *Integration Analysis: 2025-07-12*
 *Completed: 2025-07-12*
+
+---
+
+## 🔬 **Implementation Progress: Multi-Scope Type Inference**
+
+### **Confirmed Behavior with Partial Fix (2025-07-12)**
+
+#### **Test File:** `explore/function_inference_test.f`
+```fortran
+function double_it(input)
+    factor = 2.0        ! ✅ Type inference WORKS inside functions!
+    double_it = input * factor
+end function
+```
+
+#### **Preprocessed Output Analysis:**
+```fortran
+! Auto-generated variable declarations:
+real(8) :: factor    ! ✅ Correctly inferred but ❌ WRONG SCOPE!
+```
+
+**Key Findings:**
+1. ✅ **Type inference IS working inside functions** - `factor` correctly inferred as `real(8)`
+2. ❌ **Declaration scope is wrong** - `factor` declared at main program level, not inside function
+3. ❌ **Function signatures missing** - No declarations for `input` parameter or `double_it` return
+
+### **Root Cause Confirmed:**
+The partial fix (removing `!in_function` check) successfully enables type inference inside functions,
+but `inject_declarations()` only knows how to inject at the main program level after the first `implicit none`.
+
+### **Required Implementation:**
+
+#### **Option 1: Enhanced inject_declarations (Simpler)**
+- Modify `inject_declarations` to track multiple `implicit none` locations
+- Inject appropriate variables after each scope's `implicit none`
+- Requires tracking which variables belong to which scope
+
+#### **Option 2: Full Multi-Scope Preprocessor (Complex)**
+- Complete rewrite with scope-aware architecture
+- Separate type environments per scope
+- More maintainable long-term but higher implementation cost
+
+### **Recommendation: Start with Option 1**
+A targeted enhancement to `inject_declarations` can solve the immediate problem with minimal risk.
+
+---
+*Implementation Started: 2025-07-12*
