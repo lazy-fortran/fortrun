@@ -1,5 +1,5 @@
 program test_type_inference_edge_cases
-    use type_inference
+    use type_inference_coordinator
     implicit none
     
     logical :: all_tests_passed

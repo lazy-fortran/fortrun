@@ -139,7 +139,7 @@ contains
         output_file = "/tmp/test_base64_output.txt"
         
         open(newunit=unit, file=test_file, status='replace', access='stream')
-        write(unit) 255_1, 0_1, 128_1, 64_1  ! Some binary data
+        write(unit) 127_1, 0_1, 127_1, 64_1  ! Some binary data
         close(unit)
         
         ! Convert to base64
@@ -179,7 +179,7 @@ contains
         passed = .true.
         
         ! Initialize and create some files
-        call init_figure_capture("/tmp/test_cleanup")
+        call init_figure_capture()
         
         ! Create dummy figure files
         do i = 1, 2
