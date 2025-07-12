@@ -2,6 +2,53 @@
 
 This document tracks the development tasks for the `fortran` CLI tool. It should be updated as items are completed or plans change.
 
+## HIGH PRIORITY FIXES - CRITICAL ISSUES ⚠️
+
+### ISSUE 1: Cache Directory Copy Error (HIGH PRIORITY)
+- [ ] **Fix "cp: -r not specified; omitting directory" error**
+  - **Root Cause**: Cache directories incorrectly named with `.f90` extensions (e.g., `test_multiple_simple_test_multiple.f90/`)
+  - **Location**: `src/runner.f90:455-461` in `copy_local_modules` subroutine
+  - **Problem**: `find` command matches directories with `.f90` extensions, `cp` tries to copy them without `-r` flag
+  - **Solution Options**:
+    1. Use `find ... -type f` to only match files, not directories
+    2. Use `cp -r` instead of `cp` 
+    3. Fix basename handling inconsistency between `get_basename()` and `extract_basename()`
+  - **Test**: Create .f file, run it, verify no "cp: -r" errors in output
+
+### ISSUE 2: Inefficient .f File Caching (HIGH PRIORITY) 
+- [ ] **Implement content-based caching for .f files**
+  - **Root Cause**: .f files use filename-based cache keys (`simple_basename`) instead of content-based hashing
+  - **Current Problem**: 
+    - Cache doesn't invalidate when .f file content changes
+    - Same cache directory used regardless of content modifications
+    - Poor cache efficiency compared to .f90 files
+  - **Clean Solution Design**:
+    ```
+    .f file content → SHA256 hash → cache/preprocessed_<hash>.f90
+    
+    For notebook mode:
+    .f notebook cells → combined content hash → cache/notebook_<hash>.f90
+    ```
+  - **Implementation Plan**:
+    1. **Phase 1**: Simple .f files
+       - Generate content hash of original .f file
+       - Create preprocessed file as `cache/preprocessed_<hash>.f90`  
+       - Run as regular .f90 file with existing cache system
+       - Cache key: content hash instead of filename
+    2. **Phase 2**: Notebook mode complexity
+       - For notebook .f files: hash combined cell content
+       - Handle cell execution state and variable persistence
+       - Separate caching strategy for notebook execution vs single-file execution
+    3. **Phase 3**: Integration and testing
+       - Ensure cache invalidation works correctly
+       - Test with file modifications, dependency changes
+       - Performance benchmarks vs current system
+  - **Benefits**:
+    - Proper cache invalidation on content changes
+    - Consistent caching strategy for .f and .f90 files
+    - Better cache efficiency and performance
+    - Cleaner cache directory structure
+
 ## Development Principles
 - Follow TDD (Test-Driven Development) - write tests first
 - Apply SOLID principles throughout
