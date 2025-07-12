@@ -64,7 +64,7 @@ contains
     type(type_environment_t), intent(in), optional :: env
     logical :: is_arith
     
-    integer :: plus_pos, minus_pos, mult_pos, div_pos
+    integer :: plus_pos, minus_pos, mult_pos, div_pos, power_pos
     type(type_info) :: left_type, right_type
     character(len=256) :: left_expr, right_expr
     
@@ -76,6 +76,7 @@ contains
     minus_pos = index(expr, '-', back=.true.)  ! back to avoid negative numbers
     mult_pos = index(expr, '*')
     div_pos = index(expr, '/')
+    power_pos = index(expr, '**')
     
     ! Check if division is actually part of /= operator
     if (div_pos > 0 .and. div_pos < len_trim(expr)) then
@@ -84,8 +85,16 @@ contains
       end if
     end if
     
-    ! Handle different binary operations
-    if (plus_pos > 1) then
+    ! Check if mult_pos is actually part of ** operator
+    if (power_pos > 0 .and. mult_pos == power_pos) then
+      mult_pos = 0  ! Part of power operator, not multiplication
+    end if
+    
+    ! Handle different binary operations (check power first)
+    if (power_pos > 1) then
+      left_expr = adjustl(expr(1:power_pos-1))
+      right_expr = adjustl(expr(power_pos+2:))
+    else if (plus_pos > 1) then
       left_expr = adjustl(expr(1:plus_pos-1))
       right_expr = adjustl(expr(plus_pos+1:))
     else if (minus_pos > 1) then
@@ -100,7 +109,7 @@ contains
     end if
     
     ! If we found an operator, analyze the operands
-    if (plus_pos > 1 .or. minus_pos > 1 .or. mult_pos > 1 .or. div_pos > 1) then
+    if (power_pos > 1 .or. plus_pos > 1 .or. minus_pos > 1 .or. mult_pos > 1 .or. div_pos > 1) then
       call analyze_expression(left_expr, left_type, env)
       call analyze_expression(right_expr, right_type, env)
       
