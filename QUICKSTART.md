@@ -18,6 +18,7 @@ cp build/gfortran_*/app/fortran /usr/local/bin/
 
 ## First Run
 
+**Traditional Fortran (.f90):**
 ```bash
 # Create hello.f90
 echo 'print *, "Hello, World!"' > hello.f90
@@ -31,22 +32,54 @@ Output:
 Hello, World!
 ```
 
-That's it. No makefiles, no manual compilation.
+**Script-style (.f with type inference):**
+```bash
+# Create hello.f
+echo 'print *, "Hello, World!"' > hello.f
+
+# Run it - automatically adds program structure
+fortran hello.f
+```
+
+Output:
+```
+Hello, World!
+```
+
+That's it. No makefiles, no manual compilation. Both .f90 and .f files work seamlessly.
 
 ## Basic Examples
 
-**Simple calculation:**
+**Simple calculation (.f90 - traditional):**
 ```fortran
 ! calc.f90
-real :: x = 3.14159
-real :: area = x * x  
-print *, 'Area:', area
+program calc
+    implicit none
+    real :: x = 3.14159
+    real :: area = x * x  
+    print *, 'Area:', area
+end program
 ```
 
 ```bash
 fortran calc.f90
 # Area: 9.869604
 ```
+
+**Simple calculation (.f - script-style):**
+```fortran
+! calc.f
+x = 3.14159
+area = x * x  
+print *, 'Area:', area
+```
+
+```bash
+fortran calc.f
+# Area: 9.869604
+```
+
+The .f version automatically gets program structure and type inference.
 
 **With modules:**
 ```fortran
