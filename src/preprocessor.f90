@@ -293,11 +293,10 @@ contains
           call mark_declared_variables(scope_envs(current_scope), line)
           ! In function scope, check if this is a parameter declaration
           if (current_scope > 1 .and. is_parameter_declaration(line, scope_function_params(current_scope, :), scope_param_count(current_scope))) then
-            ! Skip outputting explicit parameter declarations - we'll auto-generate them
-            ! But we need to maintain line numbering for proper injection points
-            output_line_count = output_line_count + 1
-            output_lines(output_line_count) = '  ! [Parameter declarations will be auto-generated]'
-            cycle
+            ! Enhance explicit parameter declarations with intent(in)
+            call enhance_parameter_declaration(line, scope_function_params(current_scope, :), scope_param_count(current_scope))
+            ! Mark parameters as already declared to avoid auto-generation
+            call mark_parameters_as_declared(scope_envs(current_scope), scope_function_params(current_scope, :), scope_param_count(current_scope))
           end if
           ! For main program scope, we want to enhance the declarations rather than skip them
           ! This ensures that explicit declarations like "real :: x, y" are preserved but enhanced
@@ -1380,6 +1379,23 @@ contains
     end do
     
   end subroutine write_formatted_declarations_filtered
+  
+  subroutine mark_parameters_as_declared(type_env, param_names, param_count)
+    type(type_environment), intent(inout) :: type_env
+    character(len=64), dimension(:), intent(in) :: param_names
+    integer, intent(in) :: param_count
+    
+    integer :: i
+    logical :: success
+    
+    ! Mark each parameter as already declared (base_type = -1)
+    do i = 1, param_count
+      if (len_trim(param_names(i)) > 0) then
+        call add_variable(type_env%env, trim(param_names(i)), create_type_info(-1, 0), success)
+      end if
+    end do
+    
+  end subroutine mark_parameters_as_declared
   
   subroutine extract_function_parameters(line, param_names, param_count)
     character(len=*), intent(in) :: line
