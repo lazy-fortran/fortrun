@@ -39,11 +39,12 @@ contains
     ! Multi-scope support
     type(type_environment), dimension(10) :: scope_envs
     integer :: current_scope = 0
+    integer :: max_scope = 0
     logical, dimension(10) :: scope_has_vars = .false.
     character(len=1024), dimension(10000) :: output_lines
     integer :: output_line_count = 0
     integer, dimension(10) :: implicit_lines = 0
-    integer :: i
+    integer :: i, j
     
     error_msg = ''
     in_subroutine = .false.
@@ -55,6 +56,7 @@ contains
     
     ! Initialize type inference environment for main scope
     current_scope = 1
+    max_scope = 1
     if (enable_type_inference) then
       call init_type_environment(scope_envs(1))
     end if
@@ -115,6 +117,7 @@ contains
         end if
         in_function = .true.
         current_scope = current_scope + 1
+        if (current_scope > max_scope) max_scope = current_scope
         if (enable_type_inference) then
           call init_type_environment(scope_envs(current_scope))
         end if
@@ -128,6 +131,7 @@ contains
         end if
         in_subroutine = .true.
         current_scope = current_scope + 1
+        if (current_scope > max_scope) max_scope = current_scope
         if (enable_type_inference) then
           call init_type_environment(scope_envs(current_scope))
         end if
@@ -178,7 +182,7 @@ contains
     close(unit_in)
     
     ! Check which scopes have variables
-    do i = 1, current_scope
+    do i = 1, max_scope
       scope_has_vars(i) = scope_envs(i)%env%var_count > 0
     end do
     
