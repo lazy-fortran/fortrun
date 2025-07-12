@@ -18,7 +18,7 @@ cp build/gfortran_*/app/fortran /usr/local/bin/
 
 ## First Run
 
-**Traditional Fortran (.f90):**
+**Standard Fortran (.f90):**
 ```bash
 # Create hello.f90
 cat > hello.f90 << 'EOF'
@@ -54,7 +54,7 @@ That's it. No makefiles, no manual compilation. Both .f90 and .f files work seam
 
 ## Basic Examples
 
-**Simple calculation (.f90 - traditional):**
+**Simple calculation (.f90 - standard):**
 ```fortran
 ! calc.f90
 program calc
@@ -122,7 +122,7 @@ The tool automatically finds `math_utils.f90`, compiles it, and links everything
 
 ## What Makes This Different?
 
-**Traditional Fortran:**
+**Standard Fortran:**
 ```bash
 gfortran -c math_utils.f90
 gfortran -c main.f90  
