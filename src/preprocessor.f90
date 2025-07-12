@@ -171,21 +171,12 @@ contains
           call extract_function_parameters(line, scope_function_params(current_scope, :), scope_param_count(current_scope))
           
           ! Add function parameters to type environment for type inference
-          ! Give them real types so expressions can be analyzed, but mark them specially
+          ! Parameters need real types for expression analysis to work
           do i = 1, scope_param_count(current_scope)
-            ! Add parameter with real(8) type for now - this allows type inference to work
-            ! The parameter will still be handled specially by parameter declaration logic
+            ! Add parameter with real(8) type for type inference
             call add_variable(scope_envs(current_scope)%env, &
                               trim(scope_function_params(current_scope, i)), &
                               create_type_info(TYPE_REAL, 8), success)
-            ! Mark it as a parameter after adding
-            do j = 1, scope_envs(current_scope)%env%var_count
-              if (trim(scope_envs(current_scope)%env%vars(j)%name) == trim(scope_function_params(current_scope, i))) then
-                ! Set a flag or use a special marker to indicate this is a parameter
-                ! For now, we'll let it have the real type so inference works
-                exit
-              end if
-            end do
           end do
           
           ! Add function name as a variable if it's not typed
@@ -397,11 +388,9 @@ contains
                 end if
               end do
               
-              if (is_typed_func) then
-                call write_formatted_declarations_skip_function(unit_out, scope_envs(current_scope), scope_function_names(current_scope))
-              else
-                call write_formatted_declarations(unit_out, scope_envs(current_scope))
-              end if
+              ! For all functions, skip parameters (they're handled separately)
+              call write_formatted_declarations_skip_params(unit_out, scope_envs(current_scope), &
+                                                             scope_function_params(current_scope, :), scope_param_count(current_scope))
             else
               call write_formatted_declarations(unit_out, scope_envs(current_scope))
             end if
@@ -1006,8 +995,7 @@ contains
     do i = 1, type_env%env%var_count
       if (type_env%env%vars(i)%in_use .and. &
           type_env%env%vars(i)%var_type%base_type /= TYPE_UNKNOWN .and. &
-          type_env%env%vars(i)%var_type%base_type /= -1 .and. &  ! Skip already declared
-          type_env%env%vars(i)%var_type%base_type /= -2) then      ! Skip parameters
+          type_env%env%vars(i)%var_type%base_type /= -1) then  ! Skip already declared
         
         ! Generate type string
         select case (type_env%env%vars(i)%var_type%base_type)
@@ -1058,7 +1046,6 @@ contains
       if (type_env%env%vars(i)%in_use .and. &
           type_env%env%vars(i)%var_type%base_type /= TYPE_UNKNOWN .and. &
           type_env%env%vars(i)%var_type%base_type /= -1 .and. &          ! Skip already declared
-          type_env%env%vars(i)%var_type%base_type /= -2 .and. &          ! Skip parameters
           trim(type_env%env%vars(i)%name) /= trim(function_name)) then  ! Skip function name
         
         ! Generate type string
@@ -1094,6 +1081,68 @@ contains
     end do
     
   end subroutine write_formatted_declarations_skip_function
+  
+  subroutine write_formatted_declarations_skip_params(unit, type_env, param_names, param_count)
+    integer, intent(in) :: unit
+    type(type_environment), intent(in) :: type_env
+    character(len=64), dimension(:), intent(in) :: param_names
+    integer, intent(in) :: param_count
+    
+    integer :: i, j
+    character(len=64) :: type_str
+    logical :: is_param
+    
+    ! Generate declaration for each variable except parameters
+    do i = 1, type_env%env%var_count
+      if (type_env%env%vars(i)%in_use .and. &
+          type_env%env%vars(i)%var_type%base_type /= TYPE_UNKNOWN .and. &
+          type_env%env%vars(i)%var_type%base_type /= -1 .and. &          ! Skip already declared
+          type_env%env%vars(i)%var_type%base_type /= -2) then           ! Skip old parameter marker
+        
+        ! Check if this variable is a parameter
+        is_param = .false.
+        do j = 1, param_count
+          if (trim(type_env%env%vars(i)%name) == trim(param_names(j))) then
+            is_param = .true.
+            exit
+          end if
+        end do
+        
+        ! Skip if it's a parameter
+        if (is_param) cycle
+        
+        ! Generate type string
+        select case (type_env%env%vars(i)%var_type%base_type)
+        case (TYPE_INTEGER)
+          write(type_str, '(a,i0,a)') 'integer(', type_env%env%vars(i)%var_type%kind, ')'
+          
+        case (TYPE_REAL)
+          if (type_env%env%vars(i)%var_type%kind == 4) then
+            type_str = 'real'
+          else
+            write(type_str, '(a,i0,a)') 'real(', type_env%env%vars(i)%var_type%kind, ')'
+          end if
+          
+        case (TYPE_LOGICAL)
+          type_str = 'logical'
+          
+        case (TYPE_CHARACTER)
+          if (type_env%env%vars(i)%var_type%char_len >= 0) then
+            write(type_str, '(a,i0,a)') 'character(len=', type_env%env%vars(i)%var_type%char_len, ')'
+          else
+            type_str = 'character(*)'
+          end if
+          
+        case default
+          cycle
+        end select
+        
+        ! Write the declaration
+        write(unit, '(a,a,a,a)') '  ', trim(type_str), ' :: ', trim(type_env%env%vars(i)%name)
+      end if
+    end do
+    
+  end subroutine write_formatted_declarations_skip_params
   
   subroutine extract_function_parameters(line, param_names, param_count)
     character(len=*), intent(in) :: line
