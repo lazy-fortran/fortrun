@@ -22,7 +22,6 @@ implicit-external = false
 source-form = "free"
 
 [extra.ford]
-main_page = "QUICKSTART.md"
 src_dir = ["src", "app"]
 output_dir = "build/doc"
 exclude_dir = ["build", "test"]
