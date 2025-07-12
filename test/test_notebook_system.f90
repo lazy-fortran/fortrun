@@ -38,7 +38,7 @@ contains
         call create_test_notebook(test_file)
         
         ! Run fortran with notebook mode
-        cmd = "./build/gfortran_*/app/fortran --notebook " // trim(test_file)
+        cmd = "fpm run fortran -- --notebook " // trim(test_file)
         call execute_command_line(cmd, exitstat=exit_code)
         
         if (exit_code /= 0) then
@@ -83,7 +83,7 @@ contains
         
         ! Run with custom output
         output_file = "my_custom_output.md"
-        cmd = "./build/gfortran_*/app/fortran --notebook -o " // trim(output_file) // " " // trim(test_file)
+        cmd = "fpm run fortran -- --notebook -o " // trim(output_file) // " " // trim(test_file)
         call execute_command_line(cmd, exitstat=exit_code)
         
         if (exit_code /= 0) then
@@ -114,7 +114,7 @@ contains
         call create_test_notebook(test_file)
         
         ! Run with verbose mode, capture output
-        cmd = "./build/gfortran_*/app/fortran --notebook -v " // trim(test_file) // " 2>&1"
+        cmd = "fpm run fortran -- --notebook -v " // trim(test_file) // " 2>&1"
         
         ! For now, just check it runs without error
         call execute_command_line(cmd, exitstat=exit_code)
