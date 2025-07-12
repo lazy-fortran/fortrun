@@ -243,6 +243,11 @@ contains
             do
                 read(unit, '(A)', iostat=ios) line
                 if (ios /= 0) exit
+                
+                ! Skip debug output and other noise
+                if (index(line, 'DEBUG:') > 0 .or. &
+                    index(line, '!') == 1) cycle
+                
                 if (index(line, trim(expected_text)) > 0) then
                     found = .true.
                     exit
