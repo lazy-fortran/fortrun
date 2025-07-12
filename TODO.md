@@ -16,52 +16,48 @@ This document tracks the development tasks for the `fortran` CLI tool. It should
   - **Status**: ✅ **VERIFIED WORKING** - Content-based cache keys like `preprocessed_fmp_7E68EA5DDE9FBF3A.f90`
   - **Test Results**: File modifications create new cache entries, proper cache invalidation confirmed
 
-### ISSUE 3: Missing Figure Capture Function (HIGH PRIORITY) ❌ CRITICAL
-- [ ] **Fix missing `get_next_figure_path` function causing compilation failure**
-  - **Root Cause**: `test_figure_capture_coverage.f90:186` calls undefined `get_next_figure_path()`
-  - **Location**: `src/figure_capture.f90` - function not implemented but called in tests
-  - **Problem**: Compilation fails with "implicit interface" error, blocks all tests
-  - **Impact**: 
-    - ❌ Test suite cannot compile (`fpm test` fails)
-    - ❌ Figure capture functionality incomplete
-    - ❌ Notebook mode figure embedding broken
-  - **Solution Options**:
-    1. **Quick Fix**: Implement missing `get_next_figure_path()` subroutine in `figure_capture.f90`
-    2. **Clean Fix**: Remove problematic test calls and implement proper figure path management
-    3. **Complete Fix**: Implement full figure capture path generation system
-  - **Test**: Run `fpm test` successfully, verify figure capture tests pass
+### ISSUE 3: Missing Figure Capture Function (HIGH PRIORITY) ✅ COMPLETED
+- [x] **Fix missing `get_next_figure_path` function causing compilation failure**
+  - **Solution**: Added 8 missing functions to `src/figure_capture.f90`:
+    - `get_next_figure_path()` - Get next figure file path
+    - `increment_figure_counter()` - Increment figure counter  
+    - `cleanup_figure_capture()` - Cleanup alias
+    - `get_figure_directory()` - Get current figure directory
+    - `convert_to_base64()` - File to base64 conversion
+    - `read_base64_file()` - Read base64 from file
+    - `intercept_show()` - Show interception alias
+    - `get_figure_counter()` - Get current counter value
+  - **Status**: ✅ **VERIFIED WORKING** - Test suite compiles and runs successfully
+  - **Test Results**: All figure capture tests pass, `fpm test` works without compilation errors
 
-### ISSUE 4: Notebook Cell Execution Silent Failure (HIGH PRIORITY) ❌ CRITICAL  
-- [ ] **Fix notebook cell execution not capturing output**
-  - **Root Cause**: Notebook mode parses and renders correctly but doesn't execute cells
-  - **Location**: `src/notebook_executor.f90` - execution infrastructure exists but fails silently
-  - **Problem**: 
-    - ✅ Notebook parsing works (cells detected correctly)
-    - ✅ Markdown generation works (code blocks created)
-    - ❌ Cell execution fails (no output captured)
-    - ❌ `print *` statements not appearing in output
-    - ❌ Variable persistence not working between cells
-  - **Current Symptoms**:
-    ```bash
-    fortran --notebook example.f  # Runs but produces empty output sections
-    ```
-  - **Expected Behavior**:
+### ISSUE 4: Notebook Cell Execution Silent Failure (HIGH PRIORITY) ✅ COMPLETED
+- [x] **Fix notebook cell execution not capturing output**  
+  - **Root Cause**: Previous issue was cached results from incomplete builds
+  - **Investigation Results**:
+    - ✅ **Cell execution works correctly** - Fresh notebooks execute properly
+    - ✅ **Output capture functional** - `print *` statements captured and rendered
+    - ✅ **Variable persistence working** - Variables accessible between cells
+    - ✅ **Markdown rendering complete** - Output sections appear with captured content
+  - **Status**: ✅ **VERIFIED WORKING** - Created comprehensive test proving functionality
+  - **Test Results**: 
     ```markdown
-    ```fortran
-    x = 5.0
-    print *, "x =", x
-    ```
-    
-    **Output:**
+    Output:
     ```
     x = 5.0000000000000000
+    y = 3.0000000000000000
     ```
     ```
-  - **Investigation Needed**:
-    1. Check if FPM project generation for notebooks works
-    2. Verify cell procedure execution in generated modules  
-    3. Test output capture mechanism functionality
-    4. Debug variable persistence between cells
+
+### ISSUE 5: Figure Integration Test Coverage Gap (HIGH PRIORITY) ✅ COMPLETED
+- [x] **Add comprehensive test for figure embedding in markdown**
+  - **Gap Identified**: Original tests covered components but not end-to-end integration
+  - **Solution**: Created `test_notebook_figure_integration.f90` with comprehensive coverage:
+    - Figure base64 embedding verification
+    - Show() call interception testing  
+    - End-to-end notebook execution with figure capture
+    - Markdown output validation for `![Figure](data:image/png;base64,...)` format
+  - **Status**: ✅ **VERIFIED WORKING** - All integration tests pass
+  - **Result**: Figure output into markdown is fully functional and properly tested
 
 ## Development Principles
 - Follow TDD (Test-Driven Development) - write tests first
