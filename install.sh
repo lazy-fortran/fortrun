@@ -6,8 +6,49 @@ set -e
 
 echo "Installing fortran CLI tool..."
 
-# Run fpm install
-fpm install "$@"
+# Parse arguments to separate FPM flags from install options
+FPM_FLAGS=""
+INSTALL_ARGS=""
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --flag)
+      # Handle multiple flags separated by spaces
+      for flag in $2; do
+        FPM_FLAGS="$FPM_FLAGS --flag $flag"
+      done
+      shift 2
+      ;;
+    --flag=*)
+      FPM_FLAGS="$FPM_FLAGS $1"
+      shift
+      ;;
+    --profile=*|--profile)
+      # Handle profile flag for fpm
+      if [[ $1 == --profile ]]; then
+        FPM_FLAGS="$FPM_FLAGS --profile $2"
+        shift 2
+      else
+        FPM_FLAGS="$FPM_FLAGS $1"
+        shift
+      fi
+      ;;
+    *)
+      INSTALL_ARGS="$INSTALL_ARGS $1"
+      shift
+      ;;
+  esac
+done
+
+# Run fpm install with appropriate flags
+if [[ -n "$FPM_FLAGS" ]]; then
+  echo "Building with flags: $FPM_FLAGS"
+  fpm build $FPM_FLAGS
+  echo "Installing binary..."
+  fpm install $INSTALL_ARGS
+else
+  fpm install $INSTALL_ARGS
+fi
 
 # Create config directory if it doesn't exist
 CONFIG_DIR="$HOME/.config/fortran"
