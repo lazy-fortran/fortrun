@@ -9,6 +9,7 @@ module type_system
   integer, parameter, public :: TYPE_LOGICAL = 3
   integer, parameter, public :: TYPE_CHARACTER = 4
   integer, parameter, public :: TYPE_COMPLEX = 5
+  integer, parameter, public :: TYPE_DERIVED = 6
   
   ! Type information structure
   type, public :: type_info
@@ -18,11 +19,13 @@ module type_system
     logical :: is_array = .false.
     integer :: array_rank = 0
     integer, dimension(7) :: array_shape = -1  ! Up to 7D arrays
+    character(len=63) :: type_name = ''  ! For derived types
   end type type_info
   
   ! Public procedures
   public :: create_type_info
   public :: create_array_type_info
+  public :: create_derived_type_info
   public :: is_numeric_type
   public :: can_promote_types
   public :: promote_types
@@ -67,6 +70,15 @@ contains
     end do
     
   end function create_array_type_info
+
+  function create_derived_type_info(type_name) result(tinfo)
+    character(len=*), intent(in) :: type_name
+    type(type_info) :: tinfo
+    
+    tinfo = create_type_info(TYPE_DERIVED)
+    tinfo%type_name = type_name
+    
+  end function create_derived_type_info
 
   function is_numeric_type(tinfo) result(is_numeric)
     type(type_info), intent(in) :: tinfo
@@ -149,6 +161,13 @@ contains
         base_str = 'complex'
       else
         write(base_str, '(a,i0,a)') 'complex(', tinfo%kind, ')'
+      end if
+      
+    case (TYPE_DERIVED)
+      if (len_trim(tinfo%type_name) > 0) then
+        write(base_str, '(a,a,a)') 'type(', trim(tinfo%type_name), ')'
+      else
+        base_str = 'type(?)'
       end if
       
     case default
