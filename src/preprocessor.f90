@@ -170,6 +170,24 @@ contains
           ! Extract and store function parameters
           call extract_function_parameters(line, scope_function_params(current_scope, :), scope_param_count(current_scope))
           
+          ! Add function parameters to type environment for type inference
+          ! Give them real types so expressions can be analyzed, but mark them specially
+          do i = 1, scope_param_count(current_scope)
+            ! Add parameter with real(8) type for now - this allows type inference to work
+            ! The parameter will still be handled specially by parameter declaration logic
+            call add_variable(scope_envs(current_scope)%env, &
+                              trim(scope_function_params(current_scope, i)), &
+                              create_type_info(TYPE_REAL, 8), success)
+            ! Mark it as a parameter after adding
+            do j = 1, scope_envs(current_scope)%env%var_count
+              if (trim(scope_envs(current_scope)%env%vars(j)%name) == trim(scope_function_params(current_scope, i))) then
+                ! Set a flag or use a special marker to indicate this is a parameter
+                ! For now, we'll let it have the real type so inference works
+                exit
+              end if
+            end do
+          end do
+          
           ! Add function name as a variable if it's not typed
           if (index(adjustl(line), 'real function') /= 1 .and. &
               index(adjustl(line), 'integer function') /= 1 .and. &
@@ -177,8 +195,8 @@ contains
               index(adjustl(line), 'character function') /= 1 .and. &
               index(adjustl(line), 'complex function') /= 1 .and. &
               index(adjustl(line), 'double precision function') /= 1) then
-            ! Untyped function - don't pre-assign type, let inference determine it
-            ! The function name will be added as a variable when we see assignments to it
+            ! Untyped function - the function name will be added as a variable 
+            ! when we process assignments to it
           else
             ! Typed function - track its return type for type inference
             if (num_functions < size(function_names)) then
@@ -244,9 +262,10 @@ contains
         ! Check for existing declarations
         if (enable_type_inference .and. is_declaration_line(line)) then
           call mark_declared_variables(scope_envs(current_scope), line)
-          ! In function scope, enhance parameter declarations with opinionated defaults
-          if (current_scope > 1) then
-            call enhance_parameter_declaration(line, scope_function_params(current_scope, :), scope_param_count(current_scope))
+          ! In function scope, check if this is a parameter declaration
+          if (current_scope > 1 .and. is_parameter_declaration(line, scope_function_params(current_scope, :), scope_param_count(current_scope))) then
+            ! Skip outputting explicit parameter declarations - we'll auto-generate them
+            cycle
           end if
         end if
         
@@ -987,7 +1006,8 @@ contains
     do i = 1, type_env%env%var_count
       if (type_env%env%vars(i)%in_use .and. &
           type_env%env%vars(i)%var_type%base_type /= TYPE_UNKNOWN .and. &
-          type_env%env%vars(i)%var_type%base_type /= -1) then  ! Skip already declared
+          type_env%env%vars(i)%var_type%base_type /= -1 .and. &  ! Skip already declared
+          type_env%env%vars(i)%var_type%base_type /= -2) then      ! Skip parameters
         
         ! Generate type string
         select case (type_env%env%vars(i)%var_type%base_type)
@@ -1037,7 +1057,8 @@ contains
     do i = 1, type_env%env%var_count
       if (type_env%env%vars(i)%in_use .and. &
           type_env%env%vars(i)%var_type%base_type /= TYPE_UNKNOWN .and. &
-          type_env%env%vars(i)%var_type%base_type /= -1 .and. &
+          type_env%env%vars(i)%var_type%base_type /= -1 .and. &          ! Skip already declared
+          type_env%env%vars(i)%var_type%base_type /= -2 .and. &          ! Skip parameters
           trim(type_env%env%vars(i)%name) /= trim(function_name)) then  ! Skip function name
         
         ! Generate type string
@@ -1158,7 +1179,8 @@ contains
       call get_variable_type_from_env(scope_envs(scope_idx), param_name, param_type, found)
       
       ! Only generate declaration if parameter was not explicitly declared
-      if (.not. found) then
+      ! Skip if found AND marked with base_type == -1 (explicitly declared)
+      if (.not. (found .and. param_type%base_type == -1)) then
         ! Use Fortran implicit typing rules as fallback
         call infer_variable_type_from_name(param_name, param_type)
         
@@ -1235,6 +1257,35 @@ contains
     end if
     
   end subroutine write_function_return_declaration
+  
+  function is_parameter_declaration(line, param_names, param_count) result(is_param)
+    character(len=*), intent(in) :: line
+    character(len=64), dimension(:), intent(in) :: param_names
+    integer, intent(in) :: param_count
+    logical :: is_param
+    
+    character(len=256) :: trimmed, var_list
+    integer :: double_colon_pos, i
+    
+    is_param = .false.
+    trimmed = adjustl(line)
+    
+    ! Find :: separator
+    double_colon_pos = index(trimmed, '::')
+    if (double_colon_pos == 0) return
+    
+    ! Get variable list after ::
+    var_list = adjustl(trimmed(double_colon_pos+2:))
+    
+    ! Check if any variable in this declaration is a function parameter
+    do i = 1, param_count
+      if (index(var_list, trim(param_names(i))) > 0) then
+        is_param = .true.
+        exit
+      end if
+    end do
+    
+  end function is_parameter_declaration
   
   subroutine enhance_parameter_declaration(line, param_names, param_count)
     character(len=*), intent(inout) :: line
