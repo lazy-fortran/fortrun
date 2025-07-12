@@ -4,12 +4,14 @@ module math_utils
   
 contains
 
-  function add(a, b) result(c)
-    c = a + b
+  real function add(a, b)
+    real :: a, b
+    add = a + b
   end function add
   
-  function multiply(a, b) result(c)
-    c = a * b
+  real function multiply(a, b)
+    real :: a, b
+    multiply = a * b
   end function multiply
   
 end module math_utils
