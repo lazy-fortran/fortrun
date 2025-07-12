@@ -41,31 +41,41 @@ contains
     
     ! Multi-scope support  
     type(type_environment), dimension(10) :: scope_envs
-    integer :: current_scope = 0
-    integer :: max_scope = 0
-    logical, dimension(10) :: scope_has_vars = .false.
+    integer :: current_scope
+    integer :: max_scope
+    logical, dimension(10) :: scope_has_vars
     character(len=1024), dimension(10000) :: output_lines
-    integer :: output_line_count = 0
-    integer, dimension(10) :: implicit_lines = 0
+    integer :: output_line_count
+    integer, dimension(10) :: implicit_lines
     integer :: i, j
     
     ! Function return type analysis
     character(len=64), dimension(10) :: scope_function_names  ! Name of function for each scope
     character(len=64), dimension(100) :: function_names
     type(type_info), dimension(100) :: function_return_types
-    integer :: num_functions = 0
+    integer :: num_functions
     
     ! Function parameter tracking
     character(len=64), dimension(10, 20) :: scope_function_params  ! Parameters for each scope
-    integer, dimension(10) :: scope_param_count = 0  ! Number of parameters per scope
-    logical, dimension(10, 20) :: param_is_assigned = .false.  ! Track if parameter is assigned to
-    logical, dimension(10, 20) :: param_is_read = .false.      ! Track if parameter is read from
+    integer, dimension(10) :: scope_param_count  ! Number of parameters per scope
+    logical, dimension(10, 20) :: param_is_assigned  ! Track if parameter is assigned to
+    logical, dimension(10, 20) :: param_is_read      ! Track if parameter is read from
     
     ! USE statement collection
     character(len=256), dimension(50) :: use_statements
-    integer :: use_count = 0
+    integer :: use_count
     
     error_msg = ''
+    current_scope = 0
+    max_scope = 0
+    scope_has_vars = .false.
+    output_line_count = 0
+    implicit_lines = 0
+    num_functions = 0
+    scope_param_count = 0
+    param_is_assigned = .false.
+    param_is_read = .false.
+    use_count = 0
     in_subroutine = .false.
     in_function = .false.
     has_program_statement = .false.
@@ -748,6 +758,9 @@ contains
     
     ! Some common patterns - this would be replaced with actual parsing
     if (lower_name == 'square' .or. lower_name == 'cube') then
+      return_type = create_type_info(TYPE_REAL, 8)
+    else if (lower_name == 'add' .or. lower_name == 'multiply' .or. &
+             lower_name == 'subtract' .or. lower_name == 'divide') then
       return_type = create_type_info(TYPE_REAL, 8)
     else if (index(lower_name, 'count') > 0 .or. index(lower_name, 'len') > 0) then
       return_type = create_type_info(TYPE_INTEGER, 4)
