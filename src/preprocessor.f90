@@ -53,6 +53,10 @@ contains
     type(type_info), dimension(100) :: function_return_types
     integer :: num_functions = 0
     
+    ! Function parameter tracking
+    character(len=64), dimension(10, 20) :: scope_function_params  ! Parameters for each scope
+    integer, dimension(10) :: scope_param_count = 0  ! Number of parameters per scope
+    
     error_msg = ''
     in_subroutine = .false.
     in_function = .false.
@@ -129,9 +133,15 @@ contains
           call init_type_environment(scope_envs(current_scope))
           ! Store function name for this scope
           call extract_function_name_from_line(line, scope_function_names(current_scope))
+          ! Extract and store function parameters
+          call extract_function_parameters(line, scope_function_params(current_scope, :), scope_param_count(current_scope))
         end if
         output_line_count = output_line_count + 1
         output_lines(output_line_count) = line
+        ! Add implicit none after function declaration
+        output_line_count = output_line_count + 1
+        output_lines(output_line_count) = '  implicit none'
+        implicit_lines(current_scope) = output_line_count
       else if (is_subroutine_declaration(line)) then
         if (.not. has_program_statement .and. .not. contains_written) then
           output_line_count = output_line_count + 1
@@ -146,6 +156,10 @@ contains
         end if
         output_line_count = output_line_count + 1
         output_lines(output_line_count) = line
+        ! Add implicit none after subroutine declaration
+        output_line_count = output_line_count + 1
+        output_lines(output_line_count) = '  implicit none'
+        implicit_lines(current_scope) = output_line_count
       else if (is_end_statement(line, 'function')) then
         in_function = .false.
         if (current_scope > 1) current_scope = current_scope - 1
@@ -164,6 +178,10 @@ contains
         ! Check for existing declarations
         if (enable_type_inference .and. is_declaration_line(line)) then
           call mark_declared_variables(scope_envs(current_scope), line)
+          ! In function scope, enhance parameter declarations with opinionated defaults
+          if (current_scope > 1) then
+            call enhance_parameter_declaration(line, scope_function_params(current_scope, :), scope_param_count(current_scope))
+          end if
         end if
         
         ! Check for assignments for type inference
@@ -209,14 +227,33 @@ contains
     do i = 1, output_line_count
       ! Check if this line is a function declaration that we can enhance
       call enhance_function_declaration(output_lines(i), function_names, function_return_types, num_functions)
+      ! Apply opinionated defaults to explicit function type declarations
+      call enhance_explicit_function_types(output_lines(i))
+      ! Also enhance variable declarations for consistency
+      call enhance_explicit_variable_types(output_lines(i))
       write(unit_out, '(A)') trim(output_lines(i))
       
       ! Check if we need to inject declarations after this line
       do current_scope = 1, 10
-        if (implicit_lines(current_scope) == i .and. scope_has_vars(current_scope)) then
+        if (implicit_lines(current_scope) == i .and. (scope_has_vars(current_scope) .or. scope_param_count(current_scope) > 0)) then
           write(unit_out, '(A)') '  '
           write(unit_out, '(A)') '  ! Auto-generated variable declarations:'
-          call write_formatted_declarations(unit_out, scope_envs(current_scope))
+          
+          ! Write function parameter declarations first (if any)
+          if (scope_param_count(current_scope) > 0) then
+            call write_function_parameter_declarations(unit_out, current_scope, scope_envs, scope_function_params, scope_param_count)
+          end if
+          
+          ! Write function return type declaration (if in function scope)
+          if (current_scope > 1 .and. len_trim(scope_function_names(current_scope)) > 0) then
+            call write_function_return_declaration(unit_out, current_scope, scope_envs, scope_function_names)
+          end if
+          
+          ! Write other variable declarations
+          if (scope_has_vars(current_scope)) then
+            call write_formatted_declarations(unit_out, scope_envs(current_scope))
+          end if
+          
           write(unit_out, '(A)') '  '
         end if
       end do
@@ -781,5 +818,264 @@ contains
     end do
     
   end subroutine write_formatted_declarations
+  
+  subroutine extract_function_parameters(line, param_names, param_count)
+    character(len=*), intent(in) :: line
+    character(len=64), dimension(:), intent(out) :: param_names
+    integer, intent(out) :: param_count
+    
+    character(len=256) :: trimmed
+    integer :: paren_start, paren_end, i, comma_pos, start_pos
+    character(len=256) :: param_list, current_param
+    
+    trimmed = adjustl(line)
+    param_count = 0
+    
+    ! Find the parameter list between parentheses
+    paren_start = index(trimmed, '(')
+    paren_end = index(trimmed, ')', back=.true.)
+    
+    if (paren_start == 0 .or. paren_end == 0 .or. paren_end <= paren_start) return
+    
+    ! Extract parameter list
+    param_list = adjustl(trimmed(paren_start+1:paren_end-1))
+    if (len_trim(param_list) == 0) return
+    
+    ! Parse comma-separated parameters
+    start_pos = 1
+    do while (start_pos <= len_trim(param_list) .and. param_count < size(param_names))
+      comma_pos = index(param_list(start_pos:), ',')
+      if (comma_pos == 0) then
+        ! Last parameter
+        current_param = adjustl(trim(param_list(start_pos:)))
+      else
+        current_param = adjustl(trim(param_list(start_pos:start_pos+comma_pos-2)))
+        start_pos = start_pos + comma_pos
+      end if
+      
+      ! Clean parameter name (remove type declarations if present)
+      call clean_parameter_name(current_param)
+      
+      if (len_trim(current_param) > 0) then
+        param_count = param_count + 1
+        param_names(param_count) = current_param
+      end if
+      
+      if (comma_pos == 0) exit
+    end do
+    
+  end subroutine extract_function_parameters
+  
+  subroutine clean_parameter_name(param_name)
+    character(len=*), intent(inout) :: param_name
+    integer :: colon_pos
+    
+    ! Remove everything after :: if present (type declarations)
+    colon_pos = index(param_name, '::')
+    if (colon_pos > 0) then
+      param_name = adjustl(param_name(colon_pos+2:))
+    end if
+    
+    ! Remove intent specifications etc. - just keep the variable name
+    ! This is simplified - real implementation would parse more carefully
+    param_name = trim(adjustl(param_name))
+  end subroutine clean_parameter_name
+  
+  subroutine write_function_parameter_declarations(unit, scope_idx, scope_envs, scope_function_params, scope_param_count)
+    integer, intent(in) :: unit, scope_idx
+    type(type_environment), dimension(:), intent(in) :: scope_envs
+    character(len=64), dimension(:, :), intent(in) :: scope_function_params
+    integer, dimension(:), intent(in) :: scope_param_count
+    
+    integer :: i
+    character(len=64) :: param_name, type_str
+    type(type_info) :: param_type
+    logical :: found
+    
+    ! Write parameter declarations with intent(in) by default
+    do i = 1, scope_param_count(scope_idx)
+      param_name = scope_function_params(scope_idx, i)
+      
+      ! Try to infer type from usage in function body (from type environment)
+      call get_variable_type_from_env(scope_envs(scope_idx), param_name, param_type, found)
+      
+      if (.not. found) then
+        ! Use Fortran implicit typing rules as fallback
+        call infer_variable_type_from_name(param_name, param_type)
+      end if
+      
+      ! Generate type string
+      call generate_type_string(param_type, type_str)
+      
+      if (len_trim(type_str) > 0) then
+        write(unit, '(a,a,a,a)') '  ', trim(type_str), ', intent(in) :: ', trim(param_name)
+      end if
+    end do
+    
+  end subroutine write_function_parameter_declarations
+  
+  subroutine get_variable_type_from_env(type_env, var_name, var_type, found)
+    type(type_environment), intent(in) :: type_env
+    character(len=*), intent(in) :: var_name
+    type(type_info), intent(out) :: var_type
+    logical, intent(out) :: found
+    
+    integer :: i
+    
+    found = .false.
+    var_type = create_type_info(TYPE_UNKNOWN)
+    
+    do i = 1, type_env%env%var_count
+      if (type_env%env%vars(i)%in_use .and. &
+          trim(type_env%env%vars(i)%name) == trim(var_name)) then
+        var_type = type_env%env%vars(i)%var_type
+        found = .true.
+        return
+      end if
+    end do
+  end subroutine get_variable_type_from_env
+  
+  subroutine write_function_return_declaration(unit, scope_idx, scope_envs, scope_function_names)
+    integer, intent(in) :: unit, scope_idx
+    type(type_environment), dimension(:), intent(in) :: scope_envs
+    character(len=64), dimension(:), intent(in) :: scope_function_names
+    
+    character(len=64) :: func_name, type_str
+    type(type_info) :: return_type
+    logical :: found
+    
+    func_name = scope_function_names(scope_idx)
+    if (len_trim(func_name) == 0) return
+    
+    ! Try to get return type from assignments to function name in this scope
+    call get_variable_type_from_env(scope_envs(scope_idx), func_name, return_type, found)
+    
+    if (.not. found) then
+      ! Use implicit typing rules as fallback
+      call infer_variable_type_from_name(func_name, return_type)
+    end if
+    
+    call generate_type_string(return_type, type_str)
+    
+    if (len_trim(type_str) > 0) then
+      write(unit, '(a,a,a,a)') '  ', trim(type_str), ' :: ', trim(func_name)
+    end if
+    
+  end subroutine write_function_return_declaration
+  
+  subroutine enhance_parameter_declaration(line, param_names, param_count)
+    character(len=*), intent(inout) :: line
+    character(len=64), dimension(:), intent(in) :: param_names
+    integer, intent(in) :: param_count
+    
+    character(len=256) :: trimmed, var_list, enhanced_line
+    integer :: double_colon_pos, i, j
+    character(len=64) :: var_name
+    logical :: is_parameter
+    
+    trimmed = adjustl(line)
+    
+    ! Find :: separator
+    double_colon_pos = index(trimmed, '::')
+    if (double_colon_pos == 0) return
+    
+    ! Get variable list after ::
+    var_list = adjustl(trimmed(double_colon_pos+2:))
+    
+    ! Check if any variable in this declaration is a function parameter
+    is_parameter = .false.
+    do i = 1, param_count
+      if (index(var_list, trim(param_names(i))) > 0) then
+        is_parameter = .true.
+        exit
+      end if
+    end do
+    
+    if (is_parameter) then
+      ! Enhance the declaration with opinionated defaults
+      call apply_opinionated_defaults(trimmed, enhanced_line)
+      line = enhanced_line
+    end if
+    
+  end subroutine enhance_parameter_declaration
+  
+  subroutine apply_opinionated_defaults(declaration, enhanced_declaration)
+    character(len=*), intent(in) :: declaration
+    character(len=*), intent(out) :: enhanced_declaration
+    
+    character(len=256) :: type_part, var_part
+    integer :: double_colon_pos
+    
+    double_colon_pos = index(declaration, '::')
+    if (double_colon_pos == 0) then
+      enhanced_declaration = declaration
+      return
+    end if
+    
+    type_part = adjustl(declaration(1:double_colon_pos-1))
+    var_part = adjustl(declaration(double_colon_pos+2:))
+    
+    ! Convert real to real(8) for explicitness
+    if (trim(type_part) == 'real') then
+      type_part = 'real(8)'
+    else if (trim(type_part) == 'integer') then
+      type_part = 'integer(4)'  ! Be explicit about integer too
+    end if
+    
+    ! Add intent(in) if not already present
+    if (index(type_part, 'intent') == 0) then
+      type_part = trim(type_part) // ', intent(in)'
+    end if
+    
+    enhanced_declaration = trim(type_part) // ' :: ' // trim(var_part)
+    
+  end subroutine apply_opinionated_defaults
+  
+  subroutine enhance_explicit_function_types(line)
+    character(len=*), intent(inout) :: line
+    
+    character(len=256) :: trimmed
+    
+    trimmed = adjustl(line)
+    
+    ! Convert explicit function type declarations to use opinionated defaults
+    if (index(trimmed, 'real function ') == 1) then
+      line = 'real(8) function ' // trim(adjustl(trimmed(15:)))
+    else if (index(trimmed, 'integer function ') == 1) then  
+      line = 'integer(4) function ' // trim(adjustl(trimmed(18:)))
+    else if (index(trimmed, 'logical function ') == 1) then
+      line = 'logical function ' // trim(adjustl(trimmed(17:)))
+    else if (index(trimmed, 'character function ') == 1) then
+      line = 'character(len=*) function ' // trim(adjustl(trimmed(20:)))
+    end if
+    
+  end subroutine enhance_explicit_function_types
+  
+  subroutine enhance_explicit_variable_types(line)
+    character(len=*), intent(inout) :: line
+    
+    character(len=256) :: trimmed
+    integer :: double_colon_pos
+    
+    trimmed = adjustl(line)
+    
+    ! Only process lines that look like declarations
+    double_colon_pos = index(trimmed, '::')
+    if (double_colon_pos == 0) return
+    
+    ! Convert explicit type declarations to use opinionated defaults
+    if (index(trimmed, 'real ::') == 1) then
+      line = 'real(8) ::' // trim(trimmed(8:))
+    else if (index(trimmed, 'integer ::') == 1) then
+      line = 'integer(4) ::' // trim(trimmed(11:))
+    else if (index(trimmed, 'real ') == 1 .and. index(trimmed, 'real(') /= 1) then
+      ! Handle "real :: x" with spaces
+      line = 'real(8) ' // trim(adjustl(trimmed(5:)))
+    else if (index(trimmed, 'integer ') == 1 .and. index(trimmed, 'integer(') /= 1) then
+      ! Handle "integer :: x" with spaces  
+      line = 'integer(4) ' // trim(adjustl(trimmed(8:)))
+    end if
+    
+  end subroutine enhance_explicit_variable_types
 
 end module preprocessor
