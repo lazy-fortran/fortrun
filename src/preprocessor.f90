@@ -319,6 +319,10 @@ contains
     ! Check which scopes have variables
     do i = 1, max_scope
       scope_has_vars(i) = scope_envs(i)%env%var_count > 0
+      ! Force variable declarations for function scopes to handle untyped functions
+      if (i > 1 .and. len_trim(scope_function_names(i)) > 0) then
+        scope_has_vars(i) = .true.
+      end if
     end do
     
     ! Pragmatic fix: Force variable declarations for known problematic .f files
