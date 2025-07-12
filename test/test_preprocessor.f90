@@ -60,6 +60,7 @@ contains
     
     ! Create temporary test file
     temp_file = 'test_simple.f'
+    output_file = 'test_simple.f90'
     open(newunit=unit, file=temp_file, status='replace')
     write(unit, '(a)') "print *, 'Hello World'"
     close(unit)
@@ -115,6 +116,7 @@ contains
     
     ! Create temporary test file with function
     temp_file = 'test_function.f'
+    output_file = 'test_function.f90'
     open(newunit=unit, file=temp_file, status='replace')
     write(unit, '(a)') "x = add(1.0, 2.0)"
     write(unit, '(a)') "print *, x"
@@ -172,6 +174,7 @@ contains
     
     ! Create temporary test file with subroutine
     temp_file = 'test_subroutine.f'
+    output_file = 'test_subroutine.f90'
     open(newunit=unit, file=temp_file, status='replace')
     write(unit, '(a)') "call greet('World')"
     write(unit, '(a)') ""
@@ -227,6 +230,7 @@ contains
     
     ! Create temporary test file with existing program
     temp_file = 'test_existing.f'
+    output_file = 'test_existing.f90'
     open(newunit=unit, file=temp_file, status='replace')
     write(unit, '(a)') "program mytest"
     write(unit, '(a)') "  implicit none"
@@ -278,6 +282,7 @@ contains
     character(len=256) :: output_file, error_msg
     
     ! Test with non-existent file
+    output_file = 'nonexistent.f90'
     call preprocess_file('nonexistent.f', output_file, error_msg)
     
     test_count = test_count + 1

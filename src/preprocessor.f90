@@ -391,7 +391,7 @@ contains
     close(unit_out)
     
     ! Replace original with temporary
-    call execute_command_line('mv "' // trim(temp_filename) // '" "' // trim(filename) // '"')
+    call execute_command_line('mv ' // trim(temp_filename) // ' ' // trim(filename))
     
   end subroutine inject_declarations
   
