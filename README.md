@@ -41,7 +41,7 @@ print *, "Function result:", distance(3.0, 4.0)
 
 **Automatically transforms to:**
 - ✅ Wrapped in `program` statement
-- ✅ `implicit none` enforced  
+- ✅ Modern implicit typing via automatic type inference
 - ✅ Double precision defaults (`real(8)`)
 - ✅ Type declarations automatically generated
 - ✅ `contains` section for functions
@@ -54,7 +54,8 @@ print *, "Function result:", distance(3.0, 4.0)
 - Smart caching with 2-4x performance improvements
 
 🎯 **Opinionated Modern Defaults**  
-- `implicit none` enforced automatically
+- Modern implicit typing via type inference (`.f` files)
+- `implicit none` enforced for `.f90` files  
 - Double precision (`real(8)`) as default
 - Modern compiler flags applied
 
