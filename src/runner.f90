@@ -1,5 +1,5 @@
 module runner
-  use cache, only: get_cache_dir, ensure_cache_dir, get_content_hash, cache_exists
+  use cache, only: get_cache_dir, ensure_cache_dir, get_content_hash, get_single_file_content_hash, cache_exists
   use cache_lock, only: acquire_lock, release_lock, cleanup_stale_locks
   use module_scanner, only: scan_modules, module_info
   use fpm_generator, only: generate_fpm_with_deps, generate_fpm_with_deps_from_config
@@ -26,11 +26,11 @@ contains
     integer, intent(in) :: parallel_jobs
     logical, intent(in) :: no_wait
     
-    logical :: file_exists, success
+    logical :: file_exists, success, file_exists_flag
     character(len=256) :: cache_dir, project_dir, basename
     character(len=512) :: command
     character(len=256) :: absolute_path, preprocessed_file, working_file
-    character(len=32) :: jobs_flag
+    character(len=32) :: jobs_flag, content_hash
     character(len=1024) :: preprocess_error
     integer :: exitstat, cmdstat
     integer :: i, last_slash
@@ -69,12 +69,47 @@ contains
         print '(a)', 'Preprocessing .f file...'
       end if
       
-      ! Preprocess the file
-      call preprocess_file(absolute_path, preprocessed_file, preprocess_error)
-      if (len_trim(preprocess_error) > 0) then
-        print '(a,a)', 'Error during preprocessing: ', trim(preprocess_error)
+      ! Get content-based cache directory first
+      if (len_trim(custom_cache_dir) > 0) then
+        cache_dir = custom_cache_dir
+      else
+        cache_dir = get_cache_dir()
+      end if
+      call ensure_cache_dir(cache_dir, success)
+      if (.not. success) then
+        print '(a)', 'Error: Failed to create cache directory'
         exit_code = 1
         return
+      end if
+      
+      ! Generate content-based filename for preprocessed .f file
+      content_hash = get_single_file_content_hash(absolute_path)
+      if (content_hash == 'fallback_unknown') then
+        ! Fallback to basename if hashing fails
+        preprocessed_file = trim(cache_dir) // '/preprocessed_' // trim(basename) // '.f90'
+      else
+        preprocessed_file = trim(cache_dir) // '/preprocessed_' // trim(content_hash) // '.f90'
+      end if
+      
+      ! Check if already cached
+      inquire(file=preprocessed_file, exist=file_exists_flag)
+      
+      if (.not. file_exists_flag) then
+        if (verbose_level >= 2) then
+          print '(a,a)', 'Creating preprocessed file: ', trim(preprocessed_file)
+        end if
+        
+        ! Preprocess the file
+        call preprocess_file(absolute_path, preprocessed_file, preprocess_error)
+        if (len_trim(preprocess_error) > 0) then
+          print '(a,a)', 'Error during preprocessing: ', trim(preprocess_error)
+          exit_code = 1
+          return
+        end if
+      else
+        if (verbose_level >= 2) then
+          print '(a,a)', 'Using cached preprocessed file: ', trim(preprocessed_file)
+        end if
       end if
       
       ! Keep track of preprocessed file
@@ -82,15 +117,17 @@ contains
       was_preprocessed = .true.
       
       if (verbose_level >= 2) then
-        print '(a,a)', 'Preprocessed file created: ', trim(preprocessed_file)
+        print '(a,a)', 'Preprocessed file ready: ', trim(preprocessed_file)
       end if
     end if
     
-    ! Get cache directory (use custom if provided)
-    if (len_trim(custom_cache_dir) > 0) then
-      cache_dir = custom_cache_dir
-    else
-      cache_dir = get_cache_dir()
+    ! Get cache directory (use custom if provided) - for .f90 files or if not set above
+    if (.not. is_preprocessor_file(filename)) then
+      if (len_trim(custom_cache_dir) > 0) then
+        cache_dir = custom_cache_dir
+      else
+        cache_dir = get_cache_dir()
+      end if
     end if
     call ensure_cache_dir(cache_dir, success)
     if (.not. success) then
@@ -451,8 +488,8 @@ contains
     command = 'mkdir -p "' // trim(project_dir) // '/src"'
     call execute_command_line(command)
     
-    ! Copy all .f90 files except the main file
-    command = 'find "' // trim(source_dir) // '" -maxdepth 1 -name "*.f90" -o -name "*.F90" | ' // &
+    ! Copy all .f90 files except the main file (only files, not directories)
+    command = 'find "' // trim(source_dir) // '" -maxdepth 1 -type f \( -name "*.f90" -o -name "*.F90" \) | ' // &
               'while read f; do ' // &
               '  if [ "$f" != "' // trim(main_file) // '" ]; then ' // &
               '    cp "$f" "' // trim(project_dir) // '/src/"; ' // &
