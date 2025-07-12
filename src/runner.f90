@@ -26,7 +26,7 @@ contains
     character(len=*), intent(in) :: custom_config_dir
     integer, intent(in) :: parallel_jobs
     logical, intent(in) :: no_wait
-    character(len=*), intent(in) :: custom_flags
+    character(len=*), intent(in), optional :: custom_flags
     
     logical :: file_exists, success, file_exists_flag
     character(len=256) :: cache_dir, project_dir, basename
@@ -180,12 +180,21 @@ contains
       end if
       
       ! Copy source files and generate FPM project only on cache miss
-      call setup_project_files(working_file, project_dir, basename, verbose_level, &
-                                custom_config_dir, was_preprocessed, custom_flags)
+      if (present(custom_flags)) then
+        call setup_project_files(working_file, project_dir, basename, verbose_level, &
+                                  custom_config_dir, was_preprocessed, custom_flags)
+      else
+        call setup_project_files(working_file, project_dir, basename, verbose_level, &
+                                  custom_config_dir, was_preprocessed, '')
+      end if
     end if
     
     ! Generate flag string based on file type and user input
-    call generate_flag_string(was_preprocessed, custom_flags, flag_string)
+    if (present(custom_flags)) then
+      call generate_flag_string(was_preprocessed, custom_flags, flag_string)
+    else
+      call generate_flag_string(was_preprocessed, '', flag_string)
+    end if
     
     ! Build first
     ! Prepare parallel jobs flag if specified
@@ -338,7 +347,7 @@ contains
     integer, intent(in) :: verbose_level
     character(len=*), intent(in) :: custom_config_dir
     logical, intent(in) :: is_preprocessed_file
-    character(len=*), intent(in) :: custom_flags
+    character(len=*), intent(in), optional :: custom_flags
     
     type(module_info), dimension(:), allocatable :: modules
     integer :: n_modules
@@ -368,12 +377,21 @@ contains
       print '(a)', 'Module cache enabled for dependency optimization'
     end if
     
-    ! Generate fmp.toml with dependencies
+    ! Generate fpm.toml with dependencies
     if (len_trim(custom_config_dir) > 0) then
-      call generate_fpm_with_deps_from_config(project_dir, name, modules, n_modules, custom_config_dir, &
-                                               is_preprocessed_file, custom_flags)
+      if (present(custom_flags)) then
+        call generate_fpm_with_deps_from_config(project_dir, name, modules, n_modules, custom_config_dir, &
+                                                 is_preprocessed_file, custom_flags)
+      else
+        call generate_fpm_with_deps_from_config(project_dir, name, modules, n_modules, custom_config_dir, &
+                                                 is_preprocessed_file, '')
+      end if
     else
-      call generate_fpm_with_deps(project_dir, name, modules, n_modules, is_preprocessed_file, custom_flags)
+      if (present(custom_flags)) then
+        call generate_fpm_with_deps(project_dir, name, modules, n_modules, is_preprocessed_file, custom_flags)
+      else
+        call generate_fpm_with_deps(project_dir, name, modules, n_modules, is_preprocessed_file, '')
+      end if
     end if
     
     ! Implement module cache integration
@@ -595,7 +613,7 @@ contains
     character(len=*), intent(in) :: absolute_path, project_dir, basename, custom_config_dir
     integer, intent(in) :: verbose_level
     logical, intent(in) :: is_preprocessed_file
-    character(len=*), intent(in) :: custom_flags
+    character(len=*), intent(in), optional :: custom_flags
     character(len=512) :: command
     integer :: exitstat, cmdstat
     
@@ -612,8 +630,13 @@ contains
     call copy_local_modules(absolute_path, project_dir)
     
     ! Scan for module dependencies and generate fpm.toml
-    call generate_fpm_with_dependencies(absolute_path, project_dir, basename, verbose_level, &
-                                         custom_config_dir, is_preprocessed_file, custom_flags)
+    if (present(custom_flags)) then
+      call generate_fpm_with_dependencies(absolute_path, project_dir, basename, verbose_level, &
+                                           custom_config_dir, is_preprocessed_file, custom_flags)
+    else
+      call generate_fpm_with_dependencies(absolute_path, project_dir, basename, verbose_level, &
+                                           custom_config_dir, is_preprocessed_file, '')
+    end if
     
   end subroutine setup_project_files
   

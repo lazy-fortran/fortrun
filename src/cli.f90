@@ -17,7 +17,7 @@ contains
     logical, intent(out) :: no_wait
     logical, intent(out) :: notebook_mode
     character(len=*), intent(out) :: notebook_output
-    character(len=*), intent(out) :: custom_flags
+    character(len=*), intent(out), optional :: custom_flags
     
     integer :: nargs, i, iostat
     character(len=256) :: arg
@@ -32,7 +32,9 @@ contains
     no_wait = .false.
     notebook_mode = .false.
     notebook_output = ''
-    custom_flags = ''
+    if (present(custom_flags)) then
+      custom_flags = ''
+    end if
     filename_found = .false.
     expecting_cache_dir = .false.
     expecting_config_dir = .false.
@@ -61,7 +63,9 @@ contains
         notebook_output = trim(arg)
         expecting_output = .false.
       else if (expecting_flags) then
-        custom_flags = trim(arg)
+        if (present(custom_flags)) then
+          custom_flags = trim(arg)
+        end if
         expecting_flags = .false.
       else if (expecting_jobs) then
         read(arg, *, iostat=iostat) parallel_jobs
@@ -108,7 +112,12 @@ contains
       else if (arg == '-o' .or. arg == '--output') then
         expecting_output = .true.
       else if (arg == '--flag') then
-        expecting_flags = .true.
+        if (present(custom_flags)) then
+          expecting_flags = .true.
+        else
+          ! Flag option used but custom_flags not provided - skip silently
+          if (i < nargs) i = i + 1  ! Skip the next argument
+        end if
       else if (arg(1:1) /= '-') then
         ! Not a flag, must be filename
         if (.not. filename_found) then
