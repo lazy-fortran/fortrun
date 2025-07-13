@@ -143,12 +143,28 @@ fpm test test_name
 - ✅ Comprehensive test coverage for AST construction and serialization
 - ✅ Unified AST interface combining core and dialect features
 
-### 🚧 **Phase 6 In Progress**: Parser Implementation
-- ⚠️ Recursive descent parser for Simple Fortran
-- ⚠️ Token to AST conversion
-- ⚠️ Expression parsing with precedence handling
-- ⚠️ Statement parsing and program structure
-- ⚠️ Integration with existing lexer
+### ✅ **Phase 6 Complete**: Parser and Code Generation
+- ✅ Recursive descent parser for expressions and statements
+- ✅ Binary operation parsing with operator precedence
+- ✅ Code generation from AST back to Fortran
+- ✅ Round-trip parsing and code generation
+- ✅ Integration tests for parse-codegen pipeline
+
+### ✅ **Phase 7 Complete**: AST-Based Preprocessor
+- ✅ New preprocessor_ast module using AST architecture
+- ✅ Basic type inference for integer/real literals
+- ✅ Line-by-line processing for .f files
+- ✅ Automatic variable declaration generation
+- ✅ Integration with runner (default for .f files)
+- ✅ Environment variable control (FORTRAN_USE_AST_PREPROCESSOR)
+- ✅ Most regression tests passing
+- ⚠️ **Known limitations**: Arrays and derived types not yet supported
+
+### 🚧 **Phase 8 In Progress**: Advanced Type Inference
+- ⚠️ Array type inference
+- ⚠️ Derived type support
+- ⚠️ Function return type inference
+- ⚠️ More sophisticated expression analysis
 
 ## Simple Fortran Dialect
 
@@ -280,3 +296,6 @@ Each example includes:
 - To clear the fortran cache, remove fortran/* in $XDG_CACHE_HOME or in $HOME/.cache
 - You put test input data in subdirectories of test/test_data in an organized way. in particlular, this includes snippets of our simplified fortran dialect .f and their standard Fortran f90 equivalent for the ast and code generator tests. this is when they are too small or too specialized to become actual examples.
 - When implementing polymorphic arrays in AST nodes, use `allocate(array, source=input)` for proper copying
+- **AST Preprocessor is now the default**: The new AST-based preprocessor (preprocessor_ast) is used by default for .f files
+- The legacy preprocessor is kept for now but can be activated by setting FORTRAN_USE_AST_PREPROCESSOR=0
+- Fortran polymorphic assignment of types with allocatable components doesn't work reliably - work around this by avoiding passing AST nodes with allocatable components through polymorphic variables
