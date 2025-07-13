@@ -37,8 +37,14 @@ fpm clean
 This is a Fortran project following standard FPM directory structure:
 
 - `src/` - Library modules that provide reusable functionality
+  - `core/` - Shared functionality for all Fortran dialects (lexer, parser, AST, codegen)
+  - `dialects/` - Dialect-specific extensions
+    - `simple_fortran/` - Our simplified Fortran dialect with type inference
+    - `fortran90/` - Standard Fortran 90 support (future)
+    - `fortran2018/` - Modern Fortran support (future)
 - `app/` - Executable programs that use the library modules  
 - `test/` - Test programs with comprehensive coverage
+  - `test_data/` - Test input files organized by component
 - `example/` - Example programs organized by feature
 
 ### Key Architectural Patterns
@@ -133,15 +139,20 @@ fpm test test_name
 - ⚠️ Expression type propagation
 - ⚠️ Variable declaration generation
 
-## Modern Defaults (Opinionated Design)
+## Simple Fortran Dialect
 
-The tool enforces modern Fortran practices by default:
+Our simplified Fortran dialect is defined as a variant of the Fortran standard with these features:
 
-1. **`implicit none`** - Enforced automatically via `fpm.toml`
-2. **Double precision** - `real` defaults to `real(8)` via compiler flags
-3. **Free form** - Modern source format
-4. **Standard compliance** - Generates Fortran 2018 code
-5. **Safe parameter intent** - Function parameters default to `intent(in)` instead of standard Fortran's `intent(inout)`
+1. **Implicit program wrapping** - No need for `program`/`end program` statements
+2. **Automatic type inference** - Variables can be declared through assignment
+3. **Modern defaults**:
+   - `implicit none` enforced automatically
+   - `real` defaults to `real(8)` (double precision)
+   - Function parameters default to `intent(in)`
+4. **Automatic contains insertion** - Functions/subroutines automatically get `contains`
+5. **Future features**: List comprehensions, f-strings, enhanced array operations
+
+The architecture supports multiple Fortran standards through a shared core with dialect-specific extensions.
 
 ### Compiler Flags Applied
 ```bash
