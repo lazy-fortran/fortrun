@@ -9,8 +9,7 @@ module runner
   use fpm_model, only: srcfile_t
   use fpm_strings, only: string_t
   use fpm_error, only: error_t
-  use preprocessor, only: is_preprocessor_file, preprocess_file
-  use preprocessor_ast, only: preprocess_file_ast
+  use preprocessor_ast, only: preprocess_file_ast, is_preprocessor_file
   use, intrinsic :: iso_fortran_env, only: int64
   implicit none
   private
@@ -124,7 +123,7 @@ contains
             if (verbose_level >= 2) then
               print '(a)', 'Using legacy preprocessor'
             end if
-            call preprocess_file(absolute_path, preprocessed_file, preprocess_error)
+            call preprocess_file_ast(absolute_path, preprocessed_file, preprocess_error)
           end if
         end block
         

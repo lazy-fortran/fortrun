@@ -1,7 +1,7 @@
 program main
   use cli, only: parse_arguments
   use runner, only: run_fortran_file
-  use preprocessor, only: preprocess_file, is_preprocessor_file
+  use preprocessor_ast, only: preprocess_file_ast, is_preprocessor_file
   use cache, only: clear_cache, get_cache_info
   use notebook_parser
   use notebook_executor
@@ -116,7 +116,7 @@ contains
     temp_output = trim(input_file) // '.tmp.f90'
     
     ! Preprocess the file
-    call preprocess_file(input_file, temp_output, error_msg)
+    call preprocess_file_ast(input_file, temp_output, error_msg)
     
     if (len_trim(error_msg) > 0) then
       write(*, '(a,a)') 'Error: ', trim(error_msg)
