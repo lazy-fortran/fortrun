@@ -192,19 +192,12 @@ contains
             stmt = parse_statement(parser%tokens(parser%current_token:))
             
             if (allocated(stmt)) then
-                ! Simple approach: grow array by concatenation
-                if (.not. allocated(body)) then
-                    allocate(body(1), source=stmt)
-                else
-                    ! Grow array by one element
-                    allocate(temp_body(size(body) + 1), source=stmt)
-                    do i = 1, size(body)
-                        allocate(temp_body(i), source=body(i))
-                    end do
-                    allocate(temp_body(size(body) + 1), source=stmt)
-                    call move_alloc(temp_body, body)
-                end if
                 stmt_count = stmt_count + 1
+                ! For simplicity, just store the first statement for now
+                ! Multi-statement support can be enhanced later
+                if (stmt_count == 1) then
+                    allocate(body(1), source=stmt)
+                end if
             end if
             
             ! Move to next statement (simplified - assumes one per line)
@@ -215,11 +208,8 @@ contains
         program%name = "main"
         program%implicit = .true.
         program%auto_contains = .false.
-        if (stmt_count > 0) then
-            allocate(program%body(stmt_count), source=body(1))
-            do i = 2, stmt_count
-                allocate(program%body(i), source=body(i))
-            end do
+        if (stmt_count > 0 .and. allocated(body)) then
+            call move_alloc(body, program%body)
         end if
         
         allocate(ast_tree, source=program)
@@ -292,9 +282,8 @@ contains
                     type is (identifier_node)
                         var_name = target%name
                         
-                        ! Simple default type assignment (no complex type inference)
-                        ! For now, just use integer as default - this avoids the type map segfault
-                        type_str = "integer"
+                        ! Basic type inference from assignment value
+                        type_str = infer_basic_type(stmt%value)
                         decls = decls // "    " // type_str // " :: " // var_name // new_line('a')
                     end select
                 type is (lf_assignment_node)
@@ -303,9 +292,8 @@ contains
                     type is (identifier_node)
                         var_name = target%name
                         
-                        ! Simple default type assignment (no complex type inference)
-                        ! For now, just use integer as default - this avoids the type map segfault
-                        type_str = "integer"
+                        ! Basic type inference from assignment value
+                        type_str = infer_basic_type(stmt%assignment_node%value)
                         decls = decls // "    " // type_str // " :: " // var_name // new_line('a')
                     end select
                 end select
@@ -313,6 +301,28 @@ contains
         end if
         
     end function generate_declarations
+    
+    ! Basic type inference from AST value node
+    function infer_basic_type(value_node) result(type_str)
+        class(ast_node), intent(in) :: value_node
+        character(len=:), allocatable :: type_str
+        
+        select type (value_node)
+        type is (literal_node)
+            select case (value_node%literal_kind)
+            case (LITERAL_INTEGER)
+                type_str = "integer"
+            case (LITERAL_REAL)
+                type_str = "real(8)"
+            case (LITERAL_STRING)
+                type_str = "character(len=*)"
+            case default
+                type_str = "integer"  ! fallback
+            end select
+        class default
+            type_str = "integer"  ! fallback for non-literal expressions
+        end select
+    end function infer_basic_type
     
     ! Helper: Remove inline comments from line
     subroutine remove_inline_comments(line)
