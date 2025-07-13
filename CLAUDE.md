@@ -28,15 +28,28 @@ fpm run fortran -- example.f90 --debug-tokens --debug-ast --debug-codegen  # Deb
 
 ## Project Architecture
 
-Standard FPM directory structure:
+Clean organized directory structure:
 - `src/` - Library modules
-  - `core/` - Shared functionality (lexer, parser, AST, codegen)
-  - `dialects/` - Dialect-specific extensions
-    - `lazy_fortran/` - Our *lazy fortran* dialect
+  - `frontend/` - Complete compilation pipeline
+    - `lexer/` - Tokenization (lexer_core.f90)
+    - `parser/` - Parsing (parser_core.f90)  
+    - `semantic/` - Type inference and analysis
+    - `codegen/` - Code generation (codegen_core.f90)
+    - `standard/` - Standard implementations
+      - `lazy_fortran/` - Lazy fortran extensions
+      - `fortran90/`, `fortran2018/` - Other standards
+    - `ast_core.f90` - Core AST definitions
+    - `frontend.f90` - Main coordinator (TO REFACTOR)
+  - `[utilities]/` - cli/, cache/, config/, runner/, notebook/, etc.
 - `app/` - Executable programs
-- `test/` - Test programs with comprehensive coverage
+- `test/` - Test programs organized to match src/ structure
+  - `frontend/` - Frontend tests with wildcard naming
+    - `lexer/test_frontend_lexer_*.f90`
+    - `parser/test_frontend_parser_*.f90` 
+    - `semantic/test_frontend_semantic_*.f90`
+    - `codegen/test_frontend_codegen_*.f90`
 - `example/` - Example programs
-  - `test/` - Test input files and expected outputs
+  - `frontend_test_cases/` - Frontend test cases with input/output pairs
 
 ### Key Patterns
 - **Explicit Typing**: `implicit none` everywhere
@@ -133,9 +146,9 @@ prefix = "fortplot"  # Modules starting with "fortplot"
 - **Clear cache before testing frontend**: `rm -rf ~/.cache/fortran/*`
 - **Compiler frontend is used** for .f files (*lazy fortran* with type inference)
 - Debug apps go in `app/`, then move to `test/` when ready
-- Test data goes in `example/test/`
-- **IMPORTANT: When debugging parser/frontend issues, ALWAYS create test cases in example/test/ with:**
-  - One subdirectory per test case (e.g., `example/test/use_statement/`)
+- Test data goes in `example/frontend_test_cases/`
+- **IMPORTANT: When debugging parser/frontend issues, ALWAYS create test cases in example/frontend_test_cases/ with:**
+  - One subdirectory per test case (e.g., `example/frontend_test_cases/use_statement/`)
   - Input file: `<case_name>.f` (e.g., `use_statement.f`)
   - Expected output: `<case_name>.f90` (e.g., `use_statement.f90`)
   - Intermediate representations: `<case_name>_tokens.json`, `<case_name>_ast.json`
@@ -152,20 +165,39 @@ prefix = "fortplot"  # Modules starting with "fortplot"
 
 Run specific test categories during development to avoid context overload:
 
-### Core Language Features
+### Frontend Components (NEW ORGANIZED STRUCTURE)
+Tests now match src/frontend/ organization with wildcard-discoverable names:
+
 ```bash
-fpm test test_lexer_basic          # Tokenization
-fpm test test_parser_basic         # AST parsing  
-fpm test test_codegen_basic        # Code generation
-fpm test test_frontend             # Compiler frontend
+# Lexer tests (src/frontend/lexer/)
+fpm test test_frontend_lexer_keywords
+fpm test test_frontend_lexer_numbers
+fpm test test_frontend_lexer_operators
+
+# Parser tests (src/frontend/parser/)  
+fpm test test_frontend_parser_basic
+fpm test test_frontend_parser_binary_ops
+
+# Semantic analysis tests (src/frontend/semantic/)
+fpm test test_frontend_semantic_inference_arrays
+fpm test test_frontend_semantic_inference_expressions
+fpm test test_frontend_semantic_inference_functions
+
+# Code generation tests (src/frontend/codegen/)
+fpm test test_frontend_codegen_basic
+fpm test test_frontend_codegen_expressions
+fpm test test_frontend_codegen_program
+
+# Integration tests (src/frontend/)
+fpm test test_frontend_integration
+fpm test test_frontend_statements
 ```
 
-### Type System
-```bash
-fpm test test_type_inference       # Type inference engine
-fpm test test_derived_type_analyzer # Derived types
-fpm test test_function_analyzer    # Function analysis
-```
+**Wildcard Pattern for FPM Discovery:**
+- `test_frontend_lexer_*` - All lexer tests
+- `test_frontend_parser_*` - All parser tests  
+- `test_frontend_semantic_*` - All semantic tests
+- `test_frontend_codegen_*` - All codegen tests
 
 ### CLI and Runner
 ```bash
