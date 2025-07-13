@@ -17,7 +17,7 @@ module parser_core
 
     ! Public parsing interface
     public :: parse_expression, parse_statement
-    public :: create_parser_state
+    public :: create_parser_state, parse_primary
 
 contains
 
@@ -81,14 +81,93 @@ contains
         end if
     end function parser_match
 
-    ! Parse a simple expression (minimal implementation for TDD)
+    ! Parse expression with operator precedence
     function parse_expression(tokens) result(expr)
         type(token), intent(in) :: tokens(:)
         class(ast_node), allocatable :: expr
         type(parser_state) :: parser
-        type(token) :: current
         
         parser = create_parser_state(tokens)
+        expr = parse_comparison(parser)
+    end function parse_expression
+    
+    ! Parse comparison operators (lowest precedence)
+    function parse_comparison(parser) result(expr)
+        type(parser_state), intent(inout) :: parser
+        class(ast_node), allocatable :: expr
+        class(ast_node), allocatable :: right_expr, temp_expr
+        type(token) :: op_token
+        
+        expr = parse_term(parser)
+        
+        do while (.not. parser%is_at_end())
+            op_token = parser%peek()
+            if (op_token%kind == TK_OPERATOR .and. &
+                (op_token%text == "==" .or. op_token%text == "/=" .or. &
+                 op_token%text == "<=" .or. op_token%text == ">=" .or. &
+                 op_token%text == "<" .or. op_token%text == ">")) then
+                op_token = parser%consume()
+                right_expr = parse_term(parser)
+                temp_expr = create_binary_op(expr, right_expr, op_token%text, op_token%line, op_token%column)
+                call move_alloc(temp_expr, expr)
+            else
+                exit
+            end if
+        end do
+    end function parse_comparison
+    
+    ! Parse addition and subtraction
+    function parse_term(parser) result(expr)
+        type(parser_state), intent(inout) :: parser
+        class(ast_node), allocatable :: expr
+        class(ast_node), allocatable :: right_expr, temp_expr
+        type(token) :: op_token
+        
+        expr = parse_factor(parser)
+        
+        do while (.not. parser%is_at_end())
+            op_token = parser%peek()
+            if (op_token%kind == TK_OPERATOR .and. &
+                (op_token%text == "+" .or. op_token%text == "-")) then
+                op_token = parser%consume()
+                right_expr = parse_factor(parser)
+                temp_expr = create_binary_op(expr, right_expr, op_token%text, op_token%line, op_token%column)
+                call move_alloc(temp_expr, expr)
+            else
+                exit
+            end if
+        end do
+    end function parse_term
+    
+    ! Parse multiplication, division, and power
+    function parse_factor(parser) result(expr)
+        type(parser_state), intent(inout) :: parser
+        class(ast_node), allocatable :: expr
+        class(ast_node), allocatable :: right_expr, temp_expr
+        type(token) :: op_token
+        
+        expr = parse_primary(parser)
+        
+        do while (.not. parser%is_at_end())
+            op_token = parser%peek()
+            if (op_token%kind == TK_OPERATOR .and. &
+                (op_token%text == "*" .or. op_token%text == "/" .or. op_token%text == "**")) then
+                op_token = parser%consume()
+                right_expr = parse_primary(parser)
+                temp_expr = create_binary_op(expr, right_expr, op_token%text, op_token%line, op_token%column)
+                call move_alloc(temp_expr, expr)
+            else
+                exit
+            end if
+        end do
+    end function parse_factor
+    
+    ! Parse primary expressions (literals, identifiers, parentheses)
+    function parse_primary(parser) result(expr)
+        type(parser_state), intent(inout) :: parser
+        class(ast_node), allocatable :: expr
+        type(token) :: current
+        
         current = parser%peek()
         
         select case (current%kind)
@@ -102,12 +181,25 @@ contains
             current = parser%consume()
             expr = create_identifier(current%text, current%line, current%column)
             
+        case (TK_OPERATOR)
+            ! Check for parentheses
+            if (current%text == "(") then
+                current = parser%consume()  ! consume '('
+                expr = parse_comparison(parser)  ! parse the expression inside
+                current = parser%peek()
+                if (current%text == ")") then
+                    current = parser%consume()  ! consume ')'
+                end if
+            else
+                ! Fallback for unrecognized operators
+                expr = create_literal("0", LITERAL_INTEGER, 1, 1)
+            end if
+            
         case default
-            ! For now, return a simple literal as fallback
+            ! Fallback
             expr = create_literal("0", LITERAL_INTEGER, 1, 1)
         end select
-        
-    end function parse_expression
+    end function parse_primary
 
     ! Parse a simple statement (minimal implementation for TDD)
     function parse_statement(tokens) result(stmt)
