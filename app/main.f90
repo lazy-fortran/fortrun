@@ -1,7 +1,7 @@
 program main
   use cli, only: parse_arguments
   use runner, only: run_fortran_file
-  use preprocessor_ast, only: preprocess_file_ast, is_preprocessor_file
+  use preprocessor, only: preprocess_file, preprocess_file_debug, is_preprocessor_file
   use cache, only: clear_cache, get_cache_info
   use notebook_parser
   use notebook_executor
@@ -10,13 +10,14 @@ program main
   
   character(len=256) :: filename, custom_cache_dir, custom_config_dir, notebook_output, custom_flags
   logical :: show_help, no_wait, notebook_mode, preprocess_only, clear_cache_flag, cache_info_flag
+  logical :: debug_tokens, debug_ast, debug_codegen
   integer :: exit_code, verbose_level, parallel_jobs
   type(notebook_t) :: notebook
   type(execution_result_t) :: results
   
   call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, custom_config_dir, &
                       parallel_jobs, no_wait, notebook_mode, notebook_output, preprocess_only, custom_flags, &
-                      clear_cache_flag, cache_info_flag)
+                      clear_cache_flag, cache_info_flag, debug_tokens, debug_ast, debug_codegen)
   
   if (show_help) then
     call print_help()
@@ -116,7 +117,11 @@ contains
     temp_output = trim(input_file) // '.tmp.f90'
     
     ! Preprocess the file
-    call preprocess_file_ast(input_file, temp_output, error_msg)
+    if (debug_tokens .or. debug_ast .or. debug_codegen) then
+      call preprocess_file_debug(input_file, temp_output, error_msg, debug_tokens, debug_ast, debug_codegen)
+    else
+      call preprocess_file(input_file, temp_output, error_msg)
+    end if
     
     if (len_trim(error_msg) > 0) then
       write(*, '(a,a)') 'Error: ', trim(error_msg)

@@ -18,6 +18,12 @@ fpm run fortran -- example.f90    # Run main app (IMPORTANT: Use -- separator)
 fpm test                          # Run all tests
 fpm test test_name                # Run specific test
 rm -rf ~/.cache/fortran/*         # Clear cache (CRITICAL before testing preprocessor!)
+
+# Debug Pipeline Stages (JSON output)
+fpm run fortran -- example.f90 --debug-tokens    # Debug tokenization stage
+fpm run fortran -- example.f90 --debug-ast       # Debug AST parsing stage  
+fpm run fortran -- example.f90 --debug-codegen   # Debug code generation stage
+fpm run fortran -- example.f90 --debug-tokens --debug-ast --debug-codegen  # Debug all stages
 ```
 
 ## Project Architecture
@@ -113,7 +119,60 @@ prefix = "fortplot"  # Modules starting with "fortplot"
 - Avoid polymorphic assignment with allocatable components
 - Reference: Fortran 95 standard at https://wg5-fortran.org/N1151-N1200/N1191.pdf
 - **To run the currently developed version of fortran, run fpm run fortran -- <arguments>. Always clear cache if you change preprocessor features.**
+- **For debugging AST pipeline issues, use --debug-tokens, --debug-ast, --debug-codegen flags for JSON intermediate output**
 - In order not to fill your context uselessly, run full test suite only with "fpm test > /dev/null" to suppress verbose output. Prefer using tests for one subsystem only for development.
+
+## Test Categories for Targeted Testing
+
+Run specific test categories during development to avoid context overload:
+
+### Core Language Features
+```bash
+fpm test test_lexer_basic          # Tokenization
+fpm test test_parser_basic         # AST parsing  
+fpm test test_codegen_basic        # Code generation
+fpm test test_preprocessor         # AST preprocessor
+```
+
+### Type System
+```bash
+fpm test test_type_inference       # Type inference engine
+fpm test test_derived_type_analyzer # Derived types
+fpm test test_function_analyzer    # Function analysis
+```
+
+### CLI and Runner
+```bash
+fpm test test_cli_comprehensive    # CLI argument parsing (unit)
+fpm test test_cli_system          # CLI system integration 
+fpm test test_runner_comprehensive # Full execution pipeline
+```
+
+### Caching System
+```bash
+fpm test test_cache               # Core caching
+fpm test test_module_cache_unit   # Module cache unit tests
+fpm test test_fpm_cache_integration # FPM integration
+```
+
+### Notebook System
+```bash
+fpm test test_notebook_parser     # Notebook parsing
+fpm test test_notebook_executor   # Notebook execution
+fpm test test_figure_capture      # Figure capture
+```
+
+### Registry and Config
+```bash
+fpm test test_registry_resolver   # Module resolution
+fpm test test_config_extended     # Configuration system
+```
+
+### Integration and Examples
+```bash
+fpm test test_examples            # Example programs
+fpm test test_parse_and_codegen   # Full AST pipeline
+```
 
 ## Reference Documentation
 
