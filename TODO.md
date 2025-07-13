@@ -1,15 +1,15 @@
-# *Postmodern Fortran* Compiler Frontend TODO
+# *Lazy Fortran* Compiler Frontend TODO
 
-This document tracks concrete implementation tasks for the *postmodern fortran* compiler frontend.
+This document tracks concrete implementation tasks for the *lazy fortran* compiler frontend.
 Our architectural plans and designs live in `doc/plan/` directory, while this TODO.md is for specific actionable tasks.
 
 ## Vision
-We are building a complete compiler frontend with a 4-phase architecture (Lexer → Parser → Semantic Analysis → Code Generation) that can target multiple backends. Our *postmodern fortran* dialect pushes beyond all alternative scientific computing languages, exploring how far we can evolve Fortran to surpass Python, Julia, MATLAB, and others in both performance and expressiveness. Currently, we use standard Fortran as our intermediate representation, which allows immediate use with existing Fortran compilers.
+We are building a complete compiler frontend with a 4-phase architecture (Lexer → Parser → Semantic Analysis → Code Generation) that can target multiple backends. Our *lazy fortran* dialect pushes beyond all alternative scientific computing languages, exploring how far we can evolve Fortran to surpass Python, Julia, MATLAB, and others in both performance and expressiveness. Currently, we use standard Fortran as our intermediate representation, which allows immediate use with existing Fortran compilers.
 
 ## IMMEDIATE TASKS ⚡
 
 ### Standard Fortran Compatibility Tests 🔄
-Since *postmodern fortran* is a superset of standard Fortran, we need comprehensive tests to ensure any valid Fortran 95/2003/2008/2018 program passes through unchanged:
+Since *lazy fortran* is a superset of standard Fortran, we need comprehensive tests to ensure any valid Fortran 95/2003/2008/2018 program passes through unchanged:
 
 - [ ] **Create test/standard_fortran/** directory for compatibility tests
 - [ ] **Fortran 95 Core Features**:

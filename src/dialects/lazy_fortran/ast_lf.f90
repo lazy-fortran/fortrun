@@ -1,17 +1,17 @@
-module ast_postmodern_fortran
+module ast_lazy_fortran
     use ast_core
     use json_module
     implicit none
     private
 
     ! Extended program node with implicit program support
-    type, extends(program_node), public :: pf_program_node
+    type, extends(program_node), public :: lf_program_node
         logical :: implicit = .false.      ! true if auto-wrapped
         logical :: auto_contains = .false. ! true if contains was auto-inserted
     contains
-        procedure :: accept => pf_program_accept
-        procedure :: to_json => pf_program_to_json
-    end type pf_program_node
+        procedure :: accept => lf_program_accept
+        procedure :: to_json => lf_program_to_json
+    end type lf_program_node
 
     ! Type-inferred variable node (unique to Simple Fortran)
     type, extends(ast_node), public :: inferred_var_node
@@ -44,28 +44,28 @@ module ast_postmodern_fortran
     end type fstring_node
 
     ! Enhanced assignment node with auto type inference
-    type, extends(assignment_node), public :: pf_assignment_node
+    type, extends(assignment_node), public :: lf_assignment_node
         logical :: inferred_type = .false.  ! true if type was inferred
         character(len=:), allocatable :: inferred_type_name
     contains
-        procedure :: accept => pf_assignment_accept
-        procedure :: to_json => pf_assignment_to_json
-    end type pf_assignment_node
+        procedure :: accept => lf_assignment_accept
+        procedure :: to_json => lf_assignment_to_json
+    end type lf_assignment_node
 
     ! Public interface for creating Simple Fortran nodes
-    public :: create_pf_program, create_inferred_var, create_list_comp
-    public :: create_fstring, create_pf_assignment
+    public :: create_lf_program, create_inferred_var, create_list_comp
+    public :: create_fstring, create_lf_assignment
 
 contains
 
     ! Factory functions for Simple Fortran AST nodes
 
-    function create_pf_program(name, body, implicit, auto_contains, line, column) result(node)
+    function create_lf_program(name, body, implicit, auto_contains, line, column) result(node)
         character(len=*), intent(in) :: name
         class(ast_node), intent(in) :: body(:)
         logical, intent(in), optional :: implicit, auto_contains
         integer, intent(in), optional :: line, column
-        type(pf_program_node) :: node
+        type(lf_program_node) :: node
         integer :: i
         
         node%name = name
@@ -76,7 +76,7 @@ contains
         if (present(auto_contains)) node%auto_contains = auto_contains
         if (present(line)) node%line = line
         if (present(column)) node%column = column
-    end function create_pf_program
+    end function create_lf_program
 
     function create_inferred_var(name, initial_value, line, column) result(node)
         character(len=*), intent(in) :: name
@@ -121,13 +121,13 @@ contains
         if (present(column)) node%column = column
     end function create_fstring
 
-    function create_pf_assignment(target, value, inferred_type, inferred_type_name, line, column) result(node)
+    function create_lf_assignment(target, value, inferred_type, inferred_type_name, line, column) result(node)
         class(ast_node), intent(in) :: target
         class(ast_node), intent(in) :: value
         logical, intent(in), optional :: inferred_type
         character(len=*), intent(in), optional :: inferred_type_name
         integer, intent(in), optional :: line, column
-        type(pf_assignment_node) :: node
+        type(lf_assignment_node) :: node
         
         allocate(node%target, source=target)
         allocate(node%value, source=value)
@@ -135,15 +135,15 @@ contains
         if (present(inferred_type_name)) node%inferred_type_name = inferred_type_name
         if (present(line)) node%line = line
         if (present(column)) node%column = column
-    end function create_pf_assignment
+    end function create_lf_assignment
 
     ! Visitor pattern implementations for Simple Fortran nodes
 
-    subroutine pf_program_accept(this, visitor)
-        class(pf_program_node), intent(in) :: this
+    subroutine lf_program_accept(this, visitor)
+        class(lf_program_node), intent(in) :: this
         class(*), intent(inout) :: visitor
         ! Implementation depends on specific visitor
-    end subroutine pf_program_accept
+    end subroutine lf_program_accept
 
     subroutine inferred_var_accept(this, visitor)
         class(inferred_var_node), intent(in) :: this
@@ -163,23 +163,23 @@ contains
         ! Implementation depends on specific visitor
     end subroutine fstring_accept
 
-    subroutine pf_assignment_accept(this, visitor)
-        class(pf_assignment_node), intent(in) :: this
+    subroutine lf_assignment_accept(this, visitor)
+        class(lf_assignment_node), intent(in) :: this
         class(*), intent(inout) :: visitor
         ! Implementation depends on specific visitor
-    end subroutine pf_assignment_accept
+    end subroutine lf_assignment_accept
 
     ! JSON serialization implementations for Simple Fortran nodes
 
-    subroutine pf_program_to_json(this, json, parent)
-        class(pf_program_node), intent(in) :: this
+    subroutine lf_program_to_json(this, json, parent)
+        class(lf_program_node), intent(in) :: this
         type(json_core), intent(inout) :: json
         type(json_value), pointer, intent(in) :: parent
         type(json_value), pointer :: obj, body_array
         integer :: i
         
         call json%create_object(obj, '')
-        call json%add(obj, 'type', 'pf_program')
+        call json%add(obj, 'type', 'lf_program')
         call json%add(obj, 'name', this%name)
         call json%add(obj, 'implicit', this%implicit)
         call json%add(obj, 'auto_contains', this%auto_contains)
@@ -194,7 +194,7 @@ contains
         end do
         
         call json%add(parent, obj)
-    end subroutine pf_program_to_json
+    end subroutine lf_program_to_json
 
     subroutine inferred_var_to_json(this, json, parent)
         class(inferred_var_node), intent(in) :: this
@@ -258,14 +258,14 @@ contains
         call json%add(parent, obj)
     end subroutine fstring_to_json
 
-    subroutine pf_assignment_to_json(this, json, parent)
-        class(pf_assignment_node), intent(in) :: this
+    subroutine lf_assignment_to_json(this, json, parent)
+        class(lf_assignment_node), intent(in) :: this
         type(json_core), intent(inout) :: json
         type(json_value), pointer, intent(in) :: parent
         type(json_value), pointer :: obj
         
         call json%create_object(obj, '')
-        call json%add(obj, 'type', 'pf_assignment')
+        call json%add(obj, 'type', 'lf_assignment')
         call json%add(obj, 'inferred_type', this%inferred_type)
         if (allocated(this%inferred_type_name)) then
             call json%add(obj, 'inferred_type_name', this%inferred_type_name)
@@ -277,6 +277,6 @@ contains
         call this%value%to_json(json, obj)
         
         call json%add(parent, obj)
-    end subroutine pf_assignment_to_json
+    end subroutine lf_assignment_to_json
 
-end module ast_postmodern_fortran
+end module ast_lazy_fortran

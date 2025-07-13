@@ -1,12 +1,12 @@
 module frontend
-    ! Simple Fortran compiler frontend
+    ! lazy fortran compiler frontend
     ! Provides complete 4-phase compilation pipeline with pluggable backends
     
     use lexer_core, only: token_t, tokenize_core
     use parser_core, only: parse_expression, parse_statement, parser_state_t, &
                           create_parser_state
     use ast_core
-    use ast_postmodern_fortran
+    use ast_lazy_fortran
     use semantic_analyzer, only: semantic_context_t, create_semantic_context, &
                                 analyze_program
     use codegen_core, only: generate_code, generate_code_polymorphic
@@ -175,7 +175,7 @@ contains
         
         type(parser_state_t) :: parser
         class(ast_node), allocatable :: body(:), stmt
-        type(pf_program_node) :: program
+        type(lf_program_node) :: program
         integer :: stmt_count, body_capacity, i
         
         error_msg = ""
@@ -234,7 +234,7 @@ contains
         character(len=:), allocatable, intent(out) :: code
         
         select type (ast_tree)
-        type is (pf_program_node)
+        type is (lf_program_node)
             code = generate_fortran_program(ast_tree)
         class default
             code = "! Unsupported AST root type"
@@ -244,7 +244,7 @@ contains
     
     ! Generate complete Fortran program
     function generate_fortran_program(prog) result(code)
-        type(pf_program_node), intent(in) :: prog
+        type(lf_program_node), intent(in) :: prog
         character(len=:), allocatable :: code
         character(len=:), allocatable :: declarations, statements
         integer :: i
@@ -273,7 +273,7 @@ contains
     
     ! Generate variable declarations from AST with type info
     function generate_declarations(prog) result(decls)
-        type(pf_program_node), intent(in) :: prog
+        type(lf_program_node), intent(in) :: prog
         character(len=:), allocatable :: decls
         
         ! TODO: Implement declaration generation from inferred types

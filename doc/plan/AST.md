@@ -1,8 +1,8 @@
-# AST Architecture for *Postmodern Fortran* Compiler Frontend
+# AST Architecture for *Lazy Fortran* Compiler Frontend
 
 ## Overview
 
-This document outlines the architecture for a modern compiler frontend for *postmodern fortran* with automatic type inference and multiple dispatch. Our experimental dialect pushes beyond all alternative scientific computing languages, exploring how far we can evolve Fortran to surpass Python, Julia, MATLAB, and others in both performance and expressiveness. The frontend provides a complete 4-phase pipeline (Lexer → Parser → Semantic Analysis → Code Generation) that can target multiple backends, with standard Fortran as the initial intermediate representation.
+This document outlines the architecture for a modern compiler frontend for *lazy fortran* with automatic type inference and multiple dispatch. Our experimental dialect pushes beyond all alternative scientific computing languages, exploring how far we can evolve Fortran to surpass Python, Julia, MATLAB, and others in both performance and expressiveness. The frontend provides a complete 4-phase pipeline (Lexer → Parser → Semantic Analysis → Code Generation) that can target multiple backends, with standard Fortran as the initial intermediate representation.
 
 ## Design Goals
 
@@ -13,7 +13,7 @@ This document outlines the architecture for a modern compiler frontend for *post
 5. **Type Inference**: Built-in support for automatic type inference
 6. **Future-Proof**: Architecture supports planned features like multiple dispatch
 7. **Multi-Dialect Support**: Shared functionality for all Fortran standards with specialized modules for dialect-specific features
-8. **Superset Design**: *postmodern fortran* is a superset of standard Fortran - any valid Fortran 95/2003/2008/2018 program should pass through the frontend unchanged
+8. **Superset Design**: *lazy fortran* is a superset of standard Fortran - any valid Fortran 95/2003/2008/2018 program should pass through the frontend unchanged
 9. **Beyond Alternatives**: Push beyond all alternative scientific computing languages in expressiveness while maintaining Fortran's performance advantage
 
 ## Architecture: Shared Core with Dialect Specialization
@@ -33,7 +33,7 @@ src/
 │   │   └── parser_f90.f90  # F90-specific parsing
 │   ├── fortran2018/        # Modern Fortran support
 │   │   └── parser_f2018.f90
-│   └── simple_fortran/     # Our simplified dialect
+│   └── lazy_fortran/     # Our simplified dialect
 │       ├── lexer_sf.f90    # Additional tokens (e.g., Python-like)
 │       ├── parser_sf.f90   # Implicit program wrapping, etc.
 │       └── inference.f90   # Type inference engine
@@ -47,7 +47,7 @@ src/
 ```
 Source (.f) → Dialect Detection → Lexer → Parser → AST → Semantic Analysis → Code Generation
                      ↓               ↓        ↓                    ↓
-              Simple Fortran    Core+SF   Core+SF          Type Inference
+              Lazy Fortran    Core+SF   Core+SF          Type Inference
                                 Tokens    Rules            (SF specific)
 ```
 
@@ -84,18 +84,18 @@ module lexer_core
 end module
 ```
 
-#### Simple Fortran Lexer Extensions
+#### Lazy Fortran Lexer Extensions
 
 ```fortran
-module lexer_simple_fortran
+module lexer_lazy_fortran
   use lexer_core
   
-  ! Additional token types for Simple Fortran
+  ! Additional token types for Lazy Fortran
   integer, parameter :: TK_INDENT = 100     ! Python-like indentation
   integer, parameter :: TK_DEDENT = 101     ! Python-like dedentation
   integer, parameter :: TK_FSTRING = 102    ! f"string {expr}" support
   
-  ! Extended tokenization with Simple Fortran features
+  ! Extended tokenization with Lazy Fortran features
   interface
     subroutine tokenize_sf(source, tokens, dialect_options)
       character(len=*), intent(in) :: source
@@ -155,10 +155,10 @@ module ast_core
 end module
 ```
 
-#### Simple Fortran AST Extensions
+#### Lazy Fortran AST Extensions
 
 ```fortran
-module ast_simple_fortran
+module ast_lazy_fortran
   use ast_core
   
   ! Extended program node with implicit program support
@@ -167,7 +167,7 @@ module ast_simple_fortran
     logical :: auto_contains = .false.  ! true if contains was auto-inserted
   end type
   
-  ! Type-inferred variable (unique to Simple Fortran)
+  ! Type-inferred variable (unique to Lazy Fortran)
   type, extends(ast_node) :: inferred_var_node
     character(len=:), allocatable :: name
     type(ast_node), allocatable :: initial_value
@@ -473,7 +473,7 @@ end if
 
 ### 4. Standard Fortran Compatibility
 
-Since Simple Fortran is designed as a superset of standard Fortran, the frontend handles all standard Fortran constructs:
+Since Lazy Fortran is designed as a superset of standard Fortran, the frontend handles all standard Fortran constructs:
 
 ```fortran
 ! Standard Fortran 95 program - passes through unchanged
@@ -512,7 +512,7 @@ end type
 
 ## Compiler Frontend Architecture
 
-The Simple Fortran compiler frontend is designed as a modular, extensible system:
+The Lazy Fortran compiler frontend is designed as a modular, extensible system:
 
 ```
 Source Code (.f, .f90)
@@ -561,7 +561,7 @@ Source Code (.f, .f90)
 - Replaces line-based preprocessor
 
 ### Stage 2: Enhanced Frontend Features
-- Complete Simple Fortran language support
+- Complete Lazy Fortran language support
 - Advanced type system features
 - Error recovery and diagnostics
 - Module system integration

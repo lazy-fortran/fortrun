@@ -1,6 +1,6 @@
 module codegen_core
     use ast_core
-    use ast_postmodern_fortran
+    use ast_lazy_fortran
     implicit none
     private
     
@@ -20,8 +20,8 @@ module codegen_core
         module procedure generate_code_use_statement
         module procedure generate_code_print_statement
         ! Postmodern Fortran specific
-        module procedure generate_code_pf_program
-        module procedure generate_code_pf_assignment
+        module procedure generate_code_lf_program
+        module procedure generate_code_lf_assignment
         module procedure generate_code_inferred_var
     end interface generate_code
 
@@ -211,8 +211,8 @@ contains
     end function generate_code_print_statement
 
     ! Generate code for Simple Fortran program node
-    function generate_code_pf_program(node) result(code)
-        type(pf_program_node), intent(in) :: node
+    function generate_code_lf_program(node) result(code)
+        type(lf_program_node), intent(in) :: node
         character(len=:), allocatable :: code
         integer :: i
         
@@ -229,7 +229,7 @@ contains
                 select type (stmt => node%body(i))
                 type is (assignment_node)
                     code = code // "    " // generate_code(stmt) // new_line('a')
-                type is (pf_assignment_node)
+                type is (lf_assignment_node)
                     code = code // "    " // generate_code(stmt) // new_line('a')
                 class default
                     ! Handle other statement types
@@ -240,17 +240,17 @@ contains
         
         ! End program
         code = code // "end program " // node%name
-    end function generate_code_pf_program
+    end function generate_code_lf_program
 
     ! Generate code for Simple Fortran assignment (with type inference)
-    function generate_code_pf_assignment(node) result(code)
-        type(pf_assignment_node), intent(in) :: node
+    function generate_code_lf_assignment(node) result(code)
+        type(lf_assignment_node), intent(in) :: node
         character(len=:), allocatable :: code
         
         ! For now, just generate as regular assignment
         ! In the future, we'd handle type declarations here
         code = generate_code_assignment(node%assignment_node)
-    end function generate_code_pf_assignment
+    end function generate_code_lf_assignment
 
     ! Generate code for inferred variable
     function generate_code_inferred_var(node) result(code)
@@ -277,8 +277,8 @@ contains
             code = generate_code_binary_op(node)
         type is (function_call_node)
             code = generate_code_function_call(node)
-        type is (pf_assignment_node)
-            code = generate_code_pf_assignment(node)
+        type is (lf_assignment_node)
+            code = generate_code_lf_assignment(node)
         class default
             code = "! Unknown AST node type"
         end select
