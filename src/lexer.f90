@@ -6,7 +6,7 @@ module lexer
     private
     
     ! Re-export token type and constants from core
-    public :: token
+    public :: token_t
     public :: TK_EOF, TK_IDENTIFIER, TK_NUMBER, TK_STRING
     public :: TK_OPERATOR, TK_KEYWORD, TK_NEWLINE, TK_COMMENT, TK_UNKNOWN
     
@@ -20,7 +20,7 @@ contains
 
     subroutine tokenize(source, tokens, dialect)
         character(len=*), intent(in) :: source
-        type(token), allocatable, intent(out) :: tokens(:)
+        type(token_t), allocatable, intent(out) :: tokens(:)
         character(len=*), intent(in), optional :: dialect
         
         character(len=20) :: active_dialect

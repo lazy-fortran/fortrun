@@ -24,7 +24,7 @@ program test_lexer_operators
 contains
 
     logical function test_arithmetic_operators()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         character(len=1), dimension(4) :: single_ops = ["+", "-", "*", "/"]
         integer :: i
         
@@ -71,7 +71,7 @@ contains
     end function test_arithmetic_operators
 
     logical function test_comparison_operators()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         character(len=2), dimension(4) :: comp_ops = ["==", "/=", "<=", ">="]
         character(len=1), dimension(2) :: single_comp = ["<", ">"]
         integer :: i
@@ -115,7 +115,7 @@ contains
     end function test_comparison_operators
 
     logical function test_assignment_operators()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         
         test_assignment_operators = .true.
         print '(a)', "Testing assignment operator tokenization..."
@@ -146,7 +146,7 @@ contains
     end function test_assignment_operators
 
     logical function test_delimiters()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         character(len=1), dimension(8) :: delims = ["(", ")", "[", "]", "{", "}", ",", ";"]
         integer :: i
         

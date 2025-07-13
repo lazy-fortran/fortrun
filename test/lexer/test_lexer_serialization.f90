@@ -22,7 +22,7 @@ program test_lexer_serialization
 contains
 
     logical function test_json_serialization()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         character(len=:), allocatable :: json_str
         
         test_json_serialization = .true.
@@ -73,7 +73,7 @@ contains
     end function test_json_serialization
 
     logical function test_json_file_output()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         character(len=*), parameter :: test_file = "test_tokens.json"
         integer :: unit, iostat, file_size
         character(len=1000) :: buffer

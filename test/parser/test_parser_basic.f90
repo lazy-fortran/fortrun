@@ -26,7 +26,7 @@ contains
 
     logical function test_parse_simple_literal()
         ! TDD Test 1: Parse a simple literal "42" into literal_node
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         class(ast_node), allocatable :: ast_result
         
         test_parse_simple_literal = .true.
@@ -60,7 +60,7 @@ contains
 
     logical function test_parse_simple_identifier()
         ! TDD Test 2: Parse a simple identifier "x" into identifier_node
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         class(ast_node), allocatable :: ast_result
         
         test_parse_simple_identifier = .true.
@@ -91,7 +91,7 @@ contains
 
     logical function test_parse_simple_assignment()
         ! TDD Test 3: Parse simple assignment "x = 42" into assignment_node
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         class(ast_node), allocatable :: ast_result
         
         test_parse_simple_assignment = .true.

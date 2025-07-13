@@ -7,7 +7,7 @@ module parser
 
     ! Re-export core parsing functionality
     public :: parse_expression, parse_statement
-    public :: parser_state, create_parser_state
+    public :: parser_state_t, create_parser_state
 
 contains
 

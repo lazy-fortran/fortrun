@@ -24,7 +24,7 @@ program test_lexer_serialization_comprehensive
 contains
 
     logical function test_complex_expression_serialization()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         character(len=:), allocatable :: json_str
         
         test_complex_expression_serialization = .true.
@@ -71,7 +71,7 @@ contains
     end function test_complex_expression_serialization
 
     logical function test_program_serialization()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         character(len=:), allocatable :: json_str
         character(len=*), parameter :: test_file = "test_program_tokens.json"
         integer :: unit, iostat
@@ -124,7 +124,7 @@ contains
     end function test_program_serialization
 
     logical function test_special_characters_serialization()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         character(len=:), allocatable :: json_str
         
         test_special_characters_serialization = .true.
@@ -153,7 +153,7 @@ contains
     end function test_special_characters_serialization
 
     logical function test_large_input_serialization()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         character(len=:), allocatable :: json_str
         character(len=:), allocatable :: large_input
         integer :: i

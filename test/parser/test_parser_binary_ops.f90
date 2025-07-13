@@ -26,7 +26,7 @@ program test_parser_binary_ops
 contains
 
     logical function test_simple_addition()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         class(ast_node), allocatable :: result
         
         test_simple_addition = .true.
@@ -84,7 +84,7 @@ contains
     end function test_simple_addition
 
     logical function test_multiplication_precedence()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         class(ast_node), allocatable :: result
         
         test_multiplication_precedence = .true.
@@ -142,7 +142,7 @@ contains
     end function test_multiplication_precedence
 
     logical function test_parentheses_precedence()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         class(ast_node), allocatable :: result
         
         test_parentheses_precedence = .true.
@@ -200,7 +200,7 @@ contains
     end function test_parentheses_precedence
 
     logical function test_comparison_operators()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         class(ast_node), allocatable :: result
         
         test_comparison_operators = .true.
