@@ -121,6 +121,7 @@ prefix = "fortplot"  # Modules starting with "fortplot"
 - **To run the currently developed version of fortran, run fpm run fortran -- <arguments>. Always clear cache if you change preprocessor features.**
 - **For debugging AST pipeline issues, use --debug-tokens, --debug-ast, --debug-codegen flags for JSON intermediate output**
 - In order not to fill your context uselessly, run full test suite only with "fpm test > /dev/null" to suppress verbose output. Prefer using tests for one subsystem only for development.
+- **Command line options are documented in doc/index.md** - this includes all flags, debug options, and usage examples
 
 ## Test Categories for Targeted Testing
 

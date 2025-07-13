@@ -38,10 +38,13 @@ contains
         args(2) = "--clear-cache"
         call set_test_args(args, 2)
         
-        call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
-                            custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
-                            notebook_output, preprocess_only, custom_flags, &
-                            clear_cache_flag, cache_info_flag)
+        block
+            logical :: debug_tokens, debug_ast, debug_codegen
+            call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
+                                custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
+                                notebook_output, preprocess_only, custom_flags, &
+                                clear_cache_flag, cache_info_flag, debug_tokens, debug_ast, debug_codegen)
+        end block
         
         if (.not. clear_cache_flag) then
             print '(a)', "FAIL: --clear-cache flag not recognized"
@@ -74,10 +77,13 @@ contains
         args(2) = "--cache-info"
         call set_test_args(args, 2)
         
-        call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
-                            custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
-                            notebook_output, preprocess_only, custom_flags, &
-                            clear_cache_flag, cache_info_flag)
+        block
+            logical :: debug_tokens, debug_ast, debug_codegen
+            call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
+                                custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
+                                notebook_output, preprocess_only, custom_flags, &
+                                clear_cache_flag, cache_info_flag, debug_tokens, debug_ast, debug_codegen)
+        end block
         
         if (.not. cache_info_flag) then
             print '(a)', "FAIL: --cache-info flag not recognized"
@@ -111,10 +117,13 @@ contains
         args(3) = "test.f90"
         call set_test_args(args, 3)
         
-        call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
-                            custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
-                            notebook_output, preprocess_only, custom_flags, &
-                            clear_cache_flag, cache_info_flag)
+        block
+            logical :: debug_tokens, debug_ast, debug_codegen
+            call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
+                                custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
+                                notebook_output, preprocess_only, custom_flags, &
+                                clear_cache_flag, cache_info_flag, debug_tokens, debug_ast, debug_codegen)
+        end block
         
         if (.not. clear_cache_flag) then
             print '(a)', "FAIL: --clear-cache flag not recognized"

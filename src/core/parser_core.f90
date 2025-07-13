@@ -163,7 +163,7 @@ contains
     end function parse_factor
     
     ! Parse primary expressions (literals, identifiers, parentheses)
-    function parse_primary(parser) result(expr)
+    recursive function parse_primary(parser) result(expr)
         type(parser_state_t), intent(inout) :: parser
         class(ast_node), allocatable :: expr
         type(token_t) :: current
@@ -177,9 +177,61 @@ contains
             expr = create_literal(current%text, LITERAL_INTEGER, current%line, current%column)
             
         case (TK_IDENTIFIER)
-            ! Parse identifier
+            ! Parse identifier or function call
             current = parser%consume()
-            expr = create_identifier(current%text, current%line, current%column)
+            
+            ! Check if followed by '(' for function call
+            block
+                type(token_t) :: next_token
+                character(len=:), allocatable :: func_name
+                class(ast_node), allocatable :: args(:)
+                type(token_t) :: paren
+                integer :: arg_count
+                
+                next_token = parser%peek()
+                if (next_token%kind == TK_OPERATOR .and. next_token%text == "(") then
+                    ! Parse function call
+                    
+                    func_name = current%text
+                    arg_count = 0
+                    
+                    ! Consume opening paren
+                    paren = parser%consume()
+                    
+                    ! Parse arguments (simplified - only handles single argument for now)
+                    next_token = parser%peek()
+                    if (next_token%kind /= TK_OPERATOR .or. next_token%text /= ")") then
+                        block
+                            class(ast_node), allocatable :: arg
+                            arg = parse_primary(parser)
+                            if (allocated(arg)) then
+                                arg_count = 1
+                                allocate(args(1), source=arg)
+                            end if
+                        end block
+                    end if
+                    
+                    ! Consume closing paren if present
+                    next_token = parser%peek()
+                    if (next_token%kind == TK_OPERATOR .and. next_token%text == ")") then
+                        paren = parser%consume()
+                    end if
+                    
+                    ! Create function call node
+                    if (allocated(args)) then
+                        expr = create_function_call(func_name, args, current%line, current%column)
+                    else
+                        ! For empty args, use a dummy array
+                        block
+                            class(ast_node), allocatable :: empty_args(:)
+                            allocate(identifier_node :: empty_args(0))
+                            expr = create_function_call(func_name, empty_args, current%line, current%column)
+                        end block
+                    end if
+                else
+                    expr = create_identifier(current%text, current%line, current%column)
+                end if
+            end block
             
         case (TK_OPERATOR)
             ! Check for parentheses
