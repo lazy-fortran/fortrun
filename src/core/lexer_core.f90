@@ -23,6 +23,7 @@ module lexer_core
 
     ! Public interface
     public :: tokenize_core
+    public :: token_type_name
 
     ! Keywords list
     character(len=20), dimension(20) :: keywords = [ &
@@ -370,5 +371,33 @@ contains
         temp(1:size(tokens)) = tokens
         call move_alloc(temp, tokens)
     end subroutine resize_tokens
+
+    ! Convert token type to string name
+    function token_type_name(kind) result(name)
+        integer, intent(in) :: kind
+        character(len=:), allocatable :: name
+        
+        select case (kind)
+        case (TK_EOF)
+            name = "eof"
+        case (TK_IDENTIFIER)
+            name = "identifier"
+        case (TK_NUMBER)
+            name = "number"
+        case (TK_STRING)
+            name = "string"
+        case (TK_OPERATOR)
+            name = "operator"
+        case (TK_KEYWORD)
+            name = "keyword"
+        case (TK_NEWLINE)
+            name = "newline"
+        case (TK_COMMENT)
+            name = "comment"
+        case default
+            name = "unknown"
+        end select
+    end function token_type_name
+
 
 end module lexer_core

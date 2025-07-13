@@ -61,10 +61,21 @@ test/
 │   └── test_fpm_generator_basic.f90
 ├── examples/
 │   └── test_examples_all.f90
-└── lexer/  (new)
-    ├── test_lexer_basic.f90
-    ├── test_lexer_tokens.f90
-    └── test_lexer_errors.f90
+├── lexer/  (new)
+│   ├── test_lexer_basic.f90
+│   ├── test_lexer_tokens.f90
+│   └── test_lexer_errors.f90
+└── test_data/
+    ├── lexer/
+    │   ├── simple_assignment.f
+    │   ├── simple_assignment.tokens.json  (expected output)
+    │   └── ...
+    ├── parser/
+    │   ├── simple_assignment.ast.json
+    │   └── ...
+    └── codegen/
+        ├── simple_assignment.f90
+        └── ...
 ```
 
 ## Phase 1: Lexer Implementation - Core/Dialect Architecture
@@ -72,23 +83,27 @@ test/
 Build a tokenizer with shared core functionality and dialect-specific extensions.
 
 ### Tasks
-- [ ] Create directory structure: `src/core/`, `src/dialects/simple_fortran/`
-- [ ] Create `src/core/lexer_core.f90` module with standard Fortran tokenization
-- [ ] Define base token types shared by all dialects
+- [x] Create directory structure: `src/core/`, `src/dialects/simple_fortran/`
+- [x] Create `src/core/lexer_core.f90` module with standard Fortran tokenization
+- [x] Define base token types shared by all dialects
 - [ ] Create `src/dialects/simple_fortran/lexer_sf.f90` for Simple Fortran extensions
-- [ ] Create `src/lexer.f90` as main interface that delegates to appropriate implementation
-- [ ] Write unit tests for both core and dialect-specific features
-- [ ] Support error reporting with line/column information
-- [ ] Handle comments and whitespace
+- [x] Create `src/lexer.f90` as main interface that delegates to appropriate implementation
+- [x] Write unit tests for both core and dialect-specific features
+- [x] Support error reporting with line/column information
+- [x] Handle comments and whitespace
+- [ ] Create `src/core/json_writer.f90` module for JSON serialization using json-fortran
+- [ ] Add `to_json()` method to token type
+- [ ] Create token serialization tests
 - [ ] Benchmark lexer performance
 
 ### Test Cases
-- [ ] `test_lexer_core_basic.f90` - Core tokenization for standard Fortran
+- [x] `test_lexer_basic.f90` - Basic tokenization (renamed from test_lexer_core_basic)
 - [ ] `test_lexer_core_numbers.f90` - Standard number literal tokenization
 - [ ] `test_lexer_core_operators.f90` - Standard operator tokenization
 - [ ] `test_lexer_core_keywords.f90` - Standard keyword recognition
 - [ ] `test_lexer_sf_basic.f90` - Simple Fortran specific features
 - [ ] `test_lexer_errors.f90` - Error handling and recovery
+- [ ] `test_lexer_serialization.f90` - Token to JSON serialization
 
 ## Phase 2: AST Definition - Core/Dialect Architecture
 
@@ -206,6 +221,76 @@ Remove old code and finalize implementation.
 - [ ] Final performance optimization
 - [ ] Update CLAUDE.md with new architecture
 
+## Serialization Strategy
+
+### Overview
+All intermediate compilation stages will be serializable to JSON format for debugging, testing, and validation using the json-fortran library. Each test case will generate:
+
+1. **Input**: `test_name.f` (Simple Fortran source)
+2. **Tokens**: `test_name.tokens.json` (lexer output)
+3. **AST**: `test_name.ast.json` (parser output - bare AST)
+4. **Typed AST**: `test_name.typed.json` (after type inference)
+5. **Annotated AST**: `test_name.annotated.json` (after all semantic analysis)
+6. **Output**: `test_name.f90` (generated Fortran code)
+
+### JSON Format Benefits
+- Industry standard format with excellent tooling
+- Human readable and editable
+- Natural fit for tree structures like AST
+- Easy to diff in version control
+- Well-supported by json-fortran library (no manual implementation needed)
+- Can be processed by external tools
+
+### Example Formats
+
+**Tokens** (simple_assignment.tokens.json):
+```json
+{
+  "tokens": [
+    {"type": "identifier", "text": "x", "line": 1, "column": 1},
+    {"type": "operator", "text": "=", "line": 1, "column": 3},
+    {"type": "number", "text": "5.0", "line": 1, "column": 5},
+    {"type": "eof", "text": "", "line": 1, "column": 8}
+  ]
+}
+```
+
+**AST** (simple_assignment.ast.json):
+```json
+{
+  "type": "program",
+  "implicit": true,
+  "body": [
+    {
+      "type": "assign",
+      "target": {"type": "var", "name": "x"},
+      "value": {"type": "literal", "kind": "real", "value": "5.0"}
+    }
+  ]
+}
+```
+
+**Typed AST** (simple_assignment.typed.json):
+```json
+{
+  "type": "program",
+  "implicit": true,
+  "body": [
+    {
+      "type": "assign",
+      "target": {"type": "var", "name": "x", "datatype": {"kind": "real", "precision": 8}},
+      "value": {"type": "literal", "kind": "real", "value": "5.0", "datatype": {"kind": "real", "precision": 8}}
+    }
+  ]
+}
+```
+
+### Implementation Tasks
+- [ ] Add `to_json()` method to token type using json-fortran
+- [ ] Add `to_json()` visitor for AST nodes using json-fortran
+- [ ] Create JSON writer wrapper module for consistent formatting
+- [ ] Add serialization tests for each stage using json-fortran
+
 ## Success Criteria
 
 1. All existing tests pass with new implementation
@@ -213,6 +298,7 @@ Remove old code and finalize implementation.
 3. Performance is equal or better than current preprocessor
 4. Code is more maintainable and extensible
 5. Architecture supports future features (multiple dispatch, IR generation)
+6. All intermediate stages are inspectable via JSON serialization
 
 ## Testing Strategy
 
@@ -221,6 +307,8 @@ Remove old code and finalize implementation.
 - Integration tests verify phase interactions
 - Existing tests serve as regression suite
 - Use `fpm test test_<subsystem>_*` for targeted testing
+- Validate serialization/deserialization round trips
+- Store golden outputs in test_data for regression testing
 
 ## Notes
 
@@ -229,3 +317,4 @@ Remove old code and finalize implementation.
 - Focus on clean interfaces between phases
 - Keep performance in mind from the start
 - Document design decisions as we go
+- Use JSON for all serialization (standard, well-supported)

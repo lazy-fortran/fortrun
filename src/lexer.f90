@@ -1,6 +1,7 @@
 module lexer
     ! Main lexer interface that delegates to appropriate dialect implementation
     use lexer_core
+    use json_writer
     implicit none
     private
     
@@ -11,6 +12,9 @@ module lexer
     
     ! Main tokenization interface
     public :: tokenize
+    
+    ! Re-export JSON serialization functions
+    public :: json_write_tokens_to_file, json_write_tokens_to_string
     
 contains
 
