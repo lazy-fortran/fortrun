@@ -48,9 +48,55 @@ We are building a complete compiler frontend with a 4-phase architecture (Lexer 
 
 ## IMMEDIATE TASKS ⚡
 
-### ✅ COMPLETED: Architecture Violations Fixed
+### 🚨 URGENT: Frontend.f90 Too Long (969 lines!)
 
-**Frontend.f90 now properly coordinates existing components with clear fallback strategy for unimplemented AST features.**
+**PROBLEM**: Frontend.f90 is still 969 lines - it should be a thin coordinator (~50-100 lines)
+
+**ROOT CAUSE**: All FALLBACK functions are still embedded in frontend.f90 instead of being extracted to separate modules
+
+#### IMMEDIATE PLAN: Extract FALLBACK Functions
+
+**Phase 1: Extract Token Fallback Module (HIGH PRIORITY)**
+- [ ] **Create `src/frontend/fallback/token_fallback.f90`**
+  - Move `generate_use_statements_from_tokens()`
+  - Move `generate_executable_statements_from_tokens()` 
+  - Move `generate_function_definitions_from_tokens()`
+  - Move `reconstruct_line_from_tokens()`
+  - Move `set_current_tokens()` and token storage
+  - Move all helper functions (`is_function_def_statement()`, etc.)
+
+**Phase 2: Extract Declaration Generator (HIGH PRIORITY)**  
+- [ ] **Create `src/frontend/fallback/declaration_generator.f90`**
+  - Move `generate_declarations()`
+  - Move `infer_basic_type()`
+  - Move `get_function_names_from_tokens()`
+  - Move all variable declaration logic
+
+**Phase 3: Extract Utility Functions (MEDIUM PRIORITY)**
+- [ ] **Create `src/frontend/utils/debug_utils.f90`**
+  - Move `debug_output_tokens()`, `debug_output_ast()`, `debug_output_codegen()`
+- [ ] **Create `src/frontend/utils/parser_utils.f90`**
+  - Move `remove_inline_comments()`, `advance_to_next_statement()`
+
+**Phase 4: Clean Frontend Coordinator (HIGH PRIORITY)**
+- [ ] **Reduce frontend.f90 to ~50-100 lines** - Pure coordination only
+- [ ] **Import and use extracted modules**
+- [ ] **Clean interface**: `compile_source()` + options only
+
+**Target Structure After Extraction:**
+```
+src/frontend/
+├── frontend.f90              # 50-100 lines: Pure coordinator
+├── fallback/                 # Temporary modules until AST complete
+│   ├── token_fallback.f90    # Token manipulation functions  
+│   └── declaration_generator.f90 # Variable declaration logic
+├── utils/                    # Utility functions
+│   ├── debug_utils.f90       # Debug output functions
+│   └── parser_utils.f90      # Parser helper functions
+└── [existing structure]      # lexer/, parser/, semantic/, codegen/
+```
+
+**Expected Result**: Frontend.f90 becomes a clean ~80 line coordinator that just calls the right modules in sequence.
 
 ### ✅ COMPLETED: Fix Existing Test Suite
 
