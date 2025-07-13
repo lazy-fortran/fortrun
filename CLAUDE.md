@@ -112,3 +112,10 @@ prefix = "fortplot"  # Modules starting with "fortplot"
 - Polymorphic arrays: use `allocate(array, source=input)`
 - Avoid polymorphic assignment with allocatable components
 - Reference: Fortran 95 standard at https://wg5-fortran.org/N1151-N1200/N1191.pdf
+- **To run the currently developed version of fortran, run fpm run fortran -- <arguments>. Always clear cache if you change preprocessor features.**
+
+## Reference Documentation
+
+- You can find Fortran and fortran standards for implementation reference in doc/standard
+- You can find current status and tasks in TODO.md
+- You can find architecture and design in doc/design directory. We derive our TODO.md from this design and roadmap. You can find roadmap in ROADMAP.md
