@@ -175,6 +175,7 @@ contains
         
         type(parser_state_t) :: parser
         class(ast_node), allocatable :: body(:), stmt
+        class(ast_node), allocatable :: temp_body(:)
         type(lf_program_node) :: program
         integer :: stmt_count, body_capacity, i
         
@@ -191,22 +192,19 @@ contains
             stmt = parse_statement(parser%tokens(parser%current_token:))
             
             if (allocated(stmt)) then
-                stmt_count = stmt_count + 1
-                
-                ! Handle initial allocation
+                ! Simple approach: grow array by concatenation
                 if (.not. allocated(body)) then
-                    allocate(body(10), source=stmt)
-                    body_capacity = 10
-                else if (stmt_count > body_capacity) then
-                    ! Grow array if needed
-                    call grow_ast_array(body, body_capacity * 2)
-                    body_capacity = body_capacity * 2
+                    allocate(body(1), source=stmt)
+                else
+                    ! Grow array by one element
+                    allocate(temp_body(size(body) + 1), source=stmt)
+                    do i = 1, size(body)
+                        allocate(temp_body(i), source=body(i))
+                    end do
+                    allocate(temp_body(size(body) + 1), source=stmt)
+                    call move_alloc(temp_body, body)
                 end if
-                
-                ! Add statement to body
-                if (stmt_count <= body_capacity) then
-                    allocate(body(stmt_count), source=stmt)
-                end if
+                stmt_count = stmt_count + 1
             end if
             
             ! Move to next statement (simplified - assumes one per line)

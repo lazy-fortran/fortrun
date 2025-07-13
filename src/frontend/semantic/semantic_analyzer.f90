@@ -44,7 +44,7 @@ contains
         real_type = create_mono_type(TREAL)
         
         ! sqrt: real -> real
-        fun_type = create_mono_type(TFUN, args=[real_type, real_type])
+        fun_type = create_mono_type(TFUN, args=[create_mono_type(TREAL), create_mono_type(TREAL)])
         scheme = create_poly_type(forall_vars=[type_var_t::], mono=fun_type)
         call ctx%env%extend("sqrt", scheme)
         
