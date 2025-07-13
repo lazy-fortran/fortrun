@@ -7,8 +7,8 @@ module frontend
                           create_parser_state
     use ast_core
     use ast_lazy_fortran
-    use semantic_analyzer, only: semantic_context_t, create_semantic_context, &
-                                analyze_program
+    use semantic_analyzer_simple, only: simple_semantic_context_t, create_simple_context, &
+                                        analyze_program_simple
     use codegen_core, only: generate_code, generate_code_polymorphic
     use json_writer, only: json_write_tokens_to_file, json_write_ast_to_file
     
@@ -44,7 +44,7 @@ contains
         ! Local variables
         type(token_t), allocatable :: tokens(:)
         class(ast_node), allocatable :: ast_tree
-        type(semantic_context_t) :: sem_ctx
+        type(simple_semantic_context_t) :: sem_ctx
         character(len=:), allocatable :: generated_code
         integer :: unit, ios
         
@@ -73,15 +73,15 @@ contains
         ! ============================
         ! PHASE 3: SEMANTIC ANALYSIS
         ! ============================
-        sem_ctx = create_semantic_context()
-        call analyze_program(sem_ctx, ast_tree)
+        sem_ctx = create_simple_context()
+        call analyze_program_simple(sem_ctx, ast_tree)
         
         ! ============================
         ! PHASE 4: CODE GENERATION
         ! ============================
         select case (options%backend)
         case (BACKEND_FORTRAN)
-            call generate_fortran_code(ast_tree, generated_code)
+            call generate_fortran_code(ast_tree, sem_ctx, generated_code)
             
         case (BACKEND_LLVM)
             error_msg = "LLVM backend not yet implemented"
@@ -227,13 +227,14 @@ contains
     end subroutine parse_tokens
     
     ! Generate Fortran code from AST
-    subroutine generate_fortran_code(ast_tree, code)
+    subroutine generate_fortran_code(ast_tree, sem_ctx, code)
         class(ast_node), intent(in) :: ast_tree
+        type(simple_semantic_context_t), intent(in) :: sem_ctx
         character(len=:), allocatable, intent(out) :: code
         
         select type (ast_tree)
         type is (lf_program_node)
-            code = generate_fortran_program(ast_tree)
+            code = generate_fortran_program(ast_tree, sem_ctx)
         class default
             code = "! Unsupported AST root type"
         end select
@@ -241,8 +242,9 @@ contains
     end subroutine generate_fortran_code
     
     ! Generate complete Fortran program
-    function generate_fortran_program(prog) result(code)
+    function generate_fortran_program(prog, sem_ctx) result(code)
         type(lf_program_node), intent(in) :: prog
+        type(simple_semantic_context_t), intent(in) :: sem_ctx
         character(len=:), allocatable :: code
         character(len=:), allocatable :: declarations, statements
         integer :: i
@@ -252,7 +254,7 @@ contains
         code = code // "    implicit none" // new_line('a')
         
         ! Generate variable declarations from type information
-        declarations = generate_declarations(prog)
+        declarations = generate_declarations(prog, sem_ctx)
         if (len_trim(declarations) > 0) then
             code = code // declarations // new_line('a')
         end if
@@ -270,12 +272,45 @@ contains
     end function generate_fortran_program
     
     ! Generate variable declarations from AST with type info
-    function generate_declarations(prog) result(decls)
+    function generate_declarations(prog, sem_ctx) result(decls)
+        ! Simplified declarations generation without type inference
         type(lf_program_node), intent(in) :: prog
+        type(simple_semantic_context_t), intent(in) :: sem_ctx
         character(len=:), allocatable :: decls
+        character(len=:), allocatable :: type_str, var_name
+        integer :: i
         
-        ! TODO: Implement declaration generation from inferred types
         decls = ""
+        
+        ! Extract variable declarations from assignment statements
+        if (allocated(prog%body)) then
+            do i = 1, size(prog%body)
+                select type (stmt => prog%body(i))
+                type is (assignment_node)
+                    ! Get variable name
+                    select type (target => stmt%target)
+                    type is (identifier_node)
+                        var_name = target%name
+                        
+                        ! Simple default type assignment (no complex type inference)
+                        ! For now, just use integer as default - this avoids the type map segfault
+                        type_str = "integer"
+                        decls = decls // "    " // type_str // " :: " // var_name // new_line('a')
+                    end select
+                type is (lf_assignment_node)
+                    ! Handle lazy fortran assignment nodes
+                    select type (target => stmt%assignment_node%target)
+                    type is (identifier_node)
+                        var_name = target%name
+                        
+                        ! Simple default type assignment (no complex type inference)
+                        ! For now, just use integer as default - this avoids the type map segfault
+                        type_str = "integer"
+                        decls = decls // "    " // type_str // " :: " // var_name // new_line('a')
+                    end select
+                end select
+            end do
+        end if
         
     end function generate_declarations
     

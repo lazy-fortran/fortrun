@@ -1,6 +1,6 @@
 program test_codegen_program
-    use ast
-    use codegen
+    use ast_core
+    use codegen_core
     implicit none
     
     logical :: all_passed

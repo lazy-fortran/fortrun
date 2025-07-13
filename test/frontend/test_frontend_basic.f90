@@ -47,6 +47,7 @@ contains
     subroutine test_basic_compilation()
         character(len=256) :: temp_in, temp_out, error_msg
         integer :: unit, ios
+        logical :: file_exists
         
         print *, "Testing basic compilation..."
         
@@ -66,8 +67,8 @@ contains
             call fail("Frontend compilation failed: " // trim(error_msg))
         else
             ! Check output exists
-            inquire(file=temp_out, exist=ios)
-            if (ios == 0) then
+            inquire(file=temp_out, exist=file_exists)
+            if (.not. file_exists) then
                 call fail("Output file not created")
             else
                 print *, "  ✓ Basic compilation works"

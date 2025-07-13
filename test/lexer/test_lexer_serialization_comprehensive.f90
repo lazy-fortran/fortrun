@@ -1,5 +1,6 @@
 program test_lexer_serialization_comprehensive
-    use lexer
+    use lexer_core
+    use json_writer
     implicit none
     
     logical :: all_passed
@@ -31,7 +32,7 @@ contains
         print '(a)', "Testing complex expression serialization..."
         
         ! Test complex mathematical expression
-        call tokenize("result = (a + b) * c ** 2.5e-3", tokens)
+        call tokenize_core("result = (a + b) * c ** 2.5e-3", tokens)
         
         ! Convert to JSON
         json_str = json_write_tokens_to_string(tokens)
@@ -82,7 +83,7 @@ contains
         print '(a)', "Testing program structure serialization..."
         
         ! Test simple program structure
-        call tokenize('program test; integer :: x; end program', tokens)
+        call tokenize_core('program test; integer :: x; end program', tokens)
         
         ! Test file serialization
         call json_write_tokens_to_file(tokens, test_file)
@@ -131,7 +132,7 @@ contains
         print '(a)', "Testing special characters serialization..."
         
         ! Test string with special characters
-        call tokenize('"hello \"world\" \n"', tokens)
+        call tokenize_core('"hello \"world\" \n"', tokens)
         
         json_str = json_write_tokens_to_string(tokens)
         
@@ -168,7 +169,7 @@ contains
             large_input = large_input // "var" // char(48 + mod(i, 10))  ! var0, var1, etc.
         end do
         
-        call tokenize(large_input, tokens)
+        call tokenize_core(large_input, tokens)
         
         ! Should have many tokens (50 identifiers + 49 operators + 1 EOF = 100)
         if (size(tokens) /= 100) then
