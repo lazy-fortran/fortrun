@@ -249,3 +249,4 @@ Each example includes:
 - Always convert debug apps to automated tests if a similar test doesn't exist yet
 - To clean the build, run echo "y" | fpm clean in project root
 - To clear the fortran cache, remove fortran/* in $XDG_CACHE_HOME or in $HOME/.cache
+- You put test input data in subdirectories of test/test_data in an organized way. in particlular, this includes snippets of our simplified fortran dialect .f and their standard Fortran f90 equivalent for the ast and code generator tests. this is when they are too small or too specialized to become actual examples.
