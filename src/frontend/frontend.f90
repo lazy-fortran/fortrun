@@ -220,12 +220,15 @@ contains
         type(simple_semantic_context_t), intent(in) :: sem_ctx
         character(len=:), allocatable :: code
         character(len=:), allocatable :: use_statements, declarations, statements
-        integer :: i
         
-        ! Generate program header
+        ! ARCHITECTURE: Use codegen_core for implemented AST nodes
+        ! When AST is complete, this should just be: code = generate_code(prog)
+        ! TEMPORARY FALLBACK: Until full AST is implemented, combine proper AST + token fallback
+        
+        ! Generate program header from AST
         code = "program " // prog%name // new_line('a')
         
-        ! Generate USE statements first (before implicit none)
+        ! FALLBACK: Generate USE statements from tokens until AST has USE nodes
         use_statements = generate_use_statements_from_tokens()
         if (len_trim(use_statements) > 0) then
             code = code // use_statements
@@ -236,22 +239,22 @@ contains
         
         ! Generate variable declarations from type information
         declarations = generate_declarations(prog, sem_ctx)
+        
+        ! FALLBACK: Generate executable statements from tokens until AST has all statement types
         statements = generate_executable_statements_from_tokens()
         
         if (len_trim(declarations) > 0) then
             code = code // declarations
-            ! Add blank line after declarations only if there are executable statements
             if (len_trim(statements) > 0) then
                 code = code // new_line('a')
             end if
         end if
         
-        ! Generate executable statements from stored tokens (excluding USE statements and functions)
         if (len_trim(statements) > 0) then
             code = code // statements
         end if
         
-        ! Generate function definitions in contains section
+        ! FALLBACK: Generate function definitions from tokens until AST has function nodes
         block
             character(len=:), allocatable :: functions
             functions = generate_function_definitions_from_tokens()
@@ -431,6 +434,8 @@ contains
     end subroutine set_current_tokens
     
     ! Generate USE statements from stored tokens
+    ! FALLBACK: Generate USE statements from tokens until AST has USE nodes
+    ! TODO: Remove when AST supports USE statement nodes
     function generate_use_statements_from_tokens() result(use_statements)
         character(len=:), allocatable :: use_statements
         type(parser_state_t) :: parser
@@ -565,6 +570,8 @@ contains
     end function generate_non_use_statements_from_tokens
     
     ! Generate executable statements from stored tokens (excluding USE and function definitions)
+    ! FALLBACK: Generate executable statements from tokens until AST has all statement types
+    ! TODO: Remove when AST supports all statement node types
     function generate_executable_statements_from_tokens() result(statements)
         character(len=:), allocatable :: statements
         type(parser_state_t) :: parser
@@ -640,6 +647,8 @@ contains
     end function generate_executable_statements_from_tokens
     
     ! Generate function definitions from stored tokens
+    ! FALLBACK: Generate function definitions from tokens until AST has function nodes  
+    ! TODO: Remove when AST supports function definition nodes
     function generate_function_definitions_from_tokens() result(functions)
         character(len=:), allocatable :: functions
         type(parser_state_t) :: parser
@@ -832,6 +841,8 @@ contains
     end subroutine debug_output_codegen
     
     ! Reconstruct original line from tokens
+    ! FALLBACK: Reconstruct line from tokens for unimplemented AST features
+    ! TODO: Remove when all statements have proper AST nodes
     function reconstruct_line_from_tokens(tokens) result(line)
         type(token_t), intent(in) :: tokens(:)
         character(len=:), allocatable :: line
