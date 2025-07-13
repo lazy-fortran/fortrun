@@ -1,5 +1,5 @@
 module type_system_hm
-    ! Hindley-Milner type system for Simple Fortran compiler frontend
+    ! Hindley-Milner type system for lazy fortran compiler frontend
     implicit none
     private
     

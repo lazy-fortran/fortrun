@@ -1,6 +1,6 @@
 # Fortran Standards Evolution
 
-This directory contains documentation for various Fortran standards and their evolution from Fortran 95 to the present, including our proposed Simple Fortran (fortran 2507) superset.
+This directory contains documentation for various Fortran standards and their evolution from Fortran 95 to the present, including our proposed Lazy Fortran (lazy 2507) superset.
 
 ## Standards Timeline
 
@@ -63,7 +63,7 @@ Latest standard with quality-of-life improvements:
 - **Half-precision reals** (16-bit)
 - **Enhanced generic programming** features
 
-### fortran 2507 (Proposed) - Simple Fortran
+### lazy 2507 (Proposed) - Lazy Fortran
 Our proposed superset adding Python-like conveniences:
 - **Strict superset**: Any valid Fortran 95/2003/2008/2018/2023 program works unchanged
 - **Type inference**: Automatic variable typing from assignments
@@ -89,7 +89,7 @@ Our proposed superset adding Python-like conveniences:
 - Each standard maintains backward compatibility with previous versions
 - Obsolescent features are deprecated but not removed
 - Deleted features (from F77) were given long deprecation periods
-- fortran 2507 (Simple Fortran) maintains this tradition as a **strict superset** - all standard Fortran programs remain valid
+- lazy 2507 (Lazy Fortran) maintains this tradition as a **strict superset** - all standard Fortran programs remain valid
 
 ## File Extensions Convention
 
@@ -97,11 +97,11 @@ Our proposed superset adding Python-like conveniences:
 - `.f03` - Fortran 2003 specific features
 - `.f08` - Fortran 2008 specific features  
 - `.f18` - Fortran 2018 specific features
-- `.f` - Fixed-form (legacy) or Simple Fortran mode
+- `.f` - Fixed-form (legacy) or Lazy Fortran mode
 
 ## Implementation Support
 
 Most modern compilers support:
 - **Full**: Fortran 95, 2003, 2008
 - **Partial**: Fortran 2018, 2023
-- **Experimental**: fortran 2507 (via our preprocessor/compiler frontend)
+- **Experimental**: lazy 2507 (via our preprocessor/compiler frontend)

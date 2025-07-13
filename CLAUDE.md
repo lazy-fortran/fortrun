@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with this repository.
 
 ## Project Purpose
 
-This project develops a command-line tool called `fortran` that **Makes Python Fortran again**. The tool enables running Fortran programs directly without manual compilation, automatically resolving and building module dependencies using FPM, with opinionated modern defaults and zero configuration. Our *postmodern fortran* dialect pushes beyond all alternative scientific computing languages to combine Fortran's performance with modern expressiveness.
+This project develops a command-line tool called `fortran` that **Makes Python Fortran again**. The tool enables running Fortran programs directly without manual compilation, automatically resolving and building module dependencies using FPM, with opinionated modern defaults and zero configuration. Our *lazy fortran* dialect pushes beyond all alternative scientific computing languages to combine Fortran's performance with modern expressiveness.
 
 ## Build System
 
@@ -32,7 +32,7 @@ Standard FPM directory structure:
 - `src/` - Library modules
   - `core/` - Shared functionality (lexer, parser, AST, codegen)
   - `dialects/` - Dialect-specific extensions
-    - `postmodern_fortran/` - Our *postmodern fortran* dialect
+    - `lazy_fortran/` - Our *lazy fortran* dialect
 - `app/` - Executable programs
 - `test/` - Test programs with comprehensive coverage
   - `test_data/` - Test input files
@@ -55,9 +55,9 @@ The `fpm.toml` enforces: no implicit typing, free-form source, JSON support via 
 - Function return type inference
 - More sophisticated expression analysis
 
-## *Postmodern Fortran* Dialect
+## *Lazy Fortran* Dialect
 
-**Experimental dialect** - *postmodern fortran* is our experimental dialect that pushes the boundaries beyond all alternative languages for scientific computing. It explores how far we can evolve Fortran to surpass Python, Julia, MATLAB, and others in both performance and expressiveness while maintaining full backward compatibility.
+**Experimental dialect** - *lazy fortran* is our experimental dialect that pushes the boundaries beyond all alternative languages for scientific computing. It explores how far we can evolve Fortran to surpass Python, Julia, MATLAB, and others in both performance and expressiveness while maintaining full backward compatibility.
 
 1. **Implicit program wrapping** - No need for `program`/`end program`
 2. **Automatic type inference** - Variables declared through assignment
@@ -114,7 +114,7 @@ prefix = "fortplot"  # Modules starting with "fortplot"
 
 - **ALWAYS write tests first!** (TDD: red-green-refactor)
 - **Clear cache before testing frontend**: `rm -rf ~/.cache/fortran/*`
-- **Compiler frontend is used** for .f files (*postmodern fortran* with type inference)
+- **Compiler frontend is used** for .f files (*lazy fortran* with type inference)
 - Debug apps go in `app/`, then move to `test/` when ready
 - Test data goes in `test/test_data/`
 - Polymorphic arrays: use `allocate(array, source=input)`

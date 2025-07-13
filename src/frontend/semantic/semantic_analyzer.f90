@@ -1,8 +1,8 @@
 module semantic_analyzer
-    ! Hindley-Milner type inference (Algorithm W) for Simple Fortran
+    ! Hindley-Milner type inference (Algorithm W) for lazy fortran
     use type_system_hm
     use ast_core
-    use ast_postmodern_fortran
+    use ast_lazy_fortran
     use ast_extensions, only: ast_type_map_t, create_type_map, set_node_type, get_node_type
     implicit none
     private
@@ -76,7 +76,7 @@ contains
         select type (ast)
         type is (program_node)
             call analyze_program_node(ctx, ast)
-        type is (pf_program_node)
+        type is (lf_program_node)
             call analyze_program_node(ctx, ast%program_node)
         class default
             ! Single statement/expression
@@ -118,7 +118,7 @@ contains
         select type (stmt)
         type is (assignment_node)
             typ = infer_assignment(this, stmt)
-        type is (pf_assignment_node)
+        type is (lf_assignment_node)
             typ = infer_assignment(this, stmt%assignment_node)
         type is (print_statement_node)
             typ = create_mono_type(TINT)  ! print returns unit/void, use int

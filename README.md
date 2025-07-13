@@ -5,6 +5,8 @@
 
 **Make Python Fortran again.** - A command-line tool that enables running Fortran programs without manual compilation, automatically resolving dependencies and applying modern defaults.
 
+Our experimental *lazy fortran* dialect pushes beyond all alternative scientific computing languages. We're so lazy, we can't even be bothered with uppercase letters in the language name!
+
 ## Quick Start
 
 ```bash
