@@ -4,7 +4,10 @@ module token_fallback
     ! This module contains temporary token-to-code generation functions
     ! that bypass proper AST pipeline - use only until AST is complete
     
-    use lexer_core, only: token_t, TK_EOF, TK_KEYWORD, TK_IDENTIFIER
+    use lexer_core, only: token_t, TK_EOF, TK_KEYWORD, TK_IDENTIFIER, TK_NEWLINE
+    use parser_core, only: parse_statement, parser_state_t, create_parser_state
+    use ast_core
+    use codegen_core, only: generate_code_polymorphic
     implicit none
     private
     
@@ -33,7 +36,7 @@ contains
     ! TODO: Remove when AST supports USE statement nodes
     function generate_use_statements_from_tokens() result(use_statements)
         character(len=:), allocatable :: use_statements
-        integer :: i, stmt_start, stmt_end
+        integer :: i, stmt_start, stmt_end, current_line
         type(token_t), allocatable :: stmt_tokens(:)
         character(len=:), allocatable :: stmt_code
         
@@ -45,13 +48,21 @@ contains
             do while (i <= size(current_tokens))
                 if (current_tokens(i)%kind == TK_EOF) exit
                 
-                ! Find statement boundaries
+                ! Find statement boundaries (use line numbers to separate)
                 stmt_start = i
                 stmt_end = i
-                do while (stmt_end <= size(current_tokens) .and. current_tokens(stmt_end)%kind /= TK_EOF)
+                
+                ! Get all tokens on the same line
+                current_line = current_tokens(i)%line
+                
+                do while (stmt_end <= size(current_tokens))
+                    if (current_tokens(stmt_end)%kind == TK_EOF .or. &
+                        current_tokens(stmt_end)%line > current_line) then
+                        stmt_end = stmt_end - 1  ! Don't include the next line
+                        exit
+                    end if
                     stmt_end = stmt_end + 1
                 end do
-                stmt_end = stmt_end - 1
                 
                 ! Check if this is a USE statement
                 if (stmt_end >= stmt_start .and. &
@@ -77,9 +88,10 @@ contains
 
     ! FALLBACK: Generate executable statements from tokens until AST has all statement types
     ! TODO: Remove when AST supports all statement node types
+    ! SIMPLIFIED: Process line by line instead of complex token parsing
     function generate_executable_statements_from_tokens() result(statements)
         character(len=:), allocatable :: statements
-        integer :: i, stmt_start, stmt_end
+        integer :: i, stmt_start, stmt_end, current_line
         type(token_t), allocatable :: stmt_tokens(:)
         character(len=:), allocatable :: stmt_code
         logical :: is_use_statement, is_function_definition
@@ -91,13 +103,27 @@ contains
             do while (i <= size(current_tokens))
                 if (current_tokens(i)%kind == TK_EOF) exit
                 
-                ! Find statement boundaries
+                ! Skip NEWLINE tokens
+                if (current_tokens(i)%kind == TK_NEWLINE) then
+                    i = i + 1
+                    cycle
+                end if
+                
+                ! Find statement boundaries (use line numbers to separate)
                 stmt_start = i
                 stmt_end = i
-                do while (stmt_end <= size(current_tokens) .and. current_tokens(stmt_end)%kind /= TK_EOF)
+                
+                ! Get all tokens on the same line
+                current_line = current_tokens(i)%line
+                
+                do while (stmt_end <= size(current_tokens))
+                    if (current_tokens(stmt_end)%kind == TK_EOF .or. &
+                        current_tokens(stmt_end)%line > current_line) then
+                        stmt_end = stmt_end - 1  ! Don't include the next line
+                        exit
+                    end if
                     stmt_end = stmt_end + 1
                 end do
-                stmt_end = stmt_end - 1
                 
                 if (stmt_end >= stmt_start) then
                     
@@ -124,17 +150,32 @@ contains
                         allocate(stmt_tokens(stmt_end - stmt_start + 1))
                         stmt_tokens = current_tokens(stmt_start:stmt_end)
                         
-                        ! Reconstruct the statement
-                        stmt_code = reconstruct_line_from_tokens(stmt_tokens)
-                        if (len_trim(stmt_code) > 0) then
-                            statements = statements // "    " // trim(stmt_code) // new_line('a')
-                        end if
+                        ! PROPER PIPELINE: Parse tokens → AST → Codegen
+                        block
+                            class(ast_node), allocatable :: stmt_ast
+                            
+                            ! Parse statement tokens to AST
+                            stmt_ast = parse_statement(stmt_tokens)
+                            
+                            if (allocated(stmt_ast)) then
+                                ! Generate code from AST using proper codegen
+                                stmt_code = generate_code_polymorphic(stmt_ast)
+                                if (len_trim(stmt_code) > 0) then
+                                    statements = statements // "    " // trim(stmt_code) // char(10)
+                                end if
+                                deallocate(stmt_ast)
+                            end if
+                        end block
                         
                         deallocate(stmt_tokens)
                     end if
                 end if
                 
+                ! Move past this statement and any following newlines
                 i = stmt_end + 1
+                do while (i <= size(current_tokens) .and. current_tokens(i)%kind == TK_NEWLINE)
+                    i = i + 1
+                end do
             end do
         end if
         

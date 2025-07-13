@@ -3,7 +3,7 @@ module frontend
     ! Clean coordinator module - delegates to extracted specialized modules
     ! Architecture: Lexer → Parser → Semantic → Codegen with FALLBACK support
     
-    use lexer_core, only: token_t, tokenize_core
+    use lexer_core, only: token_t, tokenize_core, TK_EOF
     use parser_core, only: parse_expression, parse_statement, parser_state_t, create_parser_state
     use ast_core
     use ast_lazy_fortran
@@ -119,17 +119,16 @@ contains
         class(ast_node), allocatable, intent(out) :: ast_tree
         character(len=*), intent(out) :: error_msg
         
-        type(parser_state_t) :: parser
-        
         error_msg = ""
-        parser = create_parser_state(tokens)
         
         ! Create program node (lazy fortran auto-wrapping)
+        ! For now, keep simple until full AST parsing is implemented
         allocate(lf_program_node :: ast_tree)
         select type (prog => ast_tree)
         type is (lf_program_node)
             prog%name = "main"
             prog%implicit = .true.
+            ! The FALLBACK functions will handle statement parsing
         end select
     end subroutine parse_tokens
 
