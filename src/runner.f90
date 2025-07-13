@@ -10,6 +10,7 @@ module runner
   use fpm_strings, only: string_t
   use fpm_error, only: error_t
   use preprocessor, only: is_preprocessor_file, preprocess_file
+  use preprocessor_ast, only: preprocess_file_ast
   use, intrinsic :: iso_fortran_env, only: int64
   implicit none
   private
@@ -102,7 +103,31 @@ contains
         end if
         
         ! Preprocess the file
-        call preprocess_file(absolute_path, preprocessed_file, preprocess_error)
+        ! Use AST-based preprocessor by default for .f files
+        block
+          logical :: use_ast_preprocessor
+          character(len=256) :: env_var
+          
+          ! Check environment variable to allow switching preprocessors
+          call get_environment_variable("FORTRAN_USE_AST_PREPROCESSOR", env_var)
+          use_ast_preprocessor = .true.  ! Default to AST preprocessor
+          if (len_trim(env_var) > 0) then
+            use_ast_preprocessor = (trim(env_var) /= "0" .and. trim(env_var) /= "false")
+          end if
+          
+          if (use_ast_preprocessor) then
+            if (verbose_level >= 2) then
+              print '(a)', 'Using AST-based preprocessor'
+            end if
+            call preprocess_file_ast(absolute_path, preprocessed_file, preprocess_error)
+          else
+            if (verbose_level >= 2) then
+              print '(a)', 'Using legacy preprocessor'
+            end if
+            call preprocess_file(absolute_path, preprocessed_file, preprocess_error)
+          end if
+        end block
+        
         if (len_trim(preprocess_error) > 0) then
           print '(a,a)', 'Error during preprocessing: ', trim(preprocess_error)
           exit_code = 1
