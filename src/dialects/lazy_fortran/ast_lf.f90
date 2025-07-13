@@ -189,9 +189,11 @@ contains
         call json%create_array(body_array, 'body')
         call json%add(obj, body_array)
         
-        do i = 1, size(this%body)
-            call this%body(i)%to_json(json, body_array)
-        end do
+        if (allocated(this%body)) then
+            do i = 1, size(this%body)
+                call this%body(i)%to_json(json, body_array)
+            end do
+        end if
         
         call json%add(parent, obj)
     end subroutine lf_program_to_json
