@@ -1,6 +1,6 @@
 module preprocessor_ast
     ! AST-based preprocessor for Simple Fortran (.f files)
-    use lexer_core, only: token_t, tokenize_core
+    use lexer_core, only: token_t, tokenize_core, TK_IDENTIFIER, TK_OPERATOR, TK_NUMBER
     use parser_core, only: parse_expression, parse_statement, parser_state_t, create_parser_state  
     use ast_core
     use codegen_core
@@ -28,47 +28,138 @@ contains
         error_msg = ""
         
         
-        ! Read entire source file
+        ! Process line by line instead of reading entire file
         open(newunit=unit_in, file=input_file, status='old', action='read', iostat=ios)
         if (ios /= 0) then
             error_msg = "Failed to open input file: " // trim(input_file)
             return
         end if
         
-        ! Get file size and read content
-        inquire(unit=unit_in, size=file_size)
-        allocate(character(len=file_size) :: source_code)
-        source_code = ""
-        
-        do
-            read(unit_in, '(A)', iostat=ios) line
-            if (ios /= 0) exit
-            if (len_trim(source_code) > 0) then
-                source_code = source_code // new_line('a') // trim(line)
-            else
-                source_code = trim(line)
-            end if
-        end do
-        close(unit_in)
-        
-        ! Step 1: Tokenize
-        call tokenize_core(source_code, tokens)
-        
-        ! Step 2-4: Parse, transform and generate in one step
-        ! This avoids issues with polymorphic assignment of allocatable components
-        generated_code = parse_and_generate_simple_fortran(tokens)
-        
-        ! Write output file
+        ! Open output file
         open(newunit=unit_out, file=output_file, status='replace', action='write', iostat=ios)
         if (ios /= 0) then
             error_msg = "Failed to create output file: " // trim(output_file)
+            close(unit_in)
             return
         end if
         
-        write(unit_out, '(A)') generated_code
-        close(unit_out)
+        ! First pass: collect all variable assignments for type inference
+        block
+            character(len=256), dimension(100) :: lines
+            integer :: line_count, i
+            character(len=64), dimension(100) :: var_names
+            character(len=32), dimension(100) :: var_types
+            integer :: var_count
+            
+            line_count = 0
+            var_count = 0
+            
+            ! Read all lines
+            do
+                read(unit_in, '(A)', iostat=ios) line
+                if (ios /= 0) exit
+                if (line_count >= 100) exit
+                line_count = line_count + 1
+                lines(line_count) = line
+            end do
+            close(unit_in)
+            
+            ! Analyze lines for variable assignments
+            do i = 1, line_count
+                if (len_trim(lines(i)) > 0) then
+                    source_code = trim(lines(i))
+                    call tokenize_core(source_code, tokens)
+                    
+                    if (size(tokens) >= 3) then
+                        ! Check for assignment pattern: IDENTIFIER = ...
+                        if (tokens(1)%kind == TK_IDENTIFIER .and. &
+                            tokens(2)%kind == TK_OPERATOR .and. &
+                            tokens(2)%text == "=") then
+                            
+                            ! Check if variable already tracked
+                            block
+                                integer :: j
+                                logical :: found
+                                found = .false.
+                                do j = 1, var_count
+                                    if (var_names(j) == tokens(1)%text) then
+                                        found = .true.
+                                        exit
+                                    end if
+                                end do
+                                
+                                if (.not. found) then
+                                    var_count = var_count + 1
+                                    var_names(var_count) = tokens(1)%text
+                                    
+                                    ! Simple type inference based on literal
+                                    if (size(tokens) >= 3 .and. tokens(3)%kind == TK_NUMBER) then
+                                        if (index(tokens(3)%text, ".") > 0) then
+                                            var_types(var_count) = "real"
+                                        else
+                                            var_types(var_count) = "integer"
+                                        end if
+                                    else
+                                        var_types(var_count) = "real"  ! Default to real
+                                    end if
+                                end if
+                            end block
+                        end if
+                    end if
+                end if
+            end do
+            
+            ! Write program header
+            write(unit_out, '(A)') "program main"
+            write(unit_out, '(A)') "    implicit none"
+            
+            ! Write variable declarations
+            do i = 1, var_count
+                write(unit_out, '(A,A,A,A)') "    ", trim(var_types(i)), " :: ", trim(var_names(i))
+            end do
+            
+            if (var_count > 0) then
+                write(unit_out, '(A)') ""  ! Blank line after declarations
+            end if
+            
+            ! Process each line
+            do i = 1, line_count
+                if (len_trim(lines(i)) > 0) then
+                    source_code = trim(lines(i))
+                    call tokenize_core(source_code, tokens)
+                    
+                    if (size(tokens) > 0) then
+                        ! Generate code for this line
+                        generated_code = process_line_simple(tokens)
+                        if (len_trim(generated_code) > 0) then
+                            write(unit_out, '(A,A)') "    ", trim(generated_code)
+                        end if
+                    end if
+                end if
+            end do
+            
+            ! Write program footer
+            write(unit_out, '(A)') "end program main"
+        end block
         
+        close(unit_in)
+        close(unit_out)
+        return
     end subroutine preprocess_file_ast
+    
+    ! Process a single line and generate code
+    function process_line_simple(tokens) result(code)
+        type(token_t), intent(in) :: tokens(:)
+        character(len=:), allocatable :: code
+        integer :: i
+        
+        ! Just reconstruct the line for now
+        code = ""
+        do i = 1, size(tokens)
+            if (i > 1) code = code // " "
+            code = code // tokens(i)%text
+        end do
+    end function process_line_simple
     
     ! Parse Simple Fortran (for now, just parse individual statements)
     function parse_simple_fortran(tokens) result(ast)
