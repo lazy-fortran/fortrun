@@ -1,6 +1,6 @@
-# fortran 2507 Standard (Simple Fortran)
+# fortran 2507 Standard (*Postmodern Fortran*)
 
-This document describes the "fortran 2507" standard - our opinionated dialect of Fortran designed to make scientific computing as easy as Python while maintaining Fortran's performance. The name uses lowercase "fortran" to distinguish it from standard Fortran, and "2507" represents our vision of what Fortran could be in the far future (25th century).
+This document describes the "fortran 2507" standard - our experimental *postmodern fortran* dialect that pushes beyond all alternative scientific computing languages. It explores how far we can evolve Fortran to surpass Python, Julia, MATLAB, and others in both performance and expressiveness. The name uses lowercase "fortran" to distinguish it from standard Fortran, and "2507" represents our vision of what Fortran could be in the far future (25th century).
 
 ## Table of Contents
 
@@ -15,12 +15,14 @@ This document describes the "fortran 2507" standard - our opinionated dialect of
 
 ## Philosophy
 
-fortran 2507 follows these core principles:
+*postmodern fortran* (fortran 2507) follows these core principles:
 
-1. **Python-like Simplicity**: Write equations directly, no boilerplate
-2. **Safe by Default**: Prevent common errors through opinionated defaults
-3. **Performance First**: All features compile to efficient standard Fortran
-4. **Gradual Adoption**: Mix with standard Fortran seamlessly
+1. **Beyond Alternatives**: Push beyond Python, Julia, MATLAB, and others in scientific computing
+2. **Performance + Expressiveness**: Combine Fortran's speed with modern language features
+3. **Safe by Default**: Prevent common errors through opinionated defaults
+4. **Zero Boilerplate**: Write equations directly, minimal ceremony
+5. **Gradual Adoption**: Mix with standard Fortran seamlessly
+6. **Strict Superset**: **fortran 2507 is a strict superset of standard Fortran** - any valid Fortran 95/2003/2008/2018/2023 program is also a valid fortran 2507 program and passes through the compiler frontend unchanged
 
 ## Bare File Execution
 

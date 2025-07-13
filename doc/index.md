@@ -63,7 +63,7 @@ fortran --cache-dir /tmp calc.f90    # Custom cache
 --version           Show version information
 --clear-cache       Clear the cache directory
 --cache-info        Display cache directory information
---preprocess-only   Only preprocess .f files, don't compile
+--preprocess-only   Only compile .f files to Fortran IR, don't run
 --no-wait          Don't wait for parallel job completion
 ```
 
@@ -187,7 +187,7 @@ source-form = "free"         # Modern free-form source
 # No special compiler flags
 ```
 
-**For .f files (Opinionated Preprocessing):**
+**For .f files (Simple Fortran with Frontend):**
 ```toml
 # Generated fpm.toml (same base + additional flags)
 [build]

@@ -9,7 +9,7 @@ module runner
   use fpm_model, only: srcfile_t
   use fpm_strings, only: string_t
   use fpm_error, only: error_t
-  use preprocessor, only: preprocess_file, preprocess_file_debug, is_preprocessor_file
+  use frontend_integration, only: compile_with_frontend, compile_with_frontend_debug, is_simple_fortran_file
   use debug_state, only: get_debug_flags
   use, intrinsic :: iso_fortran_env, only: int64
   implicit none
@@ -67,9 +67,9 @@ contains
     was_preprocessed = .false.
     working_file = absolute_path
     
-    if (is_preprocessor_file(filename)) then
+    if (is_simple_fortran_file(filename)) then
       if (verbose_level >= 1) then
-        print '(a)', 'Preprocessing .f file...'
+        print '(a)', 'Processing Simple Fortran file with frontend...'
       end if
       
       ! Get content-based cache directory first
@@ -127,17 +127,17 @@ contains
               call get_debug_flags(debug_tokens, debug_ast, debug_codegen)
               
               if (debug_tokens .or. debug_ast .or. debug_codegen) then
-                call preprocess_file_debug(absolute_path, preprocessed_file, preprocess_error, &
-                                           debug_tokens, debug_ast, debug_codegen)
+                call compile_with_frontend_debug(absolute_path, preprocessed_file, preprocess_error, &
+                                                 debug_tokens, debug_ast, debug_codegen)
               else
-                call preprocess_file(absolute_path, preprocessed_file, preprocess_error)
+                call compile_with_frontend(absolute_path, preprocessed_file, preprocess_error)
               end if
             end block
           else
             if (verbose_level >= 2) then
               print '(a)', 'Using legacy preprocessor'
             end if
-            call preprocess_file(absolute_path, preprocessed_file, preprocess_error)
+            call compile_with_frontend(absolute_path, preprocessed_file, preprocess_error)
           end if
         end block
         
@@ -162,7 +162,7 @@ contains
     end if
     
     ! Get cache directory (use custom if provided) - for .f90 files or if not set above
-    if (.not. is_preprocessor_file(filename)) then
+    if (.not. is_simple_fortran_file(filename)) then
       if (len_trim(custom_cache_dir) > 0) then
         cache_dir = custom_cache_dir
       else

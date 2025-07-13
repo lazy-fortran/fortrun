@@ -1,8 +1,45 @@
-# AST Implementation TODO
+# *Postmodern Fortran* Compiler Frontend TODO
 
-This document tracks the implementation plan for the AST-based architecture.
+This document tracks concrete implementation tasks for the *postmodern fortran* compiler frontend.
+Our architectural plans and designs live in `doc/plan/` directory, while this TODO.md is for specific actionable tasks.
+
+## Vision
+We are building a complete compiler frontend with a 4-phase architecture (Lexer → Parser → Semantic Analysis → Code Generation) that can target multiple backends. Our *postmodern fortran* dialect pushes beyond all alternative scientific computing languages, exploring how far we can evolve Fortran to surpass Python, Julia, MATLAB, and others in both performance and expressiveness. Currently, we use standard Fortran as our intermediate representation, which allows immediate use with existing Fortran compilers.
 
 ## IMMEDIATE TASKS ⚡
+
+### Standard Fortran Compatibility Tests 🔄
+Since *postmodern fortran* is a superset of standard Fortran, we need comprehensive tests to ensure any valid Fortran 95/2003/2008/2018 program passes through unchanged:
+
+- [ ] **Create test/standard_fortran/** directory for compatibility tests
+- [ ] **Fortran 95 Core Features**:
+  - [ ] Program/module/subroutine/function structures
+  - [ ] All intrinsic types and declarations
+  - [ ] Arrays (static, dynamic, assumed-shape)
+  - [ ] Control structures (if/then/else, do loops, select case)
+  - [ ] Operators and expressions
+  - [ ] Intrinsic functions
+  - [ ] Format statements and I/O
+  - [ ] Common blocks (legacy but required)
+  - [ ] Data statements
+  - [ ] Equivalence statements
+  - [ ] Parameter statements
+- [ ] **Fortran 2003 Features**:
+  - [ ] Object-oriented programming constructs
+  - [ ] Type-bound procedures
+  - [ ] Abstract interfaces
+  - [ ] Parameterized derived types
+  - [ ] Allocatable components
+- [ ] **Fortran 2008/2018 Features**:
+  - [ ] Coarrays
+  - [ ] Submodules
+  - [ ] DO CONCURRENT
+  - [ ] ERROR STOP
+- [ ] **Test Infrastructure**:
+  - [ ] Compare frontend output byte-for-byte with input for standard files
+  - [ ] Test suite from Fortran standards committee examples
+  - [ ] Real-world Fortran libraries (BLAS, LAPACK snippets)
+  - [ ] Ensure no modifications to standard constructs
 
 ### ✅ COMPLETED: Test Cleanup and Deduplication
 - [x] **COMPLETED**: Read through ALL test files in each category before deciding to delete
@@ -117,19 +154,96 @@ This document tracks the implementation plan for the AST-based architecture.
 - [x] ✅ Codegen debug: `fortran example.f --debug-codegen` → example_codegen.json
 - [x] ✅ Combined: All three flags can be used together
 
-## Phase 9: Advanced AST Features 📋
+## ✅ COMPLETED: Phase 9 - Architecture Fixed with Hindley-Milner Type System! 🎉
+
+### ✅ Successfully Implemented Clean 4-Phase Pipeline:
+1. **Lexer** → Tokens ✅
+2. **Parser** → AST (NO type inference!) ✅
+3. **Semantic Analysis** → Type inference with Hindley-Milner ✅
+4. **Code Generation** → Generate code using inferred types ✅
+
+### ✅ Completed Architecture Components:
+
+#### ✅ Type System Foundation
+- [x] **Created `src/core/type_system.f90`** with full Hindley-Milner types:
+  - [x] `type_var_t` - Type variables with automatic naming ('a, 'b, etc.)
+  - [x] `mono_type_t` - Monomorphic types (int, real, char(n), array, function)
+  - [x] `poly_type_t` - Type schemes with quantified variables
+  - [x] `type_env_t` - Type environment with lookup/extend/generalize
+  - [x] `substitution_t` - Type substitutions with composition
+
+#### ✅ Semantic Analyzer Implementation  
+- [x] **Created `src/core/semantic_analyzer.f90`** with Algorithm W:
+  - [x] `infer()` - Complete type inference for all AST nodes
+  - [x] `unify()` - Sound unification with occurs check
+  - [x] `instantiate()` - Correct instantiation of type schemes
+  - [x] `generalize()` - Proper generalization with free variable analysis
+  - [x] `fresh_type_var()` - Unique type variable generation
+
+#### ✅ AST Integration
+- [x] **Updated `src/core/ast_core.f90`**:
+  - [x] Added `type(mono_type_t), allocatable :: inferred_type` to base ast_node
+  - [x] All node types now carry type information after semantic analysis
+  
+#### ✅ Clean Preprocessor
+- [x] **Cleaned up `src/parser/preprocessor.f90`**:
+  - [x] Removed `track_variable_type()` subroutine completely
+  - [x] Removed all var_names, var_types, var_count tracking
+  - [x] Parser now focuses purely on syntax, not types
+
+#### ✅ New 4-Phase Pipeline
+- [x] **Created `src/parser/preprocessor_new.f90`** with proper pipeline:
+  - [x] Phase 1: Complete tokenization of entire file
+  - [x] Phase 2: Parse all tokens into complete AST
+  - [x] Phase 3: Run semantic analysis on entire AST
+  - [x] Phase 4: Generate code with type-directed declarations
+
+### Next Steps:
+- [ ] Replace old preprocessor with new 4-phase implementation
+- [ ] Add comprehensive tests for type inference
+- [ ] Handle more complex language features
+
+## ✅ COMPLETED: Phase 10 - Frontend Architecture Reorganization
+
+### ✅ Successfully Reorganized as Compiler Frontend:
+1. **Created dedicated frontend directory structure** ✅:
+   ```
+   src/frontend/
+   ├── semantic/
+   │   ├── type_system_hm.f90    # Hindley-Milner types
+   │   └── semantic_analyzer.f90  # Type inference  
+   ├── ast_typed.f90              # AST with type info
+   ├── frontend.f90               # Main frontend interface
+   └── frontend_integration.f90   # Integration layer
+   ```
+
+2. **Renamed modules to avoid conflicts** ✅:
+   - Created `type_system_hm` for Hindley-Milner types
+   - Created `semantic_analyzer` in frontend/
+   - Kept existing `type_system` for backward compatibility
+
+3. **Created unified frontend interface** ✅:
+   - Single entry point for all compilation phases
+   - Backend selection (currently Fortran as IR)
+   - Clean API integrated with existing tools
+
+4. **Updated all references** ✅:
+   - Changed "preprocessor" → "frontend" throughout codebase
+   - Updated documentation (README.md, CLAUDE.md, doc/index.md)
+   - Integrated with main runner and notebook executor
+
+### Phase 9: Advanced AST Features 📋
 
 ### Core AST Working Examples ✅
 - [x] ✅ Simple assignments work perfectly (`x = 42`, `y = 3.14`)
 - [x] ✅ Basic programs work (`hello.f` example)
 - [x] ✅ Type inference and print statements work
 - [x] ✅ Clean examples without comments work flawlessly
+- [x] ✅ Enhanced comment handling for production examples with inline comments
+- [x] ✅ Improved string type inference for character variables
+- [x] ✅ Function call parsing in expressions
 
 ### Integration Tasks
-- [ ] Enhanced comment handling for production examples with inline comments
-- [ ] Improve string type inference for character variables
-- [ ] Function call parsing in expressions (currently uses selective fallback)
-- [ ] Performance optimization vs legacy preprocessor
 - [x] ✅ **COMPLETED**: AST preprocessor is now the default (legacy available as `preprocess_file_legacy()`)
 
 ### Documentation and Polish
@@ -137,7 +251,6 @@ This document tracks the implementation plan for the AST-based architecture.
 - [x] ✅ **COMPLETED**: Updated TODO.md to reflect Phase 8 completion
 - [ ] Update README and documentation to reflect AST-based architecture
 - [ ] Create examples showcasing AST preprocessor capabilities
-- [ ] Performance benchmarking against legacy implementation
 
 ## ✅ Completed: Serialization Tasks
 
@@ -150,11 +263,11 @@ This document tracks the implementation plan for the AST-based architecture.
 
 1. All existing tests pass with new implementation
 2. All examples work without modification
-3. Performance is equal or better than current preprocessor
-4. Code is more maintainable and extensible
-5. Architecture supports future features
-6. All intermediate stages are inspectable via JSON serialization
-7. **Implementation follows strict TDD (red-green-refactor) cycle**
+3. Code is more maintainable and extensible
+4. Architecture supports future features
+5. All intermediate stages are inspectable via JSON serialization
+6. **Implementation follows strict TDD (red-green-refactor) cycle**
+7. **Clean 4-phase separation with Hindley-Milner type inference**
 
 ## Important Notes
 
