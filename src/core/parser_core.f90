@@ -227,7 +227,12 @@ contains
                 value = parse_expression(parser%tokens(parser%current_token:))
                 
                 ! Create assignment
-                stmt = create_assignment(target, value, id_token%line, id_token%column)
+                block
+                    type(assignment_node), allocatable :: assign_node
+                    allocate(assign_node)
+                    assign_node = create_assignment(target, value, id_token%line, id_token%column)
+                    allocate(stmt, source=assign_node)
+                end block
             else
                 ! Not an assignment, treat as expression statement
                 stmt = create_identifier(id_token%text, id_token%line, id_token%column)
