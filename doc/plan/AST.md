@@ -18,32 +18,43 @@ This document outlines the architecture for a modern compiler frontend for *lazy
 
 ## Architecture: Shared Core with Standard Specialization
 
-### Module Organization (CORRECT CURRENT STRUCTURE)
+### Module Organization (FINAL CLEAN STRUCTURE)
 
 ```
 src/
-├── core/                        # Fundamental building blocks ✅
-│   ├── lexer_core.f90          # Core tokenization primitives
-│   ├── parser_core.f90         # Core parsing primitives  
+├── frontend/                    # Complete compilation pipeline ✅
+│   ├── lexer/
+│   │   └── lexer_core.f90      # Core tokenization  
+│   ├── parser/
+│   │   └── parser_core.f90     # Core parsing
+│   ├── semantic/               # Semantic analysis
+│   │   ├── semantic_analyzer.f90
+│   │   ├── semantic_analyzer_simple.f90  
+│   │   └── type_system_hm.f90  # Hindley-Milner type system
+│   ├── codegen/
+│   │   └── codegen_core.f90    # Core code generation
+│   ├── standard/               # Standard implementations
+│   │   ├── lazy_fortran/
+│   │   │   └── ast_lf.f90      # Lazy fortran AST extensions
+│   │   ├── fortran90/          # Fortran 90 implementations
+│   │   └── fortran2018/        # Fortran 2018 implementations
 │   ├── ast_core.f90            # Core AST node definitions
-│   └── codegen_core.f90        # Core code generation primitives
-├── frontend/                    # High-level coordination ✅
-│   ├── semantic/               # Semantic analysis coordination
-│   │   ├── semantic_analyzer.f90      # Main semantic analyzer
-│   │   ├── semantic_analyzer_simple.f90 # Simplified version
-│   │   └── type_system_hm.f90         # Hindley-Milner type system
-│   ├── lexer/                  # Lexer coordination (empty)
-│   ├── parser/                 # Parser coordination (empty)  
-│   ├── codegen/                # Codegen coordination (empty)
-│   ├── frontend.f90            # ❌ VIOLATES ARCHITECTURE (reimplements core)
+│   ├── frontend.f90            # ❌ VIOLATES ARCHITECTURE (reimplements components)
 │   └── frontend_integration.f90 # Integration layer
-├── standards/                   # Standard-specific extensions ✅
-│   ├── lazy_fortran/           # Lazy fortran extensions
-│   │   └── ast_lf.f90          # Lazy fortran AST nodes
-│   ├── fortran90/              # Fortran 90 extensions (empty)
-│   └── fortran2018/            # Fortran 2018 extensions (empty)
 └── [utility modules]           # Support utilities ✅
     ├── cli/, cache/, config/, runner/, notebook/, registry/, etc.
+```
+
+**Test Structure (matches src/):**
+```
+test/
+├── frontend/                    # Frontend tests with wildcard naming
+│   ├── lexer/test_frontend_lexer_*.f90
+│   ├── parser/test_frontend_parser_*.f90
+│   ├── semantic/test_frontend_semantic_*.f90
+│   ├── codegen/test_frontend_codegen_*.f90
+│   └── standard/lazy_fortran/   # Standard-specific tests
+└── [utility tests]/            # cli/, cache/, config/, etc.
 ```
 
 ### Compilation Pipeline (SHOULD BE)
@@ -63,7 +74,7 @@ Source (.f/.f90) → Frontend Coordinator → Core Pipeline → Standard Extensi
 2. Call `parser_core.f90` for AST construction  
 3. Call `semantic_analyzer.f90` for type inference
 4. Call `codegen_core.f90` for output generation
-5. Use `standards/lazy_fortran/` for extensions
+5. Use `standard/lazy_fortran/` for extensions
 
 ### Phase 1: Lexer (Tokenizer)
 
