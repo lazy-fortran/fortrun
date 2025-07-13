@@ -13,40 +13,34 @@
       "column": 5
     },
     {
-      "type": "eof",
-      "text": "",
-      "line": 1,
-      "column": 1025
-    },
-    {
       "type": "keyword",
       "text": "print",
-      "line": 1,
+      "line": 2,
       "column": 1
     },
     {
       "type": "operator",
       "text": "*",
-      "line": 1,
+      "line": 2,
       "column": 7
     },
     {
       "type": "operator",
       "text": ",",
-      "line": 1,
+      "line": 2,
       "column": 8
     },
     {
       "type": "string",
       "text": "\"Hello from Fortran\"",
-      "line": 1,
+      "line": 2,
       "column": 10
     },
     {
       "type": "eof",
       "text": "",
-      "line": 1,
-      "column": 1025
+      "line": 3,
+      "column": 1
     }
   ]
 }

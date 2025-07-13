@@ -36,9 +36,9 @@ contains
         write(*, '(a,a)') 'Test: ', case_name
         test_count = test_count + 1
         
-        ! Set file paths
-        input_file = "example/test/" // trim(case_name) // "/" // trim(case_name) // ".f"
-        expected_file = "example/test/" // trim(case_name) // "/" // trim(case_name) // ".f90"
+        ! Set file paths (updated for reorganized structure)
+        input_file = "example/frontend_test_cases/" // trim(case_name) // "/" // trim(case_name) // ".f"
+        expected_file = "example/frontend_test_cases/" // trim(case_name) // "/" // trim(case_name) // ".f90"
         output_file = "/tmp/" // trim(case_name) // "_out.f90"
         
         ! Read expected output
