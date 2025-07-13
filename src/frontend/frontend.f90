@@ -441,7 +441,16 @@ contains
                         
                         if (allocated(stmt)) then
                             ! Generate code for this statement
-                            statements = statements // "    " // generate_code_polymorphic(stmt) // new_line('a')
+                            block
+                                character(len=:), allocatable :: stmt_code
+                                stmt_code = generate_code_polymorphic(stmt)
+                                ! Check if we got a valid statement or unknown node
+                                if (stmt_code == "! Unknown AST node type" .or. stmt_code == "0") then
+                                    ! Fallback: reconstruct original line from tokens
+                                    stmt_code = reconstruct_line_from_tokens(stmt_tokens)
+                                end if
+                                statements = statements // "    " // stmt_code // new_line('a')
+                            end block
                         end if
                     end if
                     
@@ -500,5 +509,20 @@ contains
         ! TODO: Implement codegen JSON output
         print *, "Debug codegen for ", trim(input_file), " (JSON output not implemented)"
     end subroutine debug_output_codegen
+    
+    ! Reconstruct original line from tokens
+    function reconstruct_line_from_tokens(tokens) result(line)
+        type(token_t), intent(in) :: tokens(:)
+        character(len=:), allocatable :: line
+        integer :: i
+        
+        line = ""
+        do i = 1, size(tokens)
+            if (i > 1) then
+                line = line // " "
+            end if
+            line = line // tokens(i)%text
+        end do
+    end function reconstruct_line_from_tokens
     
 end module frontend

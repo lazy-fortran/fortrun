@@ -1,0 +1,118 @@
+{
+  "tokens": [
+    {
+      "type": "keyword",
+      "text": "print",
+      "line": 1,
+      "column": 1
+    },
+    {
+      "type": "operator",
+      "text": "*",
+      "line": 1,
+      "column": 7
+    },
+    {
+      "type": "operator",
+      "text": ",",
+      "line": 1,
+      "column": 8
+    },
+    {
+      "type": "string",
+      "text": "\"Hello, World!\"",
+      "line": 1,
+      "column": 10
+    },
+    {
+      "type": "eof",
+      "text": "",
+      "line": 1,
+      "column": 1025
+    },
+    {
+      "type": "keyword",
+      "text": "print",
+      "line": 1,
+      "column": 1
+    },
+    {
+      "type": "operator",
+      "text": "*",
+      "line": 1,
+      "column": 7
+    },
+    {
+      "type": "operator",
+      "text": ",",
+      "line": 1,
+      "column": 8
+    },
+    {
+      "type": "string",
+      "text": "\"The answer is\"",
+      "line": 1,
+      "column": 10
+    },
+    {
+      "type": "operator",
+      "text": ",",
+      "line": 1,
+      "column": 25
+    },
+    {
+      "type": "number",
+      "text": "42",
+      "line": 1,
+      "column": 27
+    },
+    {
+      "type": "eof",
+      "text": "",
+      "line": 1,
+      "column": 1025
+    },
+    {
+      "type": "keyword",
+      "text": "print",
+      "line": 1,
+      "column": 1
+    },
+    {
+      "type": "operator",
+      "text": "*",
+      "line": 1,
+      "column": 7
+    },
+    {
+      "type": "operator",
+      "text": ",",
+      "line": 1,
+      "column": 8
+    },
+    {
+      "type": "number",
+      "text": "2.5",
+      "line": 1,
+      "column": 10
+    },
+    {
+      "type": "operator",
+      "text": "+",
+      "line": 1,
+      "column": 14
+    },
+    {
+      "type": "number",
+      "text": "3.5",
+      "line": 1,
+      "column": 16
+    },
+    {
+      "type": "eof",
+      "text": "",
+      "line": 1,
+      "column": 1025
+    }
+  ]
+}

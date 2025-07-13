@@ -1,0 +1,136 @@
+{
+  "tokens": [
+    {
+      "type": "identifier",
+      "text": "x",
+      "line": 1,
+      "column": 1
+    },
+    {
+      "type": "operator",
+      "text": "=",
+      "line": 1,
+      "column": 3
+    },
+    {
+      "type": "number",
+      "text": "42",
+      "line": 1,
+      "column": 5
+    },
+    {
+      "type": "eof",
+      "text": "",
+      "line": 1,
+      "column": 1025
+    },
+    {
+      "type": "identifier",
+      "text": "y",
+      "line": 1,
+      "column": 1
+    },
+    {
+      "type": "operator",
+      "text": "=",
+      "line": 1,
+      "column": 3
+    },
+    {
+      "type": "number",
+      "text": "3.14",
+      "line": 1,
+      "column": 5
+    },
+    {
+      "type": "eof",
+      "text": "",
+      "line": 1,
+      "column": 1025
+    },
+    {
+      "type": "keyword",
+      "text": "print",
+      "line": 1,
+      "column": 1
+    },
+    {
+      "type": "operator",
+      "text": "*",
+      "line": 1,
+      "column": 7
+    },
+    {
+      "type": "operator",
+      "text": ",",
+      "line": 1,
+      "column": 8
+    },
+    {
+      "type": "string",
+      "text": "\"x =\"",
+      "line": 1,
+      "column": 10
+    },
+    {
+      "type": "operator",
+      "text": ",",
+      "line": 1,
+      "column": 15
+    },
+    {
+      "type": "identifier",
+      "text": "x",
+      "line": 1,
+      "column": 17
+    },
+    {
+      "type": "eof",
+      "text": "",
+      "line": 1,
+      "column": 1025
+    },
+    {
+      "type": "keyword",
+      "text": "print",
+      "line": 1,
+      "column": 1
+    },
+    {
+      "type": "operator",
+      "text": "*",
+      "line": 1,
+      "column": 7
+    },
+    {
+      "type": "operator",
+      "text": ",",
+      "line": 1,
+      "column": 8
+    },
+    {
+      "type": "string",
+      "text": "\"y =\"",
+      "line": 1,
+      "column": 10
+    },
+    {
+      "type": "operator",
+      "text": ",",
+      "line": 1,
+      "column": 15
+    },
+    {
+      "type": "identifier",
+      "text": "y",
+      "line": 1,
+      "column": 17
+    },
+    {
+      "type": "eof",
+      "text": "",
+      "line": 1,
+      "column": 1025
+    }
+  ]
+}

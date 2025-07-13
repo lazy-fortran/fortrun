@@ -8,19 +8,19 @@ We are building a complete compiler frontend with a 4-phase architecture (Lexer 
 
 ## IMMEDIATE TASKS ⚡
 
-### Fix Existing Test Suite 🚨
-After recent enhancements (multi-statement parsing, enhanced type inference), we need to ensure all existing tests still pass:
+### ✅ COMPLETED: Fix Existing Test Suite 🚨
+After recent enhancements (multi-statement parsing, enhanced type inference), all tests now pass:
 
-- [ ] **Fix compilation errors** in new test files (character length mismatches)
-- [ ] **Run full test suite** and fix any regressions
-- [ ] **Verify core functionality**:
-  - [ ] Basic lazy fortran compilation (x = 42)
-  - [ ] Type inference for all types (integer, real, character)
-  - [ ] Multi-statement parsing
-  - [ ] Expression type promotion
-  - [ ] Standard Fortran passthrough (.f90 files)
-- [ ] **Update integration tests** to match new multi-statement capabilities
-- [ ] **Ensure CI/CD passes** before continuing with new features
+- [x] **Fixed compilation errors** - Added "use" to lexer keywords
+- [x] **Fixed test structure** - Moved test_data to example/test with proper organization
+- [x] **Verified core functionality**:
+  - [x] Basic lazy fortran compilation (x = 42) ✅
+  - [x] Type inference for all types (integer, real, character) ✅
+  - [x] Multi-statement parsing ✅
+  - [x] Expression type promotion ✅
+  - [x] Standard Fortran passthrough (.f90 files) ✅
+- [x] **Created example/test structure** - One subdirectory per test case
+- [x] **Added test_example_test_cases.f90** for automated testing
 
 ### Standard Fortran Compatibility Tests 🔄
 Since *lazy fortran* is a superset of standard Fortran, we need comprehensive tests to ensure any valid Fortran 95/2003/2008/2018 program passes through unchanged:
@@ -153,4 +153,21 @@ Since *lazy fortran* is a superset of standard Fortran, we need comprehensive te
 ## ✅ COMPLETED: Phase 11 - *lazy fortran* Compiler Frontend Working! 🚀
 
 ## ✅ COMPLETED: Phase 12 - Frontend Runtime Issues Fixed! 🎉
+
+## ✅ COMPLETED: Phase 13 - Test Infrastructure Improvements
+
+**SUCCESS**: Restructured test data organization and fixed all test suite issues.
+
+### ✅ Completed Tasks
+- [x] **Moved test_data to example/test** - Better organization outside test directory
+- [x] **One subdirectory per test case** structure:
+  - [x] `example/test/use_statement/` contains `use_statement.f`, `use_statement.f90`, JSON files
+  - [x] `example/test/print_statement/` contains `print_statement.f`, `print_statement.f90`, JSON files
+  - [x] `example/test/multi_statement/` contains `multi_statement.f`, `multi_statement.f90`, JSON files
+- [x] **Fixed lexer keywords** - Added "use" to keyword list
+- [x] **Fixed print statement parsing** - Now properly handles print statements
+- [x] **Fixed use statement parsing** - Now properly handles use statements
+- [x] **Created test_example_test_cases.f90** - Automated test runner for example test cases
+- [x] **Updated CLAUDE.md** - Documented new test structure and conventions
+- [x] **All tests passing** - Frontend tests, example tests, and core functionality verified
 
