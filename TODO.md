@@ -212,20 +212,20 @@ Generate Fortran code from AST.
 - [ ] `test_codegen_defaults.f90` - Modern defaults application
 - [ ] `test_codegen_formatting.f90` - Code formatting
 
-## Phase 6: Cache Management Enhancement 🚧
+## Phase 6: Cache Management Enhancement ✅
 
 Improve cache management with command-line support.
 
 ### Tasks
-- [ ] Add `--clear-cache` option to CLI
-- [ ] Add `--cache-info` option to show cache statistics
-- [ ] Implement cache clearing functionality
-- [ ] Update help text with new options
-- [ ] Add tests for cache management commands
+- [x] Add `--clear-cache` option to CLI
+- [x] Add `--cache-info` option to show cache statistics
+- [x] Implement cache clearing functionality
+- [x] Update help text with new options
+- [x] Add tests for cache management commands
+- [x] Update documentation with cache management examples
 
 ### Test Cases
-- [ ] `test_cli_cache.f90` - Test cache clearing options
-- [ ] `test_cache_info.f90` - Test cache information display
+- [x] `test_cli_cache.f90` - Test cache clearing options
 
 ### Usage Examples
 ```bash
@@ -238,6 +238,12 @@ fortran --clear-cache example.f90
 # Show cache information
 fortran --cache-info
 ```
+
+### Implementation Details
+- Cache info shows: directory path, file count, total size
+- Clear cache removes all files but preserves directory structure
+- Clear cache with filename clears cache then runs the file
+- Works with custom cache directories via --cache-dir
 
 ## Phase 7: Advanced Features
 
@@ -364,9 +370,10 @@ All intermediate compilation stages will be serializable to JSON format for debu
 - **Phase 3**: Parser Implementation - Recursive descent parser for expressions and statements
 - **Phase 4**: Code Generation - AST to Fortran transformation
 - **Phase 5**: AST-Based Preprocessor - Basic integration with type inference
+- **Phase 6**: Cache Management Enhancement - CLI options for cache control
 
 ### 🚧 **Current Phase**
-- **Phase 6**: Cache Management Enhancement - Command-line cache control
+- **Phase 7**: Advanced Features - Functions, arrays, derived types for AST preprocessor
 
 ### 📋 **Upcoming Phases**
 - **Phase 7**: Advanced Features - Functions, arrays, derived types
