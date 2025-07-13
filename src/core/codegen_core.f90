@@ -67,6 +67,8 @@ contains
             value_code = generate_code_identifier(value)
         type is (binary_op_node)
             value_code = generate_code_binary_op(value)
+        type is (function_call_node)
+            value_code = generate_code_function_call(value)
         class default
             value_code = "???"
         end select
@@ -89,6 +91,8 @@ contains
             left_code = generate_code_identifier(left)
         type is (binary_op_node)
             left_code = generate_code_binary_op(left)
+        type is (function_call_node)
+            left_code = generate_code_function_call(left)
         class default
             left_code = "???"
         end select
@@ -100,6 +104,8 @@ contains
             right_code = generate_code_identifier(right)
         type is (binary_op_node)
             right_code = generate_code_binary_op(right)
+        type is (function_call_node)
+            right_code = generate_code_function_call(right)
         class default
             right_code = "???"
         end select
@@ -147,11 +153,35 @@ contains
     end function generate_code_subroutine_def
 
     ! Generate code for function call
-    function generate_code_function_call(node) result(code)
+    recursive function generate_code_function_call(node) result(code)
         type(function_call_node), intent(in) :: node
         character(len=:), allocatable :: code
+        character(len=:), allocatable :: args_code
+        integer :: i
         
-        code = node%name // "()"
+        code = node%name // "("
+        
+        ! Generate arguments
+        if (allocated(node%args)) then
+            do i = 1, size(node%args)
+                if (i > 1) code = code // ", "
+                
+                select type (arg => node%args(i))
+                type is (literal_node)
+                    code = code // generate_code_literal(arg)
+                type is (identifier_node)
+                    code = code // generate_code_identifier(arg)
+                type is (binary_op_node)
+                    code = code // generate_code_binary_op(arg)
+                type is (function_call_node)
+                    code = code // generate_code_function_call(arg)
+                class default
+                    code = code // "?"
+                end select
+            end do
+        end if
+        
+        code = code // ")"
     end function generate_code_function_call
 
     ! Generate code for use statement
