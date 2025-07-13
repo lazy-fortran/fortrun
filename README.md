@@ -28,9 +28,9 @@ fortran --clear-cache example.f90   # Clear cache and run
 fortran --cache-info                # Show cache statistics
 ```
 
-## Simplified .f Syntax Showcase
+## *lazy fortran* Showcase
 
-Write Fortran code with **zero boilerplate** - just the logic you need:
+Write fortran code with **zero boilerplate** - just the logic you need:
 
 ```fortran
 ! calculate.f - No program/end program needed!
@@ -67,8 +67,8 @@ end function distance
 - Smart caching with 2-4x performance improvements
 
 🎯 **Two Execution Modes**  
-- **Standard Fortran** (`.f90` files): Modern Fortran with no opinionated changes
-- **Simple Fortran** (`.f` files): Compiler frontend with automatic type inference, no boilerplate, `real(8)` defaults
+- **Standard fortran** (`.f90` files): Modern fortran with no opinionated changes
+- ***lazy fortran*** (`.f` files): Compiler frontend with automatic type inference, no boilerplate, `real(8)` defaults
 - **Notebook Mode**: Interactive analysis with figure capture (`.f` files only)
 
 📦 **Smart Dependencies**

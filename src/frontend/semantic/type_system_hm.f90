@@ -110,7 +110,11 @@ contains
         if (present(args)) then
             allocate(mt%args(size(args)))
             do i = 1, size(args)
-                allocate(mt%args(i), source=args(i)%deep_copy())
+                block
+                    type(mono_type_t), allocatable :: temp_copy
+                    allocate(temp_copy, source=args(i)%deep_copy())
+                    call move_alloc(temp_copy, mt%args(i))
+                end block
             end do
         end if
         
