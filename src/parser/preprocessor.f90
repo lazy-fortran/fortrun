@@ -54,7 +54,17 @@ contains
         end if
     end subroutine preprocess_file_debug
 
+    ! NEW: Main preprocessor now uses AST-based implementation by default
     subroutine preprocess_file(input_file, output_file, error_msg)
+        character(len=*), intent(in) :: input_file
+        character(len=*), intent(in) :: output_file
+        character(len=*), intent(out) :: error_msg
+        
+        ! Use AST-based preprocessor as default
+        call preprocess_file_ast_based(input_file, output_file, error_msg)
+    end subroutine preprocess_file
+
+    subroutine preprocess_file_legacy(input_file, output_file, error_msg)
         character(len=*), intent(in) :: input_file
         character(len=*), intent(in) :: output_file
         character(len=*), intent(out) :: error_msg
@@ -333,7 +343,7 @@ contains
         close(unit_in)
         close(unit_out)
         return
-    end subroutine preprocess_file
+    end subroutine preprocess_file_legacy
     
     ! Process a single line and generate code
     function process_statement_ast_or_fallback(tokens) result(code)
@@ -656,6 +666,8 @@ contains
                 
                 ! Track variable for type inference
                 call track_variable_type(tokens(1)%text, tokens(3:), var_names, var_types, var_count)
+                
+            ! No special handling needed for print statements in first pass
             end if
         end do
         
@@ -708,6 +720,22 @@ contains
                     write(unit, '(A,A)') "    ", trim(line)
                 end select
                 
+            else if (size(tokens) >= 2 .and. tokens(1)%kind == TK_KEYWORD .and. &
+                tokens(1)%text == "print") then
+                
+                ! Parse print statement using simple AST parsing
+                call parse_print_statement_simple(tokens, stmt_ast)
+                
+                ! Generate code from AST
+                select type(stmt_ast)
+                type is (print_statement_node)
+                    generated_code = generate_code(stmt_ast)
+                    write(unit, '(A,A)') "    ", trim(generated_code)
+                class default
+                    ! Fallback to line reconstruction
+                    write(unit, '(A,A)') "    ", trim(line)
+                end select
+                
             else
                 ! Fallback to line reconstruction for unsupported features
                 write(unit, '(A,A)') "    ", trim(line)
@@ -754,6 +782,28 @@ contains
                 end if
             end if
         end subroutine track_variable_type
+        
+        subroutine parse_print_statement_simple(tokens, stmt_ast)
+            type(token_t), intent(in) :: tokens(:)
+            class(ast_node), allocatable, intent(out) :: stmt_ast
+            character(len=:), allocatable :: format_spec
+            
+            ! Simple print statement parsing 
+            ! For now, just create a basic print node without parsing arguments
+            
+            if (size(tokens) >= 3 .and. tokens(2)%text == "*") then
+                ! print *, args...
+                format_spec = "*"
+            else
+                ! print format, args or just print
+                format_spec = ""
+            end if
+            
+            ! For now, fallback to line reconstruction since we need argument parsing
+            ! This is a placeholder for proper AST implementation
+            ! In practice, this will trigger the fallback case
+            allocate(stmt_ast, source=create_identifier("print_placeholder", 1, 1))
+        end subroutine parse_print_statement_simple
         
     end subroutine preprocess_file_ast_based
 
