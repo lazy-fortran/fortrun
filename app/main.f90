@@ -91,7 +91,7 @@ contains
     print '(a)', '  --flag FLAGS      Pass custom flags to FPM compiler'
     print '(a)', '                    (.f90: user flags only, .f: opinionated + user flags)'
     print '(a)', '  --no-wait         Fail immediately if cache is locked'
-    print '(a)', '  --preprocess      Preprocess .f file and output .f90 to STDOUT'
+    print '(a)', '  --preprocess      Output file content to STDOUT (.f files are preprocessed)'
     print '(a)', ''
     print '(a)', 'Cache Management:'
     print '(a)', '  --clear-cache     Clear all cached files'
@@ -110,21 +110,30 @@ contains
     character(len=256) :: temp_output, error_msg
     character(len=1024) :: line
     integer :: unit, ios
+    logical :: is_lazy_fortran
     
-    ! Check if input is a .f file
-    if (.not. is_simple_fortran_file(input_file)) then
-      write(*, '(a)') 'Error: --preprocess can only be used with .f files'
-      stop 1
-    end if
+    ! Check if input is a .f file (lazy fortran)
+    is_lazy_fortran = is_simple_fortran_file(input_file)
     
     ! Create temporary output file
     temp_output = trim(input_file) // '.tmp.f90'
     
-    ! Compile with frontend to Fortran IR
-    if (debug_tokens .or. debug_ast .or. debug_codegen) then
-      call compile_with_frontend_debug(input_file, temp_output, error_msg, debug_tokens, debug_ast, debug_codegen)
+    ! Process based on file type
+    if (is_lazy_fortran) then
+      ! Compile with frontend to Fortran IR
+      if (debug_tokens .or. debug_ast .or. debug_codegen) then
+        call compile_with_frontend_debug(input_file, temp_output, error_msg, debug_tokens, debug_ast, debug_codegen)
+      else
+        call compile_with_frontend(input_file, temp_output, error_msg)
+      end if
     else
-      call compile_with_frontend(input_file, temp_output, error_msg)
+      ! For standard Fortran files, just copy them as-is
+      call execute_command_line('cp ' // trim(input_file) // ' ' // trim(temp_output), exitstat=ios)
+      if (ios /= 0) then
+        error_msg = 'Failed to copy file'
+      else
+        error_msg = ''
+      end if
     end if
     
     if (len_trim(error_msg) > 0) then

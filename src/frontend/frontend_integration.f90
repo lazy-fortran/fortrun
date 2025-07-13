@@ -62,7 +62,7 @@ contains
         
         ext_pos = index(filename, '.', back=.true.)
         if (ext_pos > 0) then
-            is_sf = filename(ext_pos:) == '.f'
+            is_sf = filename(ext_pos:) == '.f' .or. filename(ext_pos:) == '.F'
         else
             is_sf = .false.
         end if

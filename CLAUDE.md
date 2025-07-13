@@ -35,8 +35,8 @@ Standard FPM directory structure:
     - `lazy_fortran/` - Our *lazy fortran* dialect
 - `app/` - Executable programs
 - `test/` - Test programs with comprehensive coverage
-  - `test_data/` - Test input files
 - `example/` - Example programs
+  - `test/` - Test input files and expected outputs
 
 ### Key Patterns
 - **Explicit Typing**: `implicit none` everywhere
@@ -116,7 +116,13 @@ prefix = "fortplot"  # Modules starting with "fortplot"
 - **Clear cache before testing frontend**: `rm -rf ~/.cache/fortran/*`
 - **Compiler frontend is used** for .f files (*lazy fortran* with type inference)
 - Debug apps go in `app/`, then move to `test/` when ready
-- Test data goes in `test/test_data/`
+- Test data goes in `example/test/`
+- **IMPORTANT: When debugging parser/frontend issues, ALWAYS create test cases in example/test/ with:**
+  - One subdirectory per test case (e.g., `example/test/use_statement/`)
+  - Input file: `<case_name>.f` (e.g., `use_statement.f`)
+  - Expected output: `<case_name>.f90` (e.g., `use_statement.f90`)
+  - Intermediate representations: `<case_name>_tokens.json`, `<case_name>_ast.json`
+  - Add these to automated test coverage immediately via `test_example_test_cases.f90`
 - Polymorphic arrays: use `allocate(array, source=input)`
 - Avoid polymorphic assignment with allocatable components
 - Reference: Fortran 95 standard at https://wg5-fortran.org/N1151-N1200/N1191.pdf
