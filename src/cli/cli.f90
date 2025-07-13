@@ -8,7 +8,7 @@ contains
   subroutine parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                              custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
                              notebook_output, preprocess_only, custom_flags, &
-                             clear_cache, cache_info)
+                             clear_cache, cache_info, debug_tokens, debug_ast, debug_codegen)
     character(len=*), intent(out) :: filename
     logical, intent(out) :: show_help
     integer, intent(out) :: verbose_level
@@ -22,6 +22,9 @@ contains
     character(len=*), intent(out), optional :: custom_flags
     logical, intent(out) :: clear_cache
     logical, intent(out) :: cache_info
+    logical, intent(out) :: debug_tokens
+    logical, intent(out) :: debug_ast
+    logical, intent(out) :: debug_codegen
     
     integer :: nargs, i, iostat
     character(len=256) :: arg
@@ -39,6 +42,9 @@ contains
     preprocess_only = .false.
     clear_cache = .false.
     cache_info = .false.
+    debug_tokens = .false.
+    debug_ast = .false.
+    debug_codegen = .false.
     if (present(custom_flags)) then
       custom_flags = ''
     end if
@@ -122,6 +128,12 @@ contains
         clear_cache = .true.
       else if (arg == '--cache-info') then
         cache_info = .true.
+      else if (arg == '--debug-tokens') then
+        debug_tokens = .true.
+      else if (arg == '--debug-ast') then
+        debug_ast = .true.
+      else if (arg == '--debug-codegen') then
+        debug_codegen = .true.
       else if (arg == '-o' .or. arg == '--output') then
         expecting_output = .true.
       else if (arg == '--flag') then

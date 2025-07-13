@@ -4,7 +4,7 @@ module notebook_executor
     use figure_capture
     use cache, only: get_cache_dir, get_content_hash, cache_exists
     use cache_lock, only: acquire_lock, release_lock
-    use preprocessor_ast, only: preprocess_file_ast, is_preprocessor_file
+    use preprocessor, only: preprocess_file, is_preprocessor_file
     use, intrinsic :: iso_c_binding
     implicit none
     private

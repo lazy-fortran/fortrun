@@ -1,4 +1,4 @@
-module preprocessor_ast
+module preprocessor
     ! AST-based preprocessor for Simple Fortran (.f files)
     use lexer_core, only: token_t, tokenize_core, TK_IDENTIFIER, TK_OPERATOR, TK_NUMBER, TK_KEYWORD
     use parser_core, only: parse_expression, parse_statement, parser_state_t, create_parser_state  
@@ -8,7 +8,7 @@ module preprocessor_ast
     implicit none
     private
     
-    public :: preprocess_file_ast, is_preprocessor_file
+    public :: preprocess_file, is_preprocessor_file, preprocess_file_debug
     
     ! Internal types for tracking functions/subroutines
     type :: function_info
@@ -33,7 +33,28 @@ contains
         end if
     end function is_preprocessor_file
 
-    subroutine preprocess_file_ast(input_file, output_file, error_msg)
+    subroutine preprocess_file_debug(input_file, output_file, error_msg, debug_tokens, debug_ast, debug_codegen)
+        character(len=*), intent(in) :: input_file
+        character(len=*), intent(in) :: output_file
+        character(len=*), intent(out) :: error_msg
+        logical, intent(in) :: debug_tokens, debug_ast, debug_codegen
+        
+        ! TODO: Implement debug JSON output for each pipeline stage
+        ! For now, call the regular version
+        call preprocess_file(input_file, output_file, error_msg)
+        
+        if (debug_tokens) then
+            print *, "[DEBUG] Tokens JSON output would go here"
+        end if
+        if (debug_ast) then
+            print *, "[DEBUG] AST JSON output would go here"
+        end if
+        if (debug_codegen) then
+            print *, "[DEBUG] Codegen JSON output would go here"
+        end if
+    end subroutine preprocess_file_debug
+
+    subroutine preprocess_file(input_file, output_file, error_msg)
         character(len=*), intent(in) :: input_file
         character(len=*), intent(in) :: output_file
         character(len=*), intent(out) :: error_msg
@@ -312,7 +333,7 @@ contains
         close(unit_in)
         close(unit_out)
         return
-    end subroutine preprocess_file_ast
+    end subroutine preprocess_file
     
     ! Process a single line and generate code
     function process_statement_ast_or_fallback(tokens) result(code)
@@ -339,9 +360,10 @@ contains
         type(token_t), intent(in) :: tokens(:)
         character(len=:), allocatable :: code
         
-        ! TODO: Implement proper AST parsing for assignments
-        ! For now, return empty to trigger fallback
+        ! TODO: Complete AST pipeline implementation
+        ! For now, return empty to trigger fallback until interface issues are resolved
         code = ""
+        
     end function process_assignment_ast
 
     function process_line_simple(tokens) result(code)
@@ -563,4 +585,4 @@ contains
         end do
     end subroutine process_function
 
-end module preprocessor_ast
+end module preprocessor
