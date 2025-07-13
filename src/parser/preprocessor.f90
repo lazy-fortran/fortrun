@@ -8,7 +8,7 @@ module preprocessor
     implicit none
     private
     
-    public :: preprocess_file, is_preprocessor_file, preprocess_file_debug
+    public :: preprocess_file, is_preprocessor_file, preprocess_file_debug, preprocess_file_ast_based
     
     ! Internal types for tracking functions/subroutines
     type :: function_info
@@ -584,5 +584,177 @@ contains
             end if
         end do
     end subroutine process_function
+
+    ! NEW AST-based preprocessing function (selective implementation)
+    subroutine preprocess_file_ast_based(input_file, output_file, error_msg)
+        character(len=*), intent(in) :: input_file
+        character(len=*), intent(in) :: output_file
+        character(len=*), intent(out) :: error_msg
+        
+        character(len=:), allocatable :: source_code
+        character(len=1024), allocatable :: lines(:)
+        integer :: line_count, i, unit, ios
+        character(len=1024) :: line
+        type(token_t), allocatable :: tokens(:)
+        class(ast_node), allocatable :: stmt_ast
+        character(len=:), allocatable :: generated_code
+        character(len=256), allocatable :: var_names(:)
+        character(len=32), allocatable :: var_types(:)
+        integer :: var_count
+        character(len=256), allocatable :: use_statements(:)
+        integer :: use_count
+        
+        error_msg = ""
+        var_count = 0
+        use_count = 0
+        allocate(var_names(100), var_types(100), use_statements(50))
+        
+        ! Read all lines first
+        allocate(lines(500))
+        line_count = 0
+        
+        open(newunit=unit, file=input_file, status='old', action='read', iostat=ios)
+        if (ios /= 0) then
+            error_msg = "Failed to open input file: " // trim(input_file)
+            return
+        end if
+        
+        do
+            read(unit, '(A)', iostat=ios) line
+            if (ios /= 0) exit
+            if (line_count >= 500) exit
+            line_count = line_count + 1
+            lines(line_count) = line
+        end do
+        close(unit)
+        
+        ! Open output file
+        open(newunit=unit, file=output_file, status='replace', action='write', iostat=ios)
+        if (ios /= 0) then
+            error_msg = "Failed to create output file: " // trim(output_file)
+            return
+        end if
+        
+        ! First pass: collect USE statements and process other statements
+        do i = 1, line_count
+            line = trim(lines(i))
+            if (len_trim(line) == 0) cycle
+            
+            ! Tokenize the line
+            call tokenize_core(line, tokens)
+            if (size(tokens) == 0) cycle
+            
+            ! Check for USE statement
+            if (size(tokens) >= 2 .and. tokens(1)%kind == TK_KEYWORD .and. &
+                tokens(1)%text == "use") then
+                ! Handle USE statement via AST
+                use_count = use_count + 1
+                use_statements(use_count) = trim(line)
+                
+            else if (size(tokens) >= 3 .and. tokens(1)%kind == TK_IDENTIFIER .and. &
+                tokens(2)%kind == TK_OPERATOR .and. tokens(2)%text == "=") then
+                
+                ! Track variable for type inference
+                call track_variable_type(tokens(1)%text, tokens(3:), var_names, var_types, var_count)
+            end if
+        end do
+        
+        ! Write program header with proper ordering
+        write(unit, '(A)') "program main"
+        
+        ! Write USE statements first (proper Fortran ordering)
+        do i = 1, use_count
+            write(unit, '(A,A)') "    ", trim(use_statements(i))
+        end do
+        
+        write(unit, '(A)') "    implicit none"
+        
+        ! Write variable declarations
+        do i = 1, var_count
+            write(unit, '(A,A,A,A)') "    ", trim(var_types(i)), " :: ", trim(var_names(i))
+        end do
+        
+        if (var_count > 0) write(unit, '(A)') ""
+        
+        ! Second pass: process executable statements
+        do i = 1, line_count
+            line = trim(lines(i))
+            if (len_trim(line) == 0) cycle
+            
+            ! Tokenize the line
+            call tokenize_core(line, tokens)
+            if (size(tokens) == 0) cycle
+            
+            ! Skip USE statements (already processed)
+            if (size(tokens) >= 2 .and. tokens(1)%kind == TK_KEYWORD .and. &
+                tokens(1)%text == "use") then
+                cycle
+            end if
+            
+            ! Process assignments using AST parser
+            if (size(tokens) >= 3 .and. tokens(1)%kind == TK_IDENTIFIER .and. &
+                tokens(2)%kind == TK_OPERATOR .and. tokens(2)%text == "=") then
+                
+                ! Parse assignment using proper AST parsing
+                stmt_ast = parse_statement(tokens)
+                
+                ! Generate code from AST
+                select type(stmt_ast)
+                type is (assignment_node)
+                    generated_code = generate_code(stmt_ast)
+                    write(unit, '(A,A)') "    ", trim(generated_code)
+                class default
+                    ! Fallback to line reconstruction for unsupported AST nodes
+                    write(unit, '(A,A)') "    ", trim(line)
+                end select
+                
+            else
+                ! Fallback to line reconstruction for unsupported features
+                write(unit, '(A,A)') "    ", trim(line)
+            end if
+        end do
+        
+        write(unit, '(A)') "end program main"
+        
+        close(unit)
+        
+    contains
+    
+        subroutine track_variable_type(var_name, value_tokens, var_names, var_types, var_count)
+            character(len=*), intent(in) :: var_name
+            type(token_t), intent(in) :: value_tokens(:)
+            character(len=256), intent(inout) :: var_names(:)
+            character(len=32), intent(inout) :: var_types(:)
+            integer, intent(inout) :: var_count
+            integer :: j
+            logical :: found
+            
+            ! Check if variable already exists
+            found = .false.
+            do j = 1, var_count
+                if (trim(var_names(j)) == trim(var_name)) then
+                    found = .true.
+                    exit
+                end if
+            end do
+            
+            if (.not. found) then
+                var_count = var_count + 1
+                var_names(var_count) = var_name
+                
+                ! Simple type inference
+                if (size(value_tokens) >= 1 .and. value_tokens(1)%kind == TK_NUMBER) then
+                    if (index(value_tokens(1)%text, ".") > 0) then
+                        var_types(var_count) = "real(8)"
+                    else
+                        var_types(var_count) = "integer"
+                    end if
+                else
+                    var_types(var_count) = "real(8)"  ! Default
+                end if
+            end if
+        end subroutine track_variable_type
+        
+    end subroutine preprocess_file_ast_based
 
 end module preprocessor
