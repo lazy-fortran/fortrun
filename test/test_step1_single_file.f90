@@ -68,9 +68,10 @@ contains
         call preprocess_file(input_file, output_file, error_msg)
         
         if (len_trim(error_msg) == 0) then
-            ! Check for parameter enhancement (each parameter on its own line)
-            success = check_output_contains(output_file, 'real(8), intent(in) :: width')
-            success = success .and. check_output_contains(output_file, 'real(8), intent(in) :: height')
+            ! Check for parameter enhancement (parameters can be on same line)
+            success = check_output_contains(output_file, 'real(8), intent(in) :: width, height') .or. &
+                      (check_output_contains(output_file, 'real(8), intent(in) :: width') .and. &
+                       check_output_contains(output_file, 'real(8), intent(in) :: height'))
             success = success .and. check_output_contains(output_file, 'real(8) function rectangle_area')
         else
             success = .false.
