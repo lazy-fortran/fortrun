@@ -43,6 +43,23 @@ Standard FPM directory structure:
 - **Private-by-Default**: Modules use private visibility by default
 - **Test-Driven Development**: Write tests first
 
+## CRITICAL ARCHITECTURE REQUIREMENT ⚠️
+
+**ABSOLUTELY FORBIDDEN**: Direct token-to-code generation shortcuts in frontend
+**MANDATORY**: All code generation MUST go through the complete AST pipeline
+
+### Lexer → Parser → AST → Semantic Analysis → Code Generation
+
+Any shortcuts that bypass AST processing violate our fundamental architecture:
+- ❌ NO direct token reconstruction 
+- ❌ NO string manipulation from tokens
+- ❌ NO bypassing semantic analysis
+- ✅ ALL processing through proper AST nodes
+- ✅ ALL type information from semantic analysis  
+- ✅ ALL code generation from AST traversal
+
+**For unimplemented features**: Fall back to direct print of input lines, but mark clearly as temporary fallback.
+
 ## Development Configuration
 
 The `fpm.toml` enforces: no implicit typing, free-form source, JSON support via json-fortran.

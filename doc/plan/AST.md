@@ -552,6 +552,23 @@ Source Code (.f, .f90)
 3. **Transpiler Mode** (future): Frontend + C backend → portable C code
 4. **Analysis Mode**: Frontend only → type checking, optimization analysis
 
+## CRITICAL ARCHITECTURE REQUIREMENT ⚠️
+
+**ABSOLUTELY FORBIDDEN**: Direct token-to-code generation shortcuts
+**MANDATORY**: All code generation MUST go through the complete AST pipeline
+
+### Lexer → Parser → AST → Semantic Analysis → Code Generation
+
+Any shortcuts that bypass AST processing violate our fundamental architecture:
+- ❌ NO direct token reconstruction
+- ❌ NO string manipulation from tokens 
+- ❌ NO bypassing semantic analysis
+- ✅ ALL processing through proper AST nodes
+- ✅ ALL type information from semantic analysis
+- ✅ ALL code generation from AST traversal
+
+**For unimplemented features**: Fall back to direct print of input lines, but mark clearly as temporary fallback.
+
 ## Implementation Strategy
 
 ### Stage 1: Frontend with Fortran Backend (✅ Current)
