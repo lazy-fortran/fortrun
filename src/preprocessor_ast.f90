@@ -1,6 +1,6 @@
 module preprocessor_ast
     ! AST-based preprocessor for Simple Fortran (.f files)
-    use lexer_core, only: token_t, tokenize_core, TK_IDENTIFIER, TK_OPERATOR, TK_NUMBER
+    use lexer_core, only: token_t, tokenize_core, TK_IDENTIFIER, TK_OPERATOR, TK_NUMBER, TK_KEYWORD
     use parser_core, only: parse_expression, parse_statement, parser_state_t, create_parser_state  
     use ast_core
     use codegen_core
@@ -9,6 +9,14 @@ module preprocessor_ast
     private
     
     public :: preprocess_file_ast
+    
+    ! Internal types for tracking functions/subroutines
+    type :: function_info
+        character(len=256) :: name
+        character(len=256), allocatable :: lines(:)
+        integer :: line_count
+        logical :: is_function  ! true for function, false for subroutine
+    end type function_info
     
 contains
 
@@ -43,35 +51,120 @@ contains
             return
         end if
         
-        ! First pass: collect all variable assignments for type inference
+        ! First pass: collect all lines and separate functions/subroutines from main code
         block
-            character(len=256), dimension(100) :: lines
+            character(len=256), dimension(500) :: lines
             integer :: line_count, i
             character(len=64), dimension(100) :: var_names
             character(len=32), dimension(100) :: var_types
             integer :: var_count
+            type(function_info), dimension(50) :: functions
+            integer :: func_count
+            logical :: in_function
+            integer :: current_func
             
             line_count = 0
             var_count = 0
+            func_count = 0
+            in_function = .false.
+            current_func = 0
             
             ! Read all lines
             do
                 read(unit_in, '(A)', iostat=ios) line
                 if (ios /= 0) exit
-                if (line_count >= 100) exit
+                if (line_count >= 500) exit
                 line_count = line_count + 1
                 lines(line_count) = line
             end do
             close(unit_in)
             
-            ! Analyze lines for variable assignments
-            do i = 1, line_count
+            ! First pass: separate functions/subroutines from main code
+            i = 1
+            do while (i <= line_count)
                 if (len_trim(lines(i)) > 0) then
-                    source_code = trim(lines(i))
+                    source_code = trim(adjustl(lines(i)))
                     call tokenize_core(source_code, tokens)
                     
-                    if (size(tokens) >= 3) then
-                        ! Check for assignment pattern: IDENTIFIER = ...
+                    if (size(tokens) >= 2) then
+                        ! Check for function/subroutine start
+                        block
+                            logical :: is_func_or_sub
+                            is_func_or_sub = .false.
+                            
+                            ! Pattern 1: "function name" or "subroutine name"
+                            if (tokens(1)%kind == TK_KEYWORD .and. &
+                                (tokens(1)%text == "function" .or. tokens(1)%text == "subroutine")) then
+                                is_func_or_sub = .true.
+                            end if
+                            
+                            ! Pattern 2: "type function name" (e.g., "real function square")
+                            if (.not. is_func_or_sub .and. size(tokens) >= 3) then
+                                if (tokens(2)%kind == TK_KEYWORD .and. tokens(2)%text == "function") then
+                                    is_func_or_sub = .true.
+                                end if
+                            end if
+                            
+                            if (is_func_or_sub) then
+                            
+                            ! Start collecting function/subroutine
+                            func_count = func_count + 1
+                            current_func = func_count
+                            allocate(functions(current_func)%lines(100))
+                            functions(current_func)%line_count = 0
+                            in_function = .true.
+                            
+                            ! Determine if it's a function or subroutine
+                            block
+                                integer :: j
+                                functions(current_func)%is_function = .false.
+                                do j = 1, size(tokens)
+                                    if (tokens(j)%text == "function") then
+                                        functions(current_func)%is_function = .true.
+                                        exit
+                                    end if
+                                end do
+                            end block
+                                
+                            ! Get function/subroutine name
+                            block
+                                integer :: j
+                                do j = 1, size(tokens)
+                                    if (tokens(j)%text == "function" .or. &
+                                        tokens(j)%text == "subroutine") then
+                                        if (j < size(tokens)) then
+                                            functions(current_func)%name = tokens(j+1)%text
+                                        end if
+                                        exit
+                                    end if
+                                end do
+                            end block
+                            else if (in_function .and. tokens(1)%kind == TK_KEYWORD .and. &
+                                    tokens(1)%text == "end") then
+                                ! Check if this ends the function/subroutine
+                                if (size(tokens) >= 2 .and. &
+                                    (tokens(2)%text == "function" .or. &
+                                     tokens(2)%text == "subroutine")) then
+                                    ! Add the end line and stop collecting
+                                    functions(current_func)%line_count = &
+                                        functions(current_func)%line_count + 1
+                                    functions(current_func)%lines(functions(current_func)%line_count) = &
+                                        lines(i)
+                                    in_function = .false.
+                                    current_func = 0
+                                    i = i + 1
+                                    cycle
+                                end if
+                            end if
+                        end block
+                    end if
+                    
+                    if (in_function) then
+                        ! Add line to current function
+                        functions(current_func)%line_count = functions(current_func)%line_count + 1
+                        functions(current_func)%lines(functions(current_func)%line_count) = lines(i)
+                    else if (.not. in_function .and. size(tokens) >= 3) then
+                        ! Check for assignment pattern in main code
                         if (tokens(1)%kind == TK_IDENTIFIER .and. &
                             tokens(2)%kind == TK_OPERATOR .and. &
                             tokens(2)%text == "=") then
@@ -95,18 +188,19 @@ contains
                                     ! Simple type inference based on literal
                                     if (size(tokens) >= 3 .and. tokens(3)%kind == TK_NUMBER) then
                                         if (index(tokens(3)%text, ".") > 0) then
-                                            var_types(var_count) = "real"
+                                            var_types(var_count) = "real(8)"
                                         else
                                             var_types(var_count) = "integer"
                                         end if
                                     else
-                                        var_types(var_count) = "real"  ! Default to real
+                                        var_types(var_count) = "real(8)"  ! Default to real(8)
                                     end if
                                 end if
                             end block
                         end if
                     end if
                 end if
+                i = i + 1
             end do
             
             ! Write program header
@@ -122,13 +216,44 @@ contains
                 write(unit_out, '(A)') ""  ! Blank line after declarations
             end if
             
-            ! Process each line
+            ! Process main code lines (not in functions)
+            in_function = .false.
             do i = 1, line_count
                 if (len_trim(lines(i)) > 0) then
-                    source_code = trim(lines(i))
+                    source_code = trim(adjustl(lines(i)))
                     call tokenize_core(source_code, tokens)
                     
-                    if (size(tokens) > 0) then
+                    ! Skip function/subroutine lines
+                    if (size(tokens) >= 2) then
+                        block
+                            logical :: is_func_or_sub
+                            is_func_or_sub = .false.
+                            
+                            ! Pattern 1: "function name" or "subroutine name"
+                            if (tokens(1)%kind == TK_KEYWORD .and. &
+                                (tokens(1)%text == "function" .or. tokens(1)%text == "subroutine")) then
+                                is_func_or_sub = .true.
+                            end if
+                            
+                            ! Pattern 2: "type function name" (e.g., "real function square")
+                            if (.not. is_func_or_sub .and. size(tokens) >= 3) then
+                                if (tokens(2)%kind == TK_KEYWORD .and. tokens(2)%text == "function") then
+                                    is_func_or_sub = .true.
+                                end if
+                            end if
+                            
+                            if (is_func_or_sub) then
+                                in_function = .true.
+                            else if (in_function .and. tokens(1)%kind == TK_KEYWORD .and. &
+                                    tokens(1)%text == "end" .and. size(tokens) >= 2 .and. &
+                                    (tokens(2)%text == "function" .or. tokens(2)%text == "subroutine")) then
+                                in_function = .false.
+                                cycle
+                            end if
+                        end block
+                    end if
+                    
+                    if (.not. in_function .and. size(tokens) > 0) then
                         ! Generate code for this line
                         generated_code = process_line_simple(tokens)
                         if (len_trim(generated_code) > 0) then
@@ -137,6 +262,16 @@ contains
                     end if
                 end if
             end do
+            
+            ! Write contains section if we have functions/subroutines
+            if (func_count > 0) then
+                write(unit_out, '(A)') "contains"
+                
+                ! Process each function/subroutine
+                do i = 1, func_count
+                    call process_function(unit_out, functions(i))
+                end do
+            end if
             
             ! Write program footer
             write(unit_out, '(A)') "end program main"
@@ -300,5 +435,71 @@ contains
             str = str // tokens(i)%text
         end do
     end function tokens_to_string
+    
+    ! Process a function or subroutine, adding intent(in) to parameters
+    subroutine process_function(unit, func_info)
+        integer, intent(in) :: unit
+        type(function_info), intent(in) :: func_info
+        character(len=1024) :: line
+        type(token_t), allocatable :: tokens(:)
+        integer :: i, j
+        logical :: in_params, processing_decl
+        character(len=:), allocatable :: processed_line
+        
+        do i = 1, func_info%line_count
+            line = func_info%lines(i)
+            
+            if (len_trim(line) > 0) then
+                call tokenize_core(trim(adjustl(line)), tokens)
+                
+                ! Check if this is a parameter declaration line
+                processing_decl = .false.
+                if (size(tokens) >= 2) then
+                    ! Look for type declarations (real, integer, etc.)
+                    if (tokens(1)%kind == TK_IDENTIFIER .and. &
+                        (tokens(1)%text == "real" .or. &
+                         tokens(1)%text == "integer" .or. &
+                         tokens(1)%text == "logical" .or. &
+                         tokens(1)%text == "character")) then
+                        processing_decl = .true.
+                    end if
+                end if
+                
+                if (processing_decl) then
+                    ! Check if this declaration already has intent
+                    block
+                        logical :: has_intent
+                        has_intent = .false.
+                        do j = 1, size(tokens)
+                            if (tokens(j)%text == "intent") then
+                                has_intent = .true.
+                                exit
+                            end if
+                        end do
+                        
+                        if (.not. has_intent) then
+                            ! Add intent(in) after the type
+                            processed_line = "    " // tokens(1)%text // ", intent(in)"
+                            
+                            ! Add rest of the line
+                            do j = 2, size(tokens)
+                                processed_line = processed_line // " " // tokens(j)%text
+                            end do
+                            
+                            write(unit, '(A)') trim(processed_line)
+                        else
+                            ! Keep the line as-is but indented
+                            write(unit, '(A,A)') "  ", trim(line)
+                        end if
+                    end block
+                else
+                    ! Other lines - just indent
+                    write(unit, '(A,A)') "  ", trim(line)
+                end if
+            else
+                write(unit, '(A)') ""  ! Blank line
+            end if
+        end do
+    end subroutine process_function
 
 end module preprocessor_ast
