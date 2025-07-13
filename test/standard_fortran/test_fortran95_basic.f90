@@ -39,12 +39,12 @@ contains
         temp_output = '/tmp/test_program_structure_output.f90'
         
         call create_test_file(temp_input, [ &
-            'program hello', &
-            '    implicit none', &
-            '    integer :: n', &
-            '    n = 42', &
+            'program hello                 ', &
+            '    implicit none             ', &
+            '    integer :: n              ', &
+            '    n = 42                    ', &
             '    write(*,*) "Hello, n =", n', &
-            'end program hello' &
+            'end program hello             ' &
         ], 6)
         
         ! Process through frontend
@@ -77,22 +77,22 @@ contains
         temp_output = '/tmp/test_intrinsic_types_output.f90'
         
         call create_test_file(temp_input, [ &
-            'program types_test', &
-            '    implicit none', &
-            '    integer :: i', &
-            '    real :: r', &
-            '    double precision :: d', &
-            '    complex :: c', &
-            '    logical :: l', &
-            '    character(len=10) :: str', &
-            '    ', &
-            '    i = 42', &
-            '    r = 3.14', &
-            '    d = 2.71828d0', &
-            '    c = (1.0, 2.0)', &
-            '    l = .true.', &
-            '    str = "hello"', &
-            'end program types_test' &
+            'program types_test           ', &
+            '    implicit none            ', &
+            '    integer :: i             ', &
+            '    real :: r                ', &
+            '    double precision :: d    ', &
+            '    complex :: c             ', &
+            '    logical :: l             ', &
+            '    character(len=10) :: str ', &
+            '                             ', &
+            '    i = 42                   ', &
+            '    r = 3.14                 ', &
+            '    d = 2.71828d0            ', &
+            '    c = (1.0, 2.0)           ', &
+            '    l = .true.               ', &
+            '    str = "hello"            ', &
+            'end program types_test       ' &
         ], 16)
         
         if (compile_standard_fortran(temp_input, temp_output)) then
@@ -122,22 +122,22 @@ contains
         temp_output = '/tmp/test_arrays_basic_output.f90'
         
         call create_test_file(temp_input, [ &
-            'program arrays_test', &
-            '    implicit none', &
-            '    integer, parameter :: n = 10', &
-            '    integer :: static_array(10)', &
-            '    real :: matrix(3,3)', &
+            'program arrays_test                      ', &
+            '    implicit none                        ', &
+            '    integer, parameter :: n = 10         ', &
+            '    integer :: static_array(10)          ', &
+            '    real :: matrix(3,3)                  ', &
             '    integer, allocatable :: dynamic_array(:)', &
-            '    integer :: i', &
-            '    ', &
-            '    allocate(dynamic_array(n))', &
-            '    do i = 1, n', &
-            '        static_array(i) = i', &
-            '        dynamic_array(i) = i * 2', &
-            '    end do', &
-            '    deallocate(dynamic_array)', &
-            'end program arrays_test' &
-        ], 14)
+            '    integer :: i                         ', &
+            '                                         ', &
+            '    allocate(dynamic_array(n))           ', &
+            '    do i = 1, n                          ', &
+            '        static_array(i) = i              ', &
+            '        dynamic_array(i) = i * 2         ', &
+            '    end do                               ', &
+            '    deallocate(dynamic_array)            ', &
+            'end program arrays_test                  ' &
+        ], 15)
         
         if (compile_standard_fortran(temp_input, temp_output)) then
             call compare_files(temp_input, temp_output, files_identical)
@@ -166,24 +166,24 @@ contains
         temp_output = '/tmp/test_control_structures_output.f90'
         
         call create_test_file(temp_input, [ &
-            'program control_test', &
-            '    implicit none', &
-            '    integer :: i, n', &
-            '    ', &
-            '    n = 5', &
-            '    if (n > 0) then', &
-            '        write(*,*) "Positive"', &
-            '    else', &
+            'program control_test             ', &
+            '    implicit none                ', &
+            '    integer :: i, n              ', &
+            '                                 ', &
+            '    n = 5                        ', &
+            '    if (n > 0) then              ', &
+            '        write(*,*) "Positive"    ', &
+            '    else                         ', &
             '        write(*,*) "Non-positive"', &
-            '    end if', &
-            '    ', &
-            '    do i = 1, n', &
-            '        if (mod(i, 2) == 0) then', &
-            '            write(*,*) "Even:", i', &
-            '        end if', &
-            '    end do', &
-            'end program control_test' &
-        ], 16)
+            '    end if                       ', &
+            '                                 ', &
+            '    do i = 1, n                  ', &
+            '        if (mod(i, 2) == 0) then ', &
+            '            write(*,*) "Even:", i ', &
+            '        end if                   ', &
+            '    end do                       ', &
+            'end program control_test         ' &
+        ], 17)
         
         if (compile_standard_fortran(temp_input, temp_output)) then
             call compare_files(temp_input, temp_output, files_identical)
@@ -212,22 +212,22 @@ contains
         temp_output = '/tmp/test_expressions_output.f90'
         
         call create_test_file(temp_input, [ &
-            'program expressions_test', &
-            '    implicit none', &
-            '    integer :: a, b, c', &
-            '    real :: x, y, z', &
-            '    logical :: flag1, flag2', &
-            '    ', &
-            '    a = 10', &
-            '    b = 3', &
-            '    c = a + b * 2 - 1', &
-            '    x = 3.14', &
-            '    y = 2.71', &
-            '    z = x**2 + y/2.0', &
-            '    flag1 = a > b', &
-            '    flag2 = flag1 .and. (c /= 0)', &
-            'end program expressions_test' &
-        ], 14)
+            'program expressions_test         ', &
+            '    implicit none                ', &
+            '    integer :: a, b, c           ', &
+            '    real :: x, y, z              ', &
+            '    logical :: flag1, flag2      ', &
+            '                                 ', &
+            '    a = 10                       ', &
+            '    b = 3                        ', &
+            '    c = a + b * 2 - 1            ', &
+            '    x = 3.14                     ', &
+            '    y = 2.71                     ', &
+            '    z = x**2 + y/2.0             ', &
+            '    flag1 = a > b                ', &
+            '    flag2 = flag1 .and. (c /= 0) ', &
+            'end program expressions_test     ' &
+        ], 16)
         
         if (compile_standard_fortran(temp_input, temp_output)) then
             call compare_files(temp_input, temp_output, files_identical)
