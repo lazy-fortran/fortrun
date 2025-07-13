@@ -50,6 +50,7 @@ end function distance
 - ✅ Double precision defaults (`real(8)`)
 - ✅ Type declarations automatically generated
 - ✅ `contains` section for functions
+- ✅ Function parameters default to `intent(in)` for safety
 
 ## Features
 

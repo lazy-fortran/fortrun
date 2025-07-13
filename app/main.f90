@@ -1,22 +1,28 @@
 program main
   use cli, only: parse_arguments
   use runner, only: run_fortran_file
+  use preprocessor, only: preprocess_file, is_preprocessor_file
   use notebook_parser
   use notebook_executor
   use notebook_renderer
   implicit none
   
   character(len=256) :: filename, custom_cache_dir, custom_config_dir, notebook_output, custom_flags
-  logical :: show_help, no_wait, notebook_mode
+  logical :: show_help, no_wait, notebook_mode, preprocess_only
   integer :: exit_code, verbose_level, parallel_jobs
   type(notebook_t) :: notebook
   type(execution_result_t) :: results
   
   call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, custom_config_dir, &
-                      parallel_jobs, no_wait, notebook_mode, notebook_output, custom_flags)
+                      parallel_jobs, no_wait, notebook_mode, notebook_output, preprocess_only, custom_flags)
   
   if (show_help) then
     call print_help()
+    stop 0
+  end if
+  
+  if (preprocess_only) then
+    call handle_preprocess_only(filename)
     stop 0
   end if
   
@@ -68,6 +74,7 @@ contains
     print '(a)', '  --flag FLAGS      Pass custom flags to FPM compiler'
     print '(a)', '                    (.f90: user flags only, .f: opinionated + user flags)'
     print '(a)', '  --no-wait         Fail immediately if cache is locked'
+    print '(a)', '  --preprocess      Preprocess .f file and output .f90 to STDOUT'
     print '(a)', ''
     print '(a)', 'Notebook Mode:'
     print '(a)', '  --notebook        Run as notebook with cells and output capture'
@@ -76,5 +83,50 @@ contains
     print '(a)', 'Environment:'
     print '(a)', '  OMP_NUM_THREADS   Number of parallel build threads (FPM uses OpenMP)'
   end subroutine print_help
+  
+  subroutine handle_preprocess_only(input_file)
+    character(len=*), intent(in) :: input_file
+    character(len=256) :: temp_output, error_msg
+    character(len=1024) :: line
+    integer :: unit, ios
+    
+    ! Check if input is a .f file
+    if (.not. is_preprocessor_file(input_file)) then
+      write(*, '(a)') 'Error: --preprocess can only be used with .f files'
+      stop 1
+    end if
+    
+    ! Create temporary output file
+    temp_output = trim(input_file) // '.tmp.f90'
+    
+    ! Preprocess the file
+    call preprocess_file(input_file, temp_output, error_msg)
+    
+    if (len_trim(error_msg) > 0) then
+      write(*, '(a,a)') 'Error: ', trim(error_msg)
+      stop 1
+    end if
+    
+    ! Output the preprocessed content to STDOUT
+    open(newunit=unit, file=temp_output, status='old', action='read', iostat=ios)
+    if (ios == 0) then
+      do
+        read(unit, '(A)', iostat=ios) line
+        if (ios /= 0) exit
+        write(*, '(A)') trim(line)
+      end do
+      close(unit)
+      
+      ! Clean up temporary file
+      open(newunit=unit, file=temp_output, status='old', iostat=ios)
+      if (ios == 0) then
+        close(unit, status='delete')
+      end if
+    else
+      write(*, '(a)') 'Error: Failed to read preprocessed output'
+      stop 1
+    end if
+    
+  end subroutine handle_preprocess_only
   
 end program main

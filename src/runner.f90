@@ -630,13 +630,33 @@ contains
     call copy_local_modules(absolute_path, project_dir)
     
     ! Scan for module dependencies and generate fpm.toml
-    if (present(custom_flags)) then
-      call generate_fpm_with_dependencies(absolute_path, project_dir, basename, verbose_level, &
-                                           custom_config_dir, is_preprocessed_file, custom_flags)
-    else
-      call generate_fpm_with_dependencies(absolute_path, project_dir, basename, verbose_level, &
-                                           custom_config_dir, is_preprocessed_file, '')
-    end if
+    ! Sanitize basename for use as package name (limit length and remove spaces)
+    block
+      character(len=256) :: sanitized_name
+      integer :: i
+      
+      sanitized_name = basename
+      
+      ! Replace spaces with underscores
+      do i = 1, len_trim(sanitized_name)
+        if (sanitized_name(i:i) == ' ') then
+          sanitized_name(i:i) = '_'
+        end if
+      end do
+      
+      ! Truncate if too long (FPM limit is around 63 chars)
+      if (len_trim(sanitized_name) > 60) then
+        sanitized_name = sanitized_name(1:60)
+      end if
+      
+      if (present(custom_flags)) then
+        call generate_fpm_with_dependencies(absolute_path, project_dir, trim(sanitized_name), verbose_level, &
+                                             custom_config_dir, is_preprocessed_file, custom_flags)
+      else
+        call generate_fpm_with_dependencies(absolute_path, project_dir, trim(sanitized_name), verbose_level, &
+                                             custom_config_dir, is_preprocessed_file, '')
+      end if
+    end block
     
   end subroutine setup_project_files
   

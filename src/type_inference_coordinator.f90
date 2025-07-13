@@ -102,6 +102,15 @@ contains
       return
     end if
     
+    ! Check if variable is already declared (base_type = -1)
+    if (has_variable(env%env, var_name)) then
+      call type_env_get_var(env%env, var_name, current_type, found)
+      if (found .and. current_type%base_type == -1) then
+        ! Variable already declared - skip processing
+        return
+      end if
+    end if
+    
     ! Infer type from expression
     call analyze_expression(expr, expr_type, env%env)
     

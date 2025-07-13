@@ -16,8 +16,8 @@ This project uses FPM (Fortran Package Manager) as its build system.
 # Build the project
 fpm build
 
-# Run the main application
-fpm run fortran example.f90
+# Run the main application (IMPORTANT: Use -- separator)
+fpm run fortran -- example.f90
 
 # Run tests
 fpm test
@@ -141,6 +141,7 @@ The tool enforces modern Fortran practices by default:
 2. **Double precision** - `real` defaults to `real(8)` via compiler flags
 3. **Free form** - Modern source format
 4. **Standard compliance** - Generates Fortran 2018 code
+5. **Safe parameter intent** - Function parameters default to `intent(in)` instead of standard Fortran's `intent(inout)`
 
 ### Compiler Flags Applied
 ```bash
@@ -216,7 +217,7 @@ Each example includes:
 - **Caching**: Part of `fortran` tool, not FPM itself
 - **Testing**: Every feature must have tests before merging
 - **Documentation**: Examples serve as both documentation and tests
-- **Debug Apps**: Create debug applications in the `app/` directory and run them with `fpm run --target <app_name>` for testing internal functionality
+- **Debug Apps**: Create debug applications in the `app/` directory and run them with `fpm run --target <app_name>` for testing internal functionality. Once a debug app is ready to become a proper test, move it to `test/`, ensure it runs with `fpm test <test_name>`, then delete the debug app from `app/`
 
 ## Future Roadmap
 
@@ -238,3 +239,13 @@ Each example includes:
 
 - Check FPM API before implementing on our own
 - Unit, integration, and system tests are to be put in test/ and run with `fpm test` with optional target attribute --target
+- You must always write tests first!
+- You can do ad-hoc debugging by placing f90 files in app/ and run them with fpm run --target <app_name>
+- Once a debug app is working and ready to be a proper test:
+  1. Move the file from app/ to test/ directory
+  2. Ensure it works with `fpm test <test_name>`
+  3. Delete the original debug app from app/
+  4. Commit the new test to git
+- Always convert debug apps to automated tests if a similar test doesn't exist yet
+- To clean the build, run echo "y" | fpm clean in project root
+- To clear the fortran cache, remove fortran/* in $XDG_CACHE_HOME or in $HOME/.cache
