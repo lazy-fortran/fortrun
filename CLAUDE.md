@@ -241,3 +241,5 @@ Each example includes:
 - Unit, integration, and system tests are to be put in test/ and run with `fpm test` with optional target attribute --target
 - You must always write tests first!
 - You can do ad-hoc debugging by placing f90 files in app/ and run them with fpm run <case> . Always convert things to automated tests if a similar one doesn't exist yet.
+- To clean the build, run echo "y" | fpm clean in project root
+- To clear the fortran cache, remove fortran/* in $XDG_CACHE_HOME or in $HOME/.cache

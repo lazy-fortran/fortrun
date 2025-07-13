@@ -151,6 +151,9 @@ contains
     ! Rewind for actual processing
     rewind(unit_in)
     
+    ! Reset scope for actual processing pass
+    current_scope = 1
+    
     ! If no program statement, wrap everything in a program
     if (.not. has_program_statement) then
       output_line_count = output_line_count + 1
@@ -692,6 +695,7 @@ contains
       
       ! Skip if it's not a simple variable (e.g., array access)
       if (index(var_name, '(') == 0 .and. index(var_name, '%') == 0) then
+        ! DEBUG: Print assignment detection
         call process_assignment(type_env, var_name, expr)
       end if
     end if
