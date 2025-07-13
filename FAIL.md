@@ -1,66 +1,73 @@
-# FAIL.md
+# Test Failures Report
 
-This file tracks the current test failures and their status.
+This document tracks current test failures to guide development priorities.
 
-## Status: All Major Issues Resolved ✅
+## Test Run Summary
 
-All major test failures have been resolved. The remaining failures are known issues with advanced type inference features that are not yet implemented.
+Date: 2025-07-13
+Branch: ast
+Test Command: `fpm test`
 
-## Fixed Issues ✅
+## Critical Issues
 
-### 1. **test_cli_system** - FIXED ✅
-- **Root Cause**: Malformed cache files in `/tmp` causing compilation failures
-- **Solution**: Cleared cache and temporary files
-- **Status**: All CLI tests now passing
+### 1. USE Statement Placement Errors
+**Error**: "USE statement at (1) cannot follow data declaration statement at (2)"
+**Affected**: Multiple example programs
+**Issue**: Frontend is placing USE statements after variable declarations instead of before
+**Priority**: HIGH - This breaks Fortran syntax rules
 
-### 2. **test_preprocessor** - FIXED ✅  
-- **Root Cause**: Stale build artifacts causing phantom program statements
-- **Solution**: Clean rebuild with `fpm clean`
-- **Status**: All preprocessor tests passing
+### 2. Function Declaration Issues
+**Error**: "Procedure 'X' called with an implicit interface" and "Function 'X' at (1) has no IMPLICIT type"
+**Affected**: Examples with function calls (add, multiply, calculate_area, etc.)
+**Issue**: Frontend not generating proper function declarations or interfaces
+**Priority**: HIGH - Missing core functionality
 
-### 3. **Subroutine Parameters Missing Intent** - FIXED ✅
-- **Issue**: Subroutine parameters were not getting intent specifications
-- **Root Cause**: Subroutine handling code didn't extract parameters like function handling did
-- **Fix**: Added `extract_procedure_name_from_line` and parameter extraction to subroutine processing
-- **Status**: Both functions and subroutines now properly enforce intent(in) by default
+### 3. Function Definition Parsing
+**Error**: "Syntax error in data declaration at (1)" and "'square' at (1) is not a variable"
+**Affected**: Examples with function definitions
+**Issue**: Parser doesn't handle function definitions properly
+**Priority**: HIGH - Core language feature missing
 
-### 4. **Literal Type Inference Not Working** - FIXED ✅
-- **Issue**: Assignments like `x = 5.0` were not generating type declarations
-- **Root Cause**: Scope management bug - current_scope was not reset after USE statement collection pass
-- **Symptom**: Main program lines were processed in scope 3 instead of scope 1
-- **Fix**: Added `current_scope = 1` reset after rewinding for actual processing pass
-- **Status**: Literal assignments now correctly generate type declarations
+### 4. Program Structure Errors
+**Error**: "Syntax error in END PROGRAM statement" and "Expecting END PROGRAM statement"
+**Affected**: Various test programs
+**Issue**: Malformed program structure generation
+**Priority**: MEDIUM - Affects program completeness
 
-### 5. **test_step1_single_file** - FIXED ✅
-- **Status**: All 6/6 tests passing:
-  - ✅ Function signature enhancement (real → real(8))
-  - ✅ Parameter type enhancement with intent(in)
-  - ✅ Forward type propagation
-  - ✅ Multiple functions in single file
-  - ✅ Mixed explicit and implicit types
-  - ✅ Nested function calls
+### 5. Notebook Module Dependencies
+**Error**: "Unable to find source for module dependency: notebook_output"
+**Affected**: Notebook tests
+**Issue**: Missing module dependency
+**Priority**: LOW - Feature-specific issue
 
-## Known Issues (Not Yet Implemented)
+## Passing Tests
 
-These failures are expected as they test features planned for future phases:
+- Basic error handling tests
+- Cache management tests
+- Example test cases (use_statement, print_statement, multi_statement)
+- Frontend statement tests
 
-1. **Advanced type inference examples**:
-   - `example/advanced_inference/arrays.f` - Array type inference (Phase 6)
-   - `example/advanced_inference/derived_types.f` - Derived type inference (Phase 6)
-   - `example/advanced_inference/function_returns.f` - Complex function return inference
-   - `example/notebook/arrays_loops_simple.f` - Loop array inference
-   - `example/calculator/calculator.f` - Known preprocessor limitation
+## Root Cause Analysis
 
-2. **Nested function type inference** - Some edge cases with deeply nested function calls still fail
+The main issues stem from:
+1. **Statement ordering** - USE statements placed after declarations
+2. **Missing parser support** - Functions, subroutines not properly parsed
+3. **Incomplete code generation** - Missing function interfaces and declarations
 
-## Summary
+## Next Steps
 
-The preprocessor now correctly:
-- ✅ Enforces `intent(in)` as default for both function AND subroutine parameters
-- ✅ Infers types from literal assignments (e.g., `x = 5.0` → `real(8) :: x`)
-- ✅ Manages scopes correctly during multi-pass processing
-- ✅ Handles multiple functions in a single file
-- ✅ Propagates types from function return values
-- ✅ Enhances explicit type declarations (real → real(8))
+1. Fix USE statement placement in frontend code generation
+2. Add function/subroutine parsing support to parser
+3. Implement function declaration generation
+4. Add proper program structure validation
+5. Fix notebook module dependencies
 
-The core functionality is working as designed. The remaining failures are for advanced features planned for future development phases.
+## Test Categories Status
+
+- ✅ Basic frontend functionality (assignments, use, print)
+- ✅ Error handling
+- ✅ Cache management
+- ❌ Function definitions and calls
+- ❌ Complex program structures
+- ❌ Example programs with functions
+- ❌ Notebook functionality
