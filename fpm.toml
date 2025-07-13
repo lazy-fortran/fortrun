@@ -15,6 +15,7 @@ library = false
 test = false
 [dependencies]
 fpm = { git = "https://github.com/krystophny/fpm.git" }
+json-fortran = { git = "https://github.com/jacobwilliams/json-fortran.git" }
 
 [fortran]
 implicit-typing = false

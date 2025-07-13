@@ -72,6 +72,7 @@ The `fpm.toml` configuration enforces:
 - Free-form source code (`source-form = "free"`)
 - Automatic discovery of executables and tests
 - Auto-examples disabled (`auto-examples = false`) due to external dependencies
+- JSON I/O support via json-fortran library for serializing intermediate compilation stages
 
 ## Testing Strategy
 
