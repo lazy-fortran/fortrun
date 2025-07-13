@@ -2,6 +2,26 @@
 
 This document tracks the implementation plan for the AST-based architecture.
 
+## IMMEDIATE TASKS ⚡
+
+### ❗ CRITICAL: Test Cleanup and Deduplication
+- [ ] **URGENT**: Read through ALL test files in each category before deciding to delete
+- [ ] **URGENT**: Understand what each test does and why it exists
+- [ ] **URGENT**: Only delete tests that are genuinely flakey, shallow, or nonsensical after proper analysis
+- [ ] **URGENT**: Remove duplication in tests - keep only the deepest test that covers a specific portion of code
+- [ ] **URGENT**: For each code area, identify the most comprehensive test and remove redundant ones
+- [ ] **URGENT**: Rearrange and rename test source files as needed while keeping category naming convention
+- [ ] **URGENT**: Create new focused tests if gaps are found after removing duplicates
+- [ ] **URGENT**: Go through each test category systematically: cache/, config/, figure/, lexer/, parser/, etc.
+- [ ] **URGENT**: Document decision for each test file (keep/delete/rename and why)
+
+#### Test Hierarchy Strategy
+- **Unit tests**: Test individual functions/modules in isolation
+- **Integration tests**: Test interaction between components
+- **System tests**: Test full end-to-end functionality
+- **Keep only ONE comprehensive test per category that covers the deepest level needed**
+- **Remove shallow "smoke tests" that just print PASS without real verification**
+
 ## Completed Phases ✅
 
 - **Phase 0**: Test Reorganization
