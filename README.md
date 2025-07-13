@@ -19,6 +19,11 @@ fortran --notebook analysis.f
 
 # Verbose mode for debugging
 fortran -v myprogram.f90
+
+# Cache management
+fortran --clear-cache               # Clear all cached files
+fortran --clear-cache example.f90   # Clear cache and run
+fortran --cache-info                # Show cache statistics
 ```
 
 ## Simplified .f Syntax Showcase
@@ -73,6 +78,7 @@ end function distance
 - **Type Inference**: Automatic variable declarations in `.f` files
 - **Notebook Mode**: Jupytext-style notebooks with figure capture
 - **Incremental Compilation**: Only rebuilds changed files
+- **Cache Management**: CLI commands to clear cache and view statistics
 
 ## Examples
 
@@ -117,6 +123,31 @@ fortran --flag "-O3" file.f90 # Pass custom flags to FPM compiler
 # Help
 fortran --help                # Show all options
 ```
+
+## Cache Management
+
+The `fortran` tool uses an intelligent caching system to speed up repeated builds. When developing or testing, you may need to manage the cache:
+
+```bash
+# View cache information
+fortran --cache-info
+# Output:
+# Fortran Cache Information:
+#   Cache directory: /home/user/.cache/fortran
+#   Number of files: 487 files
+#   Total size: 3.9M
+
+# Clear entire cache
+fortran --clear-cache
+
+# Clear cache and run a file (useful for testing)
+fortran --clear-cache example.f90
+
+# Use custom cache directory
+fortran --cache-dir /tmp/fortran-cache example.f90
+```
+
+**Important for Development**: Always clear the cache when testing new preprocessor features or compiler flags to ensure you're not using outdated cached files.
 
 ## Project Status
 
