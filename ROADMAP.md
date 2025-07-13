@@ -49,6 +49,35 @@ Replace the ad-hoc line-based preprocessor with a proper **lexer/parser/AST/code
    - Preserve comments and documentation
    - Symbol table and scope management
 
+## Modern Fortran Ecosystem Integration 🌐
+
+### FPM Registry Integration
+- **Official Registry Sync**: Direct integration with fortran-lang/fpm-registry
+- **Module Database**: Extract and index all modules from registered packages
+- **Fast Local Resolution**: Build efficient module→package lookup database
+- **Automatic Updates**: Periodic sync with official registry
+
+### Module Resolution Architecture
+1. **Registry Crawler**: Fetch package metadata from FPM registry
+2. **Module Extractor**: Parse packages to build module inventory
+3. **Local Database**: SQLite/binary format for sub-millisecond lookups
+4. **Smart Caching**: Incremental updates, not full re-scans
+5. **Fallback Strategy**: Current TOML registry for custom/private packages
+
+### Performance Targets
+- **Module Resolution**: < 1ms for module→package lookup
+- **Database Size**: < 10MB for entire FPM ecosystem
+- **Update Time**: < 30s for incremental registry sync
+- **Zero Network Calls**: During normal compilation
+
+### Implementation Plan
+- [ ] Design efficient module database schema
+- [ ] Build FPM registry crawler and parser
+- [ ] Create module extraction tool
+- [ ] Implement fast local lookup engine
+- [ ] Add registry sync command (`fortran --sync-registry`)
+- [ ] Integrate with existing resolution pipeline
+
 ## Long-term Vision
 
 ### Multi-Standard Support
@@ -116,8 +145,9 @@ Replace the ad-hoc line-based preprocessor with a proper **lexer/parser/AST/code
 ## Timeline
 
 - **Q1 2024**: Complete AST-based preprocessor
-- **Q2 2024**: Fortran 2003 feature support
-- **Q3 2024**: LLVM IR generation prototype
-- **Q4 2024**: Multiple dispatch preview
+- **Q2 2024**: FPM Registry integration & Module database
+- **Q3 2024**: Fortran 2003 feature support
+- **Q4 2024**: LLVM IR generation prototype
+- **2025**: Multiple dispatch & Advanced type system
 
-The goal remains: **Make Python Fortran again** - combining Python's ease of use with Fortran's performance and numerical computing strengths.
+The goal remains: **Make Python Fortran again** - combining Python's ease of use with Fortran's performance and numerical computing strengths, while being a first-class citizen in the Modern Fortran ecosystem.
