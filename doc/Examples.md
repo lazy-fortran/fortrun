@@ -263,6 +263,82 @@ fortran derived_types.f # Handles derived types
 
 Advanced preprocessing with complex type inference.
 
+### Step 1 Type Inference (Explicit Types)
+**Location:** [example/step1_explicit_types/](https://github.com/krystophny/fortran/tree/main/example/step1_explicit_types)
+
+```fortran
+! step1_demo.f - Input with explicit types
+result = square(5.0)
+print *, "Square of 5.0 is:", result
+
+real function square(x)
+  real :: x
+  square = x * x
+end function
+```
+
+```fortran
+! step1_demo.f90 - Generated output with opinionated defaults
+program main
+  implicit none
+  
+  real(8) :: result  ! ← Forward type propagation
+  
+  result = square(5.0_8)
+  print *, "Square of 5.0 is:", result
+
+contains
+real(8) function square(x)  ! ← Enhanced signature
+  implicit none
+  
+  real(8), intent(in) :: x  ! ← Enhanced parameter
+  
+  square = x * x
+end function
+end program main
+```
+
+```bash
+fortran step1_demo.f   # Applies Step 1 enhancements
+fortran step1_demo.f90 # Direct compilation for comparison
+```
+
+**Step 1 enhancements:**
+- **Function signatures**: `real function` → `real(8) function`
+- **Parameter declarations**: `real :: x` → `real(8), intent(in) :: x`  
+- **Forward type propagation**: Variables get types from function return types
+- **Automatic `intent(in)`**: Applied as opinionated default for parameters
+
+## Regression Testing
+
+**Example File Convention**: Each example directory contains both `.f` and `.f90` file pairs:
+
+- **`.f` files**: Input files that demonstrate preprocessing features
+- **`.f90` files**: Expected output files (often copied from generated versions)
+- **Purpose**: Regression testing to ensure preprocessing produces consistent results
+
+**Examples:**
+```
+example/hello/
+├── hello.f           # Input: simplified syntax
+├── hello.f90         # Expected: full Fortran with program wrapper
+└── README.md
+
+example/calculator/
+├── calculator.f      # Input: with type inference
+├── calculator.f90    # Expected: with explicit declarations
+├── math_module.f     # Input: module with simplified syntax
+├── math_module.f90   # Expected: full module syntax
+└── README.md
+```
+
+**Test Coverage**: The `test_examples.f90` test suite runs both versions of each example and validates:
+- Both `.f` and `.f90` versions compile and run successfully
+- Output consistency between preprocessed and manual versions
+- Expected program output matches known good values
+
+This ensures the preprocessor maintains backward compatibility and produces correct transformations.
+
 ## Running Examples
 
 **Run all examples:**

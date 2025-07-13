@@ -1,4 +1,4 @@
-# Local package registry for fortran CLI tool
+# Fortran Package Registry
 # Maps module names to their packages for automatic dependency resolution
 #
 # Module resolution rules:

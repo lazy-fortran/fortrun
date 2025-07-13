@@ -190,13 +190,49 @@
 - **Implementation**: Track array shapes through operations
 - **Support**: Static arrays, allocatable arrays, array sections
 
-#### 7.3 Function Return Type and Intent-Based Inference
-- **Feature**: Infer function return types from return statements and propagate types through intent declarations
+#### 7.3 Function Parameter Type Inference
+- **7.3a Input Parameter Inference (Future)**:
+  - **Status**: ⚠️ **Deferred - Requires multiple dispatch capabilities**
+  - **Challenge**: Inferring types of input parameters requires whole-program analysis
+  - **Example**:
+    ```fortran
+    function add(a, b)  ! Cannot infer input types without analyzing all calls
+      add = a + b
+    end function
+    ```
+
+- **7.3b Forward Type Propagation (In Progress)**:
+  - **Status**: 🚧 **Currently implementing**
+  - **Feature**: Propagate types from declared functions/subroutines to variables at call sites
+  - **Example**:
+    ```fortran
+    ! With declared function:
+    real(8) function compute(x, y)
+      compute = x**2 + y**2
+    end function
+    
+    ! At call site, infer variable type:
+    result = compute(a, b)  ! Infer result as real(8) from compute's return type
+    
+    ! With subroutine intent(out):
+    subroutine get_data(filename, count, values)
+      character(*), intent(in) :: filename
+      integer, intent(out) :: count
+      real(8), intent(out) :: values(:)
+    end subroutine
+    
+    ! At call site:
+    call get_data("file.txt", n, data)  ! Infer n as integer, data as real(8) array
+    ```
+
+#### 7.4 Function Return Type Inference (Partial)
+- **Feature**: Infer function return types from return statements
+- **Status**: ✅ Basic implementation complete for simple cases
 - **Example**:
   ```fortran
   ! Function return type inference from return value
   function compute(x, y)
-    real(8), intent(in) :: x, y  ! These are declared
+    real(8), intent(in) :: x, y  ! Parameters still need declarations
     compute = x**2 + y**2  ! Return type inferred as real(8) from expression
   end function
   

@@ -7,7 +7,7 @@ contains
 
   subroutine parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                              custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
-                             notebook_output, custom_flags)
+                             notebook_output, preprocess_only, custom_flags)
     character(len=*), intent(out) :: filename
     logical, intent(out) :: show_help
     integer, intent(out) :: verbose_level
@@ -17,6 +17,7 @@ contains
     logical, intent(out) :: no_wait
     logical, intent(out) :: notebook_mode
     character(len=*), intent(out) :: notebook_output
+    logical, intent(out) :: preprocess_only
     character(len=*), intent(out), optional :: custom_flags
     
     integer :: nargs, i, iostat
@@ -32,6 +33,7 @@ contains
     no_wait = .false.
     notebook_mode = .false.
     notebook_output = ''
+    preprocess_only = .false.
     if (present(custom_flags)) then
       custom_flags = ''
     end if
@@ -109,6 +111,8 @@ contains
         no_wait = .true.
       else if (arg == '--notebook') then
         notebook_mode = .true.
+      else if (arg == '--preprocess') then
+        preprocess_only = .true.
       else if (arg == '-o' .or. arg == '--output') then
         expecting_output = .true.
       else if (arg == '--flag') then

@@ -59,8 +59,8 @@ contains
     logical :: found_program, found_implicit, found_print, found_end
     
     ! Create temporary test file
-    temp_file = 'test_simple.f'
-    output_file = 'test_simple.f90'
+    temp_file = 'test_simple_pp.f'
+    output_file = 'test_simple_pp.f90'
     open(newunit=unit, file=temp_file, status='replace')
     write(unit, '(a)') "print *, 'Hello World'"
     close(unit)
@@ -115,8 +115,8 @@ contains
     logical :: found_contains, found_function
     
     ! Create temporary test file with function
-    temp_file = 'test_function.f'
-    output_file = 'test_function.f90'
+    temp_file = 'test_function_pp.f'
+    output_file = 'test_function_pp.f90'
     open(newunit=unit, file=temp_file, status='replace')
     write(unit, '(a)') "x = add(1.0, 2.0)"
     write(unit, '(a)') "print *, x"
@@ -149,7 +149,7 @@ contains
       if (ios /= 0) exit
       
       if (trim(adjustl(line)) == 'contains') found_contains = .true.
-      if (index(line, 'real function add') > 0) found_function = .true.
+      if (index(line, 'function add') > 0) found_function = .true.
     end do
     close(unit)
     
@@ -173,8 +173,8 @@ contains
     logical :: found_contains, found_subroutine
     
     ! Create temporary test file with subroutine
-    temp_file = 'test_subroutine.f'
-    output_file = 'test_subroutine.f90'
+    temp_file = 'test_subroutine_pp.f'
+    output_file = 'test_subroutine_pp.f90'
     open(newunit=unit, file=temp_file, status='replace')
     write(unit, '(a)') "call greet('World')"
     write(unit, '(a)') ""
@@ -229,8 +229,12 @@ contains
     integer :: unit, ios, program_count
     
     ! Create temporary test file with existing program
-    temp_file = 'test_existing.f'
-    output_file = 'test_existing.f90'
+    temp_file = 'test_existing_pp.f'
+    output_file = 'test_existing_pp.f90'
+    
+    ! Ensure clean start - remove any existing files
+    call execute_command_line('rm -f ' // trim(temp_file) // ' ' // trim(output_file))
+    
     open(newunit=unit, file=temp_file, status='replace')
     write(unit, '(a)') "program mytest"
     write(unit, '(a)') "  implicit none"

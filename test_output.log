@@ -1,0 +1,15 @@
+Project is up to date
+STOP 1
+FAIL: Forward type propagation (variable gets function return type)
+FAIL: Multiple functions in single file
+FAIL: Mixed explicit and implicit types
+FAIL: Nested function calls
+FAILED: 4 tests failed
+PASS: Function signature enhancement (real → real(8))
+PASS: Parameter type enhancement with intent(in)
+ DEBUG: Inferredytype from functionsquare
+ DEBUG: Inferredztype from functioncube
+Tests: 2/6 passed
+<ERROR> Execution for object " test_step1_single_file " returned exit code  1
+<ERROR> *cmd_run*:stopping due to failed executions
+STOP 1
