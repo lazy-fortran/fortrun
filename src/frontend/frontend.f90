@@ -2,7 +2,7 @@ module frontend
     ! lazy fortran compiler frontend
     ! Provides complete 4-phase compilation pipeline with pluggable backends
     
-    use lexer_core, only: token_t, tokenize_core
+    use lexer_core, only: token_t, tokenize_core, TK_EOF
     use parser_core, only: parse_expression, parse_statement, parser_state_t, &
                           create_parser_state
     use ast_core
@@ -14,6 +14,9 @@ module frontend
     
     implicit none
     private
+    
+    ! Module-level storage for current tokens (for multi-statement processing)
+    type(token_t), allocatable, save :: current_tokens(:)
     
     public :: compile_source, compilation_options_t
     public :: BACKEND_FORTRAN, BACKEND_LLVM, BACKEND_C
@@ -174,43 +177,23 @@ contains
         character(len=*), intent(out) :: error_msg
         
         type(parser_state_t) :: parser
-        class(ast_node), allocatable :: body(:), stmt
-        class(ast_node), allocatable :: temp_body(:)
+        class(ast_node), allocatable :: stmt
         type(lf_program_node) :: program
-        integer :: stmt_count, body_capacity, i
+        integer :: stmt_count
         
         error_msg = ""
         stmt_count = 0
-        body_capacity = 0
         
         ! Initialize parser
         parser = create_parser_state(tokens)
         
-        ! Parse all statements
-        do while (parser%current_token <= size(tokens))
-            ! Parse single statement
-            stmt = parse_statement(parser%tokens(parser%current_token:))
-            
-            if (allocated(stmt)) then
-                stmt_count = stmt_count + 1
-                ! For simplicity, just store the first statement for now
-                ! Multi-statement support can be enhanced later
-                if (stmt_count == 1) then
-                    allocate(body(1), source=stmt)
-                end if
-            end if
-            
-            ! Move to next statement (simplified - assumes one per line)
-            call advance_to_next_statement(parser)
-        end do
-        
-        ! Create program AST
+        ! Create program with placeholder - tokens will be processed during code generation
         program%name = "main"
         program%implicit = .true.
         program%auto_contains = .false.
-        if (stmt_count > 0 .and. allocated(body)) then
-            call move_alloc(body, program%body)
-        end if
+        
+        ! Store tokens in a global variable for code generation access
+        call set_current_tokens(tokens)
         
         allocate(ast_tree, source=program)
         
@@ -249,11 +232,10 @@ contains
             code = code // declarations // new_line('a')
         end if
         
-        ! Generate executable statements
-        if (allocated(prog%body)) then
-            do i = 1, size(prog%body)
-                code = code // "    " // generate_code_polymorphic(prog%body(i)) // new_line('a')
-            end do
+        ! Generate executable statements from stored tokens
+        statements = generate_statements_from_tokens()
+        if (len_trim(statements) > 0) then
+            code = code // statements
         end if
         
         ! Generate program footer
@@ -263,47 +245,76 @@ contains
     
     ! Generate variable declarations from AST with type info
     function generate_declarations(prog, sem_ctx) result(decls)
-        ! Simplified declarations generation without type inference
+        ! Generate declarations from all statements using stored tokens
         type(lf_program_node), intent(in) :: prog
         type(simple_semantic_context_t), intent(in) :: sem_ctx
         character(len=:), allocatable :: decls
         character(len=:), allocatable :: type_str, var_name
-        integer :: i
+        
+        ! Parse all statements from stored tokens for type inference
+        type(parser_state_t) :: parser
+        class(ast_node), allocatable :: stmt
         
         decls = ""
         
-        ! Extract variable declarations from assignment statements
-        if (allocated(prog%body)) then
-            do i = 1, size(prog%body)
-                select type (stmt => prog%body(i))
-                type is (assignment_node)
-                    ! Get variable name
-                    select type (target => stmt%target)
-                    type is (identifier_node)
-                        var_name = target%name
+        ! Process all statements from stored tokens
+        if (allocated(current_tokens)) then
+            parser = create_parser_state(current_tokens)
+            
+            ! Parse statements by finding EOF boundaries
+            do while (parser%current_token <= size(current_tokens))
+                ! Find the end of the current statement (next EOF or end of tokens)
+                block
+                    integer :: stmt_start, stmt_end, j
+                    type(token_t), allocatable :: stmt_tokens(:)
+                    
+                    stmt_start = parser%current_token
+                    stmt_end = stmt_start
+                    
+                    ! Find next EOF token to determine statement boundary
+                    do j = stmt_start, size(current_tokens)
+                        if (current_tokens(j)%kind == TK_EOF) then
+                            stmt_end = j - 1
+                            exit
+                        end if
+                        stmt_end = j
+                    end do
+                    
+                    ! Extract tokens for this statement
+                    if (stmt_end >= stmt_start) then
+                        allocate(stmt_tokens(stmt_end - stmt_start + 1))
+                        stmt_tokens = current_tokens(stmt_start:stmt_end)
                         
-                        ! Basic type inference from assignment value
-                        type_str = infer_basic_type(stmt%value)
-                        decls = decls // "    " // type_str // " :: " // var_name // new_line('a')
-                    end select
-                type is (lf_assignment_node)
-                    ! Handle lazy fortran assignment nodes
-                    select type (target => stmt%assignment_node%target)
-                    type is (identifier_node)
-                        var_name = target%name
+                        ! Parse this statement
+                        stmt = parse_statement(stmt_tokens)
                         
-                        ! Basic type inference from assignment value
-                        type_str = infer_basic_type(stmt%assignment_node%value)
-                        decls = decls // "    " // type_str // " :: " // var_name // new_line('a')
-                    end select
-                end select
+                        if (allocated(stmt)) then
+                            ! Extract declarations from assignment statements
+                            select type (stmt)
+                            type is (assignment_node)
+                                ! Get variable name
+                                select type (target => stmt%target)
+                                type is (identifier_node)
+                                    var_name = target%name
+                                    
+                                    ! Basic type inference from assignment value
+                                    type_str = infer_basic_type(stmt%value)
+                                    decls = decls // "    " // type_str // " :: " // var_name // new_line('a')
+                                end select
+                            end select
+                        end if
+                    end if
+                    
+                    ! Move to next statement (skip past EOF)
+                    parser%current_token = stmt_end + 2  ! Skip EOF token
+                end block
             end do
         end if
         
     end function generate_declarations
     
     ! Basic type inference from AST value node
-    function infer_basic_type(value_node) result(type_str)
+    recursive function infer_basic_type(value_node) result(type_str)
         class(ast_node), intent(in) :: value_node
         character(len=:), allocatable :: type_str
         
@@ -319,8 +330,24 @@ contains
             case default
                 type_str = "integer"  ! fallback
             end select
+        type is (binary_op_node)
+            ! For binary operations, infer type from operands using promotion rules
+            block
+                character(len=:), allocatable :: left_type, right_type
+                left_type = infer_basic_type(value_node%left)
+                right_type = infer_basic_type(value_node%right)
+                
+                ! Type promotion rules: real > integer > other
+                if (left_type == "real(8)" .or. right_type == "real(8)") then
+                    type_str = "real(8)"
+                else if (left_type == "integer" .or. right_type == "integer") then
+                    type_str = "integer"
+                else
+                    type_str = "integer"  ! fallback
+                end if
+            end block
         class default
-            type_str = "integer"  ! fallback for non-literal expressions
+            type_str = "integer"  ! fallback for other expressions
         end select
     end function infer_basic_type
     
@@ -366,6 +393,65 @@ contains
             parser%current_token = parser%current_token + 1
         end do
     end subroutine advance_to_next_statement
+    
+    ! Store tokens for multi-statement processing
+    subroutine set_current_tokens(tokens)
+        type(token_t), intent(in) :: tokens(:)
+        current_tokens = tokens
+    end subroutine set_current_tokens
+    
+    ! Generate statements from stored tokens
+    function generate_statements_from_tokens() result(statements)
+        character(len=:), allocatable :: statements
+        type(parser_state_t) :: parser
+        class(ast_node), allocatable :: stmt
+        
+        statements = ""
+        
+        ! Process all statements from stored tokens
+        if (allocated(current_tokens)) then
+            parser = create_parser_state(current_tokens)
+            
+            ! Parse statements by finding EOF boundaries
+            do while (parser%current_token <= size(current_tokens))
+                ! Find the end of the current statement (next EOF or end of tokens)
+                block
+                    integer :: stmt_start, stmt_end, j
+                    type(token_t), allocatable :: stmt_tokens(:)
+                    
+                    stmt_start = parser%current_token
+                    stmt_end = stmt_start
+                    
+                    ! Find next EOF token to determine statement boundary
+                    do j = stmt_start, size(current_tokens)
+                        if (current_tokens(j)%kind == TK_EOF) then
+                            stmt_end = j - 1
+                            exit
+                        end if
+                        stmt_end = j
+                    end do
+                    
+                    ! Extract tokens for this statement
+                    if (stmt_end >= stmt_start) then
+                        allocate(stmt_tokens(stmt_end - stmt_start + 1))
+                        stmt_tokens = current_tokens(stmt_start:stmt_end)
+                        
+                        ! Parse this statement
+                        stmt = parse_statement(stmt_tokens)
+                        
+                        if (allocated(stmt)) then
+                            ! Generate code for this statement
+                            statements = statements // "    " // generate_code_polymorphic(stmt) // new_line('a')
+                        end if
+                    end if
+                    
+                    ! Move to next statement (skip past EOF)
+                    parser%current_token = stmt_end + 2  ! Skip EOF token
+                end block
+            end do
+        end if
+        
+    end function generate_statements_from_tokens
     
     ! Helper: Grow AST array (simplified to avoid abstract type issues)
     subroutine grow_ast_array(array, new_size)

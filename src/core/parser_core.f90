@@ -4,7 +4,7 @@ module parser_core
                          literal_node, function_call_node, &
                          create_assignment, create_binary_op, create_identifier, &
                          create_literal, create_function_call, &
-                         LITERAL_INTEGER, LITERAL_STRING
+                         LITERAL_INTEGER, LITERAL_REAL, LITERAL_STRING, LITERAL_LOGICAL
     implicit none
     private
 
@@ -178,7 +178,13 @@ contains
         case (TK_NUMBER)
             ! Parse number literal
             current = parser%consume()
-            expr = create_literal(current%text, LITERAL_INTEGER, current%line, current%column)
+            if (index(current%text, '.') > 0) then
+                ! Contains decimal point - classify as real
+                expr = create_literal(current%text, LITERAL_REAL, current%line, current%column)
+            else
+                ! No decimal point - classify as integer
+                expr = create_literal(current%text, LITERAL_INTEGER, current%line, current%column)
+            end if
             
         case (TK_STRING)
             ! Parse string literal
