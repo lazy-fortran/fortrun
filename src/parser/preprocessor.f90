@@ -1,6 +1,6 @@
 module preprocessor
     ! AST-based preprocessor for Simple Fortran (.f files)
-    use lexer_core, only: token_t, tokenize_core, TK_IDENTIFIER, TK_OPERATOR, TK_NUMBER, TK_KEYWORD
+    use lexer_core, only: token_t, tokenize_core, TK_IDENTIFIER, TK_OPERATOR, TK_NUMBER, TK_KEYWORD, TK_STRING
     use parser_core, only: parse_expression, parse_statement, parser_state_t, create_parser_state  
     use ast_core
     use codegen_core
@@ -650,6 +650,19 @@ contains
             line = trim(lines(i))
             if (len_trim(line) == 0) cycle
             
+            ! Skip comment lines
+            if (line(1:1) == '!') cycle
+            
+            ! Remove inline comments before tokenizing
+            block
+                integer :: comment_pos
+                comment_pos = index(line, '!')
+                if (comment_pos > 0) then
+                    line = trim(line(1:comment_pos-1))
+                    if (len_trim(line) == 0) cycle
+                end if
+            end block
+            
             ! Tokenize the line
             call tokenize_core(line, tokens)
             if (size(tokens) == 0) cycle
@@ -692,6 +705,19 @@ contains
         do i = 1, line_count
             line = trim(lines(i))
             if (len_trim(line) == 0) cycle
+            
+            ! Skip comment lines
+            if (line(1:1) == '!') cycle
+            
+            ! Remove inline comments before tokenizing
+            block
+                integer :: comment_pos
+                comment_pos = index(line, '!')
+                if (comment_pos > 0) then
+                    line = trim(line(1:comment_pos-1))
+                    if (len_trim(line) == 0) cycle
+                end if
+            end block
             
             ! Tokenize the line
             call tokenize_core(line, tokens)
@@ -771,11 +797,17 @@ contains
                 var_names(var_count) = var_name
                 
                 ! Simple type inference
-                if (size(value_tokens) >= 1 .and. value_tokens(1)%kind == TK_NUMBER) then
-                    if (index(value_tokens(1)%text, ".") > 0) then
-                        var_types(var_count) = "real(8)"
+                if (size(value_tokens) >= 1) then
+                    if (value_tokens(1)%kind == TK_NUMBER) then
+                        if (index(value_tokens(1)%text, ".") > 0) then
+                            var_types(var_count) = "real(8)"
+                        else
+                            var_types(var_count) = "integer"
+                        end if
+                    else if (value_tokens(1)%kind == TK_STRING) then
+                        var_types(var_count) = "character(len=256)"
                     else
-                        var_types(var_count) = "integer"
+                        var_types(var_count) = "real(8)"  ! Default for expressions
                     end if
                 else
                     var_types(var_count) = "real(8)"  ! Default
