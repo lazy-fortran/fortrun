@@ -7,7 +7,8 @@ contains
 
   subroutine parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                              custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
-                             notebook_output, preprocess_only, custom_flags)
+                             notebook_output, preprocess_only, custom_flags, &
+                             clear_cache, cache_info)
     character(len=*), intent(out) :: filename
     logical, intent(out) :: show_help
     integer, intent(out) :: verbose_level
@@ -19,6 +20,8 @@ contains
     character(len=*), intent(out) :: notebook_output
     logical, intent(out) :: preprocess_only
     character(len=*), intent(out), optional :: custom_flags
+    logical, intent(out) :: clear_cache
+    logical, intent(out) :: cache_info
     
     integer :: nargs, i, iostat
     character(len=256) :: arg
@@ -34,6 +37,8 @@ contains
     notebook_mode = .false.
     notebook_output = ''
     preprocess_only = .false.
+    clear_cache = .false.
+    cache_info = .false.
     if (present(custom_flags)) then
       custom_flags = ''
     end if
@@ -113,6 +118,10 @@ contains
         notebook_mode = .true.
       else if (arg == '--preprocess') then
         preprocess_only = .true.
+      else if (arg == '--clear-cache') then
+        clear_cache = .true.
+      else if (arg == '--cache-info') then
+        cache_info = .true.
       else if (arg == '-o' .or. arg == '--output') then
         expecting_output = .true.
       else if (arg == '--flag') then
@@ -158,7 +167,8 @@ contains
       show_help = .true.
     end if
     
-    if (.not. filename_found) then
+    ! Cache management commands don't require a filename
+    if (.not. filename_found .and. .not. clear_cache .and. .not. cache_info) then
       show_help = .true.
     end if
     

@@ -2,22 +2,34 @@ program main
   use cli, only: parse_arguments
   use runner, only: run_fortran_file
   use preprocessor, only: preprocess_file, is_preprocessor_file
+  use cache, only: clear_cache, get_cache_info
   use notebook_parser
   use notebook_executor
   use notebook_renderer
   implicit none
   
   character(len=256) :: filename, custom_cache_dir, custom_config_dir, notebook_output, custom_flags
-  logical :: show_help, no_wait, notebook_mode, preprocess_only
+  logical :: show_help, no_wait, notebook_mode, preprocess_only, clear_cache_flag, cache_info_flag
   integer :: exit_code, verbose_level, parallel_jobs
   type(notebook_t) :: notebook
   type(execution_result_t) :: results
   
   call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, custom_config_dir, &
-                      parallel_jobs, no_wait, notebook_mode, notebook_output, preprocess_only, custom_flags)
+                      parallel_jobs, no_wait, notebook_mode, notebook_output, preprocess_only, custom_flags, &
+                      clear_cache_flag, cache_info_flag)
   
   if (show_help) then
     call print_help()
+    stop 0
+  end if
+  
+  if (clear_cache_flag) then
+    call handle_clear_cache(custom_cache_dir, filename, verbose_level)
+    stop 0
+  end if
+  
+  if (cache_info_flag) then
+    call handle_cache_info(custom_cache_dir)
     stop 0
   end if
   
@@ -76,6 +88,10 @@ contains
     print '(a)', '  --no-wait         Fail immediately if cache is locked'
     print '(a)', '  --preprocess      Preprocess .f file and output .f90 to STDOUT'
     print '(a)', ''
+    print '(a)', 'Cache Management:'
+    print '(a)', '  --clear-cache     Clear all cached files'
+    print '(a)', '  --cache-info      Show cache statistics'
+    print '(a)', ''
     print '(a)', 'Notebook Mode:'
     print '(a)', '  --notebook        Run as notebook with cells and output capture'
     print '(a)', '  -o, --output FILE Output markdown file (default: <input>.md)'
@@ -128,5 +144,48 @@ contains
     end if
     
   end subroutine handle_preprocess_only
+  
+  subroutine handle_clear_cache(custom_cache_dir, filename, verbose_level)
+    character(len=*), intent(in) :: custom_cache_dir
+    character(len=*), intent(in) :: filename
+    integer, intent(in) :: verbose_level
+    logical :: success
+    integer :: exit_code
+    
+    if (verbose_level > 0) then
+      print '(a)', 'Clearing cache...'
+    end if
+    
+    call clear_cache(custom_cache_dir, success)
+    
+    if (success) then
+      if (verbose_level > 0) then
+        print '(a)', 'Cache cleared successfully'
+      end if
+      
+      ! If a filename was provided, run it after clearing cache
+      if (len_trim(filename) > 0) then
+        if (verbose_level > 0) then
+          print '(a)', 'Running file with cleared cache...'
+        end if
+        call run_fortran_file(filename, exit_code, verbose_level, custom_cache_dir, &
+                              '', 0, .false., '')
+        if (exit_code /= 0) then
+          stop 1
+        end if
+      end if
+    else
+      print '(a)', 'Error: Failed to clear cache'
+      stop 1
+    end if
+  end subroutine handle_clear_cache
+  
+  subroutine handle_cache_info(custom_cache_dir)
+    character(len=*), intent(in) :: custom_cache_dir
+    character(len=1024) :: info
+    
+    call get_cache_info(custom_cache_dir, info)
+    print '(a)', trim(info)
+  end subroutine handle_cache_info
   
 end program main

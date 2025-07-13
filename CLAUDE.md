@@ -308,3 +308,4 @@ Each example includes:
 - **AST Preprocessor is now the default**: The new AST-based preprocessor (preprocessor_ast) is used by default for .f files
 - The legacy preprocessor is kept for now but can be activated by setting FORTRAN_USE_AST_PREPROCESSOR=0
 - Fortran polymorphic assignment of types with allocatable components doesn't work reliably - work around this by avoiding passing AST nodes with allocatable components through polymorphic variables
+- Use Fortran 95 standard for reference in the parser implementation. You find it on https://wg5-fortran.org/N1151-N1200/N1191.pdf
