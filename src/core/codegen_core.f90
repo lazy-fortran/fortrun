@@ -1,11 +1,11 @@
 module codegen_core
     use ast_core
-    use ast_simple_fortran
+    use ast_postmodern_fortran
     implicit none
     private
     
     ! Public interface for code generation
-    public :: generate_code
+    public :: generate_code, generate_code_polymorphic
     
     ! Generic interface for all AST node types
     interface generate_code
@@ -19,9 +19,9 @@ module codegen_core
         module procedure generate_code_function_call
         module procedure generate_code_use_statement
         module procedure generate_code_print_statement
-        ! Simple Fortran specific
-        module procedure generate_code_sf_program
-        module procedure generate_code_sf_assignment
+        ! Postmodern Fortran specific
+        module procedure generate_code_pf_program
+        module procedure generate_code_pf_assignment
         module procedure generate_code_inferred_var
     end interface generate_code
 
@@ -211,8 +211,8 @@ contains
     end function generate_code_print_statement
 
     ! Generate code for Simple Fortran program node
-    function generate_code_sf_program(node) result(code)
-        type(sf_program_node), intent(in) :: node
+    function generate_code_pf_program(node) result(code)
+        type(pf_program_node), intent(in) :: node
         character(len=:), allocatable :: code
         integer :: i
         
@@ -229,7 +229,7 @@ contains
                 select type (stmt => node%body(i))
                 type is (assignment_node)
                     code = code // "    " // generate_code(stmt) // new_line('a')
-                type is (sf_assignment_node)
+                type is (pf_assignment_node)
                     code = code // "    " // generate_code(stmt) // new_line('a')
                 class default
                     ! Handle other statement types
@@ -240,17 +240,17 @@ contains
         
         ! End program
         code = code // "end program " // node%name
-    end function generate_code_sf_program
+    end function generate_code_pf_program
 
     ! Generate code for Simple Fortran assignment (with type inference)
-    function generate_code_sf_assignment(node) result(code)
-        type(sf_assignment_node), intent(in) :: node
+    function generate_code_pf_assignment(node) result(code)
+        type(pf_assignment_node), intent(in) :: node
         character(len=:), allocatable :: code
         
         ! For now, just generate as regular assignment
         ! In the future, we'd handle type declarations here
         code = generate_code_assignment(node%assignment_node)
-    end function generate_code_sf_assignment
+    end function generate_code_pf_assignment
 
     ! Generate code for inferred variable
     function generate_code_inferred_var(node) result(code)
@@ -260,5 +260,28 @@ contains
         ! Just return the variable name
         code = node%name
     end function generate_code_inferred_var
+
+    ! Polymorphic dispatcher for class(ast_node)
+    function generate_code_polymorphic(node) result(code)
+        class(ast_node), intent(in) :: node
+        character(len=:), allocatable :: code
+        
+        select type (node)
+        type is (literal_node)
+            code = generate_code_literal(node)
+        type is (identifier_node)
+            code = generate_code_identifier(node)
+        type is (assignment_node)
+            code = generate_code_assignment(node)
+        type is (binary_op_node)
+            code = generate_code_binary_op(node)
+        type is (function_call_node)
+            code = generate_code_function_call(node)
+        type is (pf_assignment_node)
+            code = generate_code_pf_assignment(node)
+        class default
+            code = "! Unknown AST node type"
+        end select
+    end function generate_code_polymorphic
 
 end module codegen_core

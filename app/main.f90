@@ -1,7 +1,7 @@
 program main
   use cli, only: parse_arguments
   use runner, only: run_fortran_file
-  use preprocessor, only: preprocess_file, preprocess_file_debug, is_preprocessor_file
+  use frontend_integration, only: compile_with_frontend, compile_with_frontend_debug, is_simple_fortran_file
   use cache, only: clear_cache, get_cache_info
   use debug_state, only: set_debug_flags
   use notebook_parser
@@ -79,7 +79,7 @@ contains
     print '(a)', 'Arguments:'
     print '(a)', '  <file>        Path to Fortran source file'
     print '(a)', '                .f90/.F90 = Standard Fortran (no preprocessing)'
-    print '(a)', '                .f/.F     = Preprocessed Fortran (type inference + defaults)'
+    print '(a)', '                .f/.F     = Simple Fortran (frontend with type inference)'
     print '(a)', ''
     print '(a)', 'Options:'
     print '(a)', '  -h, --help        Show this help message'
@@ -112,7 +112,7 @@ contains
     integer :: unit, ios
     
     ! Check if input is a .f file
-    if (.not. is_preprocessor_file(input_file)) then
+    if (.not. is_simple_fortran_file(input_file)) then
       write(*, '(a)') 'Error: --preprocess can only be used with .f files'
       stop 1
     end if
@@ -120,11 +120,11 @@ contains
     ! Create temporary output file
     temp_output = trim(input_file) // '.tmp.f90'
     
-    ! Preprocess the file
+    ! Compile with frontend to Fortran IR
     if (debug_tokens .or. debug_ast .or. debug_codegen) then
-      call preprocess_file_debug(input_file, temp_output, error_msg, debug_tokens, debug_ast, debug_codegen)
+      call compile_with_frontend_debug(input_file, temp_output, error_msg, debug_tokens, debug_ast, debug_codegen)
     else
-      call preprocess_file(input_file, temp_output, error_msg)
+      call compile_with_frontend(input_file, temp_output, error_msg)
     end if
     
     if (len_trim(error_msg) > 0) then

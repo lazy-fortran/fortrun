@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with this repository.
 
 ## Project Purpose
 
-This project develops a command-line tool called `fortran` that **Makes Python Fortran again**. The tool enables running Fortran programs directly without manual compilation, automatically resolving and building module dependencies using FPM, with opinionated modern defaults and zero configuration.
+This project develops a command-line tool called `fortran` that **Makes Python Fortran again**. The tool enables running Fortran programs directly without manual compilation, automatically resolving and building module dependencies using FPM, with opinionated modern defaults and zero configuration. Our *postmodern fortran* dialect pushes beyond all alternative scientific computing languages to combine Fortran's performance with modern expressiveness.
 
 ## Build System
 
@@ -17,7 +17,7 @@ fpm build                         # Build project
 fpm run fortran -- example.f90    # Run main app (IMPORTANT: Use -- separator)
 fpm test                          # Run all tests
 fpm test test_name                # Run specific test
-rm -rf ~/.cache/fortran/*         # Clear cache (CRITICAL before testing preprocessor!)
+rm -rf ~/.cache/fortran/*         # Clear cache (CRITICAL before testing frontend!)
 
 # Debug Pipeline Stages (JSON output)
 fpm run fortran -- example.f90 --debug-tokens    # Debug tokenization stage
@@ -32,7 +32,7 @@ Standard FPM directory structure:
 - `src/` - Library modules
   - `core/` - Shared functionality (lexer, parser, AST, codegen)
   - `dialects/` - Dialect-specific extensions
-    - `simple_fortran/` - Our simplified Fortran dialect
+    - `postmodern_fortran/` - Our *postmodern fortran* dialect
 - `app/` - Executable programs
 - `test/` - Test programs with comprehensive coverage
   - `test_data/` - Test input files
@@ -55,13 +55,15 @@ The `fpm.toml` enforces: no implicit typing, free-form source, JSON support via 
 - Function return type inference
 - More sophisticated expression analysis
 
-## Simple Fortran Dialect
+## *Postmodern Fortran* Dialect
+
+**Experimental dialect** - *postmodern fortran* is our experimental dialect that pushes the boundaries beyond all alternative languages for scientific computing. It explores how far we can evolve Fortran to surpass Python, Julia, MATLAB, and others in both performance and expressiveness while maintaining full backward compatibility.
 
 1. **Implicit program wrapping** - No need for `program`/`end program`
 2. **Automatic type inference** - Variables declared through assignment
 3. **Modern defaults** - `implicit none`, `real(8)`, `intent(in)`
 4. **Automatic contains insertion** - For functions/subroutines
-5. **Future features** - List comprehensions, f-strings, enhanced arrays
+5. **Future experimental features** - List comprehensions, f-strings, enhanced arrays, pattern matching
 
 ### Compiler Flags
 ```bash
@@ -111,14 +113,14 @@ prefix = "fortplot"  # Modules starting with "fortplot"
 ## Critical Development Notes
 
 - **ALWAYS write tests first!** (TDD: red-green-refactor)
-- **Clear cache before testing preprocessor**: `rm -rf ~/.cache/fortran/*`
-- **AST Preprocessor is default** for .f files (use FORTRAN_USE_AST_PREPROCESSOR=0 for legacy)
+- **Clear cache before testing frontend**: `rm -rf ~/.cache/fortran/*`
+- **Compiler frontend is used** for .f files (*postmodern fortran* with type inference)
 - Debug apps go in `app/`, then move to `test/` when ready
 - Test data goes in `test/test_data/`
 - Polymorphic arrays: use `allocate(array, source=input)`
 - Avoid polymorphic assignment with allocatable components
 - Reference: Fortran 95 standard at https://wg5-fortran.org/N1151-N1200/N1191.pdf
-- **To run the currently developed version of fortran, run fpm run fortran -- <arguments>. Always clear cache if you change preprocessor features.**
+- **To run the currently developed version of fortran, run fpm run fortran -- <arguments>. Always clear cache if you change frontend features.**
 - **For debugging AST pipeline issues, use --debug-tokens, --debug-ast, --debug-codegen flags for JSON intermediate output**
 - In order not to fill your context uselessly, run full test suite only with "fpm test > /dev/null" to suppress verbose output. Prefer using tests for one subsystem only for development.
 - **Command line options are documented in doc/index.md** - this includes all flags, debug options, and usage examples
@@ -132,7 +134,7 @@ Run specific test categories during development to avoid context overload:
 fpm test test_lexer_basic          # Tokenization
 fpm test test_parser_basic         # AST parsing  
 fpm test test_codegen_basic        # Code generation
-fpm test test_preprocessor         # AST preprocessor
+fpm test test_frontend             # Compiler frontend
 ```
 
 ### Type System
@@ -179,4 +181,5 @@ fpm test test_parse_and_codegen   # Full AST pipeline
 
 - You can find Fortran and fortran standards for implementation reference in doc/standard
 - You can find current status and tasks in TODO.md
-- You can find architecture and design in doc/design directory. We derive our TODO.md from this design and roadmap. You can find roadmap in ROADMAP.md
+- You can find architecture and design plans in doc/plan directory. Our plans live there and we derive TODO.md for concrete implementation planning
+- You can find roadmap in ROADMAP.md

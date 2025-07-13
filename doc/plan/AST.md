@@ -1,8 +1,8 @@
-# AST Architecture for Simple Fortran Compiler Frontend
+# AST Architecture for *Postmodern Fortran* Compiler Frontend
 
 ## Overview
 
-This document outlines the architecture for a modern lexer/parser/AST system to replace the current line-based preprocessor, supporting the long-term goal of creating a new compiler frontend for Simple Fortran with automatic type inference and multiple dispatch.
+This document outlines the architecture for a modern compiler frontend for *postmodern fortran* with automatic type inference and multiple dispatch. Our experimental dialect pushes beyond all alternative scientific computing languages, exploring how far we can evolve Fortran to surpass Python, Julia, MATLAB, and others in both performance and expressiveness. The frontend provides a complete 4-phase pipeline (Lexer → Parser → Semantic Analysis → Code Generation) that can target multiple backends, with standard Fortran as the initial intermediate representation.
 
 ## Design Goals
 
@@ -13,6 +13,8 @@ This document outlines the architecture for a modern lexer/parser/AST system to 
 5. **Type Inference**: Built-in support for automatic type inference
 6. **Future-Proof**: Architecture supports planned features like multiple dispatch
 7. **Multi-Dialect Support**: Shared functionality for all Fortran standards with specialized modules for dialect-specific features
+8. **Superset Design**: *postmodern fortran* is a superset of standard Fortran - any valid Fortran 95/2003/2008/2018 program should pass through the frontend unchanged
+9. **Beyond Alternatives**: Push beyond all alternative scientific computing languages in expressiveness while maintaining Fortran's performance advantage
 
 ## Architecture: Shared Core with Dialect Specialization
 
@@ -182,38 +184,216 @@ module ast_simple_fortran
 end module
 ```
 
-### Phase 3: Semantic Analysis with Type Inference
+### Phase 3: Semantic Analysis with Hindley-Milner Type Inference
+
+The semantic analyzer uses a Hindley-Milner type inference algorithm, providing an elegant and simple approach with the option to extend to bidirectional type checking later.
+
+#### Core Type System
+
+```fortran
+module type_system
+  ! Type variables for polymorphic types
+  type :: type_var
+    integer :: id
+    character(len=:), allocatable :: name  ! e.g., 'a, 'b
+  end type
+
+  ! Monomorphic types
+  type :: mono_type
+    integer :: kind  ! TVAR, TINT, TREAL, TCHAR, TFUN, TARRAY
+    type(type_var) :: var  ! for TVAR
+    type(mono_type), allocatable :: args(:)  ! for TFUN, TARRAY
+    integer :: size  ! for TCHAR(len=size)
+  end type
+
+  ! Type schemes (polymorphic types)
+  type :: poly_type
+    type(type_var), allocatable :: forall(:)  ! quantified variables
+    type(mono_type) :: mono  ! the monomorphic type
+  end type
+
+  ! Type environment
+  type :: type_env
+    type(hash_table) :: bindings  ! variable -> poly_type
+  contains
+    procedure :: lookup
+    procedure :: extend
+    procedure :: generalize
+  end type
+end module
+```
+
+#### Hindley-Milner Algorithm
 
 ```fortran
 module semantic_analyzer
+  use type_system
+  
   type :: semantic_context
-    type(symbol_table) :: symbols
-    type(type_environment) :: types
-    type(function_registry) :: functions
+    type(type_env) :: env
+    integer :: next_var_id = 0
+    type(substitution) :: subst
   contains
     procedure :: analyze_program
-    procedure :: infer_expression_type
-    procedure :: resolve_function_call
+    procedure :: infer  ! Main HM inference
+    procedure :: unify  ! Type unification
+    procedure :: instantiate  ! Instantiate type scheme
+    procedure :: generalize  ! Generalize to type scheme
   end type
 
-  ! Type inference for assignments
-  subroutine analyze_assignment(ctx, node)
+  ! Main type inference function (Algorithm W)
+  recursive function infer(ctx, env, expr) result(typ)
     type(semantic_context) :: ctx
-    type(assign_node) :: node
-    type(type_info) :: expr_type
+    type(type_env) :: env
+    class(ast_node) :: expr
+    type(mono_type) :: typ
     
-    ! Infer type from RHS
-    expr_type = ctx%infer_expression_type(node%value)
+    select type (expr)
+    type is (literal_node)
+      ! Literals have known types
+      select case (expr%literal_kind)
+      case (INTEGER_LITERAL)
+        typ = mono_type(kind=TINT)
+      case (REAL_LITERAL)
+        typ = mono_type(kind=TREAL)
+      case (STRING_LITERAL)
+        typ = mono_type(kind=TCHAR, size=len(expr%value)-2)
+      end select
+      
+    type is (identifier_node)
+      ! Look up identifier in environment
+      block
+        type(poly_type) :: scheme
+        scheme = env%lookup(expr%name)
+        typ = ctx%instantiate(scheme)
+      end block
+      
+    type is (assignment_node)
+      ! Infer RHS type and bind to LHS
+      typ = ctx%infer(env, expr%value)
+      call env%extend(expr%target%name, ctx%generalize(env, typ))
+      
+    type is (binary_op_node)
+      ! Infer operand types and unify
+      block
+        type(mono_type) :: left_typ, right_typ, result_typ
+        type(type_var) :: tv
+        
+        left_typ = ctx%infer(env, expr%left)
+        right_typ = ctx%infer(env, expr%right)
+        
+        ! Create fresh type variable for result
+        tv = ctx%fresh_type_var()
+        result_typ = mono_type(kind=TVAR, var=tv)
+        
+        ! Unify based on operator
+        select case (expr%operator)
+        case ("+", "-", "*", "/")
+          call ctx%unify(left_typ, right_typ)
+          call ctx%unify(left_typ, result_typ)
+        case ("**")
+          call ctx%unify(left_typ, right_typ)
+          call ctx%unify(left_typ, result_typ)
+        end select
+        
+        typ = ctx%apply_subst(result_typ)
+      end block
+      
+    type is (function_call_node)
+      ! Function application
+      block
+        type(mono_type) :: fun_typ, arg_typ, result_typ
+        type(type_var) :: tv
+        integer :: i
+        
+        ! Get function type
+        fun_typ = ctx%infer(env, create_identifier(expr%name))
+        
+        ! Infer argument types
+        do i = 1, size(expr%args)
+          arg_typ = ctx%infer(env, expr%args(i))
+          
+          ! Create result type variable
+          tv = ctx%fresh_type_var()
+          result_typ = mono_type(kind=TVAR, var=tv)
+          
+          ! Unify function with arg -> result
+          call ctx%unify(fun_typ, &
+            mono_type(kind=TFUN, args=[arg_typ, result_typ]))
+          
+          fun_typ = result_typ
+        end do
+        
+        typ = fun_typ
+      end block
+    end select
+  end function infer
+  
+  ! Type unification
+  subroutine unify(ctx, t1, t2)
+    type(semantic_context) :: ctx
+    type(mono_type) :: t1, t2
     
-    ! Add variable with inferred type
-    call ctx%symbols%add_variable(node%target%name, expr_type)
+    ! Apply current substitution
+    t1 = ctx%apply_subst(t1)
+    t2 = ctx%apply_subst(t2)
+    
+    if (t1%kind == TVAR) then
+      call ctx%bind_var(t1%var, t2)
+    else if (t2%kind == TVAR) then
+      call ctx%bind_var(t2%var, t1)
+    else if (t1%kind == t2%kind) then
+      select case (t1%kind)
+      case (TINT, TREAL)
+        ! Base types unify if equal
+      case (TCHAR)
+        if (t1%size /= t2%size) then
+          error stop "Cannot unify character types of different lengths"
+        end if
+      case (TFUN, TARRAY)
+        ! Recursively unify components
+        call ctx%unify_args(t1%args, t2%args)
+      end select
+    else
+      error stop "Type mismatch: cannot unify different types"
+    end if
   end subroutine
 end module
 ```
 
+#### Integration with AST Nodes
+
+```fortran
+module ast_core
+  ! Extended AST nodes to store inferred types
+  type, abstract :: ast_node
+    integer :: line
+    integer :: column
+    type(mono_type), allocatable :: inferred_type  ! Added for type info
+  contains
+    procedure(visit_interface), deferred :: accept
+  end type
+end module
+```
+
+#### Benefits of Hindley-Milner Approach
+
+1. **Simple and Elegant**: Based on well-understood theory
+2. **Sound**: Guarantees type safety
+3. **Complete**: Infers most general types
+4. **Extensible**: Can add constraints for bidirectional checking
+5. **No Annotations Required**: Full type inference
+
+#### Future Extension to Bidirectional
+
+The architecture supports future extension to bidirectional type checking:
+- Add type annotations to AST nodes
+- Implement checking mode alongside inference mode
+- Support more advanced features (higher-rank types, etc.)
+
 ### Phase 4: Code Generation
 
-Two backends supported:
+Multiple backend targets supported, with standard Fortran as the initial intermediate representation:
 
 ```fortran
 module codegen
@@ -222,21 +402,41 @@ module codegen
     procedure(generate_interface), deferred :: generate
   end type
 
-  ! Generate standard Fortran
+  ! Backend 1: Generate standard Fortran (our IR for now)
   type, extends(code_generator) :: fortran_generator
     logical :: modern_defaults = .true.
   contains
     procedure :: generate => generate_fortran
   end type
 
-  ! Future: Generate compiler IR
-  type, extends(code_generator) :: ir_generator
-    ! Interface to LLVM, GCC, or custom IR
+  ! Backend 2: Future LLVM IR generator
+  type, extends(code_generator) :: llvm_generator
   contains
-    procedure :: generate => generate_ir
+    procedure :: generate => generate_llvm_ir
+  end type
+
+  ! Backend 3: Future C code generator
+  type, extends(code_generator) :: c_generator
+  contains
+    procedure :: generate => generate_c
+  end type
+
+  ! Backend 4: Future direct machine code
+  type, extends(code_generator) :: native_generator
+    ! Direct compilation to machine code
+  contains
+    procedure :: generate => generate_native
   end type
 end module
 ```
+
+#### Standard Fortran as Intermediate Representation
+
+Using standard Fortran as our initial IR provides several benefits:
+1. **Immediate usability**: Can be compiled by any Fortran compiler
+2. **Debugging**: Human-readable intermediate code
+3. **Gradual migration**: Can incrementally replace with other backends
+4. **Compatibility**: Works with existing Fortran ecosystem
 
 ## Key Features Support
 
@@ -271,7 +471,29 @@ end if
 ! - Automatic implicit none
 ```
 
-### 4. Future: Multiple Dispatch
+### 4. Standard Fortran Compatibility
+
+Since Simple Fortran is designed as a superset of standard Fortran, the frontend handles all standard Fortran constructs:
+
+```fortran
+! Standard Fortran 95 program - passes through unchanged
+program test
+    implicit none
+    real :: x, y
+    integer :: i
+    
+    x = 5.0
+    y = sqrt(x)
+    
+    do i = 1, 10
+        print *, i, x**i
+    end do
+end program test
+```
+
+The frontend recognizes this as standard Fortran (explicit program statement, declarations) and generates identical output, ensuring full backward compatibility.
+
+### 5. Future: Multiple Dispatch
 
 ```fortran
 ! AST structure supports function overloading:
@@ -288,22 +510,67 @@ type :: dispatch_table
 end type
 ```
 
+## Compiler Frontend Architecture
+
+The Simple Fortran compiler frontend is designed as a modular, extensible system:
+
+```
+Source Code (.f, .f90)
+        ↓
+┌──────────────────────────────────────┐
+│        Compiler Frontend             │
+│                                      │
+│  ┌────────────┐                     │
+│  │   Lexer    │ → Tokens            │
+│  └────────────┘                     │
+│         ↓                           │
+│  ┌────────────┐                     │
+│  │   Parser   │ → AST               │
+│  └────────────┘                     │
+│         ↓                           │
+│  ┌────────────────────┐             │
+│  │ Semantic Analyzer  │ → Typed AST │
+│  │ (Hindley-Milner)   │             │
+│  └────────────────────┘             │
+│         ↓                           │
+│  ┌────────────────────┐             │
+│  │  Code Generator    │             │
+│  └────────────────────┘             │
+└──────────────────────────────────────┘
+        ↓
+   Backend Targets
+   ├─ Standard Fortran (current IR)
+   ├─ LLVM IR (future)
+   ├─ C code (future)
+   └─ Native code (future)
+```
+
+### Frontend Use Cases
+
+1. **Preprocessor Mode** (current): Frontend + Fortran codegen → compilable .f90
+2. **Compiler Mode** (future): Frontend + LLVM backend → executable
+3. **Transpiler Mode** (future): Frontend + C backend → portable C code
+4. **Analysis Mode**: Frontend only → type checking, optimization analysis
+
 ## Implementation Strategy
 
-### Stage 1: Minimal Lexer/Parser (Current Goal)
-- Focus on subset needed for existing preprocessor features
-- Generate Fortran code (replace current line-based approach)
-- Reuse existing type inference module
+### Stage 1: Frontend with Fortran Backend (✅ Current)
+- Complete 4-phase frontend implementation
+- Hindley-Milner type inference
+- Standard Fortran as intermediate representation
+- Replaces line-based preprocessor
 
-### Stage 2: Full Parser
-- Complete Fortran subset support
-- Better error recovery and reporting
-- Symbol table with proper scoping
+### Stage 2: Enhanced Frontend Features
+- Complete Simple Fortran language support
+- Advanced type system features
+- Error recovery and diagnostics
+- Module system integration
 
-### Stage 3: Advanced Features
-- Multiple dispatch support
-- Direct compiler IR generation
-- Optimization passes on AST
+### Stage 3: Alternative Backends
+- LLVM IR generation
+- Direct optimization on typed AST
+- Multiple dispatch implementation
+- Native code generation
 
 ## Benefits Over Current Approach
 

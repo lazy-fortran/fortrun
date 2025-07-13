@@ -66,7 +66,7 @@ end function distance
 
 🎯 **Two Execution Modes**  
 - **Standard Fortran** (`.f90` files): Modern Fortran with no opinionated changes
-- **Opinionated Preprocessing** (`.f` files): Automatic type inference, no boilerplate, `real(8)` defaults
+- **Simple Fortran** (`.f` files): Compiler frontend with automatic type inference, no boilerplate, `real(8)` defaults
 - **Notebook Mode**: Interactive analysis with figure capture (`.f` files only)
 
 📦 **Smart Dependencies**
@@ -109,10 +109,10 @@ cd fortran
 
 ```bash
 # Two execution modes
-fortran program.f90           # Standard Fortran mode (no preprocessing)
-fortran script.f              # Opinionated preprocessing mode
+fortran program.f90           # Standard Fortran mode
+fortran script.f              # Simple Fortran mode (compiler frontend)
 
-# Notebook mode (preprocessed .f files only)
+# Notebook mode (Simple Fortran .f files only)
 fortran --notebook analysis.f # Interactive analysis with figure capture
 
 # Options
@@ -147,7 +147,7 @@ fortran --clear-cache example.f90
 fortran --cache-dir /tmp/fortran-cache example.f90
 ```
 
-**Important for Development**: Always clear the cache when testing new preprocessor features or compiler flags to ensure you're not using outdated cached files.
+**Important for Development**: Always clear the cache when testing new frontend features or compiler flags to ensure you're not using outdated cached files.
 
 ## Project Status
 

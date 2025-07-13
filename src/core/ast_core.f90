@@ -1,5 +1,6 @@
 module ast_core
     use json_module
+    ! use type_system_hm, only: mono_type_t  ! TODO: integrate HM type system
     implicit none
     private
 
@@ -7,6 +8,7 @@ module ast_core
     type, abstract, public :: ast_node
         integer :: line = 1
         integer :: column = 1
+        ! type(mono_type_t), allocatable :: inferred_type  ! TODO: Type information from semantic analysis
     contains
         procedure(visit_interface), deferred :: accept
         procedure(to_json_interface), deferred :: to_json
