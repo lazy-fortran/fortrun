@@ -1,0 +1,282 @@
+module ast_simple_fortran
+    use ast_core
+    use json_module
+    implicit none
+    private
+
+    ! Extended program node with implicit program support
+    type, extends(program_node), public :: sf_program_node
+        logical :: implicit = .false.      ! true if auto-wrapped
+        logical :: auto_contains = .false. ! true if contains was auto-inserted
+    contains
+        procedure :: accept => sf_program_accept
+        procedure :: to_json => sf_program_to_json
+    end type sf_program_node
+
+    ! Type-inferred variable node (unique to Simple Fortran)
+    type, extends(ast_node), public :: inferred_var_node
+        character(len=:), allocatable :: name
+        class(ast_node), allocatable :: initial_value
+        ! Type will be inferred during semantic analysis
+    contains
+        procedure :: accept => inferred_var_accept
+        procedure :: to_json => inferred_var_to_json
+    end type inferred_var_node
+
+    ! List comprehension node (future Python-like feature)
+    type, extends(ast_node), public :: list_comp_node
+        class(ast_node), allocatable :: expr
+        class(ast_node), allocatable :: target
+        class(ast_node), allocatable :: iter
+        class(ast_node), allocatable :: condition  ! optional
+    contains
+        procedure :: accept => list_comp_accept
+        procedure :: to_json => list_comp_to_json
+    end type list_comp_node
+
+    ! F-string node (future Python-like feature)
+    type, extends(ast_node), public :: fstring_node
+        character(len=:), allocatable :: template
+        class(ast_node), allocatable :: expressions(:)
+    contains
+        procedure :: accept => fstring_accept
+        procedure :: to_json => fstring_to_json
+    end type fstring_node
+
+    ! Enhanced assignment node with auto type inference
+    type, extends(assignment_node), public :: sf_assignment_node
+        logical :: inferred_type = .false.  ! true if type was inferred
+        character(len=:), allocatable :: inferred_type_name
+    contains
+        procedure :: accept => sf_assignment_accept
+        procedure :: to_json => sf_assignment_to_json
+    end type sf_assignment_node
+
+    ! Public interface for creating Simple Fortran nodes
+    public :: create_sf_program, create_inferred_var, create_list_comp
+    public :: create_fstring, create_sf_assignment
+
+contains
+
+    ! Factory functions for Simple Fortran AST nodes
+
+    function create_sf_program(name, body, implicit, auto_contains, line, column) result(node)
+        character(len=*), intent(in) :: name
+        class(ast_node), intent(in) :: body(:)
+        logical, intent(in), optional :: implicit, auto_contains
+        integer, intent(in), optional :: line, column
+        type(sf_program_node) :: node
+        integer :: i
+        
+        node%name = name
+        if (size(body) > 0) then
+            allocate(node%body, source=body)
+        end if
+        if (present(implicit)) node%implicit = implicit
+        if (present(auto_contains)) node%auto_contains = auto_contains
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_sf_program
+
+    function create_inferred_var(name, initial_value, line, column) result(node)
+        character(len=*), intent(in) :: name
+        class(ast_node), intent(in) :: initial_value
+        integer, intent(in), optional :: line, column
+        type(inferred_var_node) :: node
+        
+        node%name = name
+        allocate(node%initial_value, source=initial_value)
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_inferred_var
+
+    function create_list_comp(expr, target, iter, condition, line, column) result(node)
+        class(ast_node), intent(in) :: expr
+        class(ast_node), intent(in) :: target
+        class(ast_node), intent(in) :: iter
+        class(ast_node), intent(in), optional :: condition
+        integer, intent(in), optional :: line, column
+        type(list_comp_node) :: node
+        
+        allocate(node%expr, source=expr)
+        allocate(node%target, source=target)
+        allocate(node%iter, source=iter)
+        if (present(condition)) allocate(node%condition, source=condition)
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_list_comp
+
+    function create_fstring(template, expressions, line, column) result(node)
+        character(len=*), intent(in) :: template
+        class(ast_node), intent(in) :: expressions(:)
+        integer, intent(in), optional :: line, column
+        type(fstring_node) :: node
+        integer :: i
+        
+        node%template = template
+        if (size(expressions) > 0) then
+            allocate(node%expressions, source=expressions)
+        end if
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_fstring
+
+    function create_sf_assignment(target, value, inferred_type, inferred_type_name, line, column) result(node)
+        class(ast_node), intent(in) :: target
+        class(ast_node), intent(in) :: value
+        logical, intent(in), optional :: inferred_type
+        character(len=*), intent(in), optional :: inferred_type_name
+        integer, intent(in), optional :: line, column
+        type(sf_assignment_node) :: node
+        
+        allocate(node%target, source=target)
+        allocate(node%value, source=value)
+        if (present(inferred_type)) node%inferred_type = inferred_type
+        if (present(inferred_type_name)) node%inferred_type_name = inferred_type_name
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_sf_assignment
+
+    ! Visitor pattern implementations for Simple Fortran nodes
+
+    subroutine sf_program_accept(this, visitor)
+        class(sf_program_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Implementation depends on specific visitor
+    end subroutine sf_program_accept
+
+    subroutine inferred_var_accept(this, visitor)
+        class(inferred_var_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Implementation depends on specific visitor
+    end subroutine inferred_var_accept
+
+    subroutine list_comp_accept(this, visitor)
+        class(list_comp_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Implementation depends on specific visitor
+    end subroutine list_comp_accept
+
+    subroutine fstring_accept(this, visitor)
+        class(fstring_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Implementation depends on specific visitor
+    end subroutine fstring_accept
+
+    subroutine sf_assignment_accept(this, visitor)
+        class(sf_assignment_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Implementation depends on specific visitor
+    end subroutine sf_assignment_accept
+
+    ! JSON serialization implementations for Simple Fortran nodes
+
+    subroutine sf_program_to_json(this, json, parent)
+        class(sf_program_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj, body_array
+        integer :: i
+        
+        call json%create_object(obj, '')
+        call json%add(obj, 'type', 'sf_program')
+        call json%add(obj, 'name', this%name)
+        call json%add(obj, 'implicit', this%implicit)
+        call json%add(obj, 'auto_contains', this%auto_contains)
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+        
+        call json%create_array(body_array, 'body')
+        call json%add(obj, body_array)
+        
+        do i = 1, size(this%body)
+            call this%body(i)%to_json(json, body_array)
+        end do
+        
+        call json%add(parent, obj)
+    end subroutine sf_program_to_json
+
+    subroutine inferred_var_to_json(this, json, parent)
+        class(inferred_var_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj
+        
+        call json%create_object(obj, '')
+        call json%add(obj, 'type', 'inferred_var')
+        call json%add(obj, 'name', this%name)
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+        
+        call this%initial_value%to_json(json, obj)
+        
+        call json%add(parent, obj)
+    end subroutine inferred_var_to_json
+
+    subroutine list_comp_to_json(this, json, parent)
+        class(list_comp_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj
+        
+        call json%create_object(obj, '')
+        call json%add(obj, 'type', 'list_comp')
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+        
+        call this%expr%to_json(json, obj)
+        call this%target%to_json(json, obj)
+        call this%iter%to_json(json, obj)
+        
+        if (allocated(this%condition)) then
+            call this%condition%to_json(json, obj)
+        end if
+        
+        call json%add(parent, obj)
+    end subroutine list_comp_to_json
+
+    subroutine fstring_to_json(this, json, parent)
+        class(fstring_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj, expr_array
+        integer :: i
+        
+        call json%create_object(obj, '')
+        call json%add(obj, 'type', 'fstring')
+        call json%add(obj, 'template', this%template)
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+        
+        call json%create_array(expr_array, 'expressions')
+        call json%add(obj, expr_array)
+        
+        do i = 1, size(this%expressions)
+            call this%expressions(i)%to_json(json, expr_array)
+        end do
+        
+        call json%add(parent, obj)
+    end subroutine fstring_to_json
+
+    subroutine sf_assignment_to_json(this, json, parent)
+        class(sf_assignment_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj
+        
+        call json%create_object(obj, '')
+        call json%add(obj, 'type', 'sf_assignment')
+        call json%add(obj, 'inferred_type', this%inferred_type)
+        if (allocated(this%inferred_type_name)) then
+            call json%add(obj, 'inferred_type_name', this%inferred_type_name)
+        end if
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+        
+        call this%target%to_json(json, obj)
+        call this%value%to_json(json, obj)
+        
+        call json%add(parent, obj)
+    end subroutine sf_assignment_to_json
+
+end module ast_simple_fortran
