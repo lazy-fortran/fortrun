@@ -1,5 +1,5 @@
 program test_lexer_operators
-    use lexer
+    use lexer_core
     implicit none
     
     logical :: all_passed
@@ -33,7 +33,7 @@ contains
         
         ! Test single character operators
         do i = 1, size(single_ops)
-            call tokenize(single_ops(i), tokens)
+            call tokenize_core(single_ops(i), tokens)
             if (size(tokens) /= 2) then  ! operator + EOF
                 print '(a,a)', "FAIL: Wrong token count for operator: ", single_ops(i)
                 test_arithmetic_operators = .false.
@@ -54,7 +54,7 @@ contains
         end do
         
         ! Test power operator (**)
-        call tokenize("**", tokens)
+        call tokenize_core("**", tokens)
         if (size(tokens) /= 2) then
             print '(a)', "FAIL: Wrong token count for ** operator"
             test_arithmetic_operators = .false.
@@ -81,7 +81,7 @@ contains
         
         ! Test two-character comparison operators
         do i = 1, size(comp_ops)
-            call tokenize(comp_ops(i), tokens)
+            call tokenize_core(comp_ops(i), tokens)
             if (size(tokens) /= 2) then  ! operator + EOF
                 print '(a,a)', "FAIL: Wrong token count for operator: ", comp_ops(i)
                 test_comparison_operators = .false.
@@ -103,7 +103,7 @@ contains
         
         ! Test single character comparison operators
         do i = 1, size(single_comp)
-            call tokenize(single_comp(i), tokens)
+            call tokenize_core(single_comp(i), tokens)
             if (tokens(1)%kind /= TK_OPERATOR .or. tokens(1)%text /= single_comp(i)) then
                 print '(a,a)', "FAIL: Single comparison operator: ", single_comp(i)
                 test_comparison_operators = .false.
@@ -121,7 +121,7 @@ contains
         print '(a)', "Testing assignment operator tokenization..."
         
         ! Test simple assignment
-        call tokenize("=", tokens)
+        call tokenize_core("=", tokens)
         if (size(tokens) /= 2) then
             print '(a)', "FAIL: Wrong token count for = operator"
             test_assignment_operators = .false.
@@ -135,7 +135,7 @@ contains
         end if
         
         ! Test type declaration operator
-        call tokenize("::", tokens)
+        call tokenize_core("::", tokens)
         if (tokens(1)%kind /= TK_OPERATOR .or. tokens(1)%text /= "::") then
             print '(a)', "FAIL: :: operator not tokenized correctly"
             test_assignment_operators = .false.
@@ -155,7 +155,7 @@ contains
         
         ! Test all delimiters
         do i = 1, size(delims)
-            call tokenize(delims(i), tokens)
+            call tokenize_core(delims(i), tokens)
             if (size(tokens) /= 2) then  ! delimiter + EOF
                 print '(a,a)', "FAIL: Wrong token count for delimiter: ", delims(i)
                 test_delimiters = .false.
@@ -176,7 +176,7 @@ contains
         end do
         
         ! Test dot (special case)
-        call tokenize(".", tokens)
+        call tokenize_core(".", tokens)
         if (tokens(1)%kind /= TK_OPERATOR .or. tokens(1)%text /= ".") then
             print '(a)', "FAIL: . delimiter not tokenized correctly"
             test_delimiters = .false.

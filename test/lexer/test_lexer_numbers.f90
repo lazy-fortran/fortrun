@@ -1,5 +1,5 @@
 program test_lexer_numbers
-    use lexer
+    use lexer_core
     implicit none
     
     logical :: all_passed
@@ -30,7 +30,7 @@ contains
         print '(a)', "Testing integer literal tokenization..."
         
         ! Test simple integer
-        call tokenize("42", tokens)
+        call tokenize_core("42", tokens)
         if (size(tokens) /= 2) then  ! number + EOF
             print '(a)', "FAIL: Wrong token count for simple integer"
             test_integer_literals = .false.
@@ -50,7 +50,7 @@ contains
         end if
         
         ! Test zero
-        call tokenize("0", tokens)
+        call tokenize_core("0", tokens)
         if (tokens(1)%kind /= TK_NUMBER .or. tokens(1)%text /= "0") then
             print '(a)', "FAIL: Zero not tokenized correctly"
             test_integer_literals = .false.
@@ -58,7 +58,7 @@ contains
         end if
         
         ! Test large integer
-        call tokenize("123456789", tokens)
+        call tokenize_core("123456789", tokens)
         if (tokens(1)%kind /= TK_NUMBER .or. tokens(1)%text /= "123456789") then
             print '(a)', "FAIL: Large integer not tokenized correctly"
             test_integer_literals = .false.
@@ -75,7 +75,7 @@ contains
         print '(a)', "Testing real literal tokenization..."
         
         ! Test simple real
-        call tokenize("3.14", tokens)
+        call tokenize_core("3.14", tokens)
         if (size(tokens) /= 2) then  ! number + EOF
             print '(a)', "FAIL: Wrong token count for simple real"
             test_real_literals = .false.
@@ -95,7 +95,7 @@ contains
         end if
         
         ! Test real starting with decimal
-        call tokenize(".5", tokens)
+        call tokenize_core(".5", tokens)
         if (tokens(1)%kind /= TK_OPERATOR .or. tokens(1)%text /= ".") then
             ! Note: Current lexer doesn't handle .5 as number, treats . as operator
             ! This is expected behavior for now
@@ -103,7 +103,7 @@ contains
         end if
         
         ! Test real ending with decimal
-        call tokenize("42.", tokens)
+        call tokenize_core("42.", tokens)
         if (tokens(1)%kind /= TK_NUMBER .or. tokens(1)%text /= "42.") then
             print '(a)', "FAIL: Real ending with decimal not tokenized correctly"
             test_real_literals = .false.
@@ -120,7 +120,7 @@ contains
         print '(a)', "Testing scientific notation tokenization..."
         
         ! Test simple scientific notation
-        call tokenize("1.23e4", tokens)
+        call tokenize_core("1.23e4", tokens)
         if (size(tokens) /= 2) then  ! number + EOF
             print '(a)', "FAIL: Wrong token count for scientific notation"
             test_scientific_notation = .false.
@@ -140,7 +140,7 @@ contains
         end if
         
         ! Test with positive exponent
-        call tokenize("2.5e+10", tokens)
+        call tokenize_core("2.5e+10", tokens)
         if (tokens(1)%kind /= TK_NUMBER .or. tokens(1)%text /= "2.5e+10") then
             print '(a)', "FAIL: Scientific notation with positive exponent"
             test_scientific_notation = .false.
@@ -148,7 +148,7 @@ contains
         end if
         
         ! Test with negative exponent
-        call tokenize("1.0e-5", tokens)
+        call tokenize_core("1.0e-5", tokens)
         if (tokens(1)%kind /= TK_NUMBER .or. tokens(1)%text /= "1.0e-5") then
             print '(a)', "FAIL: Scientific notation with negative exponent"
             test_scientific_notation = .false.
@@ -156,7 +156,7 @@ contains
         end if
         
         ! Test double precision notation
-        call tokenize("1.23d4", tokens)
+        call tokenize_core("1.23d4", tokens)
         if (tokens(1)%kind /= TK_NUMBER .or. tokens(1)%text /= "1.23d4") then
             print '(a)', "FAIL: Double precision notation"
             test_scientific_notation = .false.
@@ -173,7 +173,7 @@ contains
         print '(a)', "Testing number tokenization edge cases..."
         
         ! Test number followed by identifier
-        call tokenize("42x", tokens)
+        call tokenize_core("42x", tokens)
         if (size(tokens) /= 3) then  ! number + identifier + EOF
             print '(a)', "FAIL: Wrong token count for number+identifier"
             test_edge_cases = .false.
@@ -193,7 +193,7 @@ contains
         end if
         
         ! Test number with spaces
-        call tokenize("  123  ", tokens)
+        call tokenize_core("  123  ", tokens)
         if (size(tokens) /= 2) then  ! number + EOF (spaces ignored)
             print '(a)', "FAIL: Spaces not handled correctly around number"
             test_edge_cases = .false.

@@ -1,8 +1,8 @@
 program test_parse_and_codegen
-    use lexer
-    use parser
-    use ast
-    use codegen
+    use lexer_core
+    use parser_core
+    use ast_core
+    use codegen_core
     implicit none
     
     logical :: all_passed
@@ -35,7 +35,7 @@ contains
         print '(a)', "Testing literal round trip..."
         
         ! Tokenize
-        call tokenize(source, tokens)
+        call tokenize_core(source, tokens)
         
         ! Parse
         ast = parse_expression(tokens)
@@ -71,7 +71,7 @@ contains
         print '(a)', "Testing assignment round trip..."
         
         ! Tokenize
-        call tokenize(source, tokens)
+        call tokenize_core(source, tokens)
         
         ! Parse
         ast = parse_statement(tokens)
@@ -107,7 +107,7 @@ contains
         print '(a)', "Testing expression round trip..."
         
         ! Tokenize
-        call tokenize(source, tokens)
+        call tokenize_core(source, tokens)
         
         ! Parse
         ast = parse_expression(tokens)

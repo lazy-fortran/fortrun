@@ -1,5 +1,5 @@
 program test_lexer_keywords
-    use lexer
+    use lexer_core
     implicit none
     
     logical :: all_passed
@@ -35,7 +35,7 @@ contains
         print '(a)', "Testing program structure keyword tokenization..."
         
         do i = 1, size(prog_keywords)
-            call tokenize(trim(prog_keywords(i)), tokens)
+            call tokenize_core(trim(prog_keywords(i)), tokens)
             if (size(tokens) /= 2) then  ! keyword + EOF
                 print '(a,a)', "FAIL: Wrong token count for keyword: ", trim(prog_keywords(i))
                 test_program_keywords = .false.
@@ -70,7 +70,7 @@ contains
         print '(a)', "Testing control flow keyword tokenization..."
         
         do i = 1, size(ctrl_keywords)
-            call tokenize(trim(ctrl_keywords(i)), tokens)
+            call tokenize_core(trim(ctrl_keywords(i)), tokens)
             if (tokens(1)%kind /= TK_KEYWORD) then
                 print '(a,a)', "FAIL: Expected KEYWORD token for: ", trim(ctrl_keywords(i))
                 test_control_keywords = .false.
@@ -98,7 +98,7 @@ contains
         print '(a)', "Testing type keyword tokenization..."
         
         do i = 1, size(type_keywords)
-            call tokenize(trim(type_keywords(i)), tokens)
+            call tokenize_core(trim(type_keywords(i)), tokens)
             if (tokens(1)%kind /= TK_KEYWORD) then
                 print '(a,a)', "FAIL: Expected KEYWORD token for: ", trim(type_keywords(i))
                 test_type_keywords = .false.
@@ -126,7 +126,7 @@ contains
         print '(a)', "Testing I/O keyword tokenization..."
         
         do i = 1, size(io_keywords)
-            call tokenize(trim(io_keywords(i)), tokens)
+            call tokenize_core(trim(io_keywords(i)), tokens)
             if (tokens(1)%kind /= TK_KEYWORD) then
                 print '(a,a)', "FAIL: Expected KEYWORD token for: ", trim(io_keywords(i))
                 test_io_keywords = .false.
@@ -150,7 +150,7 @@ contains
         print '(a)', "Testing case-insensitive keyword recognition..."
         
         ! Test uppercase
-        call tokenize("PROGRAM", tokens)
+        call tokenize_core("PROGRAM", tokens)
         if (tokens(1)%kind /= TK_KEYWORD .or. tokens(1)%text /= "PROGRAM") then
             print '(a)', "FAIL: Uppercase PROGRAM not recognized as keyword"
             test_case_insensitive = .false.
@@ -158,7 +158,7 @@ contains
         end if
         
         ! Test mixed case
-        call tokenize("Program", tokens)
+        call tokenize_core("Program", tokens)
         if (tokens(1)%kind /= TK_KEYWORD .or. tokens(1)%text /= "Program") then
             print '(a)', "FAIL: Mixed case Program not recognized as keyword"
             test_case_insensitive = .false.
@@ -166,7 +166,7 @@ contains
         end if
         
         ! Test identifier that's not a keyword
-        call tokenize("variable", tokens)
+        call tokenize_core("variable", tokens)
         if (tokens(1)%kind /= TK_IDENTIFIER .or. tokens(1)%text /= "variable") then
             print '(a)', "FAIL: Non-keyword not recognized as identifier"
             test_case_insensitive = .false.

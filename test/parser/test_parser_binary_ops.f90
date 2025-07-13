@@ -1,7 +1,7 @@
 program test_parser_binary_ops
-    use lexer
-    use parser
-    use ast
+    use lexer_core
+    use parser_core
+    use ast_core
     implicit none
     
     logical :: all_passed
@@ -33,7 +33,7 @@ contains
         print '(a)', "Testing simple addition parsing..."
         
         ! Parse "a + b"
-        call tokenize("a + b", tokens)
+        call tokenize_core("a + b", tokens)
         
         result = parse_expression(tokens)
         
@@ -91,7 +91,7 @@ contains
         print '(a)', "Testing multiplication precedence parsing..."
         
         ! Parse "a + b * c" which should be parsed as "a + (b * c)"
-        call tokenize("a + b * c", tokens)
+        call tokenize_core("a + b * c", tokens)
         
         result = parse_expression(tokens)
         
@@ -149,7 +149,7 @@ contains
         print '(a)', "Testing parentheses precedence parsing..."
         
         ! Parse "(a + b) * c" 
-        call tokenize("(a + b) * c", tokens)
+        call tokenize_core("(a + b) * c", tokens)
         
         result = parse_expression(tokens)
         
@@ -207,7 +207,7 @@ contains
         print '(a)', "Testing comparison operator parsing..."
         
         ! Parse "x == 42"
-        call tokenize("x == 42", tokens)
+        call tokenize_core("x == 42", tokens)
         
         result = parse_expression(tokens)
         

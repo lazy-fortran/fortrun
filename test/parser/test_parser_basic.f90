@@ -1,7 +1,7 @@
 program test_parser_basic
-    use lexer
-    use ast
-    use parser
+    use lexer_core
+    use ast_core
+    use parser_core
     implicit none
     
     logical :: all_passed
@@ -34,7 +34,7 @@ contains
         print '(a)', "Testing simple literal parsing..."
         
         ! Tokenize simple literal
-        call tokenize("42", tokens)
+        call tokenize_core("42", tokens)
         
         ! Parse expression
         ast_result = parse_expression(tokens)
@@ -68,7 +68,7 @@ contains
         print '(a)', "Testing simple identifier parsing..."
         
         ! Tokenize simple identifier
-        call tokenize("x", tokens)
+        call tokenize_core("x", tokens)
         
         ! Parse expression
         ast_result = parse_expression(tokens)
@@ -99,7 +99,7 @@ contains
         print '(a)', "Testing simple assignment parsing..."
         
         ! Tokenize simple assignment
-        call tokenize("x = 42", tokens)
+        call tokenize_core("x = 42", tokens)
         
         ! Parse statement
         ast_result = parse_statement(tokens)
