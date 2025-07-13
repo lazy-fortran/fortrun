@@ -1,5 +1,6 @@
 module codegen_core
     use ast_core
+    use ast_simple_fortran
     implicit none
     private
     
@@ -18,6 +19,10 @@ module codegen_core
         module procedure generate_code_function_call
         module procedure generate_code_use_statement
         module procedure generate_code_print_statement
+        ! Simple Fortran specific
+        module procedure generate_code_sf_program
+        module procedure generate_code_sf_assignment
+        module procedure generate_code_inferred_var
     end interface generate_code
 
 contains
@@ -174,5 +179,56 @@ contains
             end if
         end if
     end function generate_code_print_statement
+
+    ! Generate code for Simple Fortran program node
+    function generate_code_sf_program(node) result(code)
+        type(sf_program_node), intent(in) :: node
+        character(len=:), allocatable :: code
+        integer :: i
+        
+        ! Start with program declaration
+        code = "program " // node%name // new_line('a')
+        code = code // "    implicit none" // new_line('a')
+        
+        ! Add variable declarations based on inferred types
+        ! (This would be done by analyzing the AST)
+        
+        ! Generate code for each statement in the body
+        if (allocated(node%body)) then
+            do i = 1, size(node%body)
+                select type (stmt => node%body(i))
+                type is (assignment_node)
+                    code = code // "    " // generate_code(stmt) // new_line('a')
+                type is (sf_assignment_node)
+                    code = code // "    " // generate_code(stmt) // new_line('a')
+                class default
+                    ! Handle other statement types
+                    code = code // "    ! statement" // new_line('a')
+                end select
+            end do
+        end if
+        
+        ! End program
+        code = code // "end program " // node%name
+    end function generate_code_sf_program
+
+    ! Generate code for Simple Fortran assignment (with type inference)
+    function generate_code_sf_assignment(node) result(code)
+        type(sf_assignment_node), intent(in) :: node
+        character(len=:), allocatable :: code
+        
+        ! For now, just generate as regular assignment
+        ! In the future, we'd handle type declarations here
+        code = generate_code_assignment(node%assignment_node)
+    end function generate_code_sf_assignment
+
+    ! Generate code for inferred variable
+    function generate_code_inferred_var(node) result(code)
+        type(inferred_var_node), intent(in) :: node
+        character(len=:), allocatable :: code
+        
+        ! Just return the variable name
+        code = node%name
+    end function generate_code_inferred_var
 
 end module codegen_core
