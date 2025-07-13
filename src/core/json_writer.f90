@@ -6,6 +6,8 @@ module json_writer
     ! Export useful routines
     public :: json_write_tokens_to_file
     public :: json_write_tokens_to_string
+    public :: json_write_ast_to_file
+    public :: json_write_ast_to_string
 
 contains
 
@@ -88,5 +90,55 @@ contains
         ! Clean up
         call json%destroy(root)
     end function json_write_tokens_to_string
+
+    ! Write AST to JSON file
+    subroutine json_write_ast_to_file(ast, filename)
+        use ast_core, only: ast_node
+        class(ast_node), intent(in) :: ast
+        character(len=*), intent(in) :: filename
+        
+        type(json_core) :: json
+        type(json_value), pointer :: root
+        
+        ! Initialize JSON
+        call json%initialize()
+        
+        ! Create root object
+        call json%create_object(root, '')
+        
+        ! Add AST to root
+        call ast%to_json(json, root)
+        
+        ! Write to file
+        call json%print(root, filename)
+        
+        ! Clean up
+        call json%destroy(root)
+    end subroutine json_write_ast_to_file
+
+    ! Convert AST to JSON string
+    function json_write_ast_to_string(ast) result(json_str)
+        use ast_core, only: ast_node
+        class(ast_node), intent(in) :: ast
+        character(len=:), allocatable :: json_str
+        
+        type(json_core) :: json
+        type(json_value), pointer :: root
+        
+        ! Initialize JSON
+        call json%initialize()
+        
+        ! Create root object
+        call json%create_object(root, '')
+        
+        ! Add AST to root
+        call ast%to_json(json, root)
+        
+        ! Convert to string
+        call json%print_to_string(root, json_str)
+        
+        ! Clean up
+        call json%destroy(root)
+    end function json_write_ast_to_string
 
 end module json_writer

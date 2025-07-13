@@ -3,6 +3,7 @@ program main
   use runner, only: run_fortran_file
   use preprocessor, only: preprocess_file, preprocess_file_debug, is_preprocessor_file
   use cache, only: clear_cache, get_cache_info
+  use debug_state, only: set_debug_flags
   use notebook_parser
   use notebook_executor
   use notebook_renderer
@@ -57,6 +58,9 @@ program main
     call free_execution_results(results)
   else
     ! Normal execution mode
+    ! Set global debug flags for the runner to use
+    call set_debug_flags(debug_tokens, debug_ast, debug_codegen)
+    
     call run_fortran_file(filename, exit_code, verbose_level, custom_cache_dir, &
                           custom_config_dir, parallel_jobs, no_wait, custom_flags)
     
@@ -192,5 +196,6 @@ contains
     call get_cache_info(custom_cache_dir, info)
     print '(a)', trim(info)
   end subroutine handle_cache_info
+  
   
 end program main

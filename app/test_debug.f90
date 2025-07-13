@@ -6,7 +6,7 @@ program test_debug
     character(len=:), allocatable :: source
     integer :: i
     
-    source = "real :: x"
+    source = "print *, 'hello' ! this is a comment"
     call tokenize_core(source, tokens)
     
     do i = 1, size(tokens)

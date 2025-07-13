@@ -384,8 +384,16 @@ contains
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
         
-        call this%target%to_json(json, obj)
-        call this%value%to_json(json, obj)
+        block
+            type(json_value), pointer :: target_obj, value_obj
+            call json%create_object(target_obj, 'target')
+            call this%target%to_json(json, target_obj)
+            call json%add(obj, target_obj)
+            
+            call json%create_object(value_obj, 'value')
+            call this%value%to_json(json, value_obj)
+            call json%add(obj, value_obj)
+        end block
         
         call json%add(parent, obj)
     end subroutine assignment_to_json
@@ -402,8 +410,16 @@ contains
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
         
-        call this%left%to_json(json, obj)
-        call this%right%to_json(json, obj)
+        block
+            type(json_value), pointer :: left_obj, right_obj
+            call json%create_object(left_obj, 'left')
+            call this%left%to_json(json, left_obj)
+            call json%add(obj, left_obj)
+            
+            call json%create_object(right_obj, 'right')
+            call this%right%to_json(json, right_obj)
+            call json%add(obj, right_obj)
+        end block
         
         call json%add(parent, obj)
     end subroutine binary_op_to_json
@@ -427,7 +443,12 @@ contains
             call this%params(i)%to_json(json, params_array)
         end do
         
-        call this%return_type%to_json(json, obj)
+        block
+            type(json_value), pointer :: return_type_obj
+            call json%create_object(return_type_obj, 'return_type')
+            call this%return_type%to_json(json, return_type_obj)
+            call json%add(obj, return_type_obj)
+        end block
         
         call json%create_array(body_array, 'body')
         call json%add(obj, body_array)

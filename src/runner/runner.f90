@@ -9,7 +9,8 @@ module runner
   use fpm_model, only: srcfile_t
   use fpm_strings, only: string_t
   use fpm_error, only: error_t
-  use preprocessor, only: preprocess_file, is_preprocessor_file
+  use preprocessor, only: preprocess_file, preprocess_file_debug, is_preprocessor_file
+  use debug_state, only: get_debug_flags
   use, intrinsic :: iso_fortran_env, only: int64
   implicit none
   private
@@ -118,7 +119,20 @@ contains
             if (verbose_level >= 2) then
               print '(a)', 'Using AST-based preprocessor'
             end if
-            call preprocess_file(absolute_path, preprocessed_file, preprocess_error)
+            
+            ! Check for debug flags from global state
+            block
+              logical :: debug_tokens, debug_ast, debug_codegen
+              
+              call get_debug_flags(debug_tokens, debug_ast, debug_codegen)
+              
+              if (debug_tokens .or. debug_ast .or. debug_codegen) then
+                call preprocess_file_debug(absolute_path, preprocessed_file, preprocess_error, &
+                                           debug_tokens, debug_ast, debug_codegen)
+              else
+                call preprocess_file(absolute_path, preprocessed_file, preprocess_error)
+              end if
+            end block
           else
             if (verbose_level >= 2) then
               print '(a)', 'Using legacy preprocessor'
