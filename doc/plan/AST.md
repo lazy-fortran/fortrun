@@ -16,40 +16,54 @@ This document outlines the architecture for a modern compiler frontend for *lazy
 8. **Superset Design**: *lazy fortran* is a superset of standard Fortran - any valid Fortran 95/2003/2008/2018 program should pass through the frontend unchanged
 9. **Beyond Alternatives**: Push beyond all alternative scientific computing languages in expressiveness while maintaining Fortran's performance advantage
 
-## Architecture: Shared Core with Dialect Specialization
+## Architecture: Shared Core with Standard Specialization
 
-### Module Organization
+### Module Organization (CORRECT CURRENT STRUCTURE)
 
 ```
 src/
-├── core/                    # Shared functionality for all Fortran dialects
-│   ├── lexer_core.f90      # Base tokenization for standard Fortran
-│   ├── parser_core.f90     # Core parsing for common constructs
-│   ├── ast_core.f90        # Base AST nodes shared by all dialects
-│   └── codegen_core.f90    # Common code generation utilities
-├── dialects/               # Dialect-specific extensions
-│   ├── fortran90/          # Fortran 90 standard support
-│   │   ├── lexer_f90.f90   # F90-specific tokens
-│   │   └── parser_f90.f90  # F90-specific parsing
-│   ├── fortran2018/        # Modern Fortran support
-│   │   └── parser_f2018.f90
-│   └── lazy_fortran/     # Our simplified dialect
-│       ├── lexer_sf.f90    # Additional tokens (e.g., Python-like)
-│       ├── parser_sf.f90   # Implicit program wrapping, etc.
-│       └── inference.f90   # Type inference engine
-├── lexer.f90               # Main lexer interface
-├── parser.f90              # Main parser interface
-└── ast.f90                 # Complete AST definitions
+├── core/                        # Fundamental building blocks ✅
+│   ├── lexer_core.f90          # Core tokenization primitives
+│   ├── parser_core.f90         # Core parsing primitives  
+│   ├── ast_core.f90            # Core AST node definitions
+│   └── codegen_core.f90        # Core code generation primitives
+├── frontend/                    # High-level coordination ✅
+│   ├── semantic/               # Semantic analysis coordination
+│   │   ├── semantic_analyzer.f90      # Main semantic analyzer
+│   │   ├── semantic_analyzer_simple.f90 # Simplified version
+│   │   └── type_system_hm.f90         # Hindley-Milner type system
+│   ├── lexer/                  # Lexer coordination (empty)
+│   ├── parser/                 # Parser coordination (empty)  
+│   ├── codegen/                # Codegen coordination (empty)
+│   ├── frontend.f90            # ❌ VIOLATES ARCHITECTURE (reimplements core)
+│   └── frontend_integration.f90 # Integration layer
+├── standards/                   # Standard-specific extensions ✅
+│   ├── lazy_fortran/           # Lazy fortran extensions
+│   │   └── ast_lf.f90          # Lazy fortran AST nodes
+│   ├── fortran90/              # Fortran 90 extensions (empty)
+│   └── fortran2018/            # Fortran 2018 extensions (empty)
+└── [utility modules]           # Support utilities ✅
+    ├── cli/, cache/, config/, runner/, notebook/, registry/, etc.
 ```
 
-### Compilation Pipeline
+### Compilation Pipeline (SHOULD BE)
 
 ```
-Source (.f) → Dialect Detection → Lexer → Parser → AST → Semantic Analysis → Code Generation
-                     ↓               ↓        ↓                    ↓
-              Lazy Fortran    Core+SF   Core+SF          Type Inference
-                                Tokens    Rules            (SF specific)
+Source (.f/.f90) → Frontend Coordinator → Core Pipeline → Standard Extensions → Output  
+                          ↓                    ↓                ↓               ↓
+                   lazy_fortran.f90      lexer_core        ast_lf.f90       Standard .f90
+                   fortran90.f90         parser_core       [extensions]      
+                   fortran2018.f90       ast_core + semantic_analyzer + codegen_core
 ```
+
+**CRITICAL VIOLATION**: Current `frontend.f90` reimplements core components instead of using them!
+
+**CORRECT APPROACH**: Frontend should coordinate existing core components:
+1. Call `lexer_core.f90` for tokenization
+2. Call `parser_core.f90` for AST construction  
+3. Call `semantic_analyzer.f90` for type inference
+4. Call `codegen_core.f90` for output generation
+5. Use `standards/lazy_fortran/` for extensions
 
 ### Phase 1: Lexer (Tokenizer)
 

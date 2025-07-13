@@ -2,58 +2,58 @@
 
 ## Current Architecture Violations
 
-The current `frontend.f90` (950+ lines) violates our core 4-phase architecture:
+The current `frontend.f90` (950+ lines) violates our existing core component architecture:
 
-### Problems:
-1. **Direct Token-to-Code Generation**
+### CRITICAL PROBLEMS:
+1. **REIMPLEMENTING EXISTING COMPONENTS**
+   - Has its own `lex_file()` instead of using `lexer_core.f90`
+   - Has its own `parse_tokens()` instead of using `parser_core.f90`  
+   - Has its own type inference instead of using `semantic_analyzer_simple.f90`
+   - Has its own code generation instead of using `codegen_core.f90`
+
+2. **Direct Token-to-Code Generation**
    - `generate_use_statements_from_tokens()`
    - `generate_executable_statements_from_tokens()`
    - `generate_function_definitions_from_tokens()`
    - `reconstruct_line_from_tokens()`
 
-2. **Bypassing AST Pipeline**
-   - `parse_tokens()` creates placeholder AST then ignores it
+3. **Bypassing Existing Architecture**
+   - Creates placeholder AST then ignores it
    - Stores `current_tokens` for later direct manipulation
-   - No proper AST traversal for code generation
+   - No proper AST traversal using existing codegen
 
-3. **Semantic Analysis Bypass**
-   - Type inference during code generation instead of semantic phase
-   - No proper type system integration
-   - Direct string-based type inference
-
-4. **Monolithic Design**
-   - 950+ lines in single file
-   - Mixed responsibilities
-   - No clean phase separation
+4. **Ignoring Our Standards Structure**
+   - Should use `src/dialects/lazy_fortran/` for extensions
+   - Should coordinate existing components, not replace them
 
 ## Target Architecture
 
-### Clean 4-Phase Pipeline:
+### USE EXISTING COMPONENTS:
 ```
-Source → Lexer → Parser → Semantic Analysis → Code Generation
-  (.f)     ↓       ↓            ↓                ↓
-        Tokens   AST      Typed AST        Output (.f90)
+Source → lexer_core → parser_core → semantic_analyzer → codegen_core → Output
+  (.f)       ↓           ↓              ↓                ↓           (.f90)
+          Tokens      AST         Typed AST         Standard Code
 ```
 
-### Module Structure:
+### ACTUAL Module Structure (USE WHAT EXISTS):
 ```
-src/frontend/
-├── frontend.f90              # Main coordinator (< 100 lines)
-├── lexer/
-│   ├── lexer_interface.f90   # Common lexer interface
-│   └── lexer_lazy_fortran.f90 # Lazy fortran extensions
-├── parser/
-│   ├── parser_interface.f90  # Common parser interface  
-│   └── parser_lazy_fortran.f90 # Lazy fortran extensions
-├── semantic/
-│   ├── semantic_analyzer.f90 # Main semantic analysis
-│   ├── type_inference.f90    # Hindley-Milner implementation
-│   └── symbol_table.f90      # Symbol management
-└── codegen/
-    ├── codegen_interface.f90 # Backend interface
-    ├── codegen_fortran.f90   # Standard Fortran backend
-    └── codegen_fallback.f90  # Direct line printing fallback
+src/
+├── core/                           # ALREADY EXISTS - USE THESE!
+│   ├── lexer_core.f90             # ✅ Core tokenization  
+│   ├── parser_core.f90            # ✅ Core parsing
+│   ├── ast_core.f90               # ✅ Base AST nodes
+│   └── codegen_core.f90           # ✅ Code generation
+├── dialects/lazy_fortran/          # ALREADY EXISTS - EXTEND THESE!
+│   └── ast_lf.f90                 # ✅ Lazy fortran AST extensions
+├── frontend/semantic/              # ALREADY EXISTS - USE THESE!
+│   ├── semantic_analyzer.f90      # ✅ Main semantic analysis
+│   ├── semantic_analyzer_simple.f90 # ✅ Simplified version  
+│   └── type_system_hm.f90         # ✅ Type system
+└── frontend/
+    └── frontend.f90               # REFACTOR: Coordinate existing components
 ```
+
+**CRITICAL**: Frontend should be a THIN COORDINATOR calling existing components!
 
 ## Refactoring Strategy
 
