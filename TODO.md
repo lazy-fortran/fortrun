@@ -105,55 +105,68 @@ Build a tokenizer with shared core functionality and dialect-specific extensions
 - [ ] `test_lexer_errors.f90` - Error handling and recovery
 - [ ] `test_lexer_serialization.f90` - Token to JSON serialization
 
-## Phase 2: AST Definition - Core/Dialect Architecture
+## Phase 2: AST Definition - Core/Dialect Architecture ✅
 
 Define AST node types with shared core nodes and dialect extensions.
 
 ### Tasks
-- [ ] Create `src/core/ast_core.f90` module with base node types
-- [ ] Implement core node types shared by all Fortran dialects:
-  - [ ] Base ast_node type with visitor pattern
-  - [ ] Program node
-  - [ ] Assignment node
-  - [ ] Binary operation node
-  - [ ] Function/subroutine definition
-  - [ ] Function call node
-  - [ ] Identifier node
-  - [ ] Literal node
-  - [ ] Use statement node
-  - [ ] Print statement node
-- [ ] Create `src/dialects/simple_fortran/ast_sf.f90` for extensions:
-  - [ ] Extended program node with implicit program support
-  - [ ] Type-inferred variable node
-  - [ ] Future: List comprehension node
-- [ ] Create `src/ast.f90` as unified interface
-- [ ] Implement visitor pattern for AST traversal
-- [ ] Write unit tests for AST construction
+- [x] Create `src/core/ast_core.f90` module with base node types
+- [x] Implement core node types shared by all Fortran dialects:
+  - [x] Base ast_node type with visitor pattern
+  - [x] Program node
+  - [x] Assignment node
+  - [x] Binary operation node
+  - [x] Function/subroutine definition
+  - [x] Function call node
+  - [x] Identifier node
+  - [x] Literal node
+  - [x] Use statement node
+  - [x] Print statement node
+- [x] Create `src/dialects/simple_fortran/ast_sf.f90` for extensions:
+  - [x] Extended program node with implicit program support
+  - [x] Type-inferred variable node
+  - [x] Future: List comprehension node
+  - [x] Future: F-string node
+  - [x] Enhanced assignment node with type inference metadata
+- [x] Create `src/ast.f90` as unified interface
+- [x] Implement visitor pattern infrastructure for AST traversal
+- [x] Write comprehensive unit tests for AST construction
+- [x] Implement JSON serialization for all AST nodes using json-fortran
+- [x] Factory functions with proper polymorphic array allocation
 
 ### Test Cases
-- [ ] `test_ast_core_construction.f90` - Core AST node building
-- [ ] `test_ast_sf_construction.f90` - Simple Fortran specific nodes
-- [ ] `test_ast_visitor.f90` - Visitor pattern tests
+- [x] `test_ast_construction.f90` - Core and Simple Fortran AST node building, JSON serialization
 
 ## Phase 3: Parser Implementation
 
-Build recursive descent parser for Simple Fortran.
+Build recursive descent parser for Simple Fortran using **TDD approach**.
+
+### TDD Implementation Strategy
+1. **Write failing tests first** that define expected parser behavior
+2. **Implement minimal parsing logic** to make tests pass
+3. **Refactor** for better design while keeping tests green
+4. **Repeat incrementally** for each parsing feature
 
 ### Tasks
-- [ ] Create `src/parser.f90` module
-- [ ] Implement expression parsing (precedence climbing)
-- [ ] Implement statement parsing
-- [ ] Handle implicit program wrapping
+- [ ] Create `src/core/parser_core.f90` module with base parsing functionality
+- [ ] Create `src/dialects/simple_fortran/parser_sf.f90` for Simple Fortran extensions
+- [ ] Create `src/parser.f90` as unified interface
+- [ ] Implement expression parsing with precedence handling
+- [ ] Implement statement parsing (assignments, prints, function calls)
+- [ ] Handle implicit program wrapping for Simple Fortran
 - [ ] Support function/subroutine definitions
-- [ ] Error recovery and reporting
-- [ ] Write comprehensive parser tests
+- [ ] Error recovery and detailed error reporting
+- [ ] Integration with existing lexer
+- [ ] JSON serialization of parse trees
 
-### Test Cases
-- [ ] `test_parser_expressions.f90` - Expression parsing
-- [ ] `test_parser_statements.f90` - Statement parsing
+### Test Cases (TDD Order)
+- [ ] `test_parser_basic.f90` - Basic expression parsing (first TDD iteration)
+- [ ] `test_parser_expressions.f90` - Advanced expression parsing with precedence
+- [ ] `test_parser_statements.f90` - Statement parsing (assignments, prints)
 - [ ] `test_parser_functions.f90` - Function/subroutine parsing
-- [ ] `test_parser_programs.f90` - Full program parsing
-- [ ] `test_parser_errors.f90` - Error recovery
+- [ ] `test_parser_programs.f90` - Full program parsing with implicit wrapping
+- [ ] `test_parser_errors.f90` - Error recovery and reporting
+- [ ] `test_parser_serialization.f90` - AST to JSON serialization
 
 ## Phase 4: Semantic Analysis
 
@@ -299,16 +312,35 @@ All intermediate compilation stages will be serializable to JSON format for debu
 4. Code is more maintainable and extensible
 5. Architecture supports future features (multiple dispatch, IR generation)
 6. All intermediate stages are inspectable via JSON serialization
+7. **Implementation follows strict TDD (red-green-refactor) cycle**
 
 ## Testing Strategy
 
-- Write tests first (TDD approach)
+- **Write tests first (TDD approach)** - failing tests define expected behavior
+- **Minimal implementation** to make tests pass
+- **Refactor** while keeping tests green
+- **Incremental development** - one feature at a time
 - Each phase has dedicated unit tests
 - Integration tests verify phase interactions
 - Existing tests serve as regression suite
 - Use `fpm test test_<subsystem>_*` for targeted testing
 - Validate serialization/deserialization round trips
 - Store golden outputs in test_data for regression testing
+
+## Progress Summary
+
+### ✅ **Completed Phases**
+- **Phase 0**: Test Reorganization - Hierarchical test structure with FPM wildcards
+- **Phase 1**: Lexer Implementation - Core/Dialect architecture with JSON serialization
+- **Phase 2**: AST Definition - Comprehensive node types with visitor pattern and JSON output
+
+### 🚧 **Current Phase**
+- **Phase 3**: Parser Implementation - TDD-driven recursive descent parser
+
+### 📋 **Upcoming Phases**
+- **Phase 4**: Semantic Analysis - Type inference and symbol tables
+- **Phase 5**: Code Generation - AST to Fortran transformation
+- **Phase 6**: Integration - Replace existing preprocessor while maintaining compatibility
 
 ## Notes
 
