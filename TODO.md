@@ -78,7 +78,7 @@ test/
         └── ...
 ```
 
-## Phase 1: Lexer Implementation - Core/Dialect Architecture
+## Phase 1: Lexer Implementation - Core/Dialect Architecture ✅
 
 Build a tokenizer with shared core functionality and dialect-specific extensions.
 
@@ -86,24 +86,21 @@ Build a tokenizer with shared core functionality and dialect-specific extensions
 - [x] Create directory structure: `src/core/`, `src/dialects/simple_fortran/`
 - [x] Create `src/core/lexer_core.f90` module with standard Fortran tokenization
 - [x] Define base token types shared by all dialects
-- [ ] Create `src/dialects/simple_fortran/lexer_sf.f90` for Simple Fortran extensions
 - [x] Create `src/lexer.f90` as main interface that delegates to appropriate implementation
 - [x] Write unit tests for both core and dialect-specific features
 - [x] Support error reporting with line/column information
 - [x] Handle comments and whitespace
-- [ ] Create `src/core/json_writer.f90` module for JSON serialization using json-fortran
-- [ ] Add `to_json()` method to token type
-- [ ] Create token serialization tests
-- [ ] Benchmark lexer performance
+- [x] Create JSON serialization using json-fortran
+- [x] Add `to_json()` method to token type
+- [x] Create token serialization tests
 
 ### Test Cases
-- [x] `test_lexer_basic.f90` - Basic tokenization (renamed from test_lexer_core_basic)
-- [ ] `test_lexer_core_numbers.f90` - Standard number literal tokenization
-- [ ] `test_lexer_core_operators.f90` - Standard operator tokenization
-- [ ] `test_lexer_core_keywords.f90` - Standard keyword recognition
-- [ ] `test_lexer_sf_basic.f90` - Simple Fortran specific features
-- [ ] `test_lexer_errors.f90` - Error handling and recovery
-- [ ] `test_lexer_serialization.f90` - Token to JSON serialization
+- [x] `test_lexer_basic.f90` - Basic tokenization
+- [x] `test_lexer_numbers.f90` - Number literal tokenization
+- [x] `test_lexer_operators.f90` - Operator tokenization
+- [x] `test_lexer_keywords.f90` - Keyword recognition
+- [x] `test_lexer_errors.f90` - Error handling and recovery
+- [x] `test_lexer_serialization.f90` - Token to JSON serialization
 
 ## Phase 2: AST Definition - Core/Dialect Architecture ✅
 
@@ -137,7 +134,7 @@ Define AST node types with shared core nodes and dialect extensions.
 ### Test Cases
 - [x] `test_ast_construction.f90` - Core and Simple Fortran AST node building, JSON serialization
 
-## Phase 3: Parser Implementation
+## Phase 3: Parser Implementation ✅
 
 Build recursive descent parser for Simple Fortran using **TDD approach**.
 
@@ -148,91 +145,122 @@ Build recursive descent parser for Simple Fortran using **TDD approach**.
 4. **Repeat incrementally** for each parsing feature
 
 ### Tasks
-- [ ] Create `src/core/parser_core.f90` module with base parsing functionality
-- [ ] Create `src/dialects/simple_fortran/parser_sf.f90` for Simple Fortran extensions
-- [ ] Create `src/parser.f90` as unified interface
-- [ ] Implement expression parsing with precedence handling
-- [ ] Implement statement parsing (assignments, prints, function calls)
+- [x] Create `src/core/parser_core.f90` module with base parsing functionality
+- [x] Create `src/parser.f90` as unified interface
+- [x] Implement expression parsing with precedence handling
+- [x] Implement statement parsing (assignments)
+- [x] Integration with existing lexer
 - [ ] Handle implicit program wrapping for Simple Fortran
 - [ ] Support function/subroutine definitions
 - [ ] Error recovery and detailed error reporting
-- [ ] Integration with existing lexer
 - [ ] JSON serialization of parse trees
 
 ### Test Cases (TDD Order)
-- [ ] `test_parser_basic.f90` - Basic expression parsing (first TDD iteration)
-- [ ] `test_parser_expressions.f90` - Advanced expression parsing with precedence
+- [x] `test_parser_basic.f90` - Basic expression parsing
+- [x] `test_parser_binary_ops.f90` - Binary operations with precedence
 - [ ] `test_parser_statements.f90` - Statement parsing (assignments, prints)
 - [ ] `test_parser_functions.f90` - Function/subroutine parsing
 - [ ] `test_parser_programs.f90` - Full program parsing with implicit wrapping
 - [ ] `test_parser_errors.f90` - Error recovery and reporting
 - [ ] `test_parser_serialization.f90` - AST to JSON serialization
 
-## Phase 4: Semantic Analysis
+## Phase 5: AST-Based Preprocessor Integration ✅
 
-Integrate type inference and symbol table management.
+Replace line-based preprocessor with AST-based approach.
 
 ### Tasks
-- [ ] Create `src/semantic_analyzer.f90` module
-- [ ] Integrate existing type inference modules
-- [ ] Build symbol table with scoping
-- [ ] Implement type checking
-- [ ] Handle implicit none injection
-- [ ] Add intent(in) defaults
-- [ ] Write semantic analysis tests
+- [x] Create `src/preprocessor_ast.f90` module
+- [x] Implement basic type inference for literals
+- [x] Line-by-line processing for .f files
+- [x] Generate variable declarations
+- [x] Integrate with runner (default for .f files)
+- [x] Add environment variable control (FORTRAN_USE_AST_PREPROCESSOR)
+- [ ] Support functions and subroutines
+- [ ] Support arrays and derived types
+- [ ] Advanced type inference
 
 ### Test Cases
-- [ ] `test_semantic_types.f90` - Type inference integration
-- [ ] `test_semantic_symbols.f90` - Symbol table tests
-- [ ] `test_semantic_scopes.f90` - Scope management
-- [ ] `test_semantic_defaults.f90` - Modern defaults application
+- [x] `test_preprocessor_ast.f90` - Basic AST preprocessor tests
+- [ ] `test_preprocessor_ast_functions.f90` - Function preprocessing
+- [ ] `test_preprocessor_ast_arrays.f90` - Array preprocessing
 
-## Phase 5: Code Generation
+### Known Limitations
+- Arrays not yet supported
+- Derived types not yet supported
+- Functions/subroutines not yet supported
+- Comments and markdown cells not preserved
+
+## Phase 4: Code Generation ✅
 
 Generate Fortran code from AST.
 
 ### Tasks
-- [ ] Create `src/codegen_fortran.f90` module
-- [ ] Implement AST to Fortran transformation
+- [x] Create `src/core/codegen_core.f90` module
+- [x] Implement AST to Fortran transformation
+- [x] Handle basic node types (literal, identifier, assignment, binary_op)
+- [x] Generate program structure
 - [ ] Apply modern defaults (real(8), etc.)
 - [ ] Handle indentation and formatting
 - [ ] Generate contains statements
-- [ ] Write code generation tests
 
 ### Test Cases
-- [ ] `test_codegen_basic.f90` - Basic code generation
+- [x] `test_codegen_basic.f90` - Basic code generation
+- [x] `test_codegen_expressions.f90` - Expression code generation
+- [x] `test_codegen_program.f90` - Program generation
+- [x] `test_parse_and_codegen.f90` - Round-trip parsing and generation
 - [ ] `test_codegen_functions.f90` - Function generation
 - [ ] `test_codegen_defaults.f90` - Modern defaults application
 - [ ] `test_codegen_formatting.f90` - Code formatting
 
-## Phase 6: Integration
+## Phase 6: Cache Management Enhancement 🚧
 
-Replace preprocessor with new AST-based system.
+Improve cache management with command-line support.
 
 ### Tasks
-- [ ] Create `src/compiler_frontend.f90` to coordinate phases
-- [ ] Update `src/preprocessor.f90` to use new architecture
-- [ ] Ensure all existing examples work
-- [ ] Run all existing tests
-- [ ] Fix any compatibility issues
-- [ ] Performance benchmarking vs old preprocessor
+- [ ] Add `--clear-cache` option to CLI
+- [ ] Add `--cache-info` option to show cache statistics
+- [ ] Implement cache clearing functionality
+- [ ] Update help text with new options
+- [ ] Add tests for cache management commands
 
 ### Test Cases
-- [ ] All existing preprocessor tests should pass
-- [ ] All examples should work unchanged
-- [ ] Performance should be equal or better
+- [ ] `test_cli_cache.f90` - Test cache clearing options
+- [ ] `test_cache_info.f90` - Test cache information display
 
-## Phase 7: Cleanup
+### Usage Examples
+```bash
+# Clear all cache
+fortran --clear-cache
 
-Remove old code and finalize implementation.
+# Clear cache and run
+fortran --clear-cache example.f90
+
+# Show cache information
+fortran --cache-info
+```
+
+## Phase 7: Advanced Features
+
+Extend AST preprocessor with advanced features.
 
 ### Tasks
-- [ ] Remove old line-based processing code
-- [ ] Clean up module interfaces
-- [ ] Update documentation
-- [ ] Add architecture documentation
-- [ ] Final performance optimization
-- [ ] Update CLAUDE.md with new architecture
+- [ ] Support function/subroutine definitions
+- [ ] Support array type inference
+- [ ] Support derived types
+- [ ] Preserve comments and markdown cells
+- [ ] Advanced expression type inference
+- [ ] Symbol table and scope management
+
+## Phase 8: Full Integration
+
+Complete replacement of legacy preprocessor.
+
+### Tasks
+- [ ] Ensure all examples work with AST preprocessor
+- [ ] Remove legacy preprocessor code
+- [ ] Update all documentation
+- [ ] Performance optimization
+- [ ] Remove FORTRAN_USE_AST_PREPROCESSOR environment variable
 
 ## Serialization Strategy
 
@@ -331,16 +359,35 @@ All intermediate compilation stages will be serializable to JSON format for debu
 
 ### ✅ **Completed Phases**
 - **Phase 0**: Test Reorganization - Hierarchical test structure with FPM wildcards
-- **Phase 1**: Lexer Implementation - Core/Dialect architecture with JSON serialization
+- **Phase 1**: Lexer Implementation - Core tokenizer with JSON serialization
 - **Phase 2**: AST Definition - Comprehensive node types with visitor pattern and JSON output
+- **Phase 3**: Parser Implementation - Recursive descent parser for expressions and statements
+- **Phase 4**: Code Generation - AST to Fortran transformation
+- **Phase 5**: AST-Based Preprocessor - Basic integration with type inference
 
 ### 🚧 **Current Phase**
-- **Phase 3**: Parser Implementation - TDD-driven recursive descent parser
+- **Phase 6**: Cache Management Enhancement - Command-line cache control
 
 ### 📋 **Upcoming Phases**
-- **Phase 4**: Semantic Analysis - Type inference and symbol tables
-- **Phase 5**: Code Generation - AST to Fortran transformation
-- **Phase 6**: Integration - Replace existing preprocessor while maintaining compatibility
+- **Phase 7**: Advanced Features - Functions, arrays, derived types
+- **Phase 8**: Full Integration - Complete legacy preprocessor replacement
+
+## Important Testing Notes
+
+⚠️ **ALWAYS clear the cache before testing new features!**
+
+The fortran tool aggressively caches preprocessed files. When developing or testing new preprocessor features:
+
+```bash
+# Clear cache manually
+rm -rf ~/.cache/fortran/*
+
+# Or use the upcoming command (Phase 6)
+fortran --clear-cache
+
+# Then run your test
+fortran example.f90
+```
 
 ## Notes
 

@@ -30,6 +30,14 @@ fpm build --profile release
 
 # Clean build artifacts
 fpm clean
+
+# Clear fortran cache (IMPORTANT: Do this before testing new preprocessor features!)
+rm -rf ~/.cache/fortran/*
+
+# Future: Clear cache with command line option (Phase 6)
+fortran --clear-cache
+fortran --clear-cache example.f90  # Clear cache and run
+fortran --cache-info              # Show cache statistics
 ```
 
 ## Project Architecture
@@ -259,18 +267,17 @@ Each example includes:
 
 ## Future Roadmap
 
-- **Phase 6**: Parser Implementation (recursive descent, expression parsing)
-- **Phase 7**: Semantic Analysis (type inference, symbol tables, scope management)
-- **Phase 8**: Code Generation (AST to Fortran transformation)
-- **Phase 9**: Integration (replace existing preprocessor, maintain compatibility)
-- **Phase 10**: Advanced type inference (arrays, derived types)
-- **Phase 11**: Python-like features (comprehensions, f-strings)
-- **Phase 12**: Enhanced caching with FPM package sharing and cross-package support
+- **Phase 8**: Cache Management CLI (--clear-cache, --cache-info commands)
+- **Phase 9**: Advanced AST Features (functions, arrays, derived types)
+- **Phase 10**: Full AST Integration (replace legacy preprocessor completely)
+- **Phase 11**: Advanced type inference (complex expressions, function returns)
+- **Phase 12**: Python-like features (comprehensions, f-strings)
+- **Phase 13**: Enhanced caching with FPM package sharing and cross-package support
   - **Goal**: Enable scenario where `fortran calc.f90` and `fortran plot.f90` share compiled FPM packages
   - **Implementation**: Include FPM dependencies in cache keys, separate package-level caching
   - **Benefits**: Dramatically faster builds when multiple programs use same external packages
-- **Phase 13**: Integration with official FPM registry
-- **Phase 14**: Interactive REPL mode
+- **Phase 14**: Integration with official FPM registry
+- **Phase 15**: Interactive REPL mode
 
 **Goal**: **Make Python Fortran again** - making Fortran development as seamless as Python, where you can just run a file without worrying about compilation, linking, or dependency management.
 
@@ -293,7 +300,9 @@ Each example includes:
   4. Commit the new test to git
 - Always convert debug apps to automated tests if a similar test doesn't exist yet
 - To clean the build, run echo "y" | fpm clean in project root
-- To clear the fortran cache, remove fortran/* in $XDG_CACHE_HOME or in $HOME/.cache
+- **CRITICAL: To clear the fortran cache, run `rm -rf ~/.cache/fortran/*` (or `%LOCALAPPDATA%/fortran/cache/*` on Windows)**
+- **ALWAYS clear cache before testing new preprocessor features** - the tool aggressively caches preprocessed files
+- Cache clearing will be easier with `fortran --clear-cache` command (Phase 6 TODO)
 - You put test input data in subdirectories of test/test_data in an organized way. in particlular, this includes snippets of our simplified fortran dialect .f and their standard Fortran f90 equivalent for the ast and code generator tests. this is when they are too small or too specialized to become actual examples.
 - When implementing polymorphic arrays in AST nodes, use `allocate(array, source=input)` for proper copying
 - **AST Preprocessor is now the default**: The new AST-based preprocessor (preprocessor_ast) is used by default for .f files
