@@ -25,7 +25,7 @@ program test_lexer_keywords
 contains
 
     logical function test_program_keywords()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         character(len=20), dimension(4) :: prog_keywords = [ &
             "program   ", "end       ", "function  ", "subroutine" &
         ]
@@ -60,7 +60,7 @@ contains
     end function test_program_keywords
 
     logical function test_control_keywords()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         character(len=20), dimension(5) :: ctrl_keywords = [ &
             "if    ", "then  ", "else  ", "endif ", "do    " &
         ]
@@ -88,7 +88,7 @@ contains
     end function test_control_keywords
 
     logical function test_type_keywords()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         character(len=20), dimension(6) :: type_keywords = [ &
             "implicit ", "none     ", "integer  ", "real     ", "logical  ", "character" &
         ]
@@ -116,7 +116,7 @@ contains
     end function test_type_keywords
 
     logical function test_io_keywords()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         character(len=20), dimension(4) :: io_keywords = [ &
             "print", "read ", "write", "call " &
         ]
@@ -144,7 +144,7 @@ contains
     end function test_io_keywords
 
     logical function test_case_insensitive()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         
         test_case_insensitive = .true.
         print '(a)', "Testing case-insensitive keyword recognition..."

@@ -11,8 +11,8 @@ contains
 
     ! Write tokens array to JSON file
     subroutine json_write_tokens_to_file(tokens, filename)
-        use lexer_core, only: token, token_type_name
-        type(token), intent(in) :: tokens(:)
+        use lexer_core, only: token_t, token_type_name
+        type(token_t), intent(in) :: tokens(:)
         character(len=*), intent(in) :: filename
         
         type(json_core) :: json
@@ -51,8 +51,8 @@ contains
 
     ! Convert tokens array to JSON string
     function json_write_tokens_to_string(tokens) result(json_str)
-        use lexer_core, only: token, token_type_name
-        type(token), intent(in) :: tokens(:)
+        use lexer_core, only: token_t, token_type_name
+        type(token_t), intent(in) :: tokens(:)
         character(len=:), allocatable :: json_str
         
         type(json_core) :: json

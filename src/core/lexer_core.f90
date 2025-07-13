@@ -14,12 +14,12 @@ module lexer_core
     integer, parameter, public :: TK_UNKNOWN = 99
 
     ! Token structure
-    type, public :: token
+    type, public :: token_t
         integer :: kind = TK_UNKNOWN
         character(len=:), allocatable :: text
         integer :: line = 1
         integer :: column = 1
-    end type token
+    end type token_t
 
     ! Public interface
     public :: tokenize_core
@@ -38,9 +38,9 @@ contains
 
     subroutine tokenize_core(source, tokens)
         character(len=*), intent(in) :: source
-        type(token), allocatable, intent(out) :: tokens(:)
+        type(token_t), allocatable, intent(out) :: tokens(:)
         
-        type(token), allocatable :: temp_tokens(:)
+        type(token_t), allocatable :: temp_tokens(:)
         integer :: pos, line_num, col_num, token_count
         integer :: source_len
         character(len=1) :: ch
@@ -111,7 +111,7 @@ contains
     subroutine scan_number(source, pos, line_num, col_num, tokens, token_count)
         character(len=*), intent(in) :: source
         integer, intent(inout) :: pos, line_num, col_num, token_count
-        type(token), allocatable, intent(inout) :: tokens(:)
+        type(token_t), allocatable, intent(inout) :: tokens(:)
         
         integer :: start_pos, start_col
         logical :: has_dot
@@ -182,7 +182,7 @@ contains
     subroutine scan_string(source, pos, line_num, col_num, tokens, token_count)
         character(len=*), intent(in) :: source
         integer, intent(inout) :: pos, line_num, col_num, token_count
-        type(token), allocatable, intent(inout) :: tokens(:)
+        type(token_t), allocatable, intent(inout) :: tokens(:)
         
         integer :: start_pos, start_col
         character(len=1) :: quote_char
@@ -224,7 +224,7 @@ contains
     subroutine scan_identifier(source, pos, line_num, col_num, tokens, token_count)
         character(len=*), intent(in) :: source
         integer, intent(inout) :: pos, line_num, col_num, token_count
-        type(token), allocatable, intent(inout) :: tokens(:)
+        type(token_t), allocatable, intent(inout) :: tokens(:)
         
         integer :: start_pos, start_col
         character(len=:), allocatable :: word
@@ -265,7 +265,7 @@ contains
     subroutine scan_operator(source, pos, line_num, col_num, tokens, token_count)
         character(len=*), intent(in) :: source
         integer, intent(inout) :: pos, line_num, col_num, token_count
-        type(token), allocatable, intent(inout) :: tokens(:)
+        type(token_t), allocatable, intent(inout) :: tokens(:)
         
         integer :: start_col
         character(len=2) :: two_char
@@ -364,8 +364,8 @@ contains
     end function to_lower
 
     subroutine resize_tokens(tokens)
-        type(token), allocatable, intent(inout) :: tokens(:)
-        type(token), allocatable :: temp(:)
+        type(token_t), allocatable, intent(inout) :: tokens(:)
+        type(token_t), allocatable :: temp(:)
         
         allocate(temp(size(tokens) * 2))
         temp(1:size(tokens)) = tokens

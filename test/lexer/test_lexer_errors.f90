@@ -25,7 +25,7 @@ program test_lexer_errors
 contains
 
     logical function test_empty_input()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         
         test_empty_input = .true.
         print '(a)', "Testing empty input handling..."
@@ -56,7 +56,7 @@ contains
     end function test_empty_input
 
     logical function test_unterminated_strings()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         
         test_unterminated_strings = .true.
         print '(a)', "Testing unterminated string handling..."
@@ -93,7 +93,7 @@ contains
     end function test_unterminated_strings
 
     logical function test_unknown_characters()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         
         test_unknown_characters = .true.
         print '(a)', "Testing unknown character handling..."
@@ -124,7 +124,7 @@ contains
     end function test_unknown_characters
 
     logical function test_position_tracking()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         
         test_position_tracking = .true.
         print '(a)', "Testing position tracking..."
@@ -160,7 +160,7 @@ contains
     end function test_position_tracking
 
     logical function test_mixed_content()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         
         test_mixed_content = .true.
         print '(a)', "Testing mixed content tokenization..."

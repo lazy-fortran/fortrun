@@ -5,15 +5,15 @@ module parser_core
     private
 
     ! Parser state for tracking tokens
-    type, public :: parser_state
-        type(token), allocatable :: tokens(:)
+    type, public :: parser_state_t
+        type(token_t), allocatable :: tokens(:)
         integer :: current_token = 1
     contains
         procedure :: peek => parser_peek
         procedure :: consume => parser_consume
         procedure :: is_at_end => parser_is_at_end
         procedure :: match => parser_match
-    end type parser_state
+    end type parser_state_t
 
     ! Public parsing interface
     public :: parse_expression, parse_statement
@@ -23,8 +23,8 @@ contains
 
     ! Create parser state from tokens
     function create_parser_state(tokens) result(state)
-        type(token), intent(in) :: tokens(:)
-        type(parser_state) :: state
+        type(token_t), intent(in) :: tokens(:)
+        type(parser_state_t) :: state
         
         state%tokens = tokens
         state%current_token = 1
@@ -32,8 +32,8 @@ contains
 
     ! Peek at current token without consuming it
     function parser_peek(this) result(current_token)
-        class(parser_state), intent(in) :: this
-        type(token) :: current_token
+        class(parser_state_t), intent(in) :: this
+        type(token_t) :: current_token
         
         if (this%current_token <= size(this%tokens)) then
             current_token = this%tokens(this%current_token)
@@ -48,8 +48,8 @@ contains
 
     ! Consume current token and advance
     function parser_consume(this) result(consumed_token)
-        class(parser_state), intent(inout) :: this
-        type(token) :: consumed_token
+        class(parser_state_t), intent(inout) :: this
+        type(token_t) :: consumed_token
         
         consumed_token = this%peek()
         if (.not. this%is_at_end()) then
@@ -59,8 +59,8 @@ contains
 
     ! Check if we're at the end of tokens
     logical function parser_is_at_end(this)
-        class(parser_state), intent(in) :: this
-        type(token) :: current
+        class(parser_state_t), intent(in) :: this
+        type(token_t) :: current
         
         current = this%peek()
         parser_is_at_end = (current%kind == TK_EOF)
@@ -68,9 +68,9 @@ contains
 
     ! Check if current token matches expected kind and consume if so
     logical function parser_match(this, expected_kind)
-        class(parser_state), intent(inout) :: this
+        class(parser_state_t), intent(inout) :: this
         integer, intent(in) :: expected_kind
-        type(token) :: current, consumed
+        type(token_t) :: current, consumed
         
         current = this%peek()
         if (current%kind == expected_kind) then
@@ -83,9 +83,9 @@ contains
 
     ! Parse expression with operator precedence
     function parse_expression(tokens) result(expr)
-        type(token), intent(in) :: tokens(:)
+        type(token_t), intent(in) :: tokens(:)
         class(ast_node), allocatable :: expr
-        type(parser_state) :: parser
+        type(parser_state_t) :: parser
         
         parser = create_parser_state(tokens)
         expr = parse_comparison(parser)
@@ -93,10 +93,10 @@ contains
     
     ! Parse comparison operators (lowest precedence)
     function parse_comparison(parser) result(expr)
-        type(parser_state), intent(inout) :: parser
+        type(parser_state_t), intent(inout) :: parser
         class(ast_node), allocatable :: expr
         class(ast_node), allocatable :: right_expr, temp_expr
-        type(token) :: op_token
+        type(token_t) :: op_token
         
         expr = parse_term(parser)
         
@@ -118,10 +118,10 @@ contains
     
     ! Parse addition and subtraction
     function parse_term(parser) result(expr)
-        type(parser_state), intent(inout) :: parser
+        type(parser_state_t), intent(inout) :: parser
         class(ast_node), allocatable :: expr
         class(ast_node), allocatable :: right_expr, temp_expr
-        type(token) :: op_token
+        type(token_t) :: op_token
         
         expr = parse_factor(parser)
         
@@ -141,10 +141,10 @@ contains
     
     ! Parse multiplication, division, and power
     function parse_factor(parser) result(expr)
-        type(parser_state), intent(inout) :: parser
+        type(parser_state_t), intent(inout) :: parser
         class(ast_node), allocatable :: expr
         class(ast_node), allocatable :: right_expr, temp_expr
-        type(token) :: op_token
+        type(token_t) :: op_token
         
         expr = parse_primary(parser)
         
@@ -164,9 +164,9 @@ contains
     
     ! Parse primary expressions (literals, identifiers, parentheses)
     function parse_primary(parser) result(expr)
-        type(parser_state), intent(inout) :: parser
+        type(parser_state_t), intent(inout) :: parser
         class(ast_node), allocatable :: expr
-        type(token) :: current
+        type(token_t) :: current
         
         current = parser%peek()
         
@@ -203,10 +203,10 @@ contains
 
     ! Parse a simple statement (minimal implementation for TDD)
     function parse_statement(tokens) result(stmt)
-        type(token), intent(in) :: tokens(:)
+        type(token_t), intent(in) :: tokens(:)
         class(ast_node), allocatable :: stmt
-        type(parser_state) :: parser
-        type(token) :: id_token, op_token
+        type(parser_state_t) :: parser
+        type(token_t) :: id_token, op_token
         class(ast_node), allocatable :: target, value
         
         parser = create_parser_state(tokens)

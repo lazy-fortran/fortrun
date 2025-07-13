@@ -1,5 +1,5 @@
 program test_lexer_basic
-    use lexer, only: token, tokenize, TK_IDENTIFIER, TK_OPERATOR, &
+    use lexer, only: token_t, tokenize, TK_IDENTIFIER, TK_OPERATOR, &
                     TK_NUMBER, TK_STRING, TK_KEYWORD, TK_NEWLINE, TK_EOF
     implicit none
 
@@ -20,7 +20,7 @@ contains
 
     subroutine test_simple_assignment(test_count, pass_count)
         integer, intent(inout) :: test_count, pass_count
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         character(len=:), allocatable :: source
         
         source = "x = 5.0"
@@ -48,7 +48,7 @@ contains
 
     subroutine test_print_statement(test_count, pass_count)
         integer, intent(inout) :: test_count, pass_count
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         character(len=:), allocatable :: source
         
         source = 'print *, "Hello World"'
@@ -78,7 +78,7 @@ contains
 
     subroutine test_arithmetic_expression(test_count, pass_count)
         integer, intent(inout) :: test_count, pass_count
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         character(len=:), allocatable :: source
         
         source = "result = 2.0 + 3.0 * x"
@@ -107,7 +107,7 @@ contains
 
     subroutine test_token_positions(test_count, pass_count)
         integer, intent(inout) :: test_count, pass_count
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         character(len=:), allocatable :: source
         
         source = "x = 5"
@@ -136,7 +136,7 @@ contains
     end subroutine test_token_positions
 
     subroutine print_tokens(tokens)
-        type(token), intent(in) :: tokens(:)
+        type(token_t), intent(in) :: tokens(:)
         integer :: i
         
         do i = 1, size(tokens)

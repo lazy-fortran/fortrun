@@ -24,7 +24,7 @@ program test_lexer_numbers
 contains
 
     logical function test_integer_literals()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         
         test_integer_literals = .true.
         print '(a)', "Testing integer literal tokenization..."
@@ -69,7 +69,7 @@ contains
     end function test_integer_literals
 
     logical function test_real_literals()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         
         test_real_literals = .true.
         print '(a)', "Testing real literal tokenization..."
@@ -114,7 +114,7 @@ contains
     end function test_real_literals
 
     logical function test_scientific_notation()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         
         test_scientific_notation = .true.
         print '(a)', "Testing scientific notation tokenization..."
@@ -167,7 +167,7 @@ contains
     end function test_scientific_notation
 
     logical function test_edge_cases()
-        type(token), allocatable :: tokens(:)
+        type(token_t), allocatable :: tokens(:)
         
         test_edge_cases = .true.
         print '(a)', "Testing number tokenization edge cases..."
