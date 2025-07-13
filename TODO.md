@@ -8,6 +8,20 @@ We are building a complete compiler frontend with a 4-phase architecture (Lexer 
 
 ## IMMEDIATE TASKS ⚡
 
+### Fix Existing Test Suite 🚨
+After recent enhancements (multi-statement parsing, enhanced type inference), we need to ensure all existing tests still pass:
+
+- [ ] **Fix compilation errors** in new test files (character length mismatches)
+- [ ] **Run full test suite** and fix any regressions
+- [ ] **Verify core functionality**:
+  - [ ] Basic lazy fortran compilation (x = 42)
+  - [ ] Type inference for all types (integer, real, character)
+  - [ ] Multi-statement parsing
+  - [ ] Expression type promotion
+  - [ ] Standard Fortran passthrough (.f90 files)
+- [ ] **Update integration tests** to match new multi-statement capabilities
+- [ ] **Ensure CI/CD passes** before continuing with new features
+
 ### Standard Fortran Compatibility Tests 🔄
 Since *lazy fortran* is a superset of standard Fortran, we need comprehensive tests to ensure any valid Fortran 95/2003/2008/2018 program passes through unchanged:
 
