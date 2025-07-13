@@ -1,50 +1,72 @@
 # Test Failures - FPM Test Run
 
-## Current Status (2025-07-12) - After Error Message Improvements
+## Current Status (2025-07-12) - After Line Length Compilation Fixes
 
-### 🎉 **MAJOR SUCCESS: Fortran Preprocessor is Now Fully Functional!**
+### 🚨 **REGRESSION: Multiple Test Failures After Line Length Fixes**
 
-#### 1. test_preprocessor_integration - 5/5 passed ✅ (MAIN MILESTONE!)
-- ✅ **PASS**: hello.f runs successfully
-- ✅ **PASS**: math.f runs successfully 
-- ✅ **PASS**: subroutines.f runs successfully (FIXED!)
-- ✅ **PASS**: Verbose mode shows preprocessing message
-- ✅ **PASS**: Regular .f90 files still work
+The system now compiles successfully but has significant functional regressions in test execution.
 
-#### 2. test_examples - 35/39 passed ✅ (EXCELLENT!)
-- ✅ **35 tests passed** (including step1_demo.f that was previously failing)
-- ✅ **0 unexpected failures**
-- ⚠️ **4 expected failures** (advanced preprocessor features)
+#### 1. test_cli_system - FAILING ❌
+- ❌ **FAIL**: Basic execution test failed
+- **Error**: Expected output "CLI System Test Output" not found
+- **Error**: Expected exit code 0 but got 1
 
-#### 3. Core functionality tests - ALL PASSING ✅
-- ✅ Type inference: 41/41 passed
-- ✅ Function analyzer: 10/10 passed  
-- ✅ CLI tests: All passed
-- ✅ Runner tests: All passed
-- ✅ Cache tests: All passed
-- ✅ Registry tests: All passed
+#### 2. test_preprocessor - FAILING ❌  
+- ❌ **FAIL**: Wrong number of program statements: 4
+- **Issue**: Preprocessor incorrectly counting program statements in existing programs
 
-### ✅ **NEW: Enhanced Error Reporting**
-- ✅ **Error messages with source location**: Unknown type variables now report `source.f:line: ERROR: message`
-- ✅ **Console and code comments**: Errors printed to console immediately and written as comments in generated code
-- ✅ **Meaningful error messages**: Clear indication when type inference fails with specific variable names
+#### 3. test_step1_single_file - 4/6 passed ⚠️
+- ❌ **FAIL**: Parameter type enhancement with intent(in)
+- ❌ **FAIL**: Mixed explicit and implicit types
+- ✅ **PASS**: Function signature enhancement (real → real(8))
+- ✅ **PASS**: Forward type propagation
+- ✅ **PASS**: Multiple functions in single file
+- ✅ **PASS**: Nested function calls
 
-### 🚧 **Minor Remaining Issues (2 edge case failures - DOCUMENTED LIMITATIONS):**
-
-#### 4. test_preprocessor_function_integration - 2/3 passed
-- ✅ **PASS**: Function parameter type inference 
-- ✅ **PASS**: Function return type inference
-- ❌ **LIMITATION**: Nested function call inference - requires call-site analysis enhancement
-
-**Issue**: Function parameters currently use implicit typing rules instead of proper type inference from call context.
-Example: `double_square(5)` should infer integer parameter, but defaults to real due to variable name pattern.
-
-#### 5. test_step1_integration - 2/3 passed  
+#### 4. test_step1_integration - 2/3 passed ⚠️
+- ❌ **FAIL**: Parameters get intent(in) by default
 - ✅ **PASS**: Explicit function with parameters gets intent(in)
 - ✅ **PASS**: real converts to real(8) for explicitness
-- ❌ **LIMITATION**: Parameters get intent(in) by default - explicit parameter declaration handling needs investigation
 
-**Issue**: Explicit parameter declarations should be enhanced with intent(in), but current implementation may have edge cases.
+#### 5. test_cache_safety - FAILING ❌
+- ❌ Multiple compilation failures with `src_hello.f90.o`
+- ❌ Permission denied errors when trying to create `/root` directory
+
+#### 6. test_examples - FAILING ❌
+- ❌ Multiple compilation failures with `src_hello.f90.o`
+- ❌ Various file operation errors (mkdir, cp commands failing)
+
+#### 7. test_preprocessor_integration - FAILING ❌
+- ❌ **ERROR STOP**: Some integration tests failed!
+- ❌ Multiple compilation failures
+
+#### 8. test_type_inference_integration - FAILING ❌
+- ❌ **ERROR STOP**: Some integration tests failed!
+
+#### 9. test_runner_comprehensive - FAILING ❌
+- ❌ Multiple compilation failures with `src_hello.f90.o` and `app_main.f90.o`
+
+### 🔍 **Root Cause Analysis Needed**
+
+#### Core Issues Identified:
+1. **Type Inference Regression**: Parameters not getting proper `intent(in)` declarations
+2. **Preprocessor Logic Error**: Incorrect counting of program statements 
+3. **CLI Integration Failure**: Basic execution returning wrong exit codes
+4. **Build System Issues**: Widespread compilation failures with `src_hello.f90.o`
+5. **File System Errors**: Permission and directory creation failures
+
+#### Working Components:
+- ✅ **CLI Argument Parsing**: All 12 tests passed
+- ✅ **Individual Type Inference**: 41/41 literal/expression tests passed
+- ✅ **Function Analyzer**: 10/10 tests passed
+- ✅ **Array Analyzer**: 10/10 tests passed
+- ✅ **Derived Type Analyzer**: 10/10 tests passed
+
+### 📊 **Regression Summary**
+- **Before line fixes**: 95%+ test success rate with minor edge cases
+- **After line fixes**: Significant functional regressions across integration tests
+- **Compilation**: ✅ Fixed (no more line length errors)
+- **Functionality**: ❌ Multiple regressions introduced
 
 ## 🎉 **RESOLVED ISSUES**
 
