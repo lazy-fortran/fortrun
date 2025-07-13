@@ -12,23 +12,50 @@ This document outlines the architecture for a modern lexer/parser/AST system to 
 4. **Multiple Backends**: Support both Fortran generation and direct compiler IR
 5. **Type Inference**: Built-in support for automatic type inference
 6. **Future-Proof**: Architecture supports planned features like multiple dispatch
+7. **Multi-Dialect Support**: Shared functionality for all Fortran standards with specialized modules for dialect-specific features
 
-## Compilation Pipeline
+## Architecture: Shared Core with Dialect Specialization
+
+### Module Organization
 
 ```
-Source (.f) → Lexer → Parser → AST → Semantic Analysis → Code Generation
-                                 ↓           ↓
-                          Type Inference  Symbol Table
-                                 ↓
-                          Type Environment
+src/
+├── core/                    # Shared functionality for all Fortran dialects
+│   ├── lexer_core.f90      # Base tokenization for standard Fortran
+│   ├── parser_core.f90     # Core parsing for common constructs
+│   ├── ast_core.f90        # Base AST nodes shared by all dialects
+│   └── codegen_core.f90    # Common code generation utilities
+├── dialects/               # Dialect-specific extensions
+│   ├── fortran90/          # Fortran 90 standard support
+│   │   ├── lexer_f90.f90   # F90-specific tokens
+│   │   └── parser_f90.f90  # F90-specific parsing
+│   ├── fortran2018/        # Modern Fortran support
+│   │   └── parser_f2018.f90
+│   └── simple_fortran/     # Our simplified dialect
+│       ├── lexer_sf.f90    # Additional tokens (e.g., Python-like)
+│       ├── parser_sf.f90   # Implicit program wrapping, etc.
+│       └── inference.f90   # Type inference engine
+├── lexer.f90               # Main lexer interface
+├── parser.f90              # Main parser interface
+└── ast.f90                 # Complete AST definitions
+```
+
+### Compilation Pipeline
+
+```
+Source (.f) → Dialect Detection → Lexer → Parser → AST → Semantic Analysis → Code Generation
+                     ↓               ↓        ↓                    ↓
+              Simple Fortran    Core+SF   Core+SF          Type Inference
+                                Tokens    Rules            (SF specific)
 ```
 
 ### Phase 1: Lexer (Tokenizer)
 
-Converts character stream into tokens:
+#### Core Lexer (Shared)
 
 ```fortran
-module simple_fortran_lexer
+module lexer_core
+  ! Base token type used by all dialects
   type :: token
     integer :: kind
     character(len=:), allocatable :: text
@@ -36,7 +63,7 @@ module simple_fortran_lexer
     integer :: column
   end type token
 
-  ! Token kinds
+  ! Standard Fortran tokens (shared by all dialects)
   integer, parameter :: TK_IDENTIFIER = 1
   integer, parameter :: TK_NUMBER = 2
   integer, parameter :: TK_STRING = 3
@@ -44,17 +71,46 @@ module simple_fortran_lexer
   integer, parameter :: TK_KEYWORD = 5
   integer, parameter :: TK_NEWLINE = 6
   integer, parameter :: TK_EOF = 7
-  ! ... more token types
+  
+  ! Core tokenization for standard Fortran
+  interface
+    subroutine tokenize_core(source, tokens)
+      character(len=*), intent(in) :: source
+      type(token), allocatable, intent(out) :: tokens(:)
+    end subroutine
+  end interface
 end module
 ```
 
-### Phase 2: Parser
-
-Builds Abstract Syntax Tree from tokens:
+#### Simple Fortran Lexer Extensions
 
 ```fortran
-module simple_fortran_ast
-  ! Base AST node
+module lexer_simple_fortran
+  use lexer_core
+  
+  ! Additional token types for Simple Fortran
+  integer, parameter :: TK_INDENT = 100     ! Python-like indentation
+  integer, parameter :: TK_DEDENT = 101     ! Python-like dedentation
+  integer, parameter :: TK_FSTRING = 102    ! f"string {expr}" support
+  
+  ! Extended tokenization with Simple Fortran features
+  interface
+    subroutine tokenize_sf(source, tokens, dialect_options)
+      character(len=*), intent(in) :: source
+      type(token), allocatable, intent(out) :: tokens(:)
+      type(sf_options), intent(in) :: dialect_options
+    end subroutine
+  end interface
+end module
+```
+
+### Phase 2: AST Definition
+
+#### Core AST Nodes (Shared)
+
+```fortran
+module ast_core
+  ! Base AST node used by all dialects
   type, abstract :: ast_node
     integer :: line
     integer :: column
@@ -62,44 +118,66 @@ module simple_fortran_ast
     procedure(visit_interface), deferred :: accept
   end type
 
-  ! Program node (implicit or explicit)
+  ! Standard Fortran nodes (shared by all dialects)
   type, extends(ast_node) :: program_node
     character(len=:), allocatable :: name
     type(ast_node), allocatable :: body(:)
-    logical :: implicit  ! true if auto-wrapped
   end type
 
-  ! Assignment node
-  type, extends(ast_node) :: assign_node
+  type, extends(ast_node) :: assignment_node
     type(ast_node), allocatable :: target
     type(ast_node), allocatable :: value
   end type
 
-  ! Binary operation node
-  type, extends(ast_node) :: binop_node
+  type, extends(ast_node) :: binary_op_node
     type(ast_node), allocatable :: left
     type(ast_node), allocatable :: right
-    character(len=:), allocatable :: op
+    character(len=:), allocatable :: operator
   end type
 
-  ! Function definition
-  type, extends(ast_node) :: function_node
+  type, extends(ast_node) :: function_def_node
     character(len=:), allocatable :: name
-    type(param_node), allocatable :: params(:)
-    type(type_spec), allocatable :: return_type  ! optional
+    type(ast_node), allocatable :: params(:)
+    type(ast_node), allocatable :: return_type
     type(ast_node), allocatable :: body(:)
-    logical :: auto_contains  ! true if contains was auto-inserted
   end type
 
-  ! Variable reference
-  type, extends(ast_node) :: var_node
+  type, extends(ast_node) :: identifier_node
     character(len=:), allocatable :: name
   end type
 
-  ! Literal values
   type, extends(ast_node) :: literal_node
-    type(type_info) :: inferred_type
     character(len=:), allocatable :: value
+    integer :: literal_kind  ! INTEGER_LITERAL, REAL_LITERAL, etc.
+  end type
+end module
+```
+
+#### Simple Fortran AST Extensions
+
+```fortran
+module ast_simple_fortran
+  use ast_core
+  
+  ! Extended program node with implicit program support
+  type, extends(program_node) :: sf_program_node
+    logical :: implicit = .false.  ! true if auto-wrapped
+    logical :: auto_contains = .false.  ! true if contains was auto-inserted
+  end type
+  
+  ! Type-inferred variable (unique to Simple Fortran)
+  type, extends(ast_node) :: inferred_var_node
+    character(len=:), allocatable :: name
+    type(ast_node), allocatable :: initial_value
+    ! Type will be inferred during semantic analysis
+  end type
+  
+  ! List comprehension node (future Python-like feature)
+  type, extends(ast_node) :: list_comp_node
+    type(ast_node), allocatable :: expr
+    type(ast_node), allocatable :: target
+    type(ast_node), allocatable :: iter
+    type(ast_node), allocatable :: condition  ! optional
   end type
 end module
 ```

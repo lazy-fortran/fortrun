@@ -67,47 +67,57 @@ test/
     └── test_lexer_errors.f90
 ```
 
-## Phase 1: Lexer Implementation
+## Phase 1: Lexer Implementation - Core/Dialect Architecture
 
-Build a tokenizer for the Simple Fortran subset.
+Build a tokenizer with shared core functionality and dialect-specific extensions.
 
 ### Tasks
-- [ ] Create `src/lexer.f90` module
-- [ ] Define token types (identifier, number, string, operator, keyword, etc.)
-- [ ] Implement tokenization for basic constructs
-- [ ] Write unit tests for lexer
+- [ ] Create directory structure: `src/core/`, `src/dialects/simple_fortran/`
+- [ ] Create `src/core/lexer_core.f90` module with standard Fortran tokenization
+- [ ] Define base token types shared by all dialects
+- [ ] Create `src/dialects/simple_fortran/lexer_sf.f90` for Simple Fortran extensions
+- [ ] Create `src/lexer.f90` as main interface that delegates to appropriate implementation
+- [ ] Write unit tests for both core and dialect-specific features
 - [ ] Support error reporting with line/column information
 - [ ] Handle comments and whitespace
 - [ ] Benchmark lexer performance
 
 ### Test Cases
-- [ ] `test_lexer_basic.f90` - Token generation for simple statements
-- [ ] `test_lexer_numbers.f90` - Integer and real literal tokenization
-- [ ] `test_lexer_operators.f90` - Operator tokenization
-- [ ] `test_lexer_keywords.f90` - Keyword recognition
+- [ ] `test_lexer_core_basic.f90` - Core tokenization for standard Fortran
+- [ ] `test_lexer_core_numbers.f90` - Standard number literal tokenization
+- [ ] `test_lexer_core_operators.f90` - Standard operator tokenization
+- [ ] `test_lexer_core_keywords.f90` - Standard keyword recognition
+- [ ] `test_lexer_sf_basic.f90` - Simple Fortran specific features
 - [ ] `test_lexer_errors.f90` - Error handling and recovery
 
-## Phase 2: AST Definition
+## Phase 2: AST Definition - Core/Dialect Architecture
 
-Define AST node types for Simple Fortran.
+Define AST node types with shared core nodes and dialect extensions.
 
 ### Tasks
-- [ ] Create `src/ast.f90` module with base node type
-- [ ] Implement node types:
-  - [ ] Program node (implicit/explicit)
+- [ ] Create `src/core/ast_core.f90` module with base node types
+- [ ] Implement core node types shared by all Fortran dialects:
+  - [ ] Base ast_node type with visitor pattern
+  - [ ] Program node
   - [ ] Assignment node
   - [ ] Binary operation node
   - [ ] Function/subroutine definition
   - [ ] Function call node
-  - [ ] Variable reference
-  - [ ] Literal values
-  - [ ] Use statement
-  - [ ] Print statement
+  - [ ] Identifier node
+  - [ ] Literal node
+  - [ ] Use statement node
+  - [ ] Print statement node
+- [ ] Create `src/dialects/simple_fortran/ast_sf.f90` for extensions:
+  - [ ] Extended program node with implicit program support
+  - [ ] Type-inferred variable node
+  - [ ] Future: List comprehension node
+- [ ] Create `src/ast.f90` as unified interface
 - [ ] Implement visitor pattern for AST traversal
 - [ ] Write unit tests for AST construction
 
 ### Test Cases
-- [ ] `test_ast_construction.f90` - Manual AST building
+- [ ] `test_ast_core_construction.f90` - Core AST node building
+- [ ] `test_ast_sf_construction.f90` - Simple Fortran specific nodes
 - [ ] `test_ast_visitor.f90` - Visitor pattern tests
 
 ## Phase 3: Parser Implementation
