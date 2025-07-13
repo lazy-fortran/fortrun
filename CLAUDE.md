@@ -134,11 +134,21 @@ fpm test test_name
   - ✅ Comprehensive test coverage
   - ✅ Integration with cache system
 
-### 🚧 **Phase 5 In Progress**: Basic Type Inference
-- ⚠️ Type inference infrastructure
-- ⚠️ Literal type detection
-- ⚠️ Expression type propagation
-- ⚠️ Variable declaration generation
+### ✅ **Phase 5 Complete**: AST-Based Architecture Foundation
+- ✅ Core AST node types (program, assignment, binary_op, function_def, etc.)
+- ✅ Simple Fortran dialect extensions (sf_program, inferred_var, list_comp)
+- ✅ JSON serialization for all AST nodes using json-fortran
+- ✅ Visitor pattern infrastructure for AST traversals
+- ✅ Factory functions with proper polymorphic allocation
+- ✅ Comprehensive test coverage for AST construction and serialization
+- ✅ Unified AST interface combining core and dialect features
+
+### 🚧 **Phase 6 In Progress**: Parser Implementation
+- ⚠️ Recursive descent parser for Simple Fortran
+- ⚠️ Token to AST conversion
+- ⚠️ Expression parsing with precedence handling
+- ⚠️ Statement parsing and program structure
+- ⚠️ Integration with existing lexer
 
 ## Simple Fortran Dialect
 
@@ -233,15 +243,18 @@ Each example includes:
 
 ## Future Roadmap
 
-- **Phase 5**: Basic type inference for .f files
-- **Phase 6**: Advanced type inference (arrays, derived types)
-- **Phase 7**: Python-like features (comprehensions, f-strings)  
-- **Phase 8**: Enhanced caching with FPM package sharing and cross-package support
+- **Phase 6**: Parser Implementation (recursive descent, expression parsing)
+- **Phase 7**: Semantic Analysis (type inference, symbol tables, scope management)
+- **Phase 8**: Code Generation (AST to Fortran transformation)
+- **Phase 9**: Integration (replace existing preprocessor, maintain compatibility)
+- **Phase 10**: Advanced type inference (arrays, derived types)
+- **Phase 11**: Python-like features (comprehensions, f-strings)
+- **Phase 12**: Enhanced caching with FPM package sharing and cross-package support
   - **Goal**: Enable scenario where `fortran calc.f90` and `fortran plot.f90` share compiled FPM packages
   - **Implementation**: Include FPM dependencies in cache keys, separate package-level caching
   - **Benefits**: Dramatically faster builds when multiple programs use same external packages
-- **Phase 9**: Integration with official FPM registry
-- **Phase 10**: Interactive REPL mode
+- **Phase 13**: Integration with official FPM registry
+- **Phase 14**: Interactive REPL mode
 
 **Goal**: **Make Python Fortran again** - making Fortran development as seamless as Python, where you can just run a file without worrying about compilation, linking, or dependency management.
 
@@ -251,7 +264,11 @@ Each example includes:
 
 - Check FPM API before implementing on our own
 - Unit, integration, and system tests are to be put in test/ and run with `fpm test` with optional target attribute --target
-- You must always write tests first!
+- **You must always write tests first!** (TDD: red-green-refactor cycle)
+  - Write failing test that defines expected behavior
+  - Implement minimal code to make test pass
+  - Refactor while keeping tests green
+  - Repeat incrementally
 - You can do ad-hoc debugging by placing f90 files in app/ and run them with fpm run --target <app_name>
 - Once a debug app is working and ready to be a proper test:
   1. Move the file from app/ to test/ directory
@@ -262,3 +279,4 @@ Each example includes:
 - To clean the build, run echo "y" | fpm clean in project root
 - To clear the fortran cache, remove fortran/* in $XDG_CACHE_HOME or in $HOME/.cache
 - You put test input data in subdirectories of test/test_data in an organized way. in particlular, this includes snippets of our simplified fortran dialect .f and their standard Fortran f90 equivalent for the ast and code generator tests. this is when they are too small or too specialized to become actual examples.
+- When implementing polymorphic arrays in AST nodes, use `allocate(array, source=input)` for proper copying
