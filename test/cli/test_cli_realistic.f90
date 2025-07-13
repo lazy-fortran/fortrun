@@ -30,7 +30,7 @@ contains
     function test_actual_cli_parsing() result(passed)
         logical :: passed
         character(len=256) :: filename, custom_cache_dir, custom_config_dir, notebook_output, custom_flags
-        logical :: show_help, no_wait, notebook_mode, preprocess_only
+        logical :: show_help, no_wait, notebook_mode, preprocess_only, clear_cache, cache_info
         integer :: verbose_level, parallel_jobs
         
         print *, "Test 1: Actual CLI parsing with real command line"
@@ -39,7 +39,7 @@ contains
         ! Test with current command line arguments (should be empty in test)
         call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                             custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
-                            notebook_output, preprocess_only, custom_flags)
+                            notebook_output, preprocess_only, custom_flags, clear_cache, cache_info)
         
         ! When no arguments, should show help
         if (.not. show_help) then

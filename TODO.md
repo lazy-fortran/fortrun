@@ -12,47 +12,64 @@ This document tracks the implementation plan for the AST-based architecture.
 - **Phase 5**: AST-Based Preprocessor Integration (basic)
 - **Phase 6**: Cache Management Enhancement
 
-## Current: Phase 7 - Advanced Features 🚧
+## Current: Phase 7 - Proper AST-Based Code Generation 🚧
 
-### Parser Tasks
+**CRITICAL**: The current AST preprocessor falls back to line-by-line reconstruction instead of proper AST-based code generation. This defeats the purpose of having an AST and needs immediate fixing.
+
+### Immediate Priority: Implement Selective AST Fallback
+- [ ] ❗ **URGENT**: Replace `process_line_simple()` with proper AST parsing for supported features
+- [ ] ❗ **URGENT**: Use `parse_statement()` and AST nodes for assignments, USE statements, print statements
+- [ ] ❗ **URGENT**: Implement proper AST-based code generation via `generate_fortran()` for supported features
+- [ ] ❗ **URGENT**: Use line reconstruction ONLY as selective fallback for unsupported features (temporarily)
+- [ ] ❗ **URGENT**: Track and minimize fallback usage over time
+
+### Parser Tasks (Proper AST Implementation)
+- [ ] Parse USE statements into AST nodes
+- [ ] Parse assignment statements into AST nodes
+- [ ] Parse function/subroutine calls into AST nodes
+- [ ] Parse print statements into AST nodes
 - [ ] Handle implicit program wrapping for Simple Fortran
 - [ ] Support function/subroutine definitions
 - [ ] Error recovery and detailed error reporting
 - [ ] JSON serialization of parse trees
 
-### Parser Test Cases
+### Code Generation Tasks (Proper AST Implementation)
+- [ ] Generate USE statements from AST nodes
+- [ ] Generate assignment statements from AST nodes
+- [ ] Generate function calls from AST nodes  
+- [ ] Generate print statements from AST nodes
+- [ ] Apply modern defaults (real(8), etc.) during generation
+- [ ] Handle proper indentation and formatting
+- [ ] Generate contains statements
+- [ ] Ensure correct statement ordering (USE → implicit none → declarations → code)
+
+### Test Cases (Write Tests FIRST - TDD!)
+- [ ] `test_ast_use_statements.f90` - USE statement parsing and generation
+- [ ] `test_ast_assignments.f90` - Assignment parsing and generation
+- [ ] `test_ast_function_calls.f90` - Function call parsing and generation
+- [ ] `test_ast_print_statements.f90` - Print statement parsing and generation
 - [ ] `test_parser_statements.f90` - Statement parsing (assignments, prints)
 - [ ] `test_parser_functions.f90` - Function/subroutine parsing
 - [ ] `test_parser_programs.f90` - Full program parsing with implicit wrapping
-- [ ] `test_parser_errors.f90` - Error recovery and reporting
-- [ ] `test_parser_serialization.f90` - AST to JSON serialization
-
-### Code Generation Tasks
-- [ ] Apply modern defaults (real(8), etc.)
-- [ ] Handle indentation and formatting
-- [ ] Generate contains statements
-
-### Code Generation Test Cases
 - [ ] `test_codegen_functions.f90` - Function generation
 - [ ] `test_codegen_defaults.f90` - Modern defaults application
 - [ ] `test_codegen_formatting.f90` - Code formatting
 
-### AST Preprocessor Tasks
-- [ ] Support functions and subroutines
-- [ ] Support arrays and derived types
-- [ ] Advanced type inference
-- [ ] Preserve comments and markdown cells
-- [ ] Symbol table and scope management
+### Architecture Fix Required
+The current `preprocessor_ast.f90` needs rewrite to use selective fallbacks:
+1. Parse source into proper AST using existing parser modules for supported features
+2. Transform AST (type inference, implicit program wrapping)
+3. Generate Fortran code from AST using existing codegen modules for supported features
+4. Use line reconstruction ONLY as selective fallback for temporarily unsupported features
+5. **OLD legacy preprocessor deleted** - all functionality moved to AST preprocessor
+6. **Minimize fallback usage** - track which features still need fallback and implement them properly
 
-### AST Preprocessor Test Cases
-- [ ] `test_preprocessor_ast_functions.f90` - Function preprocessing
-- [ ] `test_preprocessor_ast_arrays.f90` - Array preprocessing
-
-### Known Limitations
-- Arrays not yet supported
-- Derived types not yet supported
-- Functions/subroutines not yet supported
-- Comments and markdown cells not preserved
+### Known Issues to Fix
+- ❌ Line-by-line reconstruction bypasses AST benefits
+- ❌ USE statements handled as raw text instead of AST nodes
+- ❌ No proper statement ordering
+- ❌ No type inference integration
+- ❌ No symbol table usage
 
 ## Phase 8: Full Integration 📋
 

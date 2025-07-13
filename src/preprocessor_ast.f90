@@ -8,7 +8,7 @@ module preprocessor_ast
     implicit none
     private
     
-    public :: preprocess_file_ast
+    public :: preprocess_file_ast, is_preprocessor_file
     
     ! Internal types for tracking functions/subroutines
     type :: function_info
@@ -19,6 +19,19 @@ module preprocessor_ast
     end type function_info
     
 contains
+
+    function is_preprocessor_file(filename) result(is_dot_f)
+        character(len=*), intent(in) :: filename
+        logical :: is_dot_f
+        integer :: ext_pos
+        
+        ext_pos = index(filename, '.', back=.true.)
+        if (ext_pos > 0) then
+            is_dot_f = filename(ext_pos:) == '.f'
+        else
+            is_dot_f = .false.
+        end if
+    end function is_preprocessor_file
 
     subroutine preprocess_file_ast(input_file, output_file, error_msg)
         character(len=*), intent(in) :: input_file
@@ -58,6 +71,9 @@ contains
             character(len=64), dimension(100) :: var_names
             character(len=32), dimension(100) :: var_types
             integer :: var_count
+            character(len=256), dimension(50) :: use_statements
+            integer :: use_count
+            logical, dimension(500) :: line_processed
             type(function_info), dimension(50) :: functions
             integer :: func_count
             logical :: in_function
@@ -65,9 +81,11 @@ contains
             
             line_count = 0
             var_count = 0
+            use_count = 0
             func_count = 0
             in_function = .false.
             current_func = 0
+            line_processed = .false.
             
             ! Read all lines
             do
@@ -163,9 +181,14 @@ contains
                         ! Add line to current function
                         functions(current_func)%line_count = functions(current_func)%line_count + 1
                         functions(current_func)%lines(functions(current_func)%line_count) = lines(i)
-                    else if (.not. in_function .and. size(tokens) >= 3) then
+                    else if (.not. in_function .and. size(tokens) >= 1) then
+                        ! Check for USE statement
+                        if (tokens(1)%kind == TK_KEYWORD .and. tokens(1)%text == "use") then
+                            use_count = use_count + 1
+                            use_statements(use_count) = trim(lines(i))
+                            line_processed(i) = .true.  ! Mark as processed
                         ! Check for assignment pattern in main code
-                        if (tokens(1)%kind == TK_IDENTIFIER .and. &
+                        else if (size(tokens) >= 3 .and. tokens(1)%kind == TK_IDENTIFIER .and. &
                             tokens(2)%kind == TK_OPERATOR .and. &
                             tokens(2)%text == "=") then
                             
@@ -205,6 +228,12 @@ contains
             
             ! Write program header
             write(unit_out, '(A)') "program main"
+            
+            ! Write USE statements
+            do i = 1, use_count
+                write(unit_out, '(A,A)') "    ", trim(use_statements(i))
+            end do
+            
             write(unit_out, '(A)') "    implicit none"
             
             ! Write variable declarations
@@ -219,7 +248,7 @@ contains
             ! Process main code lines (not in functions)
             in_function = .false.
             do i = 1, line_count
-                if (len_trim(lines(i)) > 0) then
+                if (len_trim(lines(i)) > 0 .and. .not. line_processed(i)) then
                     source_code = trim(adjustl(lines(i)))
                     call tokenize_core(source_code, tokens)
                     
@@ -254,10 +283,13 @@ contains
                     end if
                     
                     if (.not. in_function .and. size(tokens) > 0) then
-                        ! Generate code for this line
-                        generated_code = process_line_simple(tokens)
-                        if (len_trim(generated_code) > 0) then
-                            write(unit_out, '(A,A)') "    ", trim(generated_code)
+                        ! Skip USE statements (already handled)
+                        if (.not. (tokens(1)%kind == TK_KEYWORD .and. tokens(1)%text == "use")) then
+                            ! Try AST-based processing first, fallback to simple reconstruction
+                            generated_code = process_statement_ast_or_fallback(tokens)
+                            if (len_trim(generated_code) > 0) then
+                                write(unit_out, '(A,A)') "    ", trim(generated_code)
+                            end if
                         end if
                     end if
                 end if
@@ -283,12 +315,41 @@ contains
     end subroutine preprocess_file_ast
     
     ! Process a single line and generate code
+    function process_statement_ast_or_fallback(tokens) result(code)
+        type(token_t), intent(in) :: tokens(:)
+        character(len=:), allocatable :: code
+        
+        ! Try to parse as AST statement for supported features
+        ! For now, try assignment statements
+        if (size(tokens) >= 3 .and. &
+            tokens(1)%kind == TK_IDENTIFIER .and. &
+            tokens(2)%kind == TK_OPERATOR .and. &
+            tokens(2)%text == "=") then
+            
+            ! Try AST-based assignment processing
+            code = process_assignment_ast(tokens)
+            if (len_trim(code) > 0) return
+        end if
+        
+        ! Fallback: trivial 1:1 reconstruction with no logic
+        code = process_line_simple(tokens)
+    end function process_statement_ast_or_fallback
+
+    function process_assignment_ast(tokens) result(code)
+        type(token_t), intent(in) :: tokens(:)
+        character(len=:), allocatable :: code
+        
+        ! TODO: Implement proper AST parsing for assignments
+        ! For now, return empty to trigger fallback
+        code = ""
+    end function process_assignment_ast
+
     function process_line_simple(tokens) result(code)
         type(token_t), intent(in) :: tokens(:)
         character(len=:), allocatable :: code
         integer :: i
         
-        ! Just reconstruct the line for now
+        ! Trivial fallback: just reconstruct the line 1:1 with no logic
         code = ""
         do i = 1, size(tokens)
             if (i > 1) code = code // " "
