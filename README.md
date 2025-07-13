@@ -67,7 +67,7 @@ end function distance
 - Smart caching with 2-4x performance improvements
 
 🎯 **Two Execution Modes**  
-- **Standard fortran** (`.f90` files): Modern fortran with no opinionated changes
+- **Standard Fortran** (`.f90` files): Modern Fortran with no opinionated changes
 - ***lazy fortran*** (`.f` files): Compiler frontend with automatic type inference, no boilerplate, `real(8)` defaults
 - **Notebook Mode**: Interactive analysis with figure capture (`.f` files only)
 
@@ -112,9 +112,9 @@ cd fortran
 ```bash
 # Two execution modes
 fortran program.f90           # Standard Fortran mode
-fortran script.f              # Simple Fortran mode (compiler frontend)
+fortran script.f              # lazy fortran mode (compiler frontend)
 
-# Notebook mode (Simple Fortran .f files only)
+# Notebook mode (lazy fortran .f files only)
 fortran --notebook analysis.f # Interactive analysis with figure capture
 
 # Options
@@ -156,7 +156,7 @@ fortran --cache-dir /tmp/fortran-cache example.f90
 **Current**: Phase 8 Complete ✅
 - ✅ Basic CLI and dependency resolution
 - ✅ Smart caching system (2-4x speedup)
-- ✅ Simplified .f syntax with type inference
+- ✅ *lazy fortran* .f syntax with type inference
 - ✅ Notebook mode with figure capture
 - ✅ Advanced type inference (arrays, functions, derived types)
 
