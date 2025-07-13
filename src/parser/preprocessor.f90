@@ -21,6 +21,41 @@ module preprocessor
     
 contains
 
+    ! Find position of comment marker, accounting for strings
+    function find_comment_position(line) result(pos)
+        character(len=*), intent(in) :: line
+        integer :: pos
+        integer :: i
+        logical :: in_string
+        character :: quote_char
+        
+        pos = 0
+        in_string = .false.
+        quote_char = ' '
+        
+        do i = 1, len_trim(line)
+            if (.not. in_string) then
+                ! Check for string start
+                if (line(i:i) == '"' .or. line(i:i) == "'") then
+                    in_string = .true.
+                    quote_char = line(i:i)
+                ! Check for comment start
+                else if (line(i:i) == '!') then
+                    pos = i
+                    return
+                end if
+            else
+                ! Check for string end
+                if (line(i:i) == quote_char) then
+                    in_string = .false.
+                    quote_char = ' '
+                end if
+            end if
+        end do
+        
+        pos = 0  ! No comment found
+    end function find_comment_position
+
     function is_preprocessor_file(filename) result(is_dot_f)
         character(len=*), intent(in) :: filename
         logical :: is_dot_f
@@ -89,10 +124,10 @@ contains
                     if (len_trim(line) == 0) cycle
                     if (line(1:1) == '!') cycle
                     
-                    ! Remove inline comments
+                    ! Remove inline comments (accounting for strings)
                     block
                         integer :: comment_pos
-                        comment_pos = index(line, '!')
+                        comment_pos = find_comment_position(line)
                         if (comment_pos > 0) then
                             line = trim(line(1:comment_pos-1))
                             if (len_trim(line) == 0) cycle
@@ -183,10 +218,10 @@ contains
                     if (len_trim(line) == 0) cycle
                     if (line(1:1) == '!') cycle
                     
-                    ! Remove inline comments
+                    ! Remove inline comments (accounting for strings)
                     block
                         integer :: comment_pos
-                        comment_pos = index(line, '!')
+                        comment_pos = find_comment_position(line)
                         if (comment_pos > 0) then
                             line = trim(line(1:comment_pos-1))
                             if (len_trim(line) == 0) cycle
@@ -832,10 +867,10 @@ contains
             ! Skip comment lines
             if (line(1:1) == '!') cycle
             
-            ! Remove inline comments before tokenizing
+            ! Remove inline comments before tokenizing (accounting for strings)
             block
                 integer :: comment_pos
-                comment_pos = index(line, '!')
+                comment_pos = find_comment_position(line)
                 if (comment_pos > 0) then
                     line = trim(line(1:comment_pos-1))
                     if (len_trim(line) == 0) cycle
@@ -890,10 +925,10 @@ contains
             ! Skip comment lines
             if (line(1:1) == '!') cycle
             
-            ! Remove inline comments before tokenizing
+            ! Remove inline comments before tokenizing (accounting for strings)
             block
                 integer :: comment_pos
-                comment_pos = index(line, '!')
+                comment_pos = find_comment_position(line)
                 if (comment_pos > 0) then
                     line = trim(line(1:comment_pos-1))
                     if (len_trim(line) == 0) cycle
@@ -988,7 +1023,13 @@ contains
                             var_types(var_count) = "integer"
                         end if
                     else if (value_tokens(1)%kind == TK_STRING) then
-                        var_types(var_count) = "character(len=256)"
+                        ! Infer string length from literal (subtract 2 for quotes)
+                        block
+                            integer :: str_len
+                            str_len = len_trim(value_tokens(1)%text) - 2
+                            if (str_len < 1) str_len = 1
+                            write(var_types(var_count), '(a,i0,a)') "character(len=", str_len, ")"
+                        end block
                     else
                         var_types(var_count) = "real(8)"  ! Default for expressions
                     end if

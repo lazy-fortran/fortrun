@@ -1,6 +1,10 @@
 module parser_core
     use lexer_core
-    use ast_core
+    use ast_core, only: ast_node, assignment_node, binary_op_node, identifier_node, &
+                         literal_node, function_call_node, &
+                         create_assignment, create_binary_op, create_identifier, &
+                         create_literal, create_function_call, &
+                         LITERAL_INTEGER, LITERAL_STRING
     implicit none
     private
 
@@ -175,6 +179,11 @@ contains
             ! Parse number literal
             current = parser%consume()
             expr = create_literal(current%text, LITERAL_INTEGER, current%line, current%column)
+            
+        case (TK_STRING)
+            ! Parse string literal
+            current = parser%consume()
+            expr = create_literal(current%text, LITERAL_STRING, current%line, current%column)
             
         case (TK_IDENTIFIER)
             ! Parse identifier or function call
