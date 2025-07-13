@@ -1,0 +1,351 @@
+# fortran 2507 Standard (Simple Fortran)
+
+This document describes the "fortran 2507" standard - our opinionated dialect of Fortran designed to make scientific computing as easy as Python while maintaining Fortran's performance. The name uses lowercase "fortran" to distinguish it from standard Fortran, and "2507" represents our vision of what Fortran could be in the far future (25th century).
+
+## Table of Contents
+
+1. [Philosophy](#philosophy)
+2. [Bare File Execution](#bare-file-execution)
+3. [Automatic Type Inference](#automatic-type-inference)
+4. [Modern Defaults](#modern-defaults)
+5. [Function Safety](#function-safety)
+6. [Zero Configuration](#zero-configuration)
+7. [Notebook Mode](#notebook-mode)
+8. [Comparison with Standard Fortran](#comparison-with-standard-fortran)
+
+## Philosophy
+
+fortran 2507 follows these core principles:
+
+1. **Python-like Simplicity**: Write equations directly, no boilerplate
+2. **Safe by Default**: Prevent common errors through opinionated defaults
+3. **Performance First**: All features compile to efficient standard Fortran
+4. **Gradual Adoption**: Mix with standard Fortran seamlessly
+
+## Bare File Execution
+
+### No Program Declaration Required
+
+In fortran 2507, you can write executable code directly:
+
+```fortran
+! hello.f - Complete valid program
+print *, "Hello, World!"
+```
+
+This automatically becomes:
+```fortran
+program main
+    implicit none
+    print *, "Hello, World!"
+end program main
+```
+
+### Direct Calculations
+
+```fortran
+! calculate.f
+x = 5.0
+y = 3.0
+z = sqrt(x**2 + y**2)
+print *, "Distance:", z
+```
+
+Transforms to:
+```fortran
+program main
+    implicit none
+    real(8) :: x, y, z
+    
+    x = 5.0
+    y = 3.0
+    z = sqrt(x**2 + y**2)
+    print *, "Distance:", z
+end program main
+```
+
+## Automatic Type Inference
+
+### Basic Types
+
+fortran 2507 infers types from first assignment:
+
+```fortran
+! Type inference examples
+x = 5.0          ! real(8) :: x
+i = 42           ! integer :: i
+name = "Alice"   ! character(len=5) :: name
+flag = .true.    ! logical :: flag
+```
+
+### Complex Expressions
+
+```fortran
+! Expression type inference
+radius = 5.0
+area = 3.14159 * radius**2    ! real(8) :: area
+
+! Function call inference
+angle = sin(1.57)              ! real(8) :: angle
+length = len_trim("  hello  ") ! integer :: length
+```
+
+### Array Inference
+
+```fortran
+! Array declarations inferred from usage
+data = [1.0, 2.0, 3.0, 4.0]   ! real(8) :: data(4)
+
+! 2D array from reshape
+matrix = reshape([1, 2, 3, 4, 5, 6], [2, 3])  ! integer :: matrix(2,3)
+
+! Array operations
+result = data * 2.0 + 1.0      ! real(8) :: result(4)
+```
+
+## Modern Defaults
+
+### Real Means Double Precision
+
+All real numbers default to 64-bit precision:
+
+```fortran
+! In fortran 2507
+x = 1.0    ! real(8) :: x
+
+! Equivalent standard Fortran
+real(kind=8) :: x = 1.0
+```
+
+### Implicit None by Default
+
+No need to write `implicit none`:
+
+```fortran
+! fortran 2507
+x = 5.0
+y = x + 1
+
+! Attempting to use undefined variable gives error
+! z = w + 1  ! ERROR: 'w' not defined
+```
+
+### Integer Division Protection
+
+Integer division automatically promotes to real when needed:
+
+```fortran
+! Careful with integer division
+average = (a + b + c) / 3  ! If a,b,c are integers, result is real(8)
+```
+
+## Function Safety
+
+### Automatic intent(in)
+
+Function and subroutine parameters default to `intent(in)`:
+
+```fortran
+! fortran 2507
+subroutine process(x, y)
+    real :: x, y  ! Automatically intent(in)
+    ! x = 5.0    ! ERROR: Cannot modify intent(in)
+end subroutine
+
+! To allow modification, explicitly declare
+subroutine modify(x, y)
+    real :: x  ! Automatically intent(in)
+    real, intent(out) :: y  ! Explicit intent(out)
+    y = x * 2.0
+end subroutine
+```
+
+### Automatic Contains Section
+
+Functions and subroutines automatically go in contains:
+
+```fortran
+! main.f
+x = 5.0
+y = square(x)
+print *, y
+
+real function square(x)
+    real :: x
+    square = x * x
+end function
+```
+
+Becomes:
+```fortran
+program main
+    implicit none
+    real(8) :: x, y
+    
+    x = 5.0
+    y = square(x)
+    print *, y
+    
+contains
+    
+    real function square(x)
+        real, intent(in) :: x
+        square = x * x
+    end function
+    
+end program main
+```
+
+## Zero Configuration
+
+### Automatic Module Resolution
+
+Use modules without explicit paths:
+
+```fortran
+! main.f
+use pyplot_module  ! Automatically finds and builds dependency
+call plot(x, y)
+```
+
+The tool automatically:
+1. Searches local directory
+2. Checks module registry
+3. Downloads and builds if needed
+4. Links everything together
+
+### Smart Caching
+
+```fortran
+! First run: builds everything
+$ fortran simulation.f  # Takes 2 seconds
+
+! Subsequent runs: uses cache
+$ fortran simulation.f  # Takes 0.1 seconds
+```
+
+## Notebook Mode
+
+### Interactive Execution
+
+Run fortran 2507 files as notebooks:
+
+```fortran
+! analysis.f
+! # Data Analysis Example
+
+! ## Load data
+data = [1.2, 3.4, 5.6, 7.8, 9.0]
+print *, "Data points:", size(data)
+
+! ## Calculate statistics  
+mean = sum(data) / size(data)
+print *, "Mean:", mean
+
+! ## Visualize
+use pyplot_module
+call plot(data)
+call savefig("data_plot.png")  ! Automatically captured
+```
+
+Run with:
+```bash
+fortran --notebook analysis.f
+```
+
+Produces markdown output with:
+- Code cells with syntax highlighting
+- Output captured after each cell
+- Figures automatically embedded
+- Markdown cells preserved
+
+## Comparison with Standard Fortran
+
+| Feature | Standard Fortran | fortran 2507 |
+|---------|------------------|--------------|
+| **File Extension** | `.f90` | `.f` |
+| **Program Declaration** | Required | Optional |
+| **Implicit None** | Must declare | Automatic |
+| **Type Declarations** | Required | Inferred |
+| **Real Precision** | Default 32-bit | Default 64-bit |
+| **Parameter Intent** | Default inout | Default in |
+| **Module Building** | Manual | Automatic |
+| **Execution** | Compile then run | Direct run |
+
+### Example Comparison
+
+**Standard Fortran (.f90)**:
+```fortran
+program calculate_distance
+    implicit none
+    real :: x, y, distance
+    
+    x = 3.0
+    y = 4.0
+    distance = sqrt(x**2 + y**2)
+    print *, "Distance:", distance
+    
+end program calculate_distance
+```
+
+**fortran 2507 (.f)**:
+```fortran
+x = 3.0
+y = 4.0
+distance = sqrt(x**2 + y**2)
+print *, "Distance:", distance
+```
+
+Both produce the same result, but fortran 2507:
+- Uses 64-bit precision automatically
+- Requires no boilerplate
+- Infers all types
+- Runs directly with `fortran calculate.f`
+
+## Implementation Status
+
+Currently implemented in the preprocessor:
+- ✅ Bare file execution (no program/end program)
+- ✅ Basic type inference for literals
+- ✅ Automatic real(8) for reals
+- ✅ Automatic variable declarations
+- ✅ Module dependency resolution
+- ✅ Smart caching system
+- ✅ Notebook mode with figure capture
+- 🚧 Function/subroutine handling (in progress)
+- 🚧 Array type inference (in progress)
+- ❌ Advanced type inference (expressions, function returns)
+- ❌ Automatic intent(in) (partially implemented)
+- ❌ Python-like list comprehensions (future)
+- ❌ F-string formatting (future)
+
+## Future Vision
+
+fortran 2507 aims to eventually support:
+
+```fortran
+! List comprehensions
+squares = [i**2 for i in 1:10]
+
+! F-string formatting
+name = "Alice"
+age = 30
+print *, f"Hello {name}, you are {age} years old"
+
+! Pattern matching
+select type (shape)
+    type is (circle)
+        area = pi * shape%radius**2
+    type is (rectangle)
+        area = shape%width * shape%height
+end select
+
+! Automatic parallelization hints
+do concurrent (i = 1:n) 
+    results(i) = expensive_calculation(data(i))
+end do
+```
+
+## Summary
+
+fortran 2507 is not a new language - it's a preprocessor that makes standard Fortran easier to write while maintaining 100% compatibility. Write less, compute more, with the same performance as standard Fortran.
