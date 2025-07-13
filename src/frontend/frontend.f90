@@ -2,7 +2,7 @@ module frontend
     ! lazy fortran compiler frontend
     ! Provides complete 4-phase compilation pipeline with pluggable backends
     
-    use lexer_core, only: token_t, tokenize_core, TK_EOF
+    use lexer_core, only: token_t, tokenize_core, TK_EOF, TK_KEYWORD
     use parser_core, only: parse_expression, parse_statement, parser_state_t, &
                           create_parser_state
     use ast_core
@@ -219,11 +219,19 @@ contains
         type(lf_program_node), intent(in) :: prog
         type(simple_semantic_context_t), intent(in) :: sem_ctx
         character(len=:), allocatable :: code
-        character(len=:), allocatable :: declarations, statements
+        character(len=:), allocatable :: use_statements, declarations, statements
         integer :: i
         
         ! Generate program header
         code = "program " // prog%name // new_line('a')
+        
+        ! Generate USE statements first (before implicit none)
+        use_statements = generate_use_statements_from_tokens()
+        if (len_trim(use_statements) > 0) then
+            code = code // use_statements
+        end if
+        
+        ! Add implicit none after USE statements
         code = code // "    implicit none" // new_line('a')
         
         ! Generate variable declarations from type information
@@ -232,11 +240,21 @@ contains
             code = code // declarations // new_line('a')
         end if
         
-        ! Generate executable statements from stored tokens
-        statements = generate_statements_from_tokens()
+        ! Generate executable statements from stored tokens (excluding USE statements and functions)
+        statements = generate_executable_statements_from_tokens()
         if (len_trim(statements) > 0) then
             code = code // statements
         end if
+        
+        ! Generate function definitions in contains section
+        block
+            character(len=:), allocatable :: functions
+            functions = generate_function_definitions_from_tokens()
+            if (len_trim(functions) > 0) then
+                code = code // new_line('a') // "contains" // new_line('a') // new_line('a')
+                code = code // functions
+            end if
+        end block
         
         ! Generate program footer
         code = code // "end program " // prog%name
@@ -399,6 +417,290 @@ contains
         type(token_t), intent(in) :: tokens(:)
         current_tokens = tokens
     end subroutine set_current_tokens
+    
+    ! Generate USE statements from stored tokens
+    function generate_use_statements_from_tokens() result(use_statements)
+        character(len=:), allocatable :: use_statements
+        type(parser_state_t) :: parser
+        class(ast_node), allocatable :: stmt
+        
+        use_statements = ""
+        
+        ! Process all statements from stored tokens
+        if (allocated(current_tokens)) then
+            parser = create_parser_state(current_tokens)
+            
+            ! Parse statements by finding EOF boundaries
+            do while (parser%current_token <= size(current_tokens))
+                ! Find the end of the current statement (next EOF or end of tokens)
+                block
+                    integer :: stmt_start, stmt_end, j
+                    type(token_t), allocatable :: stmt_tokens(:)
+                    logical :: is_use_statement
+                    
+                    stmt_start = parser%current_token
+                    stmt_end = stmt_start
+                    
+                    ! Find next EOF token to determine statement boundary
+                    do j = stmt_start, size(current_tokens)
+                        if (current_tokens(j)%kind == TK_EOF) then
+                            stmt_end = j - 1
+                            exit
+                        end if
+                        stmt_end = j
+                    end do
+                    
+                    ! Check if this is a USE statement
+                    is_use_statement = .false.
+                    if (stmt_end >= stmt_start) then
+                        if (current_tokens(stmt_start)%kind == TK_KEYWORD .and. &
+                            current_tokens(stmt_start)%text == "use") then
+                            is_use_statement = .true.
+                        end if
+                    end if
+                    
+                    ! Extract tokens for this statement if it's a USE statement
+                    if (stmt_end >= stmt_start .and. is_use_statement) then
+                        allocate(stmt_tokens(stmt_end - stmt_start + 1))
+                        stmt_tokens = current_tokens(stmt_start:stmt_end)
+                        
+                        ! Generate code for this USE statement
+                        block
+                            character(len=:), allocatable :: stmt_code
+                            stmt_code = reconstruct_line_from_tokens(stmt_tokens)
+                            use_statements = use_statements // "    " // stmt_code // new_line('a')
+                        end block
+                    end if
+                    
+                    ! Move to next statement (skip past EOF)
+                    parser%current_token = stmt_end + 2  ! Skip EOF token
+                end block
+            end do
+        end if
+        
+    end function generate_use_statements_from_tokens
+    
+    ! Generate non-USE statements from stored tokens
+    function generate_non_use_statements_from_tokens() result(statements)
+        character(len=:), allocatable :: statements
+        type(parser_state_t) :: parser
+        class(ast_node), allocatable :: stmt
+        
+        statements = ""
+        
+        ! Process all statements from stored tokens
+        if (allocated(current_tokens)) then
+            parser = create_parser_state(current_tokens)
+            
+            ! Parse statements by finding EOF boundaries
+            do while (parser%current_token <= size(current_tokens))
+                ! Find the end of the current statement (next EOF or end of tokens)
+                block
+                    integer :: stmt_start, stmt_end, j
+                    type(token_t), allocatable :: stmt_tokens(:)
+                    logical :: is_use_statement
+                    
+                    stmt_start = parser%current_token
+                    stmt_end = stmt_start
+                    
+                    ! Find next EOF token to determine statement boundary
+                    do j = stmt_start, size(current_tokens)
+                        if (current_tokens(j)%kind == TK_EOF) then
+                            stmt_end = j - 1
+                            exit
+                        end if
+                        stmt_end = j
+                    end do
+                    
+                    ! Check if this is a USE statement
+                    is_use_statement = .false.
+                    if (stmt_end >= stmt_start) then
+                        if (current_tokens(stmt_start)%kind == TK_KEYWORD .and. &
+                            current_tokens(stmt_start)%text == "use") then
+                            is_use_statement = .true.
+                        end if
+                    end if
+                    
+                    ! Extract tokens for this statement if it's NOT a USE statement
+                    if (stmt_end >= stmt_start .and. .not. is_use_statement) then
+                        allocate(stmt_tokens(stmt_end - stmt_start + 1))
+                        stmt_tokens = current_tokens(stmt_start:stmt_end)
+                        
+                        ! Parse this statement
+                        stmt = parse_statement(stmt_tokens)
+                        
+                        if (allocated(stmt)) then
+                            ! Generate code for this statement
+                            block
+                                character(len=:), allocatable :: stmt_code
+                                stmt_code = generate_code_polymorphic(stmt)
+                                ! Check if we got a valid statement or unknown node
+                                if (stmt_code == "! Unknown AST node type" .or. stmt_code == "0") then
+                                    ! Fallback: reconstruct original line from tokens
+                                    stmt_code = reconstruct_line_from_tokens(stmt_tokens)
+                                end if
+                                statements = statements // "    " // stmt_code // new_line('a')
+                            end block
+                        end if
+                    end if
+                    
+                    ! Move to next statement (skip past EOF)
+                    parser%current_token = stmt_end + 2  ! Skip EOF token
+                end block
+            end do
+        end if
+        
+    end function generate_non_use_statements_from_tokens
+    
+    ! Generate executable statements from stored tokens (excluding USE and function definitions)
+    function generate_executable_statements_from_tokens() result(statements)
+        character(len=:), allocatable :: statements
+        type(parser_state_t) :: parser
+        class(ast_node), allocatable :: stmt
+        
+        statements = ""
+        
+        ! Process all statements from stored tokens
+        if (allocated(current_tokens)) then
+            parser = create_parser_state(current_tokens)
+            
+            ! Parse statements by finding EOF boundaries
+            do while (parser%current_token <= size(current_tokens))
+                ! Find the end of the current statement (next EOF or end of tokens)
+                block
+                    integer :: stmt_start, stmt_end, j
+                    type(token_t), allocatable :: stmt_tokens(:)
+                    logical :: is_use_statement, is_function_definition
+                    
+                    stmt_start = parser%current_token
+                    stmt_end = stmt_start
+                    
+                    ! Find next EOF token to determine statement boundary
+                    do j = stmt_start, size(current_tokens)
+                        if (current_tokens(j)%kind == TK_EOF) then
+                            stmt_end = j - 1
+                            exit
+                        end if
+                        stmt_end = j
+                    end do
+                    
+                    ! Check statement type
+                    is_use_statement = .false.
+                    is_function_definition = .false.
+                    if (stmt_end >= stmt_start) then
+                        if (current_tokens(stmt_start)%kind == TK_KEYWORD .and. &
+                            current_tokens(stmt_start)%text == "use") then
+                            is_use_statement = .true.
+                        else if (is_function_def_statement(current_tokens(stmt_start:stmt_end))) then
+                            is_function_definition = .true.
+                        end if
+                    end if
+                    
+                    ! Extract tokens for this statement if it's executable (not USE or function)
+                    if (stmt_end >= stmt_start .and. .not. is_use_statement .and. .not. is_function_definition) then
+                        allocate(stmt_tokens(stmt_end - stmt_start + 1))
+                        stmt_tokens = current_tokens(stmt_start:stmt_end)
+                        
+                        ! Parse this statement
+                        stmt = parse_statement(stmt_tokens)
+                        
+                        if (allocated(stmt)) then
+                            ! Generate code for this statement
+                            block
+                                character(len=:), allocatable :: stmt_code
+                                stmt_code = generate_code_polymorphic(stmt)
+                                ! Check if we got a valid statement or unknown node
+                                if (stmt_code == "! Unknown AST node type" .or. stmt_code == "0") then
+                                    ! Fallback: reconstruct original line from tokens
+                                    stmt_code = reconstruct_line_from_tokens(stmt_tokens)
+                                end if
+                                statements = statements // "    " // stmt_code // new_line('a')
+                            end block
+                        end if
+                    end if
+                    
+                    ! Move to next statement (skip past EOF)
+                    parser%current_token = stmt_end + 2  ! Skip EOF token
+                end block
+            end do
+        end if
+        
+    end function generate_executable_statements_from_tokens
+    
+    ! Generate function definitions from stored tokens
+    function generate_function_definitions_from_tokens() result(functions)
+        character(len=:), allocatable :: functions
+        type(parser_state_t) :: parser
+        class(ast_node), allocatable :: stmt
+        
+        functions = ""
+        
+        ! Process all statements from stored tokens
+        if (allocated(current_tokens)) then
+            parser = create_parser_state(current_tokens)
+            
+            ! Parse statements by finding EOF boundaries
+            do while (parser%current_token <= size(current_tokens))
+                ! Find the end of the current statement (next EOF or end of tokens)
+                block
+                    integer :: stmt_start, stmt_end, j
+                    type(token_t), allocatable :: stmt_tokens(:)
+                    
+                    stmt_start = parser%current_token
+                    stmt_end = stmt_start
+                    
+                    ! Find next EOF token to determine statement boundary
+                    do j = stmt_start, size(current_tokens)
+                        if (current_tokens(j)%kind == TK_EOF) then
+                            stmt_end = j - 1
+                            exit
+                        end if
+                        stmt_end = j
+                    end do
+                    
+                    ! Check if this is a function definition
+                    if (stmt_end >= stmt_start .and. is_function_def_statement(current_tokens(stmt_start:stmt_end))) then
+                        allocate(stmt_tokens(stmt_end - stmt_start + 1))
+                        stmt_tokens = current_tokens(stmt_start:stmt_end)
+                        
+                        ! For now, just reconstruct the function definition line
+                        ! TODO: Parse and generate proper function definitions
+                        block
+                            character(len=:), allocatable :: func_code
+                            func_code = reconstruct_line_from_tokens(stmt_tokens)
+                            functions = functions // "    " // func_code // new_line('a')
+                        end block
+                    end if
+                    
+                    ! Move to next statement (skip past EOF)
+                    parser%current_token = stmt_end + 2  ! Skip EOF token
+                end block
+            end do
+        end if
+        
+    end function generate_function_definitions_from_tokens
+    
+    ! Helper function to check if a line of tokens is a function definition
+    function is_function_def_statement(tokens) result(is_func_def)
+        type(token_t), intent(in) :: tokens(:)
+        logical :: is_func_def
+        
+        is_func_def = .false.
+        
+        if (size(tokens) < 2) return
+        
+        ! Check for "function" keyword
+        if (tokens(1)%kind == TK_KEYWORD .and. tokens(1)%text == "function") then
+            is_func_def = .true.
+        else if (size(tokens) >= 2 .and. &
+                 tokens(1)%kind == TK_KEYWORD .and. &
+                 (tokens(1)%text == "real" .or. tokens(1)%text == "integer" .or. &
+                  tokens(1)%text == "logical" .or. tokens(1)%text == "character") .and. &
+                 tokens(2)%kind == TK_KEYWORD .and. tokens(2)%text == "function") then
+            is_func_def = .true.
+        end if
+        
+    end function is_function_def_statement
     
     ! Generate statements from stored tokens
     function generate_statements_from_tokens() result(statements)

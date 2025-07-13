@@ -1,5 +1,5 @@
 program main
-    implicit none
     use iso_fortran_env
+    implicit none
     print * , "Hello from Fortran"
 end program main

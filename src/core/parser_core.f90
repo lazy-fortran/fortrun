@@ -1,9 +1,9 @@
 module parser_core
     use lexer_core
     use ast_core, only: ast_node, assignment_node, binary_op_node, identifier_node, &
-                         literal_node, function_call_node, &
+                         literal_node, function_call_node, function_def_node, &
                          create_assignment, create_binary_op, create_identifier, &
-                         create_literal, create_function_call, &
+                         create_literal, create_function_call, create_function_def, &
                          LITERAL_INTEGER, LITERAL_REAL, LITERAL_STRING, LITERAL_LOGICAL
     implicit none
     private
@@ -273,10 +273,33 @@ contains
         type(token_t), intent(in) :: tokens(:)
         class(ast_node), allocatable :: stmt
         type(parser_state_t) :: parser
-        type(token_t) :: id_token, op_token
+        type(token_t) :: id_token, op_token, first_token
         class(ast_node), allocatable :: target, value
         
         parser = create_parser_state(tokens)
+        
+        ! Check first token to determine statement type
+        first_token = parser%peek()
+        
+        ! Check for function definition: [type] function name(params)
+        if (first_token%kind == TK_KEYWORD .and. first_token%text == "function") then
+            stmt = parse_function_definition(parser)
+            return
+        else if (first_token%kind == TK_KEYWORD .and. &
+                 (first_token%text == "real" .or. first_token%text == "integer" .or. &
+                  first_token%text == "logical" .or. first_token%text == "character")) then
+            ! Look ahead to see if next token is "function"
+            if (parser%current_token + 1 <= size(parser%tokens)) then
+                block
+                    type(token_t) :: second_token
+                    second_token = parser%tokens(parser%current_token + 1)
+                    if (second_token%kind == TK_KEYWORD .and. second_token%text == "function") then
+                        stmt = parse_function_definition(parser)
+                        return
+                    end if
+                end block
+            end if
+        end if
         
         ! Look for pattern: IDENTIFIER = EXPRESSION
         id_token = parser%peek()
@@ -310,5 +333,67 @@ contains
         end if
         
     end function parse_statement
+    
+    ! Parse function definition: [type] function name(params)
+    function parse_function_definition(parser) result(func_node)
+        type(parser_state_t), intent(inout) :: parser
+        class(ast_node), allocatable :: func_node
+        
+        character(len=:), allocatable :: return_type_str, func_name
+        type(token_t) :: token
+        class(ast_node), allocatable :: params(:), body(:), return_type
+        integer :: line, column
+        
+        ! Initialize
+        return_type_str = ""
+        
+        ! Check if we have a return type
+        token = parser%peek()
+        if (token%kind == TK_KEYWORD .and. &
+            (token%text == "real" .or. token%text == "integer" .or. &
+             token%text == "logical" .or. token%text == "character")) then
+            return_type_str = token%text
+            token = parser%consume()
+        end if
+        
+        ! Expect "function" keyword
+        token = parser%peek()
+        if (token%kind == TK_KEYWORD .and. token%text == "function") then
+            line = token%line
+            column = token%column
+            token = parser%consume()
+        else
+            ! Error - not a function definition
+            func_node = create_literal("! Error: Expected function keyword", LITERAL_STRING, 1, 1)
+            return
+        end if
+        
+        ! Get function name
+        token = parser%peek()
+        if (token%kind == TK_IDENTIFIER) then
+            func_name = token%text
+            token = parser%consume()
+        else
+            ! Error - missing function name
+            func_node = create_literal("! Error: Missing function name", LITERAL_STRING, 1, 1)
+            return
+        end if
+        
+        ! For now, skip parameter parsing and create a simple function node
+        ! This is a minimal implementation for TDD
+        allocate(identifier_node :: params(0))  ! Empty parameters for now
+        allocate(identifier_node :: body(0))    ! Empty body for now
+        
+        ! Create return type node from string
+        if (len_trim(return_type_str) > 0) then
+            return_type = create_identifier(return_type_str, line, column)
+        else
+            return_type = create_identifier("", line, column)
+        end if
+        
+        ! Create function definition node
+        func_node = create_function_def(func_name, params, return_type, body, line, column)
+        
+    end function parse_function_definition
 
 end module parser_core
