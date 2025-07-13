@@ -11,7 +11,7 @@ module cache
   public :: get_cache_dir, ensure_cache_dir, ensure_cache_structure, get_cache_subdir, &
             store_module_cache, store_executable_cache, get_cache_key, get_fpm_digest, &
             store_build_artifacts, retrieve_build_artifacts, cache_exists, invalidate_cache, &
-            get_content_hash, get_single_file_content_hash
+            get_content_hash, get_single_file_content_hash, clear_cache, get_cache_info
   
 contains
 
@@ -366,5 +366,121 @@ contains
     hash_key = get_content_hash(single_file_array)
     
   end function get_single_file_content_hash
+  
+  subroutine clear_cache(custom_cache_dir, success)
+    character(len=*), intent(in) :: custom_cache_dir
+    logical, intent(out) :: success
+    character(len=256) :: cache_dir
+    character(len=512) :: command
+    integer :: exitstat, cmdstat
+    
+    success = .false.
+    
+    ! Get cache directory
+    if (len_trim(custom_cache_dir) > 0) then
+      cache_dir = trim(custom_cache_dir)
+    else
+      cache_dir = get_cache_dir()
+    end if
+    
+    ! Check if cache directory exists
+    inquire(file=trim(cache_dir), exist=success)
+    if (.not. success) then
+      ! No cache directory, nothing to clear
+      success = .true.
+      return
+    end if
+    
+    ! Clear cache directory contents
+    ! Use platform-specific commands
+#ifdef _WIN32
+    command = 'rmdir /S /Q "' // trim(cache_dir) // '"'
+#else
+    command = 'rm -rf "' // trim(cache_dir) // '"/*'
+#endif
+    
+    call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
+    
+    if (cmdstat == 0 .and. exitstat == 0) then
+      success = .true.
+    end if
+    
+  end subroutine clear_cache
+  
+  subroutine get_cache_info(custom_cache_dir, info)
+    character(len=*), intent(in) :: custom_cache_dir
+    character(len=*), intent(out) :: info
+    character(len=256) :: cache_dir
+    character(len=512) :: command, size_output
+    integer :: unit, ios, exitstat, cmdstat
+    integer :: num_files, num_dirs
+    logical :: exists
+    
+    ! Get cache directory
+    if (len_trim(custom_cache_dir) > 0) then
+      cache_dir = trim(custom_cache_dir)
+    else
+      cache_dir = get_cache_dir()
+    end if
+    
+    ! Check if cache directory exists
+    inquire(file=trim(cache_dir), exist=exists)
+    if (.not. exists) then
+      info = "Cache directory does not exist: " // trim(cache_dir)
+      return
+    end if
+    
+    ! Get cache size and file count
+#ifdef _WIN32
+    ! Windows: Use dir command
+    command = 'dir /s "' // trim(cache_dir) // '" 2>nul | find "File(s)"'
+#else
+    ! Unix-like: Use du and find commands
+    command = 'du -sh "' // trim(cache_dir) // '" 2>/dev/null | cut -f1'
+#endif
+    
+    ! Execute command and capture output
+    call execute_command_line(command // ' > cache_size.tmp', exitstat=exitstat, cmdstat=cmdstat)
+    
+    size_output = "unknown"
+    if (cmdstat == 0 .and. exitstat == 0) then
+      open(newunit=unit, file='cache_size.tmp', status='old', action='read', iostat=ios)
+      if (ios == 0) then
+        read(unit, '(A)', iostat=ios) size_output
+        close(unit)
+      end if
+      ! Clean up temp file
+      open(newunit=unit, file='cache_size.tmp', status='old', iostat=ios)
+      if (ios == 0) close(unit, status='delete')
+    end if
+    
+    ! Count files and directories
+#ifdef _WIN32
+    command = 'dir /b /s "' // trim(cache_dir) // '" 2>nul | find /c /v ""'
+#else
+    command = 'find "' // trim(cache_dir) // '" -type f 2>/dev/null | wc -l'
+#endif
+    
+    call execute_command_line(command // ' > cache_count.tmp', exitstat=exitstat, cmdstat=cmdstat)
+    
+    num_files = 0
+    if (cmdstat == 0 .and. exitstat == 0) then
+      open(newunit=unit, file='cache_count.tmp', status='old', action='read', iostat=ios)
+      if (ios == 0) then
+        read(unit, *, iostat=ios) num_files
+        close(unit)
+      end if
+      ! Clean up temp file
+      open(newunit=unit, file='cache_count.tmp', status='old', iostat=ios)
+      if (ios == 0) close(unit, status='delete')
+    end if
+    
+    ! Build info string
+    write(info, '(A)') "Fortran Cache Information:"
+    write(info, '(A,A,A)') trim(info), new_line('a'), "  Cache directory: " // trim(cache_dir)
+    write(info, '(A,A,A,I0,A)') trim(info), new_line('a'), "  Number of files: ", num_files, " files"
+    write(info, '(A,A,A,A)') trim(info), new_line('a'), "  Total size: ", trim(adjustl(size_output))
+    
+  end subroutine get_cache_info
   
 end module cache
