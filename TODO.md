@@ -93,7 +93,31 @@ This document tracks the implementation plan for the AST-based architecture.
 - [ ] Error recovery and detailed error reporting
 - [ ] JSON serialization of parse trees
 
-## Phase 8: Full Integration and Enhancement 📋
+## ✅ Completed: Phase 8 - JSON Debug Serialization
+
+**SUCCESS**: Implemented JSON debug serialization for all compiler stages (tokens, AST, codegen).
+
+### ✅ Completed: Debug Infrastructure
+- [x] ✅ **COMPLETED**: Added --debug-tokens flag for token JSON output
+- [x] ✅ **COMPLETED**: Added --debug-ast flag for AST JSON output  
+- [x] ✅ **COMPLETED**: Added --debug-codegen flag for codegen JSON output
+- [x] ✅ **COMPLETED**: Implemented global debug_state module for flag management
+- [x] ✅ **COMPLETED**: Fixed lexer comment handling bug (comments no longer tokenized)
+- [x] ✅ **COMPLETED**: Fixed preprocessor bounds checking for EOF-only lines
+
+### ✅ Completed: JSON Serialization
+- [x] ✅ **COMPLETED**: Token JSON serialization with proper type names
+- [x] ✅ **COMPLETED**: AST JSON serialization with proper field names (target, value, left, right)
+- [x] ✅ **COMPLETED**: Codegen JSON serialization showing input → output transformation
+- [x] ✅ **COMPLETED**: All JSON outputs are well-formatted and debuggable
+
+### ✅ Completed: Test Cases
+- [x] ✅ Token debug: `fortran example.f --debug-tokens` → example_tokens.json
+- [x] ✅ AST debug: `fortran example.f --debug-ast` → example_ast.json
+- [x] ✅ Codegen debug: `fortran example.f --debug-codegen` → example_codegen.json
+- [x] ✅ Combined: All three flags can be used together
+
+## Phase 9: Advanced AST Features 📋
 
 ### Core AST Working Examples ✅
 - [x] ✅ Simple assignments work perfectly (`x = 42`, `y = 3.14`)
@@ -110,16 +134,17 @@ This document tracks the implementation plan for the AST-based architecture.
 
 ### Documentation and Polish
 - [x] ✅ **COMPLETED**: Updated TODO.md to reflect Phase 7 completion
+- [x] ✅ **COMPLETED**: Updated TODO.md to reflect Phase 8 completion
 - [ ] Update README and documentation to reflect AST-based architecture
 - [ ] Create examples showcasing AST preprocessor capabilities
 - [ ] Performance benchmarking against legacy implementation
 
-## Serialization Tasks
+## ✅ Completed: Serialization Tasks
 
-- [ ] Add `to_json()` method to token type using json-fortran
-- [ ] Add `to_json()` visitor for AST nodes using json-fortran
-- [ ] Create JSON writer wrapper module for consistent formatting
-- [ ] Add serialization tests for each stage using json-fortran
+- [x] ✅ **COMPLETED**: Added `to_json()` method to token type using json-fortran
+- [x] ✅ **COMPLETED**: Added `to_json()` visitor for AST nodes using json-fortran
+- [x] ✅ **COMPLETED**: Created JSON writer wrapper module for consistent formatting
+- [x] ✅ **COMPLETED**: Added debug flags for JSON output of each stage
 
 ## Success Criteria
 

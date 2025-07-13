@@ -1,10 +1,11 @@
 module preprocessor
     ! AST-based preprocessor for Simple Fortran (.f files)
-    use lexer_core, only: token_t, tokenize_core, TK_IDENTIFIER, TK_OPERATOR, TK_NUMBER, TK_KEYWORD, TK_STRING
+    use lexer_core, only: token_t, tokenize_core, TK_IDENTIFIER, TK_OPERATOR, TK_NUMBER, TK_KEYWORD, TK_STRING, TK_EOF
     use parser_core, only: parse_expression, parse_statement, parser_state_t, create_parser_state  
     use ast_core
     use codegen_core
     use ast_simple_fortran, only: sf_program_node, sf_assignment_node, inferred_var_node, create_sf_program
+    use json_writer, only: json_write_tokens_to_file, json_write_ast_to_file
     implicit none
     private
     
@@ -39,18 +40,193 @@ contains
         character(len=*), intent(out) :: error_msg
         logical, intent(in) :: debug_tokens, debug_ast, debug_codegen
         
-        ! TODO: Implement debug JSON output for each pipeline stage
-        ! For now, call the regular version
-        call preprocess_file(input_file, output_file, error_msg)
+        character(len=1024) :: line
+        character(len=1024), allocatable :: lines(:)
+        integer :: line_count, i, unit, ios
+        type(token_t), allocatable :: tokens(:), all_tokens(:)
+        class(ast_node), allocatable :: stmt_ast
+        character(len=:), allocatable :: debug_base_name
+        integer :: total_tokens
         
-        if (debug_tokens) then
-            print *, "[DEBUG] Tokens JSON output would go here"
+        ! First, call the regular preprocessing
+        call preprocess_file(input_file, output_file, error_msg)
+        if (len_trim(error_msg) > 0) return
+        
+        ! Get base name for debug files
+        debug_base_name = input_file
+        if (index(debug_base_name, '.f') > 0) then
+            debug_base_name = debug_base_name(1:index(debug_base_name, '.f')-1)
         end if
-        if (debug_ast) then
-            print *, "[DEBUG] AST JSON output would go here"
+        
+        if (debug_tokens .or. debug_ast .or. debug_codegen) then
+            ! Read the input file for debug processing
+            allocate(lines(500))
+            line_count = 0
+            total_tokens = 0
+            
+            open(newunit=unit, file=input_file, status='old', action='read', iostat=ios)
+            if (ios /= 0) then
+                error_msg = "Failed to open input file for debug: " // trim(input_file)
+                return
+            end if
+            
+            do
+                read(unit, '(A)', iostat=ios) line
+                if (ios /= 0) exit
+                if (line_count >= 500) exit
+                line_count = line_count + 1
+                lines(line_count) = line
+            end do
+            close(unit)
+            
+            ! Tokenize all lines for debug output
+            if (debug_tokens) then
+                ! Collect all tokens from all lines
+                allocate(all_tokens(0))
+                
+                do i = 1, line_count
+                    line = trim(lines(i))
+                    if (len_trim(line) == 0) cycle
+                    if (line(1:1) == '!') cycle
+                    
+                    ! Remove inline comments
+                    block
+                        integer :: comment_pos
+                        comment_pos = index(line, '!')
+                        if (comment_pos > 0) then
+                            line = trim(line(1:comment_pos-1))
+                            if (len_trim(line) == 0) cycle
+                        end if
+                    end block
+                    
+                    call tokenize_core(line, tokens)
+                    if (size(tokens) > 0) then
+                        ! Append tokens to all_tokens array
+                        block
+                            type(token_t), allocatable :: temp_tokens(:)
+                            integer :: old_size, j
+                            old_size = size(all_tokens)
+                            allocate(temp_tokens(old_size + size(tokens)))
+                            do j = 1, old_size
+                                temp_tokens(j) = all_tokens(j)
+                            end do
+                            do j = 1, size(tokens)
+                                temp_tokens(old_size + j) = tokens(j)
+                            end do
+                            call move_alloc(temp_tokens, all_tokens)
+                        end block
+                    end if
+                end do
+                
+                ! Write tokens to JSON file
+                call json_write_tokens_to_file(all_tokens, trim(debug_base_name) // "_tokens.json")
+                print *, "[DEBUG] Tokens written to: " // trim(debug_base_name) // "_tokens.json"
+            end if
+            
+            if (debug_ast) then
+                ! Parse a simple statement for demonstration
+                ! Full AST parsing will be implemented in next phase
+                block
+                    class(ast_node), allocatable :: simple_ast
+                    
+                    ! Find first non-comment, non-empty line and parse it
+                    do i = 1, line_count
+                        line = trim(lines(i))
+                        if (len_trim(line) == 0) cycle
+                        if (line(1:1) == '!') cycle
+                        
+                        ! Remove inline comments
+                        block
+                            integer :: comment_pos
+                            comment_pos = index(line, '!')
+                            if (comment_pos > 0) then
+                                line = trim(line(1:comment_pos-1))
+                                if (len_trim(line) == 0) cycle
+                            end if
+                        end block
+                        
+                        call tokenize_core(line, tokens)
+                        if (size(tokens) > 1) then  ! Skip EOF-only lines
+                            simple_ast = parse_statement(tokens)
+                            if (allocated(simple_ast)) then
+                                call json_write_ast_to_file(simple_ast, trim(debug_base_name) // "_ast.json")
+                                print *, "[DEBUG] AST written to: " // trim(debug_base_name) // "_ast.json"
+                                exit
+                            end if
+                        end if
+                    end do
+                    
+                    if (.not. allocated(simple_ast)) then
+                        print *, "[DEBUG] No parseable AST nodes found"
+                    end if
+                end block
+            end if
         end if
+        
         if (debug_codegen) then
-            print *, "[DEBUG] Codegen JSON output would go here"
+            ! Generate code from AST and serialize to JSON
+            block
+                use json_module
+                type(json_core) :: json
+                type(json_value), pointer :: root, codegen_obj
+                class(ast_node), allocatable :: simple_ast
+                character(len=:), allocatable :: generated_code
+                integer :: i
+                
+                ! Initialize JSON
+                call json%initialize()
+                call json%create_object(root, '')
+                
+                ! Find first non-comment, non-empty line and generate code
+                do i = 1, line_count
+                    line = trim(lines(i))
+                    if (len_trim(line) == 0) cycle
+                    if (line(1:1) == '!') cycle
+                    
+                    ! Remove inline comments
+                    block
+                        integer :: comment_pos
+                        comment_pos = index(line, '!')
+                        if (comment_pos > 0) then
+                            line = trim(line(1:comment_pos-1))
+                            if (len_trim(line) == 0) cycle
+                        end if
+                    end block
+                    
+                    call tokenize_core(line, tokens)
+                    if (size(tokens) > 1) then  ! Skip EOF-only lines
+                        simple_ast = parse_statement(tokens)
+                        if (allocated(simple_ast)) then
+                            ! Generate code from AST
+                            select type (simple_ast)
+                            type is (sf_assignment_node)
+                                generated_code = generate_code(simple_ast)
+                            type is (assignment_node)
+                                generated_code = generate_code(simple_ast)
+                            class default
+                                generated_code = "! Unsupported AST node type"
+                            end select
+                            
+                            ! Create codegen entry
+                            call json%create_object(codegen_obj, 'codegen')
+                            call json%add(codegen_obj, 'input_line', line)
+                            call json%add(codegen_obj, 'generated_code', generated_code)
+                            call json%add(codegen_obj, 'line_number', i)
+                            call json%add(root, codegen_obj)
+                            
+                            ! Only process first statement for now
+                            exit
+                        end if
+                    end if
+                end do
+                
+                ! Write to file
+                call json%print(root, trim(debug_base_name) // "_codegen.json")
+                print *, "[DEBUG] Codegen written to: " // trim(debug_base_name) // "_codegen.json"
+                
+                ! Clean up
+                call json%destroy(root)
+            end block
         end if
     end subroutine preprocess_file_debug
 
@@ -61,6 +237,7 @@ contains
         character(len=*), intent(out) :: error_msg
         
         ! Use AST-based preprocessor as default
+        ! print *, "DEBUG: preprocess_file calling preprocess_file_ast_based"
         call preprocess_file_ast_based(input_file, output_file, error_msg)
     end subroutine preprocess_file
 
@@ -188,7 +365,8 @@ contains
                                     end if
                                 end do
                             end block
-                            else if (in_function .and. tokens(1)%kind == TK_KEYWORD .and. &
+                            else if (in_function .and. size(tokens) >= 1 .and. &
+                                    tokens(1)%kind == TK_KEYWORD .and. &
                                     tokens(1)%text == "end") then
                                 ! Check if this ends the function/subroutine
                                 if (size(tokens) >= 2 .and. &
@@ -304,8 +482,9 @@ contains
                             
                             if (is_func_or_sub) then
                                 in_function = .true.
-                            else if (in_function .and. tokens(1)%kind == TK_KEYWORD .and. &
-                                    tokens(1)%text == "end" .and. size(tokens) >= 2 .and. &
+                            else if (in_function .and. size(tokens) >= 2 .and. &
+                                    tokens(1)%kind == TK_KEYWORD .and. &
+                                    tokens(1)%text == "end" .and. &
                                     (tokens(2)%text == "function" .or. tokens(2)%text == "subroutine")) then
                                 in_function = .false.
                                 cycle
@@ -315,7 +494,7 @@ contains
                     
                     if (.not. in_function .and. size(tokens) > 0) then
                         ! Skip USE statements (already handled)
-                        if (.not. (tokens(1)%kind == TK_KEYWORD .and. tokens(1)%text == "use")) then
+                        if (.not. (size(tokens) >= 1 .and. tokens(1)%kind == TK_KEYWORD .and. tokens(1)%text == "use")) then
                             ! Try AST-based processing first, fallback to simple reconstruction
                             generated_code = process_statement_ast_or_fallback(tokens)
                             if (len_trim(generated_code) > 0) then
@@ -666,6 +845,8 @@ contains
             ! Tokenize the line
             call tokenize_core(line, tokens)
             if (size(tokens) == 0) cycle
+            ! Skip lines that only have EOF token (empty or comment-only lines)
+            if (size(tokens) == 1 .and. tokens(1)%kind == TK_EOF) cycle
             
             ! Check for USE statement
             if (size(tokens) >= 2 .and. tokens(1)%kind == TK_KEYWORD .and. &
@@ -722,6 +903,8 @@ contains
             ! Tokenize the line
             call tokenize_core(line, tokens)
             if (size(tokens) == 0) cycle
+            ! Skip lines that only have EOF token (empty or comment-only lines)
+            if (size(tokens) == 1 .and. tokens(1)%kind == TK_EOF) cycle
             
             ! Skip USE statements (already processed)
             if (size(tokens) >= 2 .and. tokens(1)%kind == TK_KEYWORD .and. &

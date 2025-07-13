@@ -81,6 +81,16 @@ contains
             else if (is_letter(ch)) then
                 call scan_identifier(source, pos, line_num, col_num, temp_tokens, token_count)
             
+            ! Comments - skip everything from ! to end of line
+            else if (ch == '!') then
+                ! Skip to end of line or end of source
+                do while (pos <= source_len)
+                    if (pos > source_len) exit
+                    if (source(pos:pos) == new_line('a')) exit
+                    pos = pos + 1
+                end do
+                ! Don't increment col_num here since we'll handle newline in next iteration
+            
             ! Operators
             else if (is_operator(ch)) then
                 call scan_operator(source, pos, line_num, col_num, temp_tokens, token_count)
