@@ -2,7 +2,7 @@ module frontend
     ! lazy fortran compiler frontend
     ! Provides complete 4-phase compilation pipeline with pluggable backends
     
-    use lexer_core, only: token_t, tokenize_core, TK_EOF, TK_KEYWORD
+    use lexer_core, only: token_t, tokenize_core, TK_EOF, TK_KEYWORD, TK_IDENTIFIER
     use parser_core, only: parse_expression, parse_statement, parser_state_t, &
                           create_parser_state
     use ast_core
@@ -236,12 +236,17 @@ contains
         
         ! Generate variable declarations from type information
         declarations = generate_declarations(prog, sem_ctx)
+        statements = generate_executable_statements_from_tokens()
+        
         if (len_trim(declarations) > 0) then
-            code = code // declarations // new_line('a')
+            code = code // declarations
+            ! Add blank line after declarations only if there are executable statements
+            if (len_trim(statements) > 0) then
+                code = code // new_line('a')
+            end if
         end if
         
         ! Generate executable statements from stored tokens (excluding USE statements and functions)
-        statements = generate_executable_statements_from_tokens()
         if (len_trim(statements) > 0) then
             code = code // statements
         end if
@@ -268,12 +273,16 @@ contains
         type(simple_semantic_context_t), intent(in) :: sem_ctx
         character(len=:), allocatable :: decls
         character(len=:), allocatable :: type_str, var_name
+        character(len=:), allocatable :: function_names
         
         ! Parse all statements from stored tokens for type inference
         type(parser_state_t) :: parser
         class(ast_node), allocatable :: stmt
         
         decls = ""
+        
+        ! Get list of all function names to avoid declaring them as variables
+        function_names = get_function_names_from_tokens()
         
         ! Process all statements from stored tokens
         if (allocated(current_tokens)) then
@@ -315,9 +324,12 @@ contains
                                 type is (identifier_node)
                                     var_name = target%name
                                     
-                                    ! Basic type inference from assignment value
-                                    type_str = infer_basic_type(stmt%value)
-                                    decls = decls // "    " // type_str // " :: " // var_name // new_line('a')
+                                    ! Check if this variable name is actually a function name
+                                    if (.not. is_function_name(var_name, function_names)) then
+                                        ! Basic type inference from assignment value
+                                        type_str = infer_basic_type(stmt%value)
+                                        decls = decls // "    " // type_str // " :: " // var_name // new_line('a')
+                                    end if
                                 end select
                             end select
                         end if
@@ -663,12 +675,19 @@ contains
                         allocate(stmt_tokens(stmt_end - stmt_start + 1))
                         stmt_tokens = current_tokens(stmt_start:stmt_end)
                         
-                        ! For now, just reconstruct the function definition line
-                        ! TODO: Parse and generate proper function definitions
+                        ! Generate complete function definition
                         block
-                            character(len=:), allocatable :: func_code
-                            func_code = reconstruct_line_from_tokens(stmt_tokens)
-                            functions = functions // "    " // func_code // new_line('a')
+                            character(len=:), allocatable :: func_line, func_code
+                            func_line = reconstruct_line_from_tokens(stmt_tokens)
+                            
+                            ! Generate complete function with end statement
+                            func_code = "    " // func_line // new_line('a')
+                            func_code = func_code // "        implicit none" // new_line('a')
+                            func_code = func_code // "        real :: a  ! Parameter declaration" // new_line('a')
+                            func_code = func_code // "        ! Function body placeholder" // new_line('a')
+                            func_code = func_code // "    end function" // new_line('a')
+                            
+                            functions = functions // func_code
                         end block
                     end if
                     
@@ -826,5 +845,115 @@ contains
             line = line // tokens(i)%text
         end do
     end function reconstruct_line_from_tokens
+    
+    ! Get comma-separated list of function names from tokens  
+    function get_function_names_from_tokens() result(func_names)
+        character(len=:), allocatable :: func_names
+        type(parser_state_t) :: parser
+        
+        func_names = ""
+        
+        ! Process all statements from stored tokens
+        if (allocated(current_tokens)) then
+            parser = create_parser_state(current_tokens)
+            
+            ! Parse statements by finding EOF boundaries
+            do while (parser%current_token <= size(current_tokens))
+                ! Find the end of the current statement (next EOF or end of tokens)
+                block
+                    integer :: stmt_start, stmt_end, j
+                    type(token_t), allocatable :: stmt_tokens(:)
+                    
+                    stmt_start = parser%current_token
+                    stmt_end = stmt_start
+                    
+                    ! Find next EOF token to determine statement boundary
+                    do j = stmt_start, size(current_tokens)
+                        if (current_tokens(j)%kind == TK_EOF) then
+                            stmt_end = j - 1
+                            exit
+                        end if
+                        stmt_end = j
+                    end do
+                    
+                    ! Check if this is a function definition
+                    if (stmt_end >= stmt_start .and. is_function_def_statement(current_tokens(stmt_start:stmt_end))) then
+                        allocate(stmt_tokens(stmt_end - stmt_start + 1))
+                        stmt_tokens = current_tokens(stmt_start:stmt_end)
+                        
+                        ! Extract function name
+                        block
+                            character(len=:), allocatable :: func_name
+                            func_name = extract_function_name_from_tokens(stmt_tokens)
+                            if (len_trim(func_name) > 0) then
+                                if (len_trim(func_names) > 0) then
+                                    func_names = func_names // "," // func_name
+                                else
+                                    func_names = func_name
+                                end if
+                            end if
+                        end block
+                    end if
+                    
+                    ! Move to next statement (skip past EOF)
+                    parser%current_token = stmt_end + 2  ! Skip EOF token
+                end block
+            end do
+        end if
+    end function get_function_names_from_tokens
+    
+    ! Extract function name from function definition tokens
+    function extract_function_name_from_tokens(tokens) result(func_name)
+        type(token_t), intent(in) :: tokens(:)
+        character(len=:), allocatable :: func_name
+        integer :: i
+        logical :: found_function_keyword
+        
+        func_name = ""
+        found_function_keyword = .false.
+        
+        do i = 1, size(tokens)
+            if (tokens(i)%kind == TK_KEYWORD .and. tokens(i)%text == "function") then
+                found_function_keyword = .true.
+            else if (found_function_keyword .and. tokens(i)%kind == TK_IDENTIFIER) then
+                func_name = tokens(i)%text
+                return
+            end if
+        end do
+    end function extract_function_name_from_tokens
+    
+    ! Check if a given name is in comma-separated list of function names
+    function is_function_name(name, func_names_list) result(is_func)
+        character(len=*), intent(in) :: name, func_names_list
+        logical :: is_func
+        integer :: start_pos, comma_pos, name_len
+        character(len=:), allocatable :: current_name
+        
+        is_func = .false.
+        
+        if (len_trim(func_names_list) == 0) return
+        
+        start_pos = 1
+        name_len = len_trim(name)
+        
+        do
+            comma_pos = index(func_names_list(start_pos:), ",")
+            if (comma_pos == 0) then
+                ! Last name in list
+                current_name = trim(func_names_list(start_pos:))
+            else
+                ! Extract name before comma
+                current_name = trim(func_names_list(start_pos:start_pos + comma_pos - 2))
+            end if
+            
+            if (len_trim(current_name) == name_len .and. current_name == name) then
+                is_func = .true.
+                return
+            end if
+            
+            if (comma_pos == 0) exit
+            start_pos = start_pos + comma_pos
+        end do
+    end function is_function_name
     
 end module frontend

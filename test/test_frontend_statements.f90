@@ -31,8 +31,8 @@ contains
         
         if (compile_and_check("use iso_fortran_env", &
                              'program main' // new_line('a') // &
-                             '    implicit none' // new_line('a') // &
                              '    use iso_fortran_env' // new_line('a') // &
+                             '    implicit none' // new_line('a') // &
                              'end program main')) then
             write(*, '(a)') '  ✓ PASS: Use statement parsed correctly'
             pass_count = pass_count + 1
@@ -71,6 +71,7 @@ contains
                              'program main' // new_line('a') // &
                              '    implicit none' // new_line('a') // &
                              '    integer :: x' // new_line('a') // &
+                             '' // new_line('a') // &
                              '    x = 42' // new_line('a') // &
                              '    print * , x' // new_line('a') // &
                              'end program main')) then
