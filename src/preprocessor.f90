@@ -259,6 +259,17 @@ contains
         if (current_scope > max_scope) max_scope = current_scope
         if (enable_type_inference) then
           call init_type_environment(scope_envs(current_scope))
+          ! Extract subroutine name
+          call extract_procedure_name_from_line(line, 'subroutine', scope_function_names(current_scope))
+          ! Extract and store subroutine parameters (reuse function parameter extractor)
+          call extract_function_parameters(line, scope_function_params(current_scope, :), scope_param_count(current_scope))
+          
+          ! Add subroutine parameters with unknown type for proper type inference
+          do i = 1, scope_param_count(current_scope)
+            call add_variable(scope_envs(current_scope)%env, &
+                              trim(scope_function_params(current_scope, i)), &
+                              create_type_info(TYPE_UNKNOWN), success)
+          end do
         end if
         output_line_count = output_line_count + 1
         output_lines(output_line_count) = line
@@ -837,6 +848,28 @@ contains
       end if
     end if
   end subroutine extract_function_name_from_line
+  
+  subroutine extract_procedure_name_from_line(line, procedure_type, proc_name)
+    character(len=*), intent(in) :: line, procedure_type
+    character(len=*), intent(out) :: proc_name
+    
+    character(len=256) :: trimmed
+    integer :: proc_pos, paren_pos
+    
+    trimmed = adjustl(line)
+    proc_name = ''
+    
+    ! Look for "procedure_type name("
+    proc_pos = index(trimmed, trim(procedure_type) // ' ') + len_trim(procedure_type) + 1
+    if (proc_pos > len_trim(procedure_type) + 1) then
+      paren_pos = index(trimmed(proc_pos:), '(')
+      if (paren_pos > 0) then
+        proc_name = adjustl(trimmed(proc_pos:proc_pos+paren_pos-2))
+      else
+        proc_name = adjustl(trimmed(proc_pos:))
+      end if
+    end if
+  end subroutine extract_procedure_name_from_line
   
   subroutine analyze_function_return_assignment(line, func_names, func_types, num_funcs, scope_idx)
     character(len=*), intent(in) :: line
