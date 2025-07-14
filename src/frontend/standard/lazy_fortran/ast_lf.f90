@@ -37,7 +37,7 @@ module ast_lazy_fortran
     ! F-string node (future Python-like feature)
     type, extends(ast_node), public :: fstring_node
         character(len=:), allocatable :: template
-        class(ast_node), allocatable :: expressions(:)
+        type(ast_node_wrapper), allocatable :: expressions(:)
     contains
         procedure :: accept => fstring_accept
         procedure :: to_json => fstring_to_json
