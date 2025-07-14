@@ -7,6 +7,9 @@ program test_runner_comprehensive
   print *, "=== Comprehensive Runner Tests ==="
   print *, ""
   
+  ! Clear cache before running tests to avoid module conflicts
+  call clear_test_cache()
+  
   all_tests_passed = .true.
   
   ! Test 1: File not found error
@@ -54,6 +57,11 @@ program test_runner_comprehensive
   end if
   
 contains
+
+  subroutine clear_test_cache()
+    ! Clear cache before running tests to avoid module conflicts
+    call execute_command_line('rm -rf ~/.cache/fortran/*')
+  end subroutine clear_test_cache
 
   function test_file_not_found() result(passed)
     logical :: passed
