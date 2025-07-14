@@ -334,12 +334,13 @@ contains
             end if
         end if
         
-        ! Look for pattern: IDENTIFIER = EXPRESSION
+        ! Look for pattern: IDENTIFIER = EXPRESSION or IDENTIFIER(params) = EXPRESSION
         id_token = parser%peek()
         if (id_token%kind == TK_IDENTIFIER) then
             id_token = parser%consume()
             
             op_token = parser%peek()
+            
             if (op_token%kind == TK_OPERATOR .and. op_token%text == "=") then
                 op_token = parser%consume()
                 
@@ -523,5 +524,6 @@ contains
         func_node = create_function_def(func_name, params, return_type, body, line, column)
         
     end function parse_function_definition
+
 
 end module parser_core
