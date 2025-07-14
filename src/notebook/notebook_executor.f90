@@ -469,7 +469,7 @@ contains
         call getcwd(current_dir)
         
         ! Copy the notebook_output module to the project
-        command = 'cp "' // trim(current_dir) // '/src/notebook_output.f90" "' // &
+        command = 'cp "' // trim(current_dir) // '/src/notebook/notebook_output.f90" "' // &
                   trim(project_dir) // '/src/"'
         call execute_command_line(command)
         
@@ -484,7 +484,7 @@ contains
         call getcwd(current_dir)
         
         ! Copy the figure_capture module to the project
-        command = 'cp "' // trim(current_dir) // '/src/figure_capture.f90" "' // &
+        command = 'cp "' // trim(current_dir) // '/src/figure/figure_capture.f90" "' // &
                   trim(project_dir) // '/src/"'
         call execute_command_line(command)
         
