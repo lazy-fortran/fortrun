@@ -151,8 +151,69 @@ contains
                 stmt_count = stmt_count + 1
             end do
             
-            ! For now, create empty body to test JSON output works
-            ! TODO: Restore proper statement parsing once JSON serialization is fixed
+            ! Parse statements properly into AST using wrapper pattern
+            if (stmt_count > 0) then
+                ! Allocate wrapper array
+                allocate(body_statements(stmt_count))
+                
+                ! Parse statements
+                i = 1
+                stmt_count = 0
+                do while (i <= size(tokens))
+                    if (tokens(i)%kind == TK_EOF) exit
+                    
+                    ! Get statement tokens for this line
+                    stmt_start = i
+                    current_line = tokens(i)%line
+                    stmt_end = i
+                    
+                    do while (stmt_end <= size(tokens))
+                        if (tokens(stmt_end)%kind == TK_EOF .or. &
+                            tokens(stmt_end)%line > current_line) then
+                            stmt_end = stmt_end - 1
+                            exit
+                        end if
+                        stmt_end = stmt_end + 1
+                    end do
+                    
+                    if (stmt_end >= stmt_start) then
+                        ! Extract statement tokens and add EOF
+                        allocate(stmt_tokens(stmt_end - stmt_start + 2))
+                        stmt_tokens(1:stmt_end - stmt_start + 1) = tokens(stmt_start:stmt_end)
+                        ! Add EOF token
+                        stmt_tokens(stmt_end - stmt_start + 2)%kind = TK_EOF
+                        stmt_tokens(stmt_end - stmt_start + 2)%text = ""
+                        stmt_tokens(stmt_end - stmt_start + 2)%line = tokens(stmt_end)%line
+                        stmt_tokens(stmt_end - stmt_start + 2)%column = tokens(stmt_end)%column + 1
+                        
+                        ! Parse the statement
+                        stmt = parse_statement(stmt_tokens)
+                        
+                        if (allocated(stmt)) then
+                            stmt_count = stmt_count + 1
+                            ! Store in wrapper - move the allocation instead of copying
+                            call move_alloc(stmt, body_statements(stmt_count)%node)
+                        end if
+                        
+                        deallocate(stmt_tokens)
+                    end if
+                    
+                    i = stmt_end + 1
+                end do
+                
+                ! Create polymorphic array properly using wrapper pattern
+                if (stmt_count > 0) then
+                    ! Create the wrapper array - this works now!
+                    allocate(prog%body(stmt_count))
+                    
+                    ! Copy each wrapper directly
+                    do i = 1, stmt_count
+                        allocate(prog%body(i)%node, source=body_statements(i)%node)
+                    end do
+                end if
+                
+                deallocate(body_statements)
+            end if
         end select
     end subroutine parse_tokens
 

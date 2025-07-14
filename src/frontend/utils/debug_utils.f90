@@ -60,7 +60,7 @@ contains
         
         ! Temporarily use simple manual JSON output due to json-fortran library issues
         block
-            integer :: unit
+            integer :: unit, i
             open(newunit=unit, file=json_file, status='replace', action='write')
             select type (ast => ast_tree)
             type is (lf_program_node)
@@ -72,7 +72,27 @@ contains
                 write(unit, '(a,l1,a)') '    "auto_contains": ', ast%auto_contains, ','
                 write(unit, '(a,i0,a)') '    "line": ', ast%line, ','
                 write(unit, '(a,i0,a)') '    "column": ', ast%column, ','
-                write(unit, '(a)') '    "body": []'
+                write(unit, '(a)', advance='no') '    "body": ['
+                if (allocated(ast%body) .and. size(ast%body) > 0) then
+                    write(unit, '(a)') ''
+                    do i = 1, size(ast%body)
+                        write(unit, '(a)', advance='no') '      {'
+                        select type (node => ast%body(i)%node)
+                        type is (print_statement_node)
+                            write(unit, '(a)') '"type": "print_statement"}'
+                        type is (assignment_node)
+                            write(unit, '(a)') '"type": "assignment"}'
+                        type is (literal_node)
+                            write(unit, '(a)') '"type": "literal"}'
+                        class default
+                            write(unit, '(a)') '"type": "unknown"}'
+                        end select
+                        if (i < size(ast%body)) write(unit, '(a)') ','
+                    end do
+                    write(unit, '(a)') '    ]'
+                else
+                    write(unit, '(a)') ']'
+                end if
                 write(unit, '(a)') '  }'
                 write(unit, '(a)') '}'
             class default
