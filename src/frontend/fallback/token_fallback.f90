@@ -307,17 +307,14 @@ contains
                     ! Add space before this token if needed  
                     if (tokens(i-1)%text == "," .and. i < size(tokens)) then
                         line = line // " "
+                    else if (tokens(i-1)%text == ":") then
+                        ! Always add space after colon
+                        line = line // " "
                     else if (i > 1 .and. tokens(i)%kind /= TK_OPERATOR .and. tokens(i-1)%kind /= TK_OPERATOR) then
                         line = line // " "
                     end if
                 end if
                 line = line // trim(tokens(i)%text)
-                ! Add space after asterisk in print statements
-                if (tokens(i)%text == "*" .and. i < size(tokens) .and. i > 1) then
-                    if (tokens(i-1)%text == "print") then
-                        line = line // " "
-                    end if
-                end if
             end if
         end do
     end function reconstruct_line_from_tokens
