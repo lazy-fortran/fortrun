@@ -19,11 +19,12 @@ fpm test                          # Run all tests
 fpm test test_name                # Run specific test
 rm -rf ~/.cache/fortran/*         # Clear cache (CRITICAL before testing frontend!)
 
-# Debug Pipeline Stages (JSON output)
-fpm run fortran -- example.f90 --debug-tokens    # Debug tokenization stage
-fpm run fortran -- example.f90 --debug-ast       # Debug AST parsing stage  
-fpm run fortran -- example.f90 --debug-codegen   # Debug code generation stage
-fpm run fortran -- example.f90 --debug-tokens --debug-ast --debug-codegen  # Debug all stages
+# Debug 4-Phase Compilation Pipeline (JSON output)
+fpm run fortran -- example.f90 --debug-tokens    # Phase 1: Tokenization
+fpm run fortran -- example.f90 --debug-ast       # Phase 2: AST parsing
+fpm run fortran -- example.f90 --debug-semantic  # Phase 3: Type inference (annotated AST)
+fpm run fortran -- example.f90 --debug-codegen   # Phase 4: Fortran code generation
+fpm run fortran -- example.f90 --debug-tokens --debug-ast --debug-semantic --debug-codegen  # All phases
 ```
 
 ## Project Architecture
@@ -79,11 +80,12 @@ The `fpm.toml` enforces: no implicit typing, free-form source, JSON support via 
 
 ## Current Status
 
-### 🚧 **Phase 8 In Progress**: Advanced Type Inference
-- Array type inference
-- Derived type support
-- Function return type inference
-- More sophisticated expression analysis
+### ✅ **Phase 8 Complete**: Advanced Type Inference
+- ✅ Hindley-Milner type inference system re-enabled and working
+- ✅ Wrapper pattern for polymorphic arrays (fixes gfortran 15 issues)
+- ✅ Multiple argument parsing for function calls and print statements
+- ✅ Complete 4-phase debug workflow implemented
+- ✅ Array extension syntax with `[array, new_element]` pattern
 
 ## *Lazy Fortran* Dialect
 
