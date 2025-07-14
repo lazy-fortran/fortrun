@@ -474,6 +474,7 @@ contains
         type(parser_state_t), intent(inout) :: parser
         class(ast_node), allocatable :: func_node
         
+        
         character(len=:), allocatable :: return_type_str, func_name
         type(token_t) :: token
         class(ast_node), allocatable :: params(:), body(:), return_type

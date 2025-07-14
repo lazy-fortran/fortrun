@@ -54,6 +54,9 @@ contains
         character(len=:), allocatable :: code, source
         integer :: unit, iostat
         
+        ! DEBUG: Print entry point
+        print *, "DEBUG: compile_source called with: ", trim(input_file)
+        
         error_msg = ""
         
         ! Read source file
