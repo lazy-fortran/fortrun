@@ -142,6 +142,17 @@ contains
         
         ! Start with program declaration
         code = "program " // node%name // new_line('a')
+        
+        ! Generate use statements first (must come before implicit none)
+        if (allocated(node%body)) then
+            do i = 1, size(node%body)
+                select type (stmt => node%body(i)%node)
+                type is (use_statement_node)
+                    code = code // "    " // generate_code(stmt) // new_line('a')
+                end select
+            end do
+        end if
+        
         code = code // "    implicit none" // new_line('a')
         
         ! Analyze for function calls and generate interface blocks
@@ -177,6 +188,8 @@ contains
         if (allocated(node%body)) then
             do i = 1, size(node%body)
                 select type (stmt => node%body(i)%node)
+                type is (use_statement_node)
+                    ! Skip - already generated before implicit none
                 type is (assignment_node)
                     code = code // "    " // generate_code(stmt) // new_line('a')
                 type is (function_def_node)
@@ -341,6 +354,17 @@ contains
         
         ! Start with program declaration
         code = "program " // node%name // new_line('a')
+        
+        ! Generate use statements first (must come before implicit none)
+        if (allocated(node%body)) then
+            do i = 1, size(node%body)
+                select type (stmt => node%body(i)%node)
+                type is (use_statement_node)
+                    code = code // "    " // generate_code(stmt) // new_line('a')
+                end select
+            end do
+        end if
+        
         code = code // "    implicit none" // new_line('a')
         
         ! Add variable declarations based on inferred types
@@ -385,6 +409,8 @@ contains
         if (allocated(node%body)) then
             do i = 1, size(node%body)
                 select type (stmt => node%body(i)%node)
+                type is (use_statement_node)
+                    ! Skip - already generated before implicit none
                 type is (assignment_node)
                     code = code // "    " // generate_code(stmt) // new_line('a')
                 type is (lf_assignment_node)
