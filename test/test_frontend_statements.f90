@@ -51,7 +51,7 @@ contains
         if (compile_and_check('print *, "Hello"', &
                              'program main' // new_line('a') // &
                              '    implicit none' // new_line('a') // &
-                             '    print * , "Hello"' // new_line('a') // &
+                             '    print *, "Hello"' // new_line('a') // &
                              'end program main')) then
             write(*, '(a)') '  ✓ PASS: Print statement parsed correctly'
             pass_count = pass_count + 1
@@ -73,7 +73,7 @@ contains
                              '    integer :: x' // new_line('a') // &
                              '' // new_line('a') // &
                              '    x = 42' // new_line('a') // &
-                             '    print * , x' // new_line('a') // &
+                             '    print *, x' // new_line('a') // &
                              'end program main')) then
             write(*, '(a)') '  ✓ PASS: Multiple statements parsed correctly'
             pass_count = pass_count + 1
