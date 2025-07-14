@@ -77,7 +77,7 @@ contains
         
         ! Create test file
         open(newunit=unit, file=temp_input, status='replace', action='write')
-        write(unit, '(a)') 'module test_mod'
+        write(unit, '(a)') 'module unique_test_mod_12345'
         write(unit, '(a)') '    implicit none'
         write(unit, '(a)') '    real, parameter :: pi = 3.14159'
         write(unit, '(a)') 'contains'
@@ -86,7 +86,7 @@ contains
         write(unit, '(a)') '        real :: area'
         write(unit, '(a)') '        area = pi * r**2'
         write(unit, '(a)') '    end function circle_area'
-        write(unit, '(a)') 'end module test_mod'
+        write(unit, '(a)') 'end module unique_test_mod_12345'
         close(unit)
         
         if (compile_standard_fortran(temp_input, temp_output)) then
