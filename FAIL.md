@@ -43,8 +43,9 @@ AFTER: Clean build, no conflicts
 - ✅ Figure capture tests
 
 ### Remaining Issues (Non-Critical)
-1. **Use statement generation** - Returns "0" instead of content
+1. **Use statement generation** - FIXED ✅
 2. **Type inference** - Disabled for stability, defaults to real(8)
+   - Causes test_frontend_statements test 3 to fail (expects integer, gets real(8))
 3. **Some CLI tests** - Logical failures, not crashes
 4. **Some frontend tests** - AST generation incomplete
 
