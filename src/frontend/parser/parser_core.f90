@@ -2,8 +2,10 @@ module parser_core
     use lexer_core
     use ast_core, only: ast_node, ast_node_wrapper, assignment_node, binary_op_node, identifier_node, &
                          literal_node, function_call_node, function_def_node, print_statement_node, &
+                         use_statement_node, &
                          create_assignment, create_binary_op, create_identifier, &
                          create_literal, create_function_call, create_function_def, create_print_statement, &
+                         create_use_statement, &
                          LITERAL_INTEGER, LITERAL_REAL, LITERAL_STRING, LITERAL_LOGICAL
     implicit none
     private
@@ -310,8 +312,12 @@ contains
         ! Check first token to determine statement type
         first_token = parser%peek()
         
+        ! Check for use statement
+        if (first_token%kind == TK_KEYWORD .and. first_token%text == "use") then
+            stmt = parse_use_statement(parser)
+            return
         ! Check for print statement
-        if (first_token%kind == TK_KEYWORD .and. first_token%text == "print") then
+        else if (first_token%kind == TK_KEYWORD .and. first_token%text == "print") then
             stmt = parse_print_statement(parser)
             return
         ! Check for function definition: [type] function name(params)
@@ -525,5 +531,33 @@ contains
         
     end function parse_function_definition
 
+    ! Parse use statement: use module_name [, only: ...]
+    function parse_use_statement(parser) result(stmt)
+        type(parser_state_t), intent(inout) :: parser
+        class(ast_node), allocatable :: stmt
+        type(token_t) :: token
+        character(len=:), allocatable :: module_name
+        
+        ! Consume 'use' keyword
+        token = parser%consume()
+        
+        ! Get module name
+        token = parser%peek()
+        if (token%kind == TK_IDENTIFIER) then
+            token = parser%consume()
+            module_name = token%text
+        else
+            ! Invalid use statement - return placeholder
+            stmt = create_literal("0", LITERAL_INTEGER, token%line, token%column)
+            return
+        end if
+        
+        ! For now, ignore 'only' clause
+        ! TODO: Parse 'only' clause when needed
+        
+        ! Create use statement node (without only list for now)
+        stmt = create_use_statement(module_name, line=token%line, column=token%column)
+        
+    end function parse_use_statement
 
 end module parser_core
