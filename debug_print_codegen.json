@@ -1,9 +1,0 @@
-{
-  "input_file": "/home/ert/code/fortran/debug_print.f",
-  "generated_code": [
-    "program main",
-    "    implicit none",
-    "    print * , \"The answer is\", 42",
-    "end program main"
-  ]
-}

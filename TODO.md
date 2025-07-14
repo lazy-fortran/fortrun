@@ -113,42 +113,29 @@ src/frontend/
 - **Issue**: Function call type inference still crashes with segfault
 - The crash appears to be related to uninitialized var fields when processing non-TVAR types
 
-#### 🚨 URGENT: Function Call Type Inference Crash
 
-**PROBLEM**: Function calls still cause segmentation fault despite wrapper pattern implementation
+## Current Development Status
 
-**SYMPTOMS**:
-- Crash occurs in `subst_apply_to_mono` when calling `this%lookup(typ%var)`
-- Simple expressions work fine (print statements, arithmetic)
-- Function definitions and calls trigger the crash
+### ✅ Working Features:
+- **Basic Lexing & Parsing**: Tokenization and AST construction work correctly
+- **Simple Expressions**: Arithmetic, assignments, print statements compile and run
+- **Type System Basics**: Integer and real types, basic type creation
+- **Code Generation**: Works for simple programs without function calls
+- **Wrapper Pattern**: Implemented for handling polymorphic arrays in type system
 
-**HYPOTHESIS**: The var field in mono_type_t is not properly initialized for all type kinds, causing undefined behavior when accessed
+### ❌ Known Issues:
+- **Function Type Inference**: Segmentation fault when processing function calls
+- **Type Variable Handling**: Crashes in substitution application for TVAR types
+- **Function Definitions**: Cannot process functions due to type inference issues
 
-**Test Cases**:
-- `test_func_sig.f` - Simple function definition and call (crashes)
-- `test_step1_explicit.f` - Function with explicit type declaration (crashes)
-- `example/frontend_test_cases/function_call_inference/` - Test case with expected output
+### 🔧 Technical Details:
+The type inference system uses Hindley-Milner (Algorithm W) but encounters memory access issues when processing function types. The crash occurs in `subst_apply_to_mono` at line 345 when applying substitutions to type variables. Despite proper initialization of var fields and implementation of the wrapper pattern, the underlying issue persists.
 
-**Status**: Need to investigate var field initialization and ensure it's safe for all type kinds
-
-### Progress Update (Latest)
-
-**Fixes Applied**:
-- Fixed unification check order to avoid accessing uninitialized var fields
-- Added proper var field initialization in create_fun_type
-- Fixed deep_copy to properly handle var field with allocatable components
-- Initialized substitution count explicitly
-
-**Current Status**:
-- Simple expressions work (assignments, arithmetic, print statements)
-- Function type creation works in isolation
-- Function call type inference still crashes with segfault at line 345 in subst_apply_to_mono
-- The crash occurs when processing TVAR types during substitution application
-
-**Next Steps**:
-- Need deeper investigation into substitution mechanics
-- May need to redesign how type variables are handled in the type system
-- Consider alternative approaches to type inference that avoid this issue
+### 📋 Next Steps:
+1. **Investigate Alternative Approaches**: Consider simpler type inference for initial implementation
+2. **Debug Substitution Mechanics**: Add comprehensive logging to trace the exact failure point
+3. **Implement Fallback**: Use explicit type annotations as a temporary workaround
+4. **Refactor Type System**: May need fundamental redesign of type variable handling
 
 Based on the current state and test files in the working directory:
 
