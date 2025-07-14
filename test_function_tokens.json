@@ -1,0 +1,94 @@
+{
+  "tokens": [
+    {
+      "type": "identifier",
+      "text": "result",
+      "line": 1,
+      "column": 1
+    },
+    {
+      "type": "operator",
+      "text": "=",
+      "line": 1,
+      "column": 8
+    },
+    {
+      "type": "identifier",
+      "text": "square",
+      "line": 1,
+      "column": 10
+    },
+    {
+      "type": "operator",
+      "text": "(",
+      "line": 1,
+      "column": 16
+    },
+    {
+      "type": "number",
+      "text": "5.0",
+      "line": 1,
+      "column": 17
+    },
+    {
+      "type": "operator",
+      "text": ")",
+      "line": 1,
+      "column": 20
+    },
+    {
+      "type": "identifier",
+      "text": "square",
+      "line": 3,
+      "column": 1
+    },
+    {
+      "type": "operator",
+      "text": "(",
+      "line": 3,
+      "column": 7
+    },
+    {
+      "type": "identifier",
+      "text": "x",
+      "line": 3,
+      "column": 8
+    },
+    {
+      "type": "operator",
+      "text": ")",
+      "line": 3,
+      "column": 9
+    },
+    {
+      "type": "operator",
+      "text": "=",
+      "line": 3,
+      "column": 11
+    },
+    {
+      "type": "identifier",
+      "text": "x",
+      "line": 3,
+      "column": 13
+    },
+    {
+      "type": "operator",
+      "text": "*",
+      "line": 3,
+      "column": 15
+    },
+    {
+      "type": "identifier",
+      "text": "x",
+      "line": 3,
+      "column": 17
+    },
+    {
+      "type": "eof",
+      "text": "",
+      "line": 4,
+      "column": 1
+    }
+  ]
+}

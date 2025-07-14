@@ -86,9 +86,10 @@ contains
         if (error_msg /= "") return
         if (options%debug_ast) call debug_output_ast(input_file, ast_tree)
         
-        ! Phase 3: Semantic Analysis  
+        ! Phase 3: Semantic Analysis - TEMPORARILY DISABLED TO STOP SEGFAULTS
         sem_ctx = create_semantic_context()
-        call analyze_program(sem_ctx, ast_tree)
+        ! FIXME: Re-enable when type system is stable
+        ! call analyze_program(sem_ctx, ast_tree)
         if (options%debug_semantic) call debug_output_semantic(input_file, ast_tree)
         
         ! Phase 4: Code Generation
@@ -240,38 +241,8 @@ contains
         character(len=:), allocatable :: code
         character(len=:), allocatable :: use_statements, declarations, statements, functions
         
-        ! ARCHITECTURE: Try to use proper AST-based code generation first
-        if (allocated(prog%body) .and. size(prog%body) > 0) then
-            ! Use proper AST-based code generation with function interface inference
-            code = generate_code(prog)
-            return
-        end if
-        
-        ! FALLBACK: Generate components from tokens until AST is complete
-        ! Generate program header from AST
-        code = "program " // prog%name // new_line('a')
-        
-        use_statements = generate_use_statements_from_tokens()
-        if (len_trim(use_statements) > 0) code = code // use_statements
-        
-        code = code // "    implicit none" // new_line('a')
-        
-        declarations = generate_declarations(prog, sem_ctx)
-        statements = generate_executable_statements_from_tokens()
-        
-        if (len_trim(declarations) > 0) then
-            code = code // declarations
-            if (len_trim(statements) > 0) code = code // new_line('a')
-        end if
-        
-        if (len_trim(statements) > 0) code = code // statements
-        
-        functions = generate_function_definitions_from_tokens()
-        if (len_trim(functions) > 0) then
-            code = code // new_line('a') // "contains" // new_line('a') // new_line('a') // functions
-        end if
-        
-        code = code // "end program " // prog%name
+        ! ARCHITECTURE: AST-based code generation ONLY - NO FALLBACK
+        code = generate_code(prog)
     end function generate_fortran_program
 
     ! Write output to file

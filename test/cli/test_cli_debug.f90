@@ -32,7 +32,7 @@ contains
         character(len=256) :: notebook_output, custom_flags
         logical :: show_help, no_wait, notebook_mode, preprocess_only
         logical :: clear_cache, cache_info
-        logical :: debug_tokens, debug_ast, debug_codegen
+        logical :: debug_tokens, debug_ast, debug_semantic, debug_codegen
         integer :: verbose_level, parallel_jobs
         character(len=256), dimension(3) :: args
         
@@ -48,13 +48,13 @@ contains
         call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                             custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
                             notebook_output, preprocess_only, custom_flags, &
-                            clear_cache, cache_info, debug_tokens, debug_ast, debug_codegen)
+                            clear_cache, cache_info, debug_tokens, debug_ast, debug_semantic, debug_codegen)
         
         ! This will fail until we implement the CLI parsing
         if (.not. debug_tokens) then
             print *, 'FAIL: --debug-tokens flag not recognized'
             test_debug_tokens = .false.
-        else if (debug_ast .or. debug_codegen) then
+        else if (debug_ast .or. debug_semantic .or. debug_codegen) then
             print *, 'FAIL: Other debug flags should not be set'
             test_debug_tokens = .false.
         else
@@ -68,7 +68,7 @@ contains
         character(len=256) :: notebook_output, custom_flags
         logical :: show_help, no_wait, notebook_mode, preprocess_only
         logical :: clear_cache, cache_info
-        logical :: debug_tokens, debug_ast, debug_codegen
+        logical :: debug_tokens, debug_ast, debug_semantic, debug_codegen
         integer :: verbose_level, parallel_jobs
         character(len=256), dimension(3) :: args
         
@@ -84,7 +84,7 @@ contains
         call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                             custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
                             notebook_output, preprocess_only, custom_flags, &
-                            clear_cache, cache_info, debug_tokens, debug_ast, debug_codegen)
+                            clear_cache, cache_info, debug_tokens, debug_ast, debug_semantic, debug_codegen)
         
         if (.not. debug_ast) then
             print *, 'FAIL: --debug-ast flag not recognized'
@@ -103,7 +103,7 @@ contains
         character(len=256) :: notebook_output, custom_flags
         logical :: show_help, no_wait, notebook_mode, preprocess_only
         logical :: clear_cache, cache_info
-        logical :: debug_tokens, debug_ast, debug_codegen
+        logical :: debug_tokens, debug_ast, debug_semantic, debug_codegen
         integer :: verbose_level, parallel_jobs
         character(len=256), dimension(3) :: args
         
@@ -119,7 +119,7 @@ contains
         call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                             custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
                             notebook_output, preprocess_only, custom_flags, &
-                            clear_cache, cache_info, debug_tokens, debug_ast, debug_codegen)
+                            clear_cache, cache_info, debug_tokens, debug_ast, debug_semantic, debug_codegen)
         
         if (.not. debug_codegen) then
             print *, 'FAIL: --debug-codegen flag not recognized'
@@ -138,7 +138,7 @@ contains
         character(len=256) :: notebook_output, custom_flags
         logical :: show_help, no_wait, notebook_mode, preprocess_only
         logical :: clear_cache, cache_info
-        logical :: debug_tokens, debug_ast, debug_codegen
+        logical :: debug_tokens, debug_ast, debug_semantic, debug_codegen
         integer :: verbose_level, parallel_jobs
         character(len=256), dimension(5) :: args
         
@@ -156,9 +156,9 @@ contains
         call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                             custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
                             notebook_output, preprocess_only, custom_flags, &
-                            clear_cache, cache_info, debug_tokens, debug_ast, debug_codegen)
+                            clear_cache, cache_info, debug_tokens, debug_ast, debug_semantic, debug_codegen)
         
-        if (.not. (debug_tokens .and. debug_ast .and. debug_codegen)) then
+        if (.not. (debug_tokens .and. debug_ast .and. debug_semantic .and. debug_codegen)) then
             print *, 'FAIL: Not all debug flags recognized'
             test_multiple_debug_flags = .false.
         else
