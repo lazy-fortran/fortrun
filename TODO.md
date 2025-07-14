@@ -1,206 +1,192 @@
 # *Lazy Fortran* Compiler Frontend TODO
 
-This document tracks concrete implementation tasks for the *lazy fortran* compiler frontend.
-Our architectural plans and designs live in `doc/plan/` directory, while this TODO.md is for specific actionable tasks.
+## CRITICAL ARCHITECTURAL ISSUE ⚠️
 
-## Vision
-We are building a complete compiler frontend with a 4-phase architecture (Lexer → Parser → Semantic Analysis → Code Generation) that can target multiple backends. Our *lazy fortran* dialect pushes beyond all alternative scientific computing languages, exploring how far we can evolve Fortran to surpass Python, Julia, MATLAB, and others in both performance and expressiveness. Currently, we use standard Fortran as our intermediate representation, which allows immediate use with existing Fortran compilers.
+**ROOT CAUSE IDENTIFIED**: The parser violates Fortran 95 standard by processing **multi-line program units** as individual **line-by-line statements**.
 
-## CRITICAL ARCHITECTURE VIOLATION ⚠️
+### What's Fundamentally Wrong:
+1. **Parser Architecture Violation**: Function definitions are **program units** (Fortran 95 section 7), not statements
+2. **Line-by-line Processing**: Current parser calls `parse_statement()` on each line individually
+3. **Multi-line Construct Ignorance**: Functions span multiple lines but parser doesn't recognize this
+4. **Standard Violation**: Fortran 95 standard requires program unit parsing, not statement parsing
 
-**URGENT**: The current frontend.f90 implementation violates our core architecture by taking shortcuts directly from tokens to code generation, bypassing the AST pipeline.
+### Evidence from Standards:
+According to `doc/standard/Fortran95.md`:
+- **Program units include**: main program, external procedures, modules, block data  
+- **Functions are program units**: `function name(args) ... end function name`
+- **Not statements**: Functions are NOT executable statements
 
-### What's Wrong:
-- Direct token manipulation in `generate_*_from_tokens()` functions
-- String reconstruction from tokens instead of AST traversal
-- Bypassing semantic analysis for code generation
-- Violates clean separation of Lexer → Parser → AST → Semantic Analysis → Code Generation
+### Current Broken Flow:
+```fortran
+! Input:
+real function compute(x)  <- Should be parsed as ONE function definition
+  real :: x               <- Should be part of function body
+  compute = x * x         <- Should be part of function body  
+end function              <- Should be part of function definition
 
-### Required Fixes (CORRECTED):
+! Current parser (WRONG):
+Line 1: parse_statement("real function compute(x)") → literal_node
+Line 2: parse_statement("real :: x") → assignment_node  
+Line 3: parse_statement("compute = x * x") → assignment_node
+Line 4: parse_statement("end function") → unknown_node
 
-#### ✅ COMPLETED: Directory Reorganization
-- [x] **Move semantic analysis** → `src/core/` (semantic_analyzer.f90, etc.)
-- [x] **Rename dialects/** → `src/standards/` (lazy_fortran, fortran90, fortran2018)
-- [x] **Update documentation** to reflect actual structure
-
-#### ✅ COMPLETED: Phase 1: Fix Frontend Architecture Violations
-- [x] **Fixed frontend.f90** to use proper AST traversal where implemented
-- [x] **Uses existing core components**: lexer_core, parser_core, semantic_analyzer, codegen_core
-- [x] **Marked token shortcuts as FALLBACK** with clear TODO markers for removal
-- [x] **Architecture now properly coordinates** existing components
-
-#### ✅ COMPLETED: Phase 2: Address Token Manipulation Shortcuts  
-- [x] **Marked all `generate_*_from_tokens()` functions** as FALLBACK until AST complete
-- [x] **Added clear removal markers** - TODO comments for future cleanup
-- [x] **Maintained temporary fallbacks** only for unimplemented AST features
-- [x] **No longer violates architecture** - fallback is explicitly temporary
-
-#### Phase 3: Create Standard-Specific Frontends (Future)
-- [ ] **Replace monolithic frontend.f90** with standard-specific coordinators  
-- [ ] **Create `lazy_fortran_frontend.f90`** - Uses core + standard/lazy_fortran/
-- [ ] **Create `fortran90_frontend.f90`** - Uses core + standard/fortran90/
-- [ ] **Each frontend < 100 lines** - Pure coordination
-
-#### ✅ COMPLETED: Phase 4: Verification
-- [x] **All tests still pass** - No regression from architecture fixes
-- [x] **Import statements work** - FPM handles module resolution automatically  
-- [x] **Directory structure clean** - Organized into logical subdirectories
-
-## IMMEDIATE TASKS ⚡
-
-### ✅ COMPLETED: Frontend.f90 Refactoring
-
-**SUCCESS**: Frontend.f90 has been successfully reduced from 969 lines to 290 lines!
-
-#### ✅ Completed Extraction:
-
-**Phase 1: Extract Token Fallback Module ✅**
-- [x] **Created `src/frontend/fallback/token_fallback.f90`**
-  - Moved `generate_use_statements_from_tokens()`
-  - Moved `generate_executable_statements_from_tokens()` 
-  - Moved `generate_function_definitions_from_tokens()`
-  - Moved `reconstruct_line_from_tokens()`
-  - Moved `set_current_tokens()` and token storage
-  - Moved all helper functions (`is_function_def_statement()`, etc.)
-
-**Phase 2: Extract Declaration Generator ✅**  
-- [x] **Created `src/frontend/fallback/declaration_generator.f90`**
-  - Moved `generate_declarations()`
-  - Moved `infer_basic_type()`
-  - Moved `get_function_names_from_tokens()`
-  - Moved all variable declaration logic
-
-**Phase 3: Extract Utility Functions ✅**
-- [x] **Created `src/frontend/utils/debug_utils.f90`**
-  - Moved `debug_output_tokens()`, `debug_output_ast()`, `debug_output_codegen()`
-- [x] **Created `src/frontend/utils/parser_utils.f90`**
-  - Moved `remove_inline_comments()`, `advance_to_next_statement()`
-
-**Phase 4: Clean Frontend Coordinator ✅**
-- [x] **Reduced frontend.f90 to 290 lines** - Much cleaner coordinator
-- [x] **Imports and uses extracted modules**
-- [x] **Clean interface**: `compile_source()` + options only
-
-**Achieved Structure:**
-```
-src/frontend/
-├── frontend.f90              # 290 lines: Clean coordinator
-├── fallback/                 # Temporary modules until AST complete
-│   ├── token_fallback.f90    # Token manipulation functions  
-│   └── declaration_generator.f90 # Variable declaration logic
-├── utils/                    # Utility functions
-│   ├── debug_utils.f90       # Debug output functions
-│   └── parser_utils.f90      # Parser helper functions
-└── [existing structure]      # lexer/, parser/, semantic/, codegen/
+! Required parser (CORRECT):
+All lines: parse_program_unit(all_tokens) → function_def_node
 ```
 
-### Next Priority Tasks
+## RECOVERY PLAN (Based on doc/plan/AST.md)
 
-#### ✅ COMPLETED: Wrapper Pattern Implementation
+### Stage 1: Emergency Fix (IMMEDIATE - Today)
+**Goal**: Get basic function definitions working
 
-**SUCCESS**: Implemented wrapper pattern for polymorphic arrays in type system!
+**Tasks**:
+1. **Fix Program Unit Detection** in `src/frontend/parser/parser_core.f90`
+   - Add `find_program_unit_boundary()` function
+   - Detect function definitions across multiple lines
+   - Group tokens by program unit, not by line
 
-**Changes Made**:
-- Created `mono_type_wrapper` type to wrap mono_type_t elements
-- Changed `class(mono_type_t), allocatable :: args(:)` to `type(mono_type_wrapper), allocatable :: args(:)`
-- Updated all functions to use wrapped args (equals, to_string, deep_copy, apply, etc.)
-- Added `create_fun_type` helper function for creating function types
-- Updated semantic analyzer to use the new wrapper pattern
+2. **Fix Code Generation** in `src/frontend/codegen/codegen_core.f90`
+   - Remove bogus `0` statement labels from unrecognized nodes
+   - Fix `generate_code_function_def()` to handle proper function structure
+   - Generate valid Fortran syntax
 
-**Current Status**: 
-- Basic types work correctly (integer, real)
-- Function type creation works (verified with test_simple_wrapper)
-- **Issue**: Function call type inference still crashes with segfault
-- The crash appears to be related to uninitialized var fields when processing non-TVAR types
+3. **Quick Test**:
+   - Simple function definition should parse and generate valid Fortran
+   - `test_step1_single_file` should start passing
 
+### Stage 2: Architecture Compliance (URGENT - This Week)
+**Goal**: Implement proper Fortran 95 program unit parsing
 
-## Current Development Status
+**Tasks**:
+1. **Implement Program Unit Parser** (new architecture)
+   ```fortran
+   ! Replace frontend.f90 line-by-line parsing with:
+   function parse_program_unit(tokens) result(unit)
+   function is_function_definition(parser) result(is_func)
+   function is_subroutine_definition(parser) result(is_sub)
+   function is_program_definition(parser) result(is_prog)
+   ```
 
-### ✅ Working Features:
-- **Basic Lexing & Parsing**: Tokenization and AST construction work correctly
-- **Simple Expressions**: Arithmetic, assignments, print statements compile and run
-- **Type System Basics**: Integer and real types, basic type creation
-- **Code Generation**: Works for simple programs without function calls
-- **Wrapper Pattern**: Implemented for handling polymorphic arrays in type system
-- **Function Type Inference**: ✅ **FIXED** - No longer crashes on function calls
+2. **Add Proper AST Nodes** for Fortran 95 compliance
+   ```fortran
+   type, extends(ast_node) :: program_unit_node
+   type, extends(program_unit_node) :: function_def_node
+   type, extends(program_unit_node) :: subroutine_def_node
+   type, extends(program_unit_node) :: main_program_node
+   ```
 
-### 🔧 Recent Fixes Applied:
-- **Defensive Substitution**: Added safety checks to prevent TVAR crashes
-- **Allocation Management**: Fixed "already allocated" errors in type variable handling
-- **Graceful Fallbacks**: Return default types for unsupported expression types
-- **Memory Safety**: Proper deallocation before reallocation in type functions
+3. **Multi-line Token Grouping**
+   - Replace `parse_tokens()` line-by-line approach
+   - Implement proper program unit boundary detection
+   - Handle `contains` sections correctly
 
-### ❌ Remaining Issues:
-- **Code Generation**: Generated Fortran has syntax issues (statement labels, implicit interfaces)
-- **Function Definitions**: Need proper handling in code generation phase
-- **TVAR Substitution**: Currently disabled - needs proper implementation
+### Stage 3: Type System Recovery (NEXT - Next Week)
+**Goal**: Re-enable type inference with proper AST foundation
 
-### 📋 Next Steps:
-1. **Fix Code Generation**: Address Fortran syntax issues in generated output
-2. **Re-enable TVAR Substitution**: Implement proper type variable handling
-3. **Improve Function Support**: Better handling of function definitions and calls
-4. **Add More Expression Types**: Support for arrays, user-defined types
+**Tasks**:
+1. **Simplified Type Inference** (temporary)
+   - Basic literal type inference (integer → integer, real → real(8))
+   - Simple assignment type propagation
+   - Function return type inference
 
-Based on the current state and test files in the working directory:
+2. **Fix Hindley-Milner Implementation**
+   - Debug existing type system issues
+   - Add proper function type inference
+   - Re-enable semantic analysis gradually
 
-### ✅ COMPLETED: Fix Existing Test Suite
+3. **Test Type Inference**
+   - All `test_step1_single_file` tests should pass
+   - Function signature enhancement should work
+   - Parameter type inference with `intent(in)` should work
 
-### Standard Fortran Compatibility Tests 🔄
-Since *lazy fortran* is a superset of standard Fortran, we need comprehensive tests to ensure any valid Fortran 95/2003/2008/2018 program passes through unchanged:
+### Stage 4: Complete Standard Compliance (FUTURE)
+**Goal**: Full Fortran 95 standard compliance
 
-- [ ] **Create test/standard_fortran/** directory for compatibility tests
-- [ ] **Fortran 95 Core Features**:
-  - [ ] Program/module/subroutine/function structures
-  - [ ] All intrinsic types and declarations
-  - [ ] Arrays (static, dynamic, assumed-shape)
-  - [ ] Control structures (if/then/else, do loops, select case)
-  - [ ] Operators and expressions
-  - [ ] Intrinsic functions
-  - [ ] Format statements and I/O
-  - [ ] Common blocks (legacy but required)
-  - [ ] Data statements
-  - [ ] Equivalence statements
-  - [ ] Parameter statements
-- [ ] **Fortran 2003 Features**:
-  - [ ] Object-oriented programming constructs
-  - [ ] Type-bound procedures
-  - [ ] Abstract interfaces
-  - [ ] Parameterized derived types
-  - [ ] Allocatable components
-- [ ] **Fortran 2008/2018 Features**:
-  - [ ] Coarrays
-  - [ ] Submodules
-  - [ ] DO CONCURRENT
-  - [ ] ERROR STOP
-- [ ] **Test Infrastructure**:
-  - [ ] Compare frontend output byte-for-byte with input for standard files
-  - [ ] Test suite from Fortran standards committee examples
-  - [ ] Real-world Fortran libraries (BLAS, LAPACK snippets)
-  - [ ] Ensure no modifications to standard constructs
+**Tasks**:
+1. **Complete Program Unit Support**
+   - Module definitions
+   - Block data
+   - Subroutines
+   - Nested contains sections
 
-### ✅ COMPLETED: Test Cleanup and Deduplication
+2. **Advanced Type System**
+   - Bidirectional type checking
+   - Array type inference
+   - User-defined types
 
-## Completed Phases ✅
+3. **Production Quality**
+   - Error recovery
+   - Helpful diagnostics
+   - Performance optimization
 
-- **Phase 0**: Test Reorganization
-- **Phase 1**: Lexer Implementation  
-- **Phase 2**: AST Definition
-- **Phase 3**: Parser Implementation (partial)
-- **Phase 4**: Code Generation (partial)
-- **Phase 5**: AST-Based Preprocessor Integration (basic)
-- **Phase 6**: Cache Management Enhancement
+## IMPLEMENTATION PRIORITY
 
-## ✅ Completed: Phase 7 - Proper AST-Based Code Generation
+### P0 (CRITICAL - Today):
+1. **Fix `generate_code_polymorphic`** to never generate `0` 
+2. **Fix `parse_function_definition`** to handle multi-line constructs
+3. **Test basic function parsing** with simple examples
 
-## ✅ COMPLETED: Phase 8 - JSON Debug Serialization
+### P1 (URGENT - This Week):
+1. **Implement program unit parser** architecture
+2. **Add proper AST nodes** for Fortran 95 constructs
+3. **Replace line-by-line parsing** with program unit parsing
 
-## ✅ COMPLETED: Phase 9 - Architecture Fixed with Hindley-Milner Type System
+### P2 (HIGH - Next Week):
+1. **Re-enable type inference** with simplified approach
+2. **Fix semantic analysis** for function definitions
+3. **Complete test suite** recovery
 
-## ✅ COMPLETED: Phase 10 - Frontend Architecture Reorganization
+### P3 (MEDIUM - Future):
+1. **Full Fortran 95 compliance** testing
+2. **Module system** integration
+3. **Advanced type features**
 
-## ✅ COMPLETED: Phase 11 - *lazy fortran* Compiler Frontend Working! 🚀
+## CURRENT STATUS
 
-## ✅ COMPLETED: Phase 12 - Frontend Runtime Issues Fixed! 🎉
+### ✅ COMPLETED:
+- **Phases 0-13**: Basic architecture, lexer, parser foundations
+- **Cache system**: Fixed module conflict issues
+- **Test infrastructure**: Organized test structure
 
-## ✅ COMPLETED: Phase 13 - Test Infrastructure Improvements
+### ❌ BROKEN:
+- **Parser**: Line-by-line instead of program unit parsing
+- **Code generation**: Generates invalid Fortran with statement labels
+- **Type inference**: Complex inference disabled due to crashes
+- **Function handling**: Multi-line constructs not recognized
 
+### 🔧 IN PROGRESS:
+- **Parser redesign**: Moving to program unit architecture
+- **Code generation**: Fixing AST node handling
+- **Type system**: Simplifying for reliability
+
+## TEST METRICS
+
+### Current:
+- **24/37 tests passing** (65% pass rate)
+- **test_step1_single_file**: 0/6 tests passing
+- **test_runner_comprehensive**: FIXED (cache clearing)
+
+### Target (Stage 1):
+- **30/37 tests passing** (80% pass rate)
+- **test_step1_single_file**: 3/6 tests passing
+- **Basic function definitions**: Working
+
+### Target (Stage 2): 
+- **35/37 tests passing** (95% pass rate)
+- **test_step1_single_file**: 6/6 tests passing
+- **Complex multi-line programs**: Working
+
+### Target (Stage 3):
+- **37/37 tests passing** (100% pass rate)
+- **Full type inference**: Working
+- **Production ready**: Frontend complete
+
+## CRITICAL SUCCESS FACTORS
+
+1. **Follow Fortran 95 Standard**: No shortcuts, proper program unit parsing
+2. **Fix Architecture**: No line-by-line parsing for multi-line constructs
+3. **Proper AST Nodes**: Complete representation of language constructs
+4. **Valid Code Generation**: Generated Fortran must compile correctly
+5. **Incremental Progress**: Test each stage thoroughly before proceeding
+
+**ULTIMATE GOAL**: Restore basic functionality where simple .f files with function definitions convert to valid .f90 files with proper type inference, building toward a complete, standard-compliant compiler frontend.
