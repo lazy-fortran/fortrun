@@ -1,9 +1,0 @@
-Project is up to date
-<ERROR> Compilation failed for object " app_main.f90.o "
-Error: ‘square’ at (1) is not a variable
-Error: Procedure ‘square’ called with an implicit interface at (1) [-Werror=implicit-interface]
-<ERROR> stopping due to failed compilation
-STOP 1
-<ERROR> Execution for object " fortran " returned exit code  1
-<ERROR> *cmd_run*:stopping due to failed executions
-STOP 1
