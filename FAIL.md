@@ -41,6 +41,8 @@ AFTER: Clean build, no conflicts
 - ✅ Basic runner tests
 - ✅ Module cache tests
 - ✅ Figure capture tests
+- ✅ test_frontend_statements (3/3)
+- ✅ test_example_test_cases (3/3)
 
 ### Remaining Issues (Non-Critical)
 1. **Use statement generation** - FIXED ✅
