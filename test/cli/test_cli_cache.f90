@@ -39,11 +39,11 @@ contains
         call set_test_args(args, 2)
         
         block
-            logical :: debug_tokens, debug_ast, debug_codegen
+            logical :: debug_tokens, debug_ast, debug_semantic, debug_codegen
             call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                                 custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
                                 notebook_output, preprocess_only, custom_flags, &
-                                clear_cache_flag, cache_info_flag, debug_tokens, debug_ast, debug_codegen)
+                                clear_cache_flag, cache_info_flag, debug_tokens, debug_ast, debug_semantic, debug_codegen)
         end block
         
         if (.not. clear_cache_flag) then
@@ -78,11 +78,11 @@ contains
         call set_test_args(args, 2)
         
         block
-            logical :: debug_tokens, debug_ast, debug_codegen
+            logical :: debug_tokens, debug_ast, debug_semantic, debug_codegen
             call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                                 custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
                                 notebook_output, preprocess_only, custom_flags, &
-                                clear_cache_flag, cache_info_flag, debug_tokens, debug_ast, debug_codegen)
+                                clear_cache_flag, cache_info_flag, debug_tokens, debug_ast, debug_semantic, debug_codegen)
         end block
         
         if (.not. cache_info_flag) then
@@ -118,11 +118,11 @@ contains
         call set_test_args(args, 3)
         
         block
-            logical :: debug_tokens, debug_ast, debug_codegen
+            logical :: debug_tokens, debug_ast, debug_semantic, debug_codegen
             call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                                 custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
                                 notebook_output, preprocess_only, custom_flags, &
-                                clear_cache_flag, cache_info_flag, debug_tokens, debug_ast, debug_codegen)
+                                clear_cache_flag, cache_info_flag, debug_tokens, debug_ast, debug_semantic, debug_codegen)
         end block
         
         if (.not. clear_cache_flag) then

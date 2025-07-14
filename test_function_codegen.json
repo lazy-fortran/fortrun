@@ -1,0 +1,12 @@
+{
+  "input_file": "/home/ert/code/fortran/test_function.f",
+  "generated_code": [
+    "program main",
+    "    implicit none",
+    "    real(8) :: result",
+    "",
+    "    result = square(5.0)",
+    "    square",
+    "end program main"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "input_file": "/home/ert/code/fortran/test_codegen.f",
+  "generated_code": [
+    "program main",
+    "    implicit none",
+    "    real(8) :: result",
+    "    real(8) :: square",
+    "",
+    "    result = square(5.0)",
+    "    ! Unknown AST node type",
+    "    0",
+    "    square = x * x",
+    "    0",
+    "end program main"
+  ]
+}

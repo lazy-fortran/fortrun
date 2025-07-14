@@ -176,7 +176,7 @@ contains
                                             ! Reconstruct print statement with proper formatting
                                             stmt_code = "print *"
                                             if (size(stmt_tokens) > 2) then
-                                                stmt_code = stmt_code // " , "
+                                                stmt_code = stmt_code // ", "
                                                 ! Add remaining tokens
                                                 block
                                                     integer :: j
