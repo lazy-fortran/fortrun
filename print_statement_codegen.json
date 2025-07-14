@@ -1,0 +1,11 @@
+{
+  "input_file": "/home/ert/code/fortran/example/frontend_test_cases/print_statement/print_statement.f",
+  "generated_code": [
+    "program main",
+    "    implicit none",
+    "    print * , \"Hello, World!\"",
+    "    print * , \"The answer is\", 42",
+    "    print * , 2.5",
+    "end program main"
+  ]
+}

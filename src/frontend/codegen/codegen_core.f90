@@ -176,7 +176,7 @@ contains
             do i = 1, size(node%args)
                 if (i > 1) code = code // ", "
                 
-                select type (arg => node%args(i))
+                select type (arg => node%args(i)%node)
                 type is (literal_node)
                     code = code // generate_code_literal(arg)
                 type is (identifier_node)
@@ -218,11 +218,11 @@ contains
         
         ! Add arguments if present
         if (allocated(node%args) .and. size(node%args) > 0) then
-            code = code // ", "
+            code = code // " , "
             do i = 1, size(node%args)
                 if (i > 1) code = code // ", "
                 
-                select type (arg => node%args(i))
+                select type (arg => node%args(i)%node)
                 type is (literal_node)
                     code = code // generate_code_literal(arg)
                 type is (identifier_node)

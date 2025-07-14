@@ -1,6 +1,6 @@
 module parser_core
     use lexer_core
-    use ast_core, only: ast_node, assignment_node, binary_op_node, identifier_node, &
+    use ast_core, only: ast_node, ast_node_wrapper, assignment_node, binary_op_node, identifier_node, &
                          literal_node, function_call_node, function_def_node, print_statement_node, &
                          create_assignment, create_binary_op, create_identifier, &
                          create_literal, create_function_call, create_function_def, create_print_statement, &
@@ -199,7 +199,7 @@ contains
             block
                 type(token_t) :: next_token
                 character(len=:), allocatable :: func_name
-                class(ast_node), allocatable :: args(:)
+                type(ast_node_wrapper), allocatable :: args(:)
                 type(token_t) :: paren
                 integer :: arg_count
                 
@@ -213,15 +213,44 @@ contains
                     ! Consume opening paren
                     paren = parser%consume()
                     
-                    ! Parse arguments (simplified - only handles single argument for now)
+                    ! Parse arguments (now handles multiple arguments)
                     next_token = parser%peek()
                     if (next_token%kind /= TK_OPERATOR .or. next_token%text /= ")") then
                         block
                             class(ast_node), allocatable :: arg
+                            
+                            ! Handle multiple arguments using wrapper pattern
+                            arg_count = 0
+                            
+                            ! Parse first argument
                             arg = parse_primary(parser)
                             if (allocated(arg)) then
                                 arg_count = 1
-                                allocate(args(1), source=arg)
+                                allocate(args(1))
+                                allocate(args(1)%node, source=arg)
+                                
+                                ! Parse additional arguments separated by commas
+                                do
+                                    next_token = parser%peek()
+                                    if (next_token%kind /= TK_OPERATOR .or. next_token%text /= ",") exit
+                                    
+                                    ! Consume comma
+                                    next_token = parser%consume()
+                                    
+                                    ! Parse next argument
+                                    arg = parse_primary(parser)
+                                    if (allocated(arg)) then
+                                        ! Extend wrapper array: args = [args, new_wrapper]
+                                        block
+                                            type(ast_node_wrapper) :: new_wrapper
+                                            allocate(new_wrapper%node, source=arg)
+                                            args = [args, new_wrapper]  ! Extend array with wrapper
+                                            arg_count = arg_count + 1
+                                        end block
+                                    else
+                                        exit
+                                    end if
+                                end do
                             end if
                         end block
                     end if
@@ -236,10 +265,10 @@ contains
                     if (allocated(args)) then
                         expr = create_function_call(func_name, args, current%line, current%column)
                     else
-                        ! For empty args, use a dummy array
+                        ! For empty args, create empty function call
                         block
-                            class(ast_node), allocatable :: empty_args(:)
-                            allocate(identifier_node :: empty_args(0))
+                            type(ast_node_wrapper), allocatable :: empty_args(:)
+                            allocate(empty_args(0))  ! Empty wrapper array
                             expr = create_function_call(func_name, empty_args, current%line, current%column)
                         end block
                     end if
@@ -338,14 +367,14 @@ contains
         
     end function parse_statement
     
-    ! Parse print statement: print *, arg1, arg2, ...
+    ! Parse print statement: print format_spec, arg1, arg2, ...
     function parse_print_statement(parser) result(print_node)
         type(parser_state_t), intent(inout) :: parser
         class(ast_node), allocatable :: print_node
         
         type(token_t) :: token
-        class(ast_node), allocatable :: args(:)
-        integer :: line, column
+        type(ast_node_wrapper), allocatable :: wrapper_args(:)
+        integer :: line, column, arg_count
         character(len=:), allocatable :: format_spec
         
         ! Consume 'print' keyword
@@ -354,10 +383,18 @@ contains
         column = token%column
         token = parser%consume()
         
-        ! Expect format spec (usually '*')
+        ! Parse format spec (*, format string, or format variable)
         token = parser%peek()
         if (token%kind == TK_OPERATOR .and. token%text == "*") then
             format_spec = "*"
+            token = parser%consume()
+        else if (token%kind == TK_STRING) then
+            ! Format string like '(a,f5.1,a,f5.1,a,f5.1)'
+            format_spec = token%text
+            token = parser%consume()
+        else if (token%kind == TK_IDENTIFIER) then
+            ! Format variable
+            format_spec = token%text
             token = parser%consume()
         else
             format_spec = "*"  ! Default
@@ -369,39 +406,57 @@ contains
             token = parser%consume()
         end if
         
-        ! For now, just handle one argument to avoid complex parsing
+        ! Parse all print arguments using wrapper pattern with array extension syntax
+        arg_count = 0
         if (.not. parser%is_at_end()) then
-            token = parser%peek()
-            if (token%kind == TK_STRING .or. token%kind == TK_NUMBER .or. token%kind == TK_IDENTIFIER) then
-                ! Parse single argument
-                block
-                    class(ast_node), allocatable :: single_arg
+            block
+                class(ast_node), allocatable :: current_arg
+                
+                ! Parse first argument
+                current_arg = parse_primary(parser)
+                if (allocated(current_arg)) then
+                    arg_count = 1
+                    allocate(wrapper_args(1))
+                    allocate(wrapper_args(1)%node, source=current_arg)
                     
-                    if (token%kind == TK_STRING) then
-                        single_arg = create_literal(token%text, LITERAL_STRING, token%line, token%column)
-                    else if (token%kind == TK_NUMBER) then
-                        single_arg = create_literal(token%text, LITERAL_INTEGER, token%line, token%column)
-                    else if (token%kind == TK_IDENTIFIER) then
-                        single_arg = create_identifier(token%text, token%line, token%column)
-                    end if
-                    token = parser%consume()
-                    
-                    ! Create args array with single argument
-                    allocate(args(1), source=single_arg)
-                end block
-            else
-                ! No arguments
-                allocate(literal_node :: args(0))
-            end if
-        else
-            ! No arguments
-            allocate(literal_node :: args(0))
+                    ! Parse additional arguments separated by commas
+                    do
+                        token = parser%peek()
+                        if (token%kind /= TK_OPERATOR .or. token%text /= ",") exit
+                        
+                        ! Consume comma
+                        token = parser%consume()
+                        
+                        ! Parse next argument
+                        current_arg = parse_primary(parser)
+                        if (allocated(current_arg)) then
+                            ! Extend wrapper array using [array, new_element] syntax with temporary
+                            block
+                                type(ast_node_wrapper) :: new_wrapper
+                                allocate(new_wrapper%node, source=current_arg)
+                                wrapper_args = [wrapper_args, new_wrapper]
+                                arg_count = arg_count + 1
+                            end block
+                        else
+                            exit
+                        end if
+                    end do
+                end if
+            end block
         end if
         
-        ! Create print statement node
+        ! Create print statement node with wrapper args
         block
             type(print_statement_node) :: print_stmt
-            print_stmt = create_print_statement(args, format_spec, line, column)
+            if (allocated(wrapper_args)) then
+                print_stmt%format_spec = format_spec
+                print_stmt%args = wrapper_args
+            else
+                print_stmt%format_spec = format_spec
+                allocate(print_stmt%args(0))  ! Empty wrapper array
+            end if
+            print_stmt%line = line
+            print_stmt%column = column
             allocate(print_node, source=print_stmt)
         end block
         

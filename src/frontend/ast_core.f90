@@ -85,7 +85,7 @@ module ast_core
     ! Function call node
     type, extends(ast_node), public :: function_call_node
         character(len=:), allocatable :: name
-        class(ast_node), allocatable :: args(:)
+        type(ast_node_wrapper), allocatable :: args(:)
     contains
         procedure :: accept => function_call_accept
         procedure :: to_json => function_call_to_json
@@ -120,7 +120,7 @@ module ast_core
     ! Print statement node
     type, extends(ast_node), public :: print_statement_node
         character(len=:), allocatable :: format_spec  ! Optional format
-        class(ast_node), allocatable :: args(:)
+        type(ast_node_wrapper), allocatable :: args(:)
     contains
         procedure :: accept => print_statement_accept
         procedure :: to_json => print_statement_to_json
@@ -232,14 +232,17 @@ contains
 
     function create_function_call(name, args, line, column) result(node)
         character(len=*), intent(in) :: name
-        class(ast_node), intent(in) :: args(:)
+        type(ast_node_wrapper), intent(in) :: args(:)
         integer, intent(in), optional :: line, column
         type(function_call_node) :: node
         integer :: i
         
         node%name = name
         if (size(args) > 0) then
-            allocate(node%args, source=args)
+            allocate(node%args(size(args)))
+            do i = 1, size(args)
+                allocate(node%args(i)%node, source=args(i)%node)
+            end do
         end if
         if (present(line)) node%line = line
         if (present(column)) node%column = column
@@ -282,14 +285,17 @@ contains
     end function create_use_statement
 
     function create_print_statement(args, format_spec, line, column) result(node)
-        class(ast_node), intent(in) :: args(:)
+        type(ast_node_wrapper), intent(in) :: args(:)
         character(len=*), intent(in), optional :: format_spec
         integer, intent(in), optional :: line, column
         type(print_statement_node) :: node
         integer :: i
         
         if (size(args) > 0) then
-            allocate(node%args, source=args)
+            allocate(node%args(size(args)))
+            do i = 1, size(args)
+                allocate(node%args(i)%node, source=args(i)%node)
+            end do
         end if
         if (present(format_spec)) node%format_spec = format_spec
         if (present(line)) node%line = line
@@ -515,7 +521,7 @@ contains
         call json%create_array(args_array, 'args')
         call json%add(obj, args_array)
         do i = 1, size(this%args)
-            call this%args(i)%to_json(json, args_array)
+            call this%args(i)%node%to_json(json, args_array)
         end do
         
         call json%add(parent, obj)
@@ -608,9 +614,11 @@ contains
         
         call json%create_array(args_array, 'args')
         call json%add(obj, args_array)
-        do i = 1, size(this%args)
-            call this%args(i)%to_json(json, args_array)
-        end do
+        if (allocated(this%args)) then
+            do i = 1, size(this%args)
+                call this%args(i)%node%to_json(json, args_array)
+            end do
+        end if
         
         call json%add(parent, obj)
     end subroutine print_statement_to_json
