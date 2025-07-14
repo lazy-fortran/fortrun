@@ -14,7 +14,7 @@ module-naming = false
 library = false
 test = false
 [dependencies]
-fpm = { git = "https://github.com/krystophny/fpm.git" }
+fpm = { git = "https://github.com/krystophny/fpm.git", branch = "main" }
 json-fortran = { git = "https://github.com/jacobwilliams/json-fortran.git" }
 
 [fortran]
