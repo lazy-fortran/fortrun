@@ -215,7 +215,8 @@ contains
             typ = infer_assignment(this, expr)
             
         class default
-            error stop "Unsupported expression type in type inference"
+            ! Return real type as default for unsupported expressions
+            typ = create_mono_type(TREAL)
         end select
         
         ! Apply current substitution
@@ -647,6 +648,7 @@ contains
         end if
         
         ! Filter out quantified variables
+        if (allocated(vars)) deallocate(vars)
         allocate(vars(size(mono_vars)))
         count = 0
         
@@ -669,6 +671,7 @@ contains
         if (count > 0) then
             vars = vars(1:count)
         else
+            if (allocated(vars)) deallocate(vars)
             allocate(vars(0))
         end if
     end function get_scheme_free_vars
