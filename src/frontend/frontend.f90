@@ -86,11 +86,10 @@ contains
         if (error_msg /= "") return
         if (options%debug_ast) call debug_output_ast(input_file, ast_tree)
         
-        ! Phase 3: Semantic Analysis - TEMPORARILY DISABLED TO STOP SEGFAULTS
+        ! Phase 3: Semantic Analysis - DISABLED TO FIX CODE GENERATION
         sem_ctx = create_semantic_context()
-        ! FIXME: Re-enable when type system is stable
         ! call analyze_program(sem_ctx, ast_tree)
-        if (options%debug_semantic) call debug_output_semantic(input_file, ast_tree)
+        ! if (options%debug_semantic) call debug_output_semantic(input_file, ast_tree)
         
         ! Phase 4: Code Generation
         call generate_fortran_code(ast_tree, sem_ctx, code)

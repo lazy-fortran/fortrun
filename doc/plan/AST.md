@@ -1,541 +1,383 @@
 # AST Architecture for *Lazy Fortran* Compiler Frontend
 
-## Overview
+## CRITICAL SITUATION ANALYSIS ⚠️
 
-This document outlines the architecture for a modern compiler frontend for *lazy fortran* with automatic type inference and multiple dispatch. Our experimental dialect pushes beyond all alternative scientific computing languages, exploring how far we can evolve Fortran to surpass Python, Julia, MATLAB, and others in both performance and expressiveness. The frontend provides a complete 4-phase pipeline (Lexer → Parser → Semantic Analysis → Code Generation) that can target multiple backends, with standard Fortran as the initial intermediate representation.
+**CURRENT STATE**: The frontend is fundamentally broken due to **architectural violations** in parsing multi-line constructs.
 
-## Design Goals
-
-1. **Simple and Elegant**: Clean separation of compilation phases
-2. **High Performance**: Single-pass parsing, efficient memory usage
-3. **Extensible**: Easy to add new language features
-4. **Multiple Backends**: Support both Fortran generation and direct compiler IR
-5. **Type Inference**: Built-in support for automatic type inference
-6. **Future-Proof**: Architecture supports planned features like multiple dispatch
-7. **Multi-Dialect Support**: Shared functionality for all Fortran standards with specialized modules for dialect-specific features
-8. **Superset Design**: *lazy fortran* is a superset of standard Fortran - any valid Fortran 95/2003/2008/2018 program should pass through the frontend unchanged
-9. **Beyond Alternatives**: Push beyond all alternative scientific computing languages in expressiveness while maintaining Fortran's performance advantage
-
-## Architecture: Shared Core with Standard Specialization
-
-### Module Organization (FINAL CLEAN STRUCTURE)
-
-```
-src/
-├── frontend/                    # Complete compilation pipeline ✅
-│   ├── lexer/
-│   │   └── lexer_core.f90      # Core tokenization  
-│   ├── parser/
-│   │   └── parser_core.f90     # Core parsing
-│   ├── semantic/               # Semantic analysis
-│   │   ├── semantic_analyzer.f90
-│   │   ├── semantic_analyzer_simple.f90  
-│   │   └── type_system_hm.f90  # Hindley-Milner type system
-│   ├── codegen/
-│   │   └── codegen_core.f90    # Core code generation
-│   ├── standard/               # Standard implementations
-│   │   ├── lazy_fortran/
-│   │   │   └── ast_lf.f90      # Lazy fortran AST extensions
-│   │   ├── fortran90/          # Fortran 90 implementations
-│   │   └── fortran2018/        # Fortran 2018 implementations
-│   ├── ast_core.f90            # Core AST node definitions
-│   ├── frontend.f90            # ❌ VIOLATES ARCHITECTURE (reimplements components)
-│   └── frontend_integration.f90 # Integration layer
-└── [utility modules]           # Support utilities ✅
-    ├── cli/, cache/, config/, runner/, notebook/, registry/, etc.
-```
-
-**Test Structure (matches src/):**
-```
-test/
-├── frontend/                    # Frontend tests with wildcard naming
-│   ├── lexer/test_frontend_lexer_*.f90
-│   ├── parser/test_frontend_parser_*.f90
-│   ├── semantic/test_frontend_semantic_*.f90
-│   ├── codegen/test_frontend_codegen_*.f90
-│   └── standard/lazy_fortran/   # Standard-specific tests
-└── [utility tests]/            # cli/, cache/, config/, etc.
-```
-
-### Compilation Pipeline (SHOULD BE)
-
-```
-Source (.f/.f90) → Frontend Coordinator → Core Pipeline → Standard Extensions → Output  
-                          ↓                    ↓                ↓               ↓
-                   lazy_fortran.f90      lexer_core        ast_lf.f90       Standard .f90
-                   fortran90.f90         parser_core       [extensions]      
-                   fortran2018.f90       ast_core + semantic_analyzer + codegen_core
-```
-
-**CRITICAL VIOLATION**: Current `frontend.f90` reimplements core components instead of using them!
-
-**CORRECT APPROACH**: Frontend should coordinate existing core components:
-1. Call `lexer_core.f90` for tokenization
-2. Call `parser_core.f90` for AST construction  
-3. Call `semantic_analyzer.f90` for type inference
-4. Call `codegen_core.f90` for output generation
-5. Use `standard/lazy_fortran/` for extensions
-
-### Phase 1: Lexer (Tokenizer)
-
-#### Core Lexer (Shared)
+### Root Cause
+The current parser processes tokens **line-by-line** but Fortran constructs are **multi-line** by nature:
 
 ```fortran
-module lexer_core
-  ! Base token type used by all dialects
-  type :: token
-    integer :: kind
-    character(len=:), allocatable :: text
-    integer :: line
-    integer :: column
-  end type token
+real function compute(x)  <- Line 1 (function declaration)
+  real :: x               <- Line 2 (parameter declaration)  
+  compute = x * x         <- Line 3 (function body)
+end function              <- Line 4 (function end)
+```
 
-  ! Standard Fortran tokens (shared by all dialects)
-  integer, parameter :: TK_IDENTIFIER = 1
-  integer, parameter :: TK_NUMBER = 2
-  integer, parameter :: TK_STRING = 3
-  integer, parameter :: TK_OPERATOR = 4
-  integer, parameter :: TK_KEYWORD = 5
-  integer, parameter :: TK_NEWLINE = 6
-  integer, parameter :: TK_EOF = 7
+**Problem**: Parser calls `parse_statement()` on each line individually, but function definitions span multiple lines. This violates the Fortran 95 standard where functions are **program units**, not statements.
+
+### Evidence from Fortran 95 Standard
+According to `doc/standard/Fortran95.md`:
+- **Function definitions are program units** (section 7), not statements
+- **Program units include**: main program, external procedures, modules, block data
+- **Functions have the structure**: `function name(args) ... end function name`
+
+### Current Parser Architecture Violation
+```fortran
+! Current broken approach:
+Line 1: parse_statement("real function compute(x)") → literal_node (WRONG!)
+Line 2: parse_statement("real :: x") → assignment_node (WRONG!)
+Line 3: parse_statement("compute = x * x") → assignment_node (WRONG!)
+Line 4: parse_statement("end function") → unknown_node (WRONG!)
+```
+
+**Required**: Multi-line program unit parsing as per Fortran standard.
+
+## ARCHITECTURE REDESIGN PLAN
+
+### Phase 1: Fix Parser Architecture (IMMEDIATE)
+
+**1. Implement Program Unit Parser**
+```fortran
+module parser_core
+  ! Replace line-by-line parsing with program unit parsing
   
-  ! Core tokenization for standard Fortran
-  interface
-    subroutine tokenize_core(source, tokens)
-      character(len=*), intent(in) :: source
-      type(token), allocatable, intent(out) :: tokens(:)
-    end subroutine
-  end interface
+  function parse_program_unit(tokens) result(unit)
+    type(token_t), intent(in) :: tokens(:)
+    class(ast_node), allocatable :: unit
+    type(parser_state_t) :: parser
+    
+    parser = create_parser_state(tokens)
+    
+    ! Detect program unit type based on first tokens
+    if (is_function_definition(parser)) then
+      unit = parse_function_definition(parser)
+    else if (is_subroutine_definition(parser)) then
+      unit = parse_subroutine_definition(parser)
+    else if (is_program_definition(parser)) then
+      unit = parse_program_definition(parser)
+    else
+      ! Single statement - this is the current broken case
+      unit = parse_statement(parser)
+    end if
+  end function
+  
+  function is_function_definition(parser) result(is_func)
+    type(parser_state_t), intent(in) :: parser
+    logical :: is_func
+    
+    ! Look for patterns:
+    ! 1. "function name(" 
+    ! 2. "type function name("
+    ! 3. "recursive function name("
+    ! 4. "pure function name("
+    ! 5. "elemental function name("
+    
+    is_func = detect_function_pattern(parser%tokens)
+  end function
 end module
 ```
 
-#### Lazy Fortran Lexer Extensions
-
+**2. Multi-line Statement Collection**
 ```fortran
-module lexer_lazy_fortran
-  use lexer_core
+subroutine parse_tokens(tokens, ast_tree, error_msg)
+  type(token_t), intent(in) :: tokens(:)
+  class(ast_node), allocatable, intent(out) :: ast_tree
+  character(len=*), intent(out) :: error_msg
   
-  ! Additional token types for Lazy Fortran
-  integer, parameter :: TK_INDENT = 100     ! Python-like indentation
-  integer, parameter :: TK_DEDENT = 101     ! Python-like dedentation
-  integer, parameter :: TK_FSTRING = 102    ! f"string {expr}" support
+  ! Group tokens by program units, not lines
+  type(token_t), allocatable :: unit_tokens(:)
+  class(ast_node), allocatable :: units(:)
+  integer :: i, unit_start, unit_end
   
-  ! Extended tokenization with Lazy Fortran features
-  interface
-    subroutine tokenize_sf(source, tokens, dialect_options)
-      character(len=*), intent(in) :: source
-      type(token), allocatable, intent(out) :: tokens(:)
-      type(sf_options), intent(in) :: dialect_options
-    end subroutine
-  end interface
-end module
+  i = 1
+  do while (i <= size(tokens))
+    ! Find next program unit boundary
+    call find_program_unit_boundary(tokens, i, unit_start, unit_end)
+    
+    ! Extract tokens for this unit
+    unit_tokens = tokens(unit_start:unit_end)
+    
+    ! Parse the program unit
+    units = [units, parse_program_unit(unit_tokens)]
+    
+    i = unit_end + 1
+  end do
+  
+  ! Create program with all units
+  ast_tree = create_program(units)
+end subroutine
 ```
 
-### Phase 2: AST Definition
+### Phase 2: Implement Proper AST Nodes (URGENT)
 
-#### Core AST Nodes (Shared)
-
+**1. Fortran 95 Compliant AST Structure**
 ```fortran
 module ast_core
-  ! Base AST node used by all dialects
+  ! Base AST node
   type, abstract :: ast_node
-    integer :: line
-    integer :: column
-  contains
-    procedure(visit_interface), deferred :: accept
+    integer :: line, column
+    type(mono_type_t), allocatable :: inferred_type
   end type
 
-  ! Standard Fortran nodes (shared by all dialects)
-  type, extends(ast_node) :: program_node
+  ! Program unit nodes (Fortran 95 section 7)
+  type, extends(ast_node) :: program_unit_node
     character(len=:), allocatable :: name
-    type(ast_node), allocatable :: body(:)
   end type
-
-  type, extends(ast_node) :: assignment_node
-    type(ast_node), allocatable :: target
-    type(ast_node), allocatable :: value
-  end type
-
-  type, extends(ast_node) :: binary_op_node
-    type(ast_node), allocatable :: left
-    type(ast_node), allocatable :: right
-    character(len=:), allocatable :: operator
-  end type
-
-  type, extends(ast_node) :: function_def_node
-    character(len=:), allocatable :: name
-    type(ast_node), allocatable :: params(:)
+  
+  type, extends(program_unit_node) :: function_def_node
     type(ast_node), allocatable :: return_type
+    type(ast_node), allocatable :: params(:)
     type(ast_node), allocatable :: body(:)
+    logical :: is_recursive = .false.
+    logical :: is_pure = .false.
+    logical :: is_elemental = .false.
   end type
-
-  type, extends(ast_node) :: identifier_node
-    character(len=:), allocatable :: name
+  
+  type, extends(program_unit_node) :: subroutine_def_node
+    type(ast_node), allocatable :: params(:)
+    type(ast_node), allocatable :: body(:)
+    logical :: is_recursive = .false.
+    logical :: is_pure = .false.
+    logical :: is_elemental = .false.
   end type
-
-  type, extends(ast_node) :: literal_node
-    character(len=:), allocatable :: value
-    integer :: literal_kind  ! INTEGER_LITERAL, REAL_LITERAL, etc.
+  
+  type, extends(program_unit_node) :: main_program_node
+    type(ast_node), allocatable :: body(:)
+    logical :: implicit_program = .false.  ! for lazy fortran
+  end type
+  
+  type, extends(program_unit_node) :: module_node
+    type(ast_node), allocatable :: body(:)
+    type(ast_node), allocatable :: public_items(:)
+    type(ast_node), allocatable :: private_items(:)
   end type
 end module
 ```
 
-#### Lazy Fortran AST Extensions
-
+**2. Declaration Nodes (Fortran 95 section 4)**
 ```fortran
-module ast_lazy_fortran
+module ast_declarations
   use ast_core
   
-  ! Extended program node with implicit program support
-  type, extends(program_node) :: sf_program_node
-    logical :: implicit = .false.  ! true if auto-wrapped
-    logical :: auto_contains = .false.  ! true if contains was auto-inserted
+  type, extends(ast_node) :: declaration_node
+    type(ast_node), allocatable :: type_spec
+    type(ast_node), allocatable :: variables(:)
+    type(ast_node), allocatable :: attributes(:)
   end type
   
-  ! Type-inferred variable (unique to Lazy Fortran)
-  type, extends(ast_node) :: inferred_var_node
+  type, extends(ast_node) :: type_spec_node
+    integer :: intrinsic_type  ! INTEGER, REAL, COMPLEX, LOGICAL, CHARACTER
+    integer :: kind_value
+    integer :: char_length
+  end type
+  
+  type, extends(ast_node) :: variable_node
     character(len=:), allocatable :: name
-    type(ast_node), allocatable :: initial_value
-    ! Type will be inferred during semantic analysis
+    type(ast_node), allocatable :: initialization
+    type(ast_node), allocatable :: dimensions(:)
   end type
   
-  ! List comprehension node (future Python-like feature)
-  type, extends(ast_node) :: list_comp_node
-    type(ast_node), allocatable :: expr
-    type(ast_node), allocatable :: target
-    type(ast_node), allocatable :: iter
-    type(ast_node), allocatable :: condition  ! optional
+  type, extends(ast_node) :: intent_node
+    integer :: intent_type  ! INTENT_IN, INTENT_OUT, INTENT_INOUT
   end type
 end module
 ```
 
-### Phase 3: Semantic Analysis with Hindley-Milner Type Inference
+### Phase 3: Fix Code Generation (URGENT)
 
-The semantic analyzer uses a Hindley-Milner type inference algorithm, providing an elegant and simple approach with the option to extend to bidirectional type checking later.
-
-#### Core Type System
-
+**1. Proper Function Definition Generation**
 ```fortran
-module type_system
-  ! Type variables for polymorphic types
-  type :: type_var
-    integer :: id
-    character(len=:), allocatable :: name  ! e.g., 'a, 'b
-  end type
+function generate_code_function_def(node) result(code)
+  type(function_def_node), intent(in) :: node
+  character(len=:), allocatable :: code
+  
+  ! Generate function declaration line
+  code = generate_function_declaration(node)
+  code = code // new_line('a')
+  
+  ! Generate function body (declarations + statements)
+  code = code // "    implicit none" // new_line('a')
+  code = code // generate_parameter_declarations(node%params)
+  code = code // generate_return_type_declaration(node)
+  code = code // generate_function_body(node%body)
+  
+  ! Generate function end
+  code = code // "end function " // node%name
+end function
 
-  ! Monomorphic types
-  type :: mono_type
-    integer :: kind  ! TVAR, TINT, TREAL, TCHAR, TFUN, TARRAY
-    type(type_var) :: var  ! for TVAR
-    type(mono_type), allocatable :: args(:)  ! for TFUN, TARRAY
-    integer :: size  ! for TCHAR(len=size)
-  end type
-
-  ! Type schemes (polymorphic types)
-  type :: poly_type
-    type(type_var), allocatable :: forall(:)  ! quantified variables
-    type(mono_type) :: mono  ! the monomorphic type
-  end type
-
-  ! Type environment
-  type :: type_env
-    type(hash_table) :: bindings  ! variable -> poly_type
-  contains
-    procedure :: lookup
-    procedure :: extend
-    procedure :: generalize
-  end type
-end module
+function generate_function_declaration(node) result(decl)
+  type(function_def_node), intent(in) :: node
+  character(len=:), allocatable :: decl
+  
+  ! Handle prefixes
+  decl = ""
+  if (node%is_recursive) decl = decl // "recursive "
+  if (node%is_pure) decl = decl // "pure "
+  if (node%is_elemental) decl = decl // "elemental "
+  
+  ! Add return type if present
+  if (allocated(node%return_type)) then
+    decl = decl // generate_code_polymorphic(node%return_type) // " "
+  end if
+  
+  ! Add function keyword and name
+  decl = decl // "function " // node%name
+  
+  ! Add parameters
+  decl = decl // "(" // generate_parameter_list(node%params) // ")"
+end function
 ```
 
-#### Hindley-Milner Algorithm
-
+**2. Remove Bogus Statement Labels**
+The `0` appearing in generated code comes from unrecognized AST nodes. Fix by:
 ```fortran
-module semantic_analyzer
-  use type_system
+function generate_code_polymorphic(node) result(code)
+  class(ast_node), intent(in) :: node
+  character(len=:), allocatable :: code
   
-  type :: semantic_context
-    type(type_env) :: env
-    integer :: next_var_id = 0
-    type(substitution) :: subst
-  contains
-    procedure :: analyze_program
-    procedure :: infer  ! Main HM inference
-    procedure :: unify  ! Type unification
-    procedure :: instantiate  ! Instantiate type scheme
-    procedure :: generalize  ! Generalize to type scheme
-  end type
+  select type (node)
+  type is (assignment_node)
+    code = generate_code_assignment(node)
+  type is (function_def_node)
+    code = generate_code_function_def(node)
+  ! ... other cases
+  class default
+    ! NEVER generate "0" - always generate comment
+    code = "! Unimplemented AST node: " // node%node_type_name()
+  end select
+end function
+```
 
-  ! Main type inference function (Algorithm W)
-  recursive function infer(ctx, env, expr) result(typ)
-    type(semantic_context) :: ctx
-    type(type_env) :: env
-    class(ast_node) :: expr
-    type(mono_type) :: typ
-    
-    select type (expr)
-    type is (literal_node)
-      ! Literals have known types
-      select case (expr%literal_kind)
-      case (INTEGER_LITERAL)
-        typ = mono_type(kind=TINT)
-      case (REAL_LITERAL)
-        typ = mono_type(kind=TREAL)
-      case (STRING_LITERAL)
-        typ = mono_type(kind=TCHAR, size=len(expr%value)-2)
-      end select
-      
-    type is (identifier_node)
-      ! Look up identifier in environment
-      block
-        type(poly_type) :: scheme
-        scheme = env%lookup(expr%name)
-        typ = ctx%instantiate(scheme)
-      end block
-      
-    type is (assignment_node)
-      ! Infer RHS type and bind to LHS
-      typ = ctx%infer(env, expr%value)
-      call env%extend(expr%target%name, ctx%generalize(env, typ))
-      
-    type is (binary_op_node)
-      ! Infer operand types and unify
-      block
-        type(mono_type) :: left_typ, right_typ, result_typ
-        type(type_var) :: tv
-        
-        left_typ = ctx%infer(env, expr%left)
-        right_typ = ctx%infer(env, expr%right)
-        
-        ! Create fresh type variable for result
-        tv = ctx%fresh_type_var()
-        result_typ = mono_type(kind=TVAR, var=tv)
-        
-        ! Unify based on operator
-        select case (expr%operator)
-        case ("+", "-", "*", "/")
-          call ctx%unify(left_typ, right_typ)
-          call ctx%unify(left_typ, result_typ)
-        case ("**")
-          call ctx%unify(left_typ, right_typ)
-          call ctx%unify(left_typ, result_typ)
-        end select
-        
-        typ = ctx%apply_subst(result_typ)
-      end block
-      
-    type is (function_call_node)
-      ! Function application
-      block
-        type(mono_type) :: fun_typ, arg_typ, result_typ
-        type(type_var) :: tv
-        integer :: i
-        
-        ! Get function type
-        fun_typ = ctx%infer(env, create_identifier(expr%name))
-        
-        ! Infer argument types
-        do i = 1, size(expr%args)
-          arg_typ = ctx%infer(env, expr%args(i))
-          
-          ! Create result type variable
-          tv = ctx%fresh_type_var()
-          result_typ = mono_type(kind=TVAR, var=tv)
-          
-          ! Unify function with arg -> result
-          call ctx%unify(fun_typ, &
-            mono_type(kind=TFUN, args=[arg_typ, result_typ]))
-          
-          fun_typ = result_typ
-        end do
-        
-        typ = fun_typ
-      end block
-    end select
-  end function infer
+### Phase 4: Re-enable Type Inference (NEXT)
+
+**1. Simplified Type Inference**
+```fortran
+module semantic_analyzer_simple
+  ! Simplified type inference for basic cases
   
-  ! Type unification
-  subroutine unify(ctx, t1, t2)
-    type(semantic_context) :: ctx
-    type(mono_type) :: t1, t2
+  subroutine analyze_program_simple(prog)
+    type(main_program_node), intent(inout) :: prog
     
-    ! Apply current substitution
-    t1 = ctx%apply_subst(t1)
-    t2 = ctx%apply_subst(t2)
+    ! Phase 1: Collect all variable assignments
+    call collect_variable_assignments(prog)
     
-    if (t1%kind == TVAR) then
-      call ctx%bind_var(t1%var, t2)
-    else if (t2%kind == TVAR) then
-      call ctx%bind_var(t2%var, t1)
-    else if (t1%kind == t2%kind) then
-      select case (t1%kind)
-      case (TINT, TREAL)
-        ! Base types unify if equal
-      case (TCHAR)
-        if (t1%size /= t2%size) then
-          error stop "Cannot unify character types of different lengths"
-        end if
-      case (TFUN, TARRAY)
-        ! Recursively unify components
-        call ctx%unify_args(t1%args, t2%args)
-      end select
-    else
-      error stop "Type mismatch: cannot unify different types"
-    end if
+    ! Phase 2: Infer types from literals
+    call infer_from_literals(prog)
+    
+    ! Phase 3: Propagate types through assignments
+    call propagate_assignment_types(prog)
+    
+    ! Phase 4: Infer function return types
+    call infer_function_return_types(prog)
+  end subroutine
+  
+  subroutine infer_from_literals(prog)
+    type(main_program_node), intent(inout) :: prog
+    
+    ! Simple rules:
+    ! integer literal → integer type
+    ! real literal → real(8) type  
+    ! string literal → character type
+    ! logical literal → logical type
   end subroutine
 end module
 ```
 
-#### Integration with AST Nodes
-
+**2. Function Type Inference**
 ```fortran
-module ast_core
-  ! Extended AST nodes to store inferred types
-  type, abstract :: ast_node
-    integer :: line
-    integer :: column
-    type(mono_type), allocatable :: inferred_type  ! Added for type info
-  contains
-    procedure(visit_interface), deferred :: accept
-  end type
-end module
+subroutine analyze_function_definition(func)
+  type(function_def_node), intent(inout) :: func
+  
+  ! Step 1: Analyze function body
+  call analyze_function_body(func%body)
+  
+  ! Step 2: Infer return type from return assignments
+  call infer_function_return_type(func)
+  
+  ! Step 3: Enhance parameter types with intent(in)
+  call enhance_parameter_types(func%params)
+end subroutine
 ```
 
-#### Benefits of Hindley-Milner Approach
+## IMPLEMENTATION STRATEGY
 
-1. **Simple and Elegant**: Based on well-understood theory
-2. **Sound**: Guarantees type safety
-3. **Complete**: Infers most general types
-4. **Extensible**: Can add constraints for bidirectional checking
-5. **No Annotations Required**: Full type inference
+### Stage 1: Emergency Fix (IMMEDIATE - Today)
+1. **Fix `parse_function_definition`** to handle multi-line constructs
+2. **Fix `generate_code_function_def`** to generate proper Fortran
+3. **Remove statement label generation** from unrecognized nodes
+4. **Test with simple function definitions**
 
-#### Future Extension to Bidirectional
+### Stage 2: Architecture Compliance (URGENT - This Week)
+1. **Implement program unit parser** following Fortran 95 standard
+2. **Replace line-by-line parsing** with proper program unit parsing
+3. **Add comprehensive AST nodes** for all Fortran 95 constructs
+4. **Test with complex multi-line programs**
 
-The architecture supports future extension to bidirectional type checking:
-- Add type annotations to AST nodes
-- Implement checking mode alongside inference mode
-- Support more advanced features (higher-rank types, etc.)
+### Stage 3: Type System Recovery (NEXT - Next Week)
+1. **Re-enable semantic analysis** with simplified type inference
+2. **Fix Hindley-Milner implementation** for function types
+3. **Add bidirectional type checking** for explicit declarations
+4. **Test with type inference scenarios**
 
-### Phase 4: Code Generation
+### Stage 4: Complete Standard Compliance (FUTURE)
+1. **Full Fortran 95 standard compliance** testing
+2. **Module system integration**
+3. **Advanced type system features**
+4. **Alternative backend preparation**
 
-Multiple backend targets supported, with standard Fortran as the initial intermediate representation:
+## DESIGN PRINCIPLES
 
-```fortran
-module codegen
-  type, abstract :: code_generator
-  contains
-    procedure(generate_interface), deferred :: generate
-  end type
+### 1. Fortran Standard Compliance
+- Follow Fortran 95 standard structure for program units
+- Respect lexical rules and syntax requirements
+- Maintain backward compatibility with existing Fortran code
 
-  ! Backend 1: Generate standard Fortran (our IR for now)
-  type, extends(code_generator) :: fortran_generator
-    logical :: modern_defaults = .true.
-  contains
-    procedure :: generate => generate_fortran
-  end type
+### 2. Modern Parser Architecture
+- **Recursive descent parser** with proper lookahead
+- **Program unit recognition** before statement parsing
+- **Error recovery** with helpful diagnostics
+- **Multi-pass analysis** for complex constructs
 
-  ! Backend 2: Future LLVM IR generator
-  type, extends(code_generator) :: llvm_generator
-  contains
-    procedure :: generate => generate_llvm_ir
-  end type
+### 3. Type System Design
+- **Hindley-Milner core** for automatic inference
+- **Bidirectional checking** for explicit annotations
+- **Gradual typing** support for mixed code
+- **Multiple dispatch** foundation for future extensions
 
-  ! Backend 3: Future C code generator
-  type, extends(code_generator) :: c_generator
-  contains
-    procedure :: generate => generate_c
-  end type
+### 4. Code Generation Quality
+- **Readable output** that matches hand-written Fortran
+- **Preserve comments** and formatting where possible
+- **Efficient compilation** with minimal overhead
+- **Multiple backend** support architecture
 
-  ! Backend 4: Future direct machine code
-  type, extends(code_generator) :: native_generator
-    ! Direct compilation to machine code
-  contains
-    procedure :: generate => generate_native
-  end type
-end module
-```
+## SUCCESS METRICS
 
-#### Standard Fortran as Intermediate Representation
+### Phase 1 Success:
+- Basic function definitions parse correctly
+- Generated Fortran compiles without errors
+- Simple type inference works for variables
+- Test suite passes basic functionality
 
-Using standard Fortran as our initial IR provides several benefits:
-1. **Immediate usability**: Can be compiled by any Fortran compiler
-2. **Debugging**: Human-readable intermediate code
-3. **Gradual migration**: Can incrementally replace with other backends
-4. **Compatibility**: Works with existing Fortran ecosystem
+### Phase 2 Success:
+- All Fortran 95 program units parse correctly
+- Complex multi-line constructs work
+- AST accurately represents all language constructs
+- Standard Fortran programs pass through unchanged
 
-## Key Features Support
+### Phase 3 Success:
+- Complete type inference for all supported constructs
+- Function signature enhancement works
+- Parameter type inference with intent attributes
+- Nested function calls resolve correctly
 
-### 1. Automatic Type Inference
+### Phase 4 Success:
+- Full Fortran 95 compatibility
+- Ready for alternative backend development
+- Foundation for advanced features (multiple dispatch, etc.)
+- Production-ready compiler frontend
 
-```fortran
-! Input:
-x = 5.0
-y = x * 2
-
-! AST representation enables:
-! - Track that 5.0 is real(8) literal
-! - Propagate type to x
-! - Infer y as real(8) from expression
-```
-
-### 2. Implicit Program Wrapping
-
-```fortran
-! Parser automatically wraps non-program code:
-if (.not. has_program_stmt) then
-  root = program_node(name="main", body=statements, implicit=.true.)
-end if
-```
-
-### 3. Modern Defaults
-
-```fortran
-! During semantic analysis:
-! - real → real(8)
-! - Function parameters → intent(in)
-! - Automatic implicit none
-```
-
-### 4. Standard Fortran Compatibility
-
-Since Lazy Fortran is designed as a superset of standard Fortran, the frontend handles all standard Fortran constructs:
-
-```fortran
-! Standard Fortran 95 program - passes through unchanged
-program test
-    implicit none
-    real :: x, y
-    integer :: i
-    
-    x = 5.0
-    y = sqrt(x)
-    
-    do i = 1, 10
-        print *, i, x**i
-    end do
-end program test
-```
-
-The frontend recognizes this as standard Fortran (explicit program statement, declarations) and generates identical output, ensuring full backward compatibility.
-
-### 5. Future: Multiple Dispatch
-
-```fortran
-! AST structure supports function overloading:
-type :: function_signature
-  character(len=:), allocatable :: name
-  type(type_info), allocatable :: param_types(:)
-  type(type_info) :: return_type
-end type
-
-! Registry for multiple implementations
-type :: dispatch_table
-  type(function_signature), allocatable :: signatures(:)
-  type(function_node), allocatable :: implementations(:)
-end type
-```
-
-## Compiler Frontend Architecture
+## COMPILER FRONTEND ARCHITECTURE
 
 The Lazy Fortran compiler frontend is designed as a modular, extensible system:
 
@@ -577,53 +419,7 @@ Source Code (.f, .f90)
 3. **Transpiler Mode** (future): Frontend + C backend → portable C code
 4. **Analysis Mode**: Frontend only → type checking, optimization analysis
 
-## CRITICAL ARCHITECTURE REQUIREMENT ⚠️
-
-**ABSOLUTELY FORBIDDEN**: Direct token-to-code generation shortcuts
-**MANDATORY**: All code generation MUST go through the complete AST pipeline
-
-### Lexer → Parser → AST → Semantic Analysis → Code Generation
-
-Any shortcuts that bypass AST processing violate our fundamental architecture:
-- ❌ NO direct token reconstruction
-- ❌ NO string manipulation from tokens 
-- ❌ NO bypassing semantic analysis
-- ✅ ALL processing through proper AST nodes
-- ✅ ALL type information from semantic analysis
-- ✅ ALL code generation from AST traversal
-
-**For unimplemented features**: Fall back to direct print of input lines, but mark clearly as temporary fallback.
-
-## Implementation Strategy
-
-### Stage 1: Frontend with Fortran Backend (✅ Current)
-- Complete 4-phase frontend implementation
-- Hindley-Milner type inference
-- Standard Fortran as intermediate representation
-- Replaces line-based preprocessor
-
-### Stage 2: Enhanced Frontend Features
-- Complete Lazy Fortran language support
-- Advanced type system features
-- Error recovery and diagnostics
-- Module system integration
-
-### Stage 3: Alternative Backends
-- LLVM IR generation
-- Direct optimization on typed AST
-- Multiple dispatch implementation
-- Native code generation
-
-## Benefits Over Current Approach
-
-1. **Single Pass**: Parse once, analyze and transform on AST
-2. **Better Errors**: Precise source locations and context
-3. **Extensibility**: New features added as AST nodes
-4. **Performance**: No string manipulation, efficient tree traversal
-5. **Maintainability**: Clean phase separation, modular design
-6. **Future-Proof**: Supports planned advanced features
-
-## Example Processing
+## EXAMPLE PROCESSING
 
 Input:
 ```fortran
@@ -650,3 +446,13 @@ Program(implicit=true)
 ```
 
 This AST enables straightforward type inference, optimization, and code generation for both Fortran output and future compiler IR targets.
+
+## CRITICAL REQUIREMENTS
+
+1. **No Architecture Violations**: All processing through proper AST pipeline
+2. **Standard Compliance**: Follow Fortran 95 standard exactly
+3. **Type Safety**: Sound type inference with proper error handling
+4. **Performance**: Efficient parsing and code generation
+5. **Maintainability**: Clean, modular, testable code structure
+
+This plan addresses the fundamental architectural issues while building toward a complete, standard-compliant compiler frontend that can serve as the foundation for advanced *lazy fortran* features.
