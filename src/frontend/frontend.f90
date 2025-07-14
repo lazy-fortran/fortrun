@@ -4,7 +4,7 @@ module frontend
     ! Architecture: Lexer → Parser → Semantic → Codegen with FALLBACK support
     
     use lexer_core, only: token_t, tokenize_core, TK_EOF
-    use parser_core, only: parse_expression, parse_statement, parser_state_t, create_parser_state
+    use parser_core, only: parse_expression, parse_statement, parser_state_t, create_parser_state, parse_function_definition
     use ast_core
     use ast_lazy_fortran
     use semantic_analyzer, only: semantic_context_t, create_semantic_context, analyze_program
@@ -272,14 +272,19 @@ contains
     function parse_program_unit(tokens) result(unit)
         type(token_t), intent(in) :: tokens(:)
         class(ast_node), allocatable :: unit
+        type(parser_state_t) :: parser
         
         ! Check what type of program unit this is
         if (is_function_start(tokens, 1)) then
-            unit = parse_statement(tokens)  ! Use existing function parser for now
+            ! Multi-line function definition - use proper parser
+            parser = create_parser_state(tokens)
+            unit = parse_function_definition(parser)
         else if (is_subroutine_start(tokens, 1)) then
-            unit = parse_statement(tokens)  ! Use existing subroutine parser for now
+            ! Multi-line subroutine definition - fallback to statement parser for now
+            unit = parse_statement(tokens)
         else if (is_module_start(tokens, 1)) then
-            unit = parse_statement(tokens)  ! Use existing module parser for now
+            ! Multi-line module definition - fallback to statement parser for now
+            unit = parse_statement(tokens)
         else
             ! Single statement
             unit = parse_statement(tokens)

@@ -257,7 +257,7 @@ contains
         call json%add(obj, expr_array)
         
         do i = 1, size(this%expressions)
-            call this%expressions(i)%to_json(json, expr_array)
+            call this%expressions(i)%node%to_json(json, expr_array)
         end do
         
         call json%add(parent, obj)

@@ -140,7 +140,7 @@ contains
         inferred = ctx%infer_stmt(node)
         
         ! Store inferred type in type map
-        call set_node_type(ctx%type_map, node, inferred)
+        ! call set_node_type(ctx%type_map, node, inferred)
     end subroutine infer_and_store_type
     
     ! Infer type of a statement

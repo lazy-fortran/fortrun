@@ -23,7 +23,7 @@ module parser_core
 
     ! Public parsing interface
     public :: parse_expression, parse_statement
-    public :: create_parser_state, parse_primary
+    public :: create_parser_state, parse_primary, parse_function_definition
 
 contains
 
@@ -538,7 +538,8 @@ contains
         block
             type(ast_node_wrapper), allocatable :: body_statements(:)
             class(ast_node), allocatable :: stmt
-            integer :: body_count, i
+            integer :: body_count, i, stmt_start
+            type(token_t), allocatable :: stmt_tokens(:)
             
             body_count = 0
             
@@ -563,23 +564,46 @@ contains
                     end if
                 end if
                 
-                ! Parse the statement (simplified - just create a literal for now)
-                stmt = create_literal("! Function body statement", LITERAL_STRING, token%line, token%column)
+                ! Collect tokens for the current statement (until newline or end of line)
+                stmt_start = parser%current_token
+                i = stmt_start
+                do while (i <= size(parser%tokens) .and. parser%tokens(i)%line == token%line)
+                    i = i + 1
+                end do
                 
-                ! Extend body array using wrapper pattern
-                block
-                    type(ast_node_wrapper) :: new_wrapper
-                    allocate(new_wrapper%node, source=stmt)
-                    if (allocated(body_statements)) then
-                        body_statements = [body_statements, new_wrapper]
-                    else
-                        body_statements = [new_wrapper]
-                    end if
-                    body_count = body_count + 1
-                end block
-                
-                ! Skip to next token
-                token = parser%consume()
+                ! Extract statement tokens
+                if (i > stmt_start) then
+                    allocate(stmt_tokens(i - stmt_start + 1))
+                    stmt_tokens(1:i - stmt_start) = parser%tokens(stmt_start:i - 1)
+                    ! Add EOF token
+                    stmt_tokens(i - stmt_start + 1)%kind = TK_EOF
+                    stmt_tokens(i - stmt_start + 1)%text = ""
+                    stmt_tokens(i - stmt_start + 1)%line = parser%tokens(i - 1)%line
+                    stmt_tokens(i - stmt_start + 1)%column = parser%tokens(i - 1)%column + 1
+                    
+                    ! Parse the statement properly
+                    stmt = parse_statement(stmt_tokens)
+                    
+                    ! Extend body array using wrapper pattern
+                    block
+                        type(ast_node_wrapper) :: new_wrapper
+                        allocate(new_wrapper%node, source=stmt)
+                        if (allocated(body_statements)) then
+                            body_statements = [body_statements, new_wrapper]
+                        else
+                            body_statements = [new_wrapper]
+                        end if
+                        body_count = body_count + 1
+                    end block
+                    
+                    deallocate(stmt_tokens)
+                    
+                    ! Advance parser to next statement
+                    parser%current_token = i
+                else
+                    ! Skip to next token if we can't parse this statement
+                    token = parser%consume()
+                end if
             end do
             
             ! Convert wrapper array to body array
