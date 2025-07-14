@@ -105,14 +105,17 @@ contains
         
         result_type%kind = kind
         
-        if (present(var)) result_type%var = var
+        if (present(var)) then
+            result_type%var = var
+        else
+            ! Initialize var field even for non-TVAR types to avoid undefined behavior
+            result_type%var%id = -1
+            allocate(character(len=0) :: result_type%var%name)
+        end if
         
-        ! Skip args copying for now to avoid memory issues
+        ! TODO: Fix polymorphic array handling
         ! if (present(args)) then
-        !     allocate(result_type%args(size(args)))
-        !     do i = 1, size(args)
-        !         result_type%args(i) = args(i)
-        !     end do
+        !     allocate(result_type%args, source=args)
         ! end if
         
         if (present(char_size)) result_type%size = char_size
@@ -228,11 +231,12 @@ contains
         copy%var = this%var
         copy%size = this%size
         
-        ! Skip args copying for now to avoid memory issues
+        ! TODO: Fix polymorphic array handling
         ! if (allocated(this%args)) then
         !     allocate(copy%args(size(this%args)))
         !     do i = 1, size(this%args)
-        !         copy%args(i) = this%args(i)
+        !         ! Use allocate with source for polymorphic component
+        !         allocate(copy%args(i), source=this%args(i)%deep_copy())
         !     end do
         ! end if
     end function mono_type_deep_copy
@@ -315,12 +319,18 @@ contains
         case (TFUN, TARRAY)
             result_typ%kind = typ%kind
             result_typ%size = typ%size
-            if (allocated(typ%args)) then
-                allocate(result_typ%args(size(typ%args)))
-                do i = 1, size(typ%args)
-                    allocate(result_typ%args(i), source=this%apply(typ%args(i)))
-                end do
-            end if
+            ! TODO: Fix polymorphic array handling
+            ! if (allocated(typ%args)) then
+            !     allocate(result_typ%args(size(typ%args)))
+            !     do i = 1, size(typ%args)
+            !         ! Use temporary variable for polymorphic assignment
+            !         block
+            !             type(mono_type_t) :: temp_result
+            !             temp_result = this%apply(typ%args(i))
+            !             allocate(result_typ%args(i), source=temp_result)
+            !         end block
+            !     end do
+            ! end if
             
         case default
             result_typ = typ%deep_copy()
