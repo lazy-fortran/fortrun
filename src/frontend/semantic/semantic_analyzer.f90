@@ -73,9 +73,6 @@ contains
         type(semantic_context_t), intent(inout) :: ctx
         class(ast_node), intent(inout) :: ast
         
-        ! TODO: Fix HM type inference segfault before enabling
-        return
-        
         select type (ast)
         type is (program_node)
             call analyze_program_node(ctx, ast)

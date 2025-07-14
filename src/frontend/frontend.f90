@@ -15,7 +15,7 @@ module frontend
                               generate_executable_statements_from_tokens, &
                               generate_function_definitions_from_tokens
     use declaration_generator, only: generate_declarations
-    use debug_utils, only: debug_output_tokens, debug_output_ast, debug_output_codegen
+    use debug_utils, only: debug_output_tokens, debug_output_ast, debug_output_semantic, debug_output_codegen
     
     implicit none
     private
@@ -33,6 +33,7 @@ module frontend
         integer :: backend = BACKEND_FORTRAN
         logical :: debug_tokens = .false.
         logical :: debug_ast = .false.
+        logical :: debug_semantic = .false.
         logical :: debug_codegen = .false.
         logical :: optimize = .false.
         character(len=:), allocatable :: output_file
@@ -88,6 +89,7 @@ contains
         ! Phase 3: Semantic Analysis  
         sem_ctx = create_semantic_context()
         call analyze_program(sem_ctx, ast_tree)
+        if (options%debug_semantic) call debug_output_semantic(input_file, ast_tree)
         
         ! Phase 4: Code Generation
         call generate_fortran_code(ast_tree, sem_ctx, code)

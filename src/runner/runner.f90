@@ -121,13 +121,13 @@ contains
             
             ! Check for debug flags from global state
             block
-              logical :: debug_tokens, debug_ast, debug_codegen
+              logical :: debug_tokens, debug_ast, debug_semantic, debug_codegen
               
-              call get_debug_flags(debug_tokens, debug_ast, debug_codegen)
+              call get_debug_flags(debug_tokens, debug_ast, debug_semantic, debug_codegen)
               
-              if (debug_tokens .or. debug_ast .or. debug_codegen) then
+              if (debug_tokens .or. debug_ast .or. debug_semantic .or. debug_codegen) then
                 call compile_with_frontend_debug(absolute_path, preprocessed_file, preprocess_error, &
-                                                 debug_tokens, debug_ast, debug_codegen)
+                                                 debug_tokens, debug_ast, debug_semantic, debug_codegen)
               else
                 call compile_with_frontend(absolute_path, preprocessed_file, preprocess_error)
               end if
