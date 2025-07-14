@@ -220,7 +220,7 @@ contains
         if (allocated(node%args) .and. size(node%args) > 0) then
             code = code // " , "
             do i = 1, size(node%args)
-                if (i > 1) code = code // ", "
+                if (i > 1) code = code // " , "
                 
                 select type (arg => node%args(i)%node)
                 type is (literal_node)
