@@ -152,6 +152,10 @@ contains
         type(mono_type_t) :: fun_type
         
         fun_type%kind = TFUN
+        fun_type%size = 0
+        ! Initialize var field to avoid undefined behavior
+        fun_type%var%id = -1
+        allocate(character(len=0) :: fun_type%var%name)
         allocate(fun_type%args(2))
         fun_type%args(1)%typ = arg_type
         fun_type%args(2)%typ = result_type
@@ -246,8 +250,15 @@ contains
         integer :: i
         
         copy%kind = this%kind
-        copy%var = this%var
         copy%size = this%size
+        
+        ! Deep copy var field
+        copy%var%id = this%var%id
+        if (allocated(this%var%name)) then
+            copy%var%name = this%var%name
+        else
+            allocate(character(len=0) :: copy%var%name)
+        end if
         
         if (allocated(this%args)) then
             allocate(copy%args(size(this%args)))
