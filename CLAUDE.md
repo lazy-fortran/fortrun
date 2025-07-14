@@ -238,3 +238,8 @@ fpm test test_parse_and_codegen   # Full AST pipeline
 - You can find current status and tasks in TODO.md
 - You can find architecture and design plans in doc/plan directory. Our plans live there and we derive TODO.md for concrete implementation planning
 - You can find roadmap in ROADMAP.md
+
+## Debugging Techniques
+
+- **Intermediate Representation Debugging**
+  - remember to use json intermediate representation for debugging compiler frontend

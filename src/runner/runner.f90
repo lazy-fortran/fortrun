@@ -114,7 +114,6 @@ contains
           if (len_trim(env_var) > 0) then
             use_ast_preprocessor = (trim(env_var) /= "0" .and. trim(env_var) /= "false")
           end if
-          
           if (use_ast_preprocessor) then
             if (verbose_level >= 2) then
               print '(a)', 'Using AST-based preprocessor'

@@ -1,9 +1,9 @@
 module parser_core
     use lexer_core
     use ast_core, only: ast_node, assignment_node, binary_op_node, identifier_node, &
-                         literal_node, function_call_node, function_def_node, &
+                         literal_node, function_call_node, function_def_node, print_statement_node, &
                          create_assignment, create_binary_op, create_identifier, &
-                         create_literal, create_function_call, create_function_def, &
+                         create_literal, create_function_call, create_function_def, create_print_statement, &
                          LITERAL_INTEGER, LITERAL_REAL, LITERAL_STRING, LITERAL_LOGICAL
     implicit none
     private
@@ -281,8 +281,12 @@ contains
         ! Check first token to determine statement type
         first_token = parser%peek()
         
+        ! Check for print statement
+        if (first_token%kind == TK_KEYWORD .and. first_token%text == "print") then
+            stmt = parse_print_statement(parser)
+            return
         ! Check for function definition: [type] function name(params)
-        if (first_token%kind == TK_KEYWORD .and. first_token%text == "function") then
+        else if (first_token%kind == TK_KEYWORD .and. first_token%text == "function") then
             stmt = parse_function_definition(parser)
             return
         else if (first_token%kind == TK_KEYWORD .and. &
@@ -334,6 +338,75 @@ contains
         
     end function parse_statement
     
+    ! Parse print statement: print *, arg1, arg2, ...
+    function parse_print_statement(parser) result(print_node)
+        type(parser_state_t), intent(inout) :: parser
+        class(ast_node), allocatable :: print_node
+        
+        type(token_t) :: token
+        class(ast_node), allocatable :: args(:)
+        integer :: line, column
+        character(len=:), allocatable :: format_spec
+        
+        ! Consume 'print' keyword
+        token = parser%peek()
+        line = token%line
+        column = token%column
+        token = parser%consume()
+        
+        ! Expect format spec (usually '*')
+        token = parser%peek()
+        if (token%kind == TK_OPERATOR .and. token%text == "*") then
+            format_spec = "*"
+            token = parser%consume()
+        else
+            format_spec = "*"  ! Default
+        end if
+        
+        ! Skip comma after format spec if present
+        token = parser%peek()
+        if (token%kind == TK_OPERATOR .and. token%text == ",") then
+            token = parser%consume()
+        end if
+        
+        ! For now, just handle one argument to avoid complex parsing
+        if (.not. parser%is_at_end()) then
+            token = parser%peek()
+            if (token%kind == TK_STRING .or. token%kind == TK_NUMBER .or. token%kind == TK_IDENTIFIER) then
+                ! Parse single argument
+                block
+                    class(ast_node), allocatable :: single_arg
+                    
+                    if (token%kind == TK_STRING) then
+                        single_arg = create_literal(token%text, LITERAL_STRING, token%line, token%column)
+                    else if (token%kind == TK_NUMBER) then
+                        single_arg = create_literal(token%text, LITERAL_INTEGER, token%line, token%column)
+                    else if (token%kind == TK_IDENTIFIER) then
+                        single_arg = create_identifier(token%text, token%line, token%column)
+                    end if
+                    token = parser%consume()
+                    
+                    ! Create args array with single argument
+                    allocate(args(1), source=single_arg)
+                end block
+            else
+                ! No arguments
+                allocate(literal_node :: args(0))
+            end if
+        else
+            ! No arguments
+            allocate(literal_node :: args(0))
+        end if
+        
+        ! Create print statement node
+        block
+            type(print_statement_node) :: print_stmt
+            print_stmt = create_print_statement(args, format_spec, line, column)
+            allocate(print_node, source=print_stmt)
+        end block
+        
+    end function parse_print_statement
+
     ! Parse function definition: [type] function name(params)
     function parse_function_definition(parser) result(func_node)
         type(parser_state_t), intent(inout) :: parser

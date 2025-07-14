@@ -33,8 +33,18 @@ contains
         type(literal_node), intent(in) :: node
         character(len=:), allocatable :: code
         
-        ! Simply return the literal value
-        code = node%value
+        ! Return the literal value with proper formatting
+        select case (node%literal_kind)
+        case (LITERAL_STRING)
+            ! String literals need quotes if not already present
+            if (len(node%value) > 0 .and. node%value(1:1) /= '"' .and. node%value(1:1) /= "'") then
+                code = '"' // node%value // '"'
+            else
+                code = node%value
+            end if
+        case default
+            code = node%value
+        end select
     end function generate_code_literal
 
     ! Generate code for identifier node
@@ -199,14 +209,32 @@ contains
         character(len=:), allocatable :: args_code
         integer :: i
         
-        code = "print *"
+        ! Start with format spec
+        if (allocated(node%format_spec) .and. len_trim(node%format_spec) > 0) then
+            code = "print " // node%format_spec
+        else
+            code = "print *"
+        end if
         
         ! Add arguments if present
-        if (allocated(node%args)) then
-            if (size(node%args) > 0) then
-                ! For now, just handle simple case
-                code = "print *, result"
-            end if
+        if (allocated(node%args) .and. size(node%args) > 0) then
+            code = code // ", "
+            do i = 1, size(node%args)
+                if (i > 1) code = code // ", "
+                
+                select type (arg => node%args(i))
+                type is (literal_node)
+                    code = code // generate_code_literal(arg)
+                type is (identifier_node)
+                    code = code // generate_code_identifier(arg)
+                type is (binary_op_node)
+                    code = code // generate_code_binary_op(arg)
+                type is (function_call_node)
+                    code = code // generate_code_function_call(arg)
+                class default
+                    code = code // "?"
+                end select
+            end do
         end if
     end function generate_code_print_statement
 
@@ -226,7 +254,7 @@ contains
         ! Generate code for each statement in the body
         if (allocated(node%body)) then
             do i = 1, size(node%body)
-                select type (stmt => node%body(i))
+                select type (stmt => node%body(i)%node)
                 type is (assignment_node)
                     code = code // "    " // generate_code(stmt) // new_line('a')
                 type is (lf_assignment_node)
@@ -279,6 +307,8 @@ contains
             code = generate_code_function_call(node)
         type is (lf_assignment_node)
             code = generate_code_lf_assignment(node)
+        type is (print_statement_node)
+            code = generate_code_print_statement(node)
         class default
             code = "! Unknown AST node type"
         end select

@@ -36,7 +36,7 @@ module ast_core
     ! Program node
     type, extends(ast_node), public :: program_node
         character(len=:), allocatable :: name
-        class(ast_node), allocatable :: body(:)
+        type(ast_node_wrapper), allocatable :: body(:)
     contains
         procedure :: accept => program_accept
         procedure :: to_json => program_to_json
@@ -126,6 +126,11 @@ module ast_core
         procedure :: to_json => print_statement_to_json
     end type print_statement_node
 
+    ! Wrapper type for polymorphic arrays - concrete type containing abstract member
+    type, public :: ast_node_wrapper
+        class(ast_node), allocatable :: node
+    end type ast_node_wrapper
+
     ! Literal kind constants
     integer, parameter, public :: LITERAL_INTEGER = 1
     integer, parameter, public :: LITERAL_REAL = 2
@@ -150,7 +155,10 @@ contains
         
         node%name = name
         if (size(body) > 0) then
-            allocate(node%body, source=body)
+            allocate(node%body(size(body)))
+            do i = 1, size(body)
+                allocate(node%body(i)%node, source=body(i))
+            end do
         end if
         if (present(line)) node%line = line
         if (present(column)) node%column = column
@@ -368,9 +376,11 @@ contains
         call json%create_array(body_array, 'body')
         call json%add(obj, body_array)
         
-        do i = 1, size(this%body)
-            call this%body(i)%to_json(json, body_array)
-        end do
+        if (allocated(this%body)) then
+            do i = 1, size(this%body)
+                call this%body(i)%node%to_json(json, body_array)
+            end do
+        end if
         
         call json%add(parent, obj)
     end subroutine program_to_json

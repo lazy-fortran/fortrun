@@ -70,7 +70,10 @@ contains
         
         node%name = name
         if (size(body) > 0) then
-            allocate(node%body, source=body)
+            allocate(node%body(size(body)))
+            do i = 1, size(body)
+                allocate(node%body(i)%node, source=body(i))
+            end do
         end if
         if (present(implicit)) node%implicit = implicit
         if (present(auto_contains)) node%auto_contains = auto_contains
@@ -191,7 +194,7 @@ contains
         
         if (allocated(this%body)) then
             do i = 1, size(this%body)
-                call this%body(i)%to_json(json, body_array)
+                call this%body(i)%node%to_json(json, body_array)
             end do
         end if
         

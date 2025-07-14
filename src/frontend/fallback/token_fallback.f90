@@ -4,7 +4,7 @@ module token_fallback
     ! This module contains temporary token-to-code generation functions
     ! that bypass proper AST pipeline - use only until AST is complete
     
-    use lexer_core, only: token_t, TK_EOF, TK_KEYWORD, TK_IDENTIFIER, TK_NEWLINE
+    use lexer_core, only: token_t, TK_EOF, TK_KEYWORD, TK_IDENTIFIER, TK_NEWLINE, TK_OPERATOR
     use parser_core, only: parse_statement, parser_state_t, create_parser_state
     use ast_core
     use codegen_core, only: generate_code_polymorphic
@@ -147,8 +147,14 @@ contains
                     
                     ! Extract tokens for this statement if it's executable (not USE or function)
                     if (stmt_end >= stmt_start .and. .not. is_use_statement .and. .not. is_function_definition) then
-                        allocate(stmt_tokens(stmt_end - stmt_start + 1))
-                        stmt_tokens = current_tokens(stmt_start:stmt_end)
+                        ! Allocate tokens plus one for EOF
+                        allocate(stmt_tokens(stmt_end - stmt_start + 2))
+                        stmt_tokens(1:stmt_end - stmt_start + 1) = current_tokens(stmt_start:stmt_end)
+                        ! Add EOF token at the end
+                        stmt_tokens(stmt_end - stmt_start + 2)%kind = TK_EOF
+                        stmt_tokens(stmt_end - stmt_start + 2)%text = ""
+                        stmt_tokens(stmt_end - stmt_start + 2)%line = current_tokens(stmt_end)%line
+                        stmt_tokens(stmt_end - stmt_start + 2)%column = current_tokens(stmt_end)%column + 1
                         
                         ! PROPER PIPELINE: Parse tokens → AST → Codegen
                         block
@@ -162,8 +168,45 @@ contains
                                 stmt_code = generate_code_polymorphic(stmt_ast)
                                 if (len_trim(stmt_code) > 0) then
                                     statements = statements // "    " // trim(stmt_code) // char(10)
+                                else
+                                    ! FALLBACK: If AST exists but codegen returns empty, reconstruct
+                                    ! Check if first token is print keyword
+                                    if (size(stmt_tokens) > 0) then
+                                        if (stmt_tokens(1)%kind == TK_KEYWORD .and. stmt_tokens(1)%text == "print") then
+                                            ! Reconstruct print statement with proper formatting
+                                            stmt_code = "print *"
+                                            if (size(stmt_tokens) > 2) then
+                                                stmt_code = stmt_code // ", "
+                                                ! Add remaining tokens
+                                                block
+                                                    integer :: j
+                                                    do j = 3, size(stmt_tokens) - 1  ! Skip EOF
+                                                        if (stmt_tokens(j)%kind /= TK_EOF) then
+                                                            if (j > 3 .and. stmt_tokens(j-1)%text == ",") then
+                                                                stmt_code = stmt_code // " "
+                                                            end if
+                                                            stmt_code = stmt_code // trim(stmt_tokens(j)%text)
+                                                        end if
+                                                    end do
+                                                end block
+                                            end if
+                                            statements = statements // "    " // trim(stmt_code) // char(10)
+                                        else
+                                            statements = statements // "    " // "0" // char(10)
+                                        end if
+                                    else
+                                        statements = statements // "    " // "0" // char(10)
+                                    end if
                                 end if
                                 deallocate(stmt_ast)
+                            else
+                                ! AST allocation failed - use direct reconstruction
+                                if (size(stmt_tokens) > 0 .and. stmt_tokens(1)%kind == TK_KEYWORD .and. stmt_tokens(1)%text == "print") then
+                                    stmt_code = reconstruct_line_from_tokens(stmt_tokens(1:size(stmt_tokens)-1))
+                                    statements = statements // "    " // trim(stmt_code) // char(10)
+                                else
+                                    statements = statements // "    " // "0" // char(10)
+                                end if
                             end if
                         end block
                         
@@ -260,8 +303,17 @@ contains
         line = ""
         do i = 1, size(tokens)
             if (tokens(i)%kind /= TK_EOF) then
+                if (i > 1) then
+                    ! Add space before this token if needed
+                    if (tokens(i-1)%text == "*" .and. tokens(i)%text == ",") then
+                        line = line // " "
+                    else if (tokens(i-1)%text == "," .and. i < size(tokens)) then
+                        line = line // " "
+                    else if (i > 1 .and. tokens(i)%kind /= TK_OPERATOR .and. tokens(i-1)%kind /= TK_OPERATOR) then
+                        line = line // " "
+                    end if
+                end if
                 line = line // trim(tokens(i)%text)
-                if (i < size(tokens)) line = line // " "
             end if
         end do
     end function reconstruct_line_from_tokens
