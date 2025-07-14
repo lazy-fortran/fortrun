@@ -1,9 +1,0 @@
-{
-  "input_file": "/tmp/test_simple.f",
-  "generated_code": [
-    "program main",
-    "    implicit none",
-    "    print * , \"test\"",
-    "end program main"
-  ]
-}

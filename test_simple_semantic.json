@@ -1,8 +1,0 @@
-{
-  "input_file": "/tmp/test_simple.f",
-  "phase": "semantic_analysis",
-  "description": "AST annotated with inferred types",
-  "annotated_ast": {
-    "TODO": "Implement annotated AST serialization with type information"
-  }
-}
