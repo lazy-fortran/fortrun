@@ -128,6 +128,43 @@ prefix = "fortplot"  # Modules starting with "fortplot"
 - **Test-Driven Development** - Tests before code
 - **Zero Configuration** - Works out of the box
 
+## ⚠️ CRITICAL FORTRAN PATTERNS ⚠️
+
+### Polymorphic Arrays - ALWAYS Use Wrapper Pattern
+
+**NEVER** use `class(ast_node), allocatable :: array(:)` - this causes allocation errors.
+
+**ALWAYS** use wrapper pattern:
+```fortran
+! Define wrapper type
+type :: ast_node_wrapper
+    class(ast_node), allocatable :: node
+end type ast_node_wrapper
+
+! Use wrapper arrays
+type(ast_node_wrapper), allocatable :: array(:)
+
+! Allocate elements
+allocate(array(i)%node, source=some_node)
+```
+
+### Array Extension Syntax
+
+When extending arrays, use temporary variables (not expressions):
+```fortran
+! CORRECT: Use temporary variable
+block
+    type(ast_node_wrapper) :: new_wrapper
+    allocate(new_wrapper%node, source=new_element)
+    array = [array, new_wrapper]  ! new_wrapper is a variable
+end block
+
+! WRONG: Direct expression
+array = [array, create_something()]  ! Fails with polymorphic types
+```
+
+**Key Rule**: In `[array, new_element]`, `new_element` must be a variable, not an expression.
+
 ## Future Roadmap
 
 - Phase 9: Advanced AST Features

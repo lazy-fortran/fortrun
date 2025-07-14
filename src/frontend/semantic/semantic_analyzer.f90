@@ -346,7 +346,7 @@ contains
             
             ! Infer all argument types
             do i = 1, size(call_node%args)
-                arg_types(i) = ctx%infer(call_node%args(i))
+                arg_types(i) = ctx%infer(call_node%args(i)%node)
             end do
             
             ! Unify with function type
