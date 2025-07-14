@@ -44,7 +44,7 @@ contains
         real_type = create_mono_type(TREAL)
         
         ! sqrt: real -> real
-        fun_type = create_mono_type(TFUN, args=[create_mono_type(TREAL), create_mono_type(TREAL)])
+        fun_type = create_fun_type(create_mono_type(TREAL), create_mono_type(TREAL))
         scheme = create_poly_type(forall_vars=[type_var_t::], mono=fun_type)
         call ctx%env%extend("sqrt", scheme)
         
@@ -59,9 +59,9 @@ contains
         
         ! abs: 'a -> 'a (polymorphic)
         a = create_type_var(1, "'a")
-        fun_type = create_mono_type(TFUN, args=[&
+        fun_type = create_fun_type(&
             create_mono_type(TVAR, var=a), &
-            create_mono_type(TVAR, var=a)])
+            create_mono_type(TVAR, var=a))
         scheme = create_poly_type(forall_vars=[a], mono=fun_type)
         call ctx%env%extend("abs", scheme)
         
@@ -356,8 +356,7 @@ contains
                     
                     tv = ctx%fresh_type_var()
                     new_result_typ = create_mono_type(TVAR, var=tv)
-                    expected_fun_type = create_mono_type(TFUN, &
-                        args=[arg_types(i), new_result_typ])
+                    expected_fun_type = create_fun_type(arg_types(i), new_result_typ)
                     
                     ! Unify current function type with expected
                     s = ctx%unify(result_typ, expected_fun_type)
@@ -372,7 +371,7 @@ contains
         else
             ! No arguments - function type is the result
             if (fun_typ%kind == TFUN .and. allocated(fun_typ%args)) then
-                typ = fun_typ%args(size(fun_typ%args))  ! Last element is return type
+                typ = fun_typ%args(size(fun_typ%args))%typ  ! Last element is return type
             else
                 typ = fun_typ
             end if
@@ -444,8 +443,8 @@ contains
                 type(substitution_t) :: s
                 
                 do i = 1, size(t1_subst%args)
-                    s = this%unify(this%apply_subst_to_type(t1_subst%args(i)), &
-                                   this%apply_subst_to_type(t2_subst%args(i)))
+                    s = this%unify(this%apply_subst_to_type(t1_subst%args(i)%typ), &
+                                   this%apply_subst_to_type(t2_subst%args(i)%typ))
                     subst = compose_substitutions(s, subst)
                     call this%compose_with_subst(s)
                 end do
@@ -457,7 +456,7 @@ contains
             end if
             
             ! Unify element types
-            subst = this%unify(t1_subst%args(1), t2_subst%args(1))
+            subst = this%unify(t1_subst%args(1)%typ, t2_subst%args(1)%typ)
             
             ! Check sizes if known
             if (t1_subst%size > 0 .and. t2_subst%size > 0) then
@@ -582,7 +581,7 @@ contains
         ! This is a temporary fix to avoid segfaults while we debug the environment
         select case (trim(name))
         case ("sqrt", "sin", "cos", "tan", "exp", "log", "abs")
-            typ = create_mono_type(TFUN, args=[create_mono_type(TREAL), create_mono_type(TREAL)])
+            typ = create_fun_type(create_mono_type(TREAL), create_mono_type(TREAL))
         case default
             ! Return empty type to indicate not found
             typ%kind = 0
