@@ -96,30 +96,40 @@ src/frontend/
 
 ### Next Priority Tasks
 
-#### 🚨 URGENT: Function Type Inference Crash
+#### ✅ COMPLETED: Wrapper Pattern Implementation
 
-**PROBLEM**: Function calls cause segmentation fault in type_system_hm.f90 when processing polymorphic arrays
+**SUCCESS**: Implemented wrapper pattern for polymorphic arrays in type system!
 
-**ROOT CAUSE**: The mono_type_t uses `class(mono_type_t), allocatable :: args(:)` which violates Fortran's polymorphic array limitations. The args handling is currently commented out to avoid crashes, but this breaks function type inference.
+**Changes Made**:
+- Created `mono_type_wrapper` type to wrap mono_type_t elements
+- Changed `class(mono_type_t), allocatable :: args(:)` to `type(mono_type_wrapper), allocatable :: args(:)`
+- Updated all functions to use wrapped args (equals, to_string, deep_copy, apply, etc.)
+- Added `create_fun_type` helper function for creating function types
+- Updated semantic analyzer to use the new wrapper pattern
 
-**REQUIRED FIX**: Implement wrapper pattern for type arguments as described in CLAUDE.md:
-```fortran
-! Instead of: class(mono_type_t), allocatable :: args(:)
-! Use wrapper pattern:
-type :: mono_type_wrapper
-    type(mono_type_t) :: typ
-end type mono_type_wrapper
+**Current Status**: 
+- Basic types work correctly (integer, real)
+- Function type creation works (verified with test_simple_wrapper)
+- **Issue**: Function call type inference still crashes with segfault
+- The crash appears to be related to uninitialized var fields when processing non-TVAR types
 
-! In mono_type_t:
-type(mono_type_wrapper), allocatable :: args(:)
-```
+#### 🚨 URGENT: Function Call Type Inference Crash
+
+**PROBLEM**: Function calls still cause segmentation fault despite wrapper pattern implementation
+
+**SYMPTOMS**:
+- Crash occurs in `subst_apply_to_mono` when calling `this%lookup(typ%var)`
+- Simple expressions work fine (print statements, arithmetic)
+- Function definitions and calls trigger the crash
+
+**HYPOTHESIS**: The var field in mono_type_t is not properly initialized for all type kinds, causing undefined behavior when accessed
 
 **Test Cases**:
-- `test_func_sig.f` - Simple function definition and call
-- `test_step1_explicit.f` - Function with explicit type declaration
+- `test_func_sig.f` - Simple function definition and call (crashes)
+- `test_step1_explicit.f` - Function with explicit type declaration (crashes)
 - `example/frontend_test_cases/function_call_inference/` - Test case with expected output
 
-**Status**: Expressions without function calls work correctly (debug_print.f, test_expr.f)
+**Status**: Need to investigate var field initialization and ensure it's safe for all type kinds
 
 Based on the current state and test files in the working directory:
 

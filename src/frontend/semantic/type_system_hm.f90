@@ -5,7 +5,7 @@ module type_system_hm
     
     ! Public types and interfaces
     public :: type_var_t, mono_type_t, poly_type_t, type_env_t, substitution_t
-    public :: create_type_var, create_mono_type, create_poly_type
+    public :: create_type_var, create_mono_type, create_poly_type, create_fun_type
     public :: apply_substitution, compose_substitutions
     public :: occurs_check, free_type_vars
     
@@ -23,17 +23,22 @@ module type_system_hm
         character(len=:), allocatable :: name  ! e.g., 'a, 'b
     end type type_var_t
     
-    ! Monomorphic type
+    ! Forward declaration for wrapper
     type :: mono_type_t
         integer :: kind  ! TVAR, TINT, TREAL, etc.
         type(type_var_t) :: var  ! for TVAR
-        class(mono_type_t), allocatable :: args(:)  ! for TFUN (arg, result), TARRAY (element type)
+        type(mono_type_wrapper), allocatable :: args(:)  ! for TFUN (arg, result), TARRAY (element type)
         integer :: size  ! for TCHAR(len=size), TARRAY(size)
     contains
         procedure :: equals => mono_type_equals
         procedure :: to_string => mono_type_to_string
         procedure :: deep_copy => mono_type_deep_copy
     end type mono_type_t
+    
+    ! Wrapper for polymorphic array elements
+    type :: mono_type_wrapper
+        type(mono_type_t) :: typ
+    end type mono_type_wrapper
     
     ! Polymorphic type (type scheme)
     type :: poly_type_t
@@ -113,10 +118,12 @@ contains
             allocate(character(len=0) :: result_type%var%name)
         end if
         
-        ! TODO: Fix polymorphic array handling
-        ! if (present(args)) then
-        !     allocate(result_type%args, source=args)
-        ! end if
+        if (present(args)) then
+            allocate(result_type%args(size(args)))
+            do i = 1, size(args)
+                result_type%args(i)%typ = args(i)
+            end do
+        end if
         
         if (present(char_size)) result_type%size = char_size
         
@@ -138,6 +145,17 @@ contains
         end if
         pt%mono = mono%deep_copy()
     end function create_poly_type
+    
+    ! Helper function to create function type with two arguments
+    function create_fun_type(arg_type, result_type) result(fun_type)
+        type(mono_type_t), intent(in) :: arg_type, result_type
+        type(mono_type_t) :: fun_type
+        
+        fun_type%kind = TFUN
+        allocate(fun_type%args(2))
+        fun_type%args(1)%typ = arg_type
+        fun_type%args(2)%typ = result_type
+    end function create_fun_type
     
     ! Check if two monomorphic types are equal
     recursive logical function mono_type_equals(this, other) result(equal)
@@ -163,7 +181,7 @@ contains
             if (size(this%args) /= size(other%args)) return
             equal = .true.
             do i = 1, size(this%args)
-                if (.not. this%args(i)%equals(other%args(i))) then
+                if (.not. this%args(i)%typ%equals(other%args(i)%typ)) then
                     equal = .false.
                     return
                 end if
@@ -198,7 +216,7 @@ contains
             end if
         case (TFUN)
             if (allocated(this%args) .and. size(this%args) >= 2) then
-                str = this%args(1)%to_string() // " -> " // this%args(2)%to_string()
+                str = this%args(1)%typ%to_string() // " -> " // this%args(2)%typ%to_string()
             else
                 str = "<invalid function type>"
             end if
@@ -208,10 +226,10 @@ contains
                     block
                         character(len=20) :: size_str
                         write(size_str, '(i0)') this%size
-                        str = this%args(1)%to_string() // "(" // trim(size_str) // ")"
+                        str = this%args(1)%typ%to_string() // "(" // trim(size_str) // ")"
                     end block
                 else
-                    str = this%args(1)%to_string() // "(:)"
+                    str = this%args(1)%typ%to_string() // "(:)"
                 end if
             else
                 str = "<invalid array type>"
@@ -231,14 +249,12 @@ contains
         copy%var = this%var
         copy%size = this%size
         
-        ! TODO: Fix polymorphic array handling
-        ! if (allocated(this%args)) then
-        !     allocate(copy%args(size(this%args)))
-        !     do i = 1, size(this%args)
-        !         ! Use allocate with source for polymorphic component
-        !         allocate(copy%args(i), source=this%args(i)%deep_copy())
-        !     end do
-        ! end if
+        if (allocated(this%args)) then
+            allocate(copy%args(size(this%args)))
+            do i = 1, size(this%args)
+                copy%args(i)%typ = this%args(i)%typ%deep_copy()
+            end do
+        end if
     end function mono_type_deep_copy
     
     ! Convert polymorphic type to string
@@ -291,6 +307,12 @@ contains
         type(mono_type_t), allocatable :: typ
         integer :: i
         
+        ! Safety check
+        if (var%id < 0) then
+            ! Invalid var, return nothing
+            return
+        end if
+        
         do i = 1, this%count
             if (this%vars(i)%id == var%id) then
                 typ = this%types(i)%deep_copy()
@@ -319,18 +341,15 @@ contains
         case (TFUN, TARRAY)
             result_typ%kind = typ%kind
             result_typ%size = typ%size
-            ! TODO: Fix polymorphic array handling
-            ! if (allocated(typ%args)) then
-            !     allocate(result_typ%args(size(typ%args)))
-            !     do i = 1, size(typ%args)
-            !         ! Use temporary variable for polymorphic assignment
-            !         block
-            !             type(mono_type_t) :: temp_result
-            !             temp_result = this%apply(typ%args(i))
-            !             allocate(result_typ%args(i), source=temp_result)
-            !         end block
-            !     end do
-            ! end if
+            ! Initialize var field to avoid undefined behavior
+            result_typ%var%id = -1
+            allocate(character(len=0) :: result_typ%var%name)
+            if (allocated(typ%args)) then
+                allocate(result_typ%args(size(typ%args)))
+                do i = 1, size(typ%args)
+                    result_typ%args(i)%typ = this%apply(typ%args(i)%typ)
+                end do
+            end if
             
         case default
             result_typ = typ%deep_copy()
@@ -429,7 +448,7 @@ contains
         case (TFUN, TARRAY)
             if (allocated(typ%args)) then
                 do i = 1, size(typ%args)
-                    if (occurs_check(var, typ%args(i))) then
+                    if (occurs_check(var, typ%args(i)%typ)) then
                         occurs = .true.
                         return
                     end if
@@ -481,7 +500,7 @@ contains
             case (TFUN, TARRAY)
                 if (allocated(t%args)) then
                     do k = 1, size(t%args)
-                        call collect_vars(t%args(k))
+                        call collect_vars(t%args(k)%typ)
                     end do
                 end if
             end select
