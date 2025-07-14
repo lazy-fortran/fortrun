@@ -25,7 +25,7 @@ contains
         options%output_file = output_file
         
         ! Use global debug flags
-        call get_debug_flags(options%debug_tokens, options%debug_ast, options%debug_codegen)
+        call get_debug_flags(options%debug_tokens, options%debug_ast, options%debug_semantic, options%debug_codegen)
         
         ! Compile using the frontend
         call compile_source(input_file, options, error_msg)
@@ -34,11 +34,11 @@ contains
     
     ! Debug version (replaces preprocess_file_debug)
     subroutine compile_with_frontend_debug(input_file, output_file, error_msg, &
-                                          debug_tokens, debug_ast, debug_codegen)
+                                          debug_tokens, debug_ast, debug_semantic, debug_codegen)
         character(len=*), intent(in) :: input_file
         character(len=*), intent(in) :: output_file
         character(len=*), intent(out) :: error_msg
-        logical, intent(in) :: debug_tokens, debug_ast, debug_codegen
+        logical, intent(in) :: debug_tokens, debug_ast, debug_semantic, debug_codegen
         
         type(compilation_options_t) :: options
         
@@ -47,6 +47,7 @@ contains
         options%output_file = output_file
         options%debug_tokens = debug_tokens
         options%debug_ast = debug_ast
+        options%debug_semantic = debug_semantic
         options%debug_codegen = debug_codegen
         
         ! Compile using the frontend

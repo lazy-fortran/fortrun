@@ -21,13 +21,13 @@ contains
     end subroutine preprocess_file
     
     ! Compatibility wrapper
-    subroutine preprocess_file_debug(input_file, output_file, error_msg, debug_tokens, debug_ast, debug_codegen)
+    subroutine preprocess_file_debug(input_file, output_file, error_msg, debug_tokens, debug_ast, debug_semantic, debug_codegen)
         character(len=*), intent(in) :: input_file
         character(len=*), intent(in) :: output_file
         character(len=*), intent(out) :: error_msg
-        logical, intent(in) :: debug_tokens, debug_ast, debug_codegen
+        logical, intent(in) :: debug_tokens, debug_ast, debug_semantic, debug_codegen
         
-        call compile_with_frontend_debug(input_file, output_file, error_msg, debug_tokens, debug_ast, debug_codegen)
+        call compile_with_frontend_debug(input_file, output_file, error_msg, debug_tokens, debug_ast, debug_semantic, debug_codegen)
     end subroutine preprocess_file_debug
     
     ! Compatibility wrapper

@@ -11,14 +11,14 @@ program main
   
   character(len=256) :: filename, custom_cache_dir, custom_config_dir, notebook_output, custom_flags
   logical :: show_help, no_wait, notebook_mode, preprocess_only, clear_cache_flag, cache_info_flag
-  logical :: debug_tokens, debug_ast, debug_codegen
+  logical :: debug_tokens, debug_ast, debug_semantic, debug_codegen
   integer :: exit_code, verbose_level, parallel_jobs
   type(notebook_t) :: notebook
   type(execution_result_t) :: results
   
   call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, custom_config_dir, &
                       parallel_jobs, no_wait, notebook_mode, notebook_output, preprocess_only, custom_flags, &
-                      clear_cache_flag, cache_info_flag, debug_tokens, debug_ast, debug_codegen)
+                      clear_cache_flag, cache_info_flag, debug_tokens, debug_ast, debug_semantic, debug_codegen)
   
   if (show_help) then
     call print_help()
@@ -59,7 +59,7 @@ program main
   else
     ! Normal execution mode
     ! Set global debug flags for the runner to use
-    call set_debug_flags(debug_tokens, debug_ast, debug_codegen)
+    call set_debug_flags(debug_tokens, debug_ast, debug_semantic, debug_codegen)
     
     call run_fortran_file(filename, exit_code, verbose_level, custom_cache_dir, &
                           custom_config_dir, parallel_jobs, no_wait, custom_flags)
@@ -121,8 +121,8 @@ contains
     ! Process based on file type
     if (is_lazy_fortran) then
       ! Compile with frontend to Fortran IR
-      if (debug_tokens .or. debug_ast .or. debug_codegen) then
-        call compile_with_frontend_debug(input_file, temp_output, error_msg, debug_tokens, debug_ast, debug_codegen)
+      if (debug_tokens .or. debug_ast .or. debug_semantic .or. debug_codegen) then
+        call compile_with_frontend_debug(input_file, temp_output, error_msg, debug_tokens, debug_ast, debug_semantic, debug_codegen)
       else
         call compile_with_frontend(input_file, temp_output, error_msg)
       end if

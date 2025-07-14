@@ -12,6 +12,7 @@ module debug_utils
     ! Public interface
     public :: debug_output_tokens
     public :: debug_output_ast
+    public :: debug_output_semantic
     public :: debug_output_codegen
     
 contains
@@ -101,6 +102,51 @@ contains
             close(unit)
         end block
     end subroutine debug_output_ast
+    
+    subroutine debug_output_semantic(input_file, ast)
+        use ast_core, only: ast_node
+        character(len=*), intent(in) :: input_file
+        class(ast_node), intent(in) :: ast
+        character(len=:), allocatable :: json_file
+        integer :: unit
+        
+        ! Extract basename and create semantic filename
+        block
+            integer :: dot_pos, slash_pos
+            character(len=256) :: basename
+            
+            basename = input_file
+            
+            ! Remove directory path
+            slash_pos = index(basename, '/', back=.true.)
+            if (slash_pos > 0) then
+                basename = basename(slash_pos+1:)
+            end if
+            
+            ! Remove extension
+            dot_pos = index(basename, '.', back=.true.)
+            if (dot_pos > 0) then
+                basename = basename(1:dot_pos-1)
+            end if
+            
+            json_file = trim(basename) // "_semantic.json"
+        end block
+        
+        ! Write annotated AST with type information to JSON file
+        open(newunit=unit, file=json_file, status='replace', action='write')
+        write(unit, '(a)') '{'
+        write(unit, '(a,a,a)') '  "input_file": "', trim(input_file), '",'
+        write(unit, '(a)') '  "phase": "semantic_analysis",'
+        write(unit, '(a)') '  "description": "AST annotated with inferred types",'
+        write(unit, '(a)') '  "annotated_ast": {'
+        ! TODO: Add proper JSON serialization of annotated AST with type information
+        write(unit, '(a)') '    "TODO": "Implement annotated AST serialization with type information"'
+        write(unit, '(a)') '  }'
+        write(unit, '(a)') '}'
+        close(unit)
+        
+        print '(a,a)', 'Semantic analysis debug output written to: ', json_file
+    end subroutine debug_output_semantic
     
     subroutine debug_output_codegen(input_file, code)
         character(len=*), intent(in) :: input_file

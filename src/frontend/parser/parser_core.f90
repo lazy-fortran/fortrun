@@ -413,7 +413,7 @@ contains
                 class(ast_node), allocatable :: current_arg
                 
                 ! Parse first argument
-                current_arg = parse_primary(parser)
+                current_arg = parse_comparison(parser)
                 if (allocated(current_arg)) then
                     arg_count = 1
                     allocate(wrapper_args(1))
@@ -427,8 +427,8 @@ contains
                         ! Consume comma
                         token = parser%consume()
                         
-                        ! Parse next argument
-                        current_arg = parse_primary(parser)
+                                ! Parse next argument
+                        current_arg = parse_comparison(parser)
                         if (allocated(current_arg)) then
                             ! Extend wrapper array using [array, new_element] syntax with temporary
                             block
