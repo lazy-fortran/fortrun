@@ -1,0 +1,19 @@
+Project is up to date
+ + mkdir -p /home/ert/.cache/fortran/modules
+ + mkdir -p /home/ert/.cache/fortran/modules/gfortran
+ + mkdir -p /home/ert/.cache/fortran/modules/gfortran/13.0.0
+<ERROR> Compilation failed for object " app_main.f90.o "
+Error: Procedure ‘add_one’ at (1) has an explicit interface from a previous declaration
+Error: Unexpected IMPLICIT NONE statement in CONTAINS section at (1)
+Error: Unexpected data declaration statement in CONTAINS section at (1)
+Error: Expecting END PROGRAM statement at (1)
+app/main.f90:12:5: Error: Zero is not a valid statement label at (1)
+app/main.f90:12:5: Error: Non-numeric character in statement label at (1)
+Error: Unexpected assignment statement in CONTAINS section at (1)
+app/main.f90:14:5: Error: Zero is not a valid statement label at (1)
+app/main.f90:14:5: Error: Non-numeric character in statement label at (1)
+<ERROR> stopping due to failed compilation
+STOP 1
+<ERROR> Execution for object " fortran " returned exit code  1
+<ERROR> *cmd_run*:stopping due to failed executions
+STOP 1

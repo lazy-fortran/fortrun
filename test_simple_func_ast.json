@@ -1,0 +1,19 @@
+{
+  "": {
+    "type": "lf_program",
+    "name": "main",
+    "implicit": T,
+    "auto_contains": F,
+    "line": 1,
+    "column": 1,
+    "body": [
+      {"type": "unknown"}
+,
+      {"type": "literal"}
+,
+      {"type": "assignment"}
+,
+      {"type": "literal"}
+    ]
+  }
+}
