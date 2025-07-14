@@ -51,7 +51,12 @@ contains
                 code = node%value
             end if
         case default
-            code = node%value
+            ! Handle invalid/empty literals safely
+            if (allocated(node%value) .and. len_trim(node%value) > 0) then
+                code = node%value
+            else
+                code = "! Invalid literal node"
+            end if
         end select
     end function generate_code_literal
 
@@ -480,7 +485,8 @@ contains
         type is (inferred_var_node)
             code = generate_code_inferred_var(node)
         class default
-            code = "! Unknown AST node type"
+            ! NEVER generate "0" - always generate a comment for debugging
+            code = "! Unimplemented AST node"
         end select
     end function generate_code_polymorphic
 
