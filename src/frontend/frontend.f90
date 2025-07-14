@@ -119,16 +119,40 @@ contains
         class(ast_node), allocatable, intent(out) :: ast_tree
         character(len=*), intent(out) :: error_msg
         
+        ! Local variables for statement parsing using wrapper pattern
+        type(ast_node_wrapper), allocatable :: body_statements(:)
+        class(ast_node), allocatable :: stmt
+        integer :: i, stmt_start, stmt_end, stmt_count, current_line
+        type(token_t), allocatable :: stmt_tokens(:)
+        
         error_msg = ""
+        stmt_count = 0
         
         ! Create program node (lazy fortran auto-wrapping)
-        ! For now, keep simple until full AST parsing is implemented
         allocate(lf_program_node :: ast_tree)
         select type (prog => ast_tree)
         type is (lf_program_node)
             prog%name = "main"
             prog%implicit = .true.
-            ! The FALLBACK functions will handle statement parsing
+            prog%auto_contains = .false.
+            prog%line = 1
+            prog%column = 1
+            
+            ! Count statements first (simple approach: count lines)
+            i = 1
+            do while (i <= size(tokens))
+                if (tokens(i)%kind == TK_EOF) exit
+                
+                ! Skip to next line
+                current_line = tokens(i)%line
+                do while (i <= size(tokens) .and. tokens(i)%line == current_line)
+                    i = i + 1
+                end do
+                stmt_count = stmt_count + 1
+            end do
+            
+            ! For now, create empty body to test JSON output works
+            ! TODO: Restore proper statement parsing once JSON serialization is fixed
         end select
     end subroutine parse_tokens
 
