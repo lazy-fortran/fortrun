@@ -240,13 +240,17 @@ contains
         character(len=:), allocatable :: code
         character(len=:), allocatable :: use_statements, declarations, statements, functions
         
-        ! ARCHITECTURE: Combine proper AST + FALLBACK until AST is complete
-        ! When AST is complete, this should just be: code = generate_code(prog)
+        ! ARCHITECTURE: Try to use proper AST-based code generation first
+        if (allocated(prog%body) .and. size(prog%body) > 0) then
+            ! Use proper AST-based code generation with function interface inference
+            code = generate_code(prog)
+            return
+        end if
         
+        ! FALLBACK: Generate components from tokens until AST is complete
         ! Generate program header from AST
         code = "program " // prog%name // new_line('a')
         
-        ! FALLBACK: Generate components from tokens until AST supports them
         use_statements = generate_use_statements_from_tokens()
         if (len_trim(use_statements) > 0) code = code // use_statements
         
