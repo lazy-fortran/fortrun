@@ -64,9 +64,9 @@ module ast_core
     ! Function definition node
     type, extends(ast_node), public :: function_def_node
         character(len=:), allocatable :: name
-        class(ast_node), allocatable :: params(:)
+        type(ast_node_wrapper), allocatable :: params(:)
         class(ast_node), allocatable :: return_type
-        class(ast_node), allocatable :: body(:)
+        type(ast_node_wrapper), allocatable :: body(:)
     contains
         procedure :: accept => function_def_accept
         procedure :: to_json => function_def_to_json
@@ -75,8 +75,8 @@ module ast_core
     ! Subroutine definition node
     type, extends(ast_node), public :: subroutine_def_node
         character(len=:), allocatable :: name
-        class(ast_node), allocatable :: params(:)
-        class(ast_node), allocatable :: body(:)
+        type(ast_node_wrapper), allocatable :: params(:)
+        type(ast_node_wrapper), allocatable :: body(:)
     contains
         procedure :: accept => subroutine_def_accept
         procedure :: to_json => subroutine_def_to_json
@@ -192,9 +192,9 @@ contains
 
     function create_function_def(name, params, return_type, body, line, column) result(node)
         character(len=*), intent(in) :: name
-        class(ast_node), intent(in) :: params(:)
+        type(ast_node_wrapper), intent(in) :: params(:)
         class(ast_node), intent(in) :: return_type
-        class(ast_node), intent(in) :: body(:)
+        type(ast_node_wrapper), intent(in) :: body(:)
         integer, intent(in), optional :: line, column
         type(function_def_node) :: node
         integer :: i
@@ -213,8 +213,8 @@ contains
 
     function create_subroutine_def(name, params, body, line, column) result(node)
         character(len=*), intent(in) :: name
-        class(ast_node), intent(in) :: params(:)
-        class(ast_node), intent(in) :: body(:)
+        type(ast_node_wrapper), intent(in) :: params(:)
+        type(ast_node_wrapper), intent(in) :: body(:)
         integer, intent(in), optional :: line, column
         type(subroutine_def_node) :: node
         integer :: i
@@ -458,7 +458,7 @@ contains
         call json%create_array(params_array, 'params')
         call json%add(obj, params_array)
         do i = 1, size(this%params)
-            call this%params(i)%to_json(json, params_array)
+            call this%params(i)%node%to_json(json, params_array)
         end do
         
         block
@@ -471,7 +471,7 @@ contains
         call json%create_array(body_array, 'body')
         call json%add(obj, body_array)
         do i = 1, size(this%body)
-            call this%body(i)%to_json(json, body_array)
+            call this%body(i)%node%to_json(json, body_array)
         end do
         
         call json%add(parent, obj)
@@ -493,13 +493,13 @@ contains
         call json%create_array(params_array, 'params')
         call json%add(obj, params_array)
         do i = 1, size(this%params)
-            call this%params(i)%to_json(json, params_array)
+            call this%params(i)%node%to_json(json, params_array)
         end do
         
         call json%create_array(body_array, 'body')
         call json%add(obj, body_array)
         do i = 1, size(this%body)
-            call this%body(i)%to_json(json, body_array)
+            call this%body(i)%node%to_json(json, body_array)
         end do
         
         call json%add(parent, obj)

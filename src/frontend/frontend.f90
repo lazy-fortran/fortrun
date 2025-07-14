@@ -124,11 +124,11 @@ contains
         class(ast_node), allocatable, intent(out) :: ast_tree
         character(len=*), intent(out) :: error_msg
         
-        ! Local variables for statement parsing using wrapper pattern
+        ! Local variables for program unit parsing using wrapper pattern
         type(ast_node_wrapper), allocatable :: body_statements(:)
         class(ast_node), allocatable :: stmt
-        integer :: i, stmt_start, stmt_end, stmt_count, current_line
-        type(token_t), allocatable :: stmt_tokens(:)
+        integer :: i, unit_start, unit_end, stmt_count
+        type(token_t), allocatable :: unit_tokens(:)
         
         error_msg = ""
         stmt_count = 0
@@ -143,84 +143,234 @@ contains
             prog%line = 1
             prog%column = 1
             
-            ! Count statements first (simple approach: count lines)
+            ! Parse program units, not individual lines
             i = 1
             do while (i <= size(tokens))
                 if (tokens(i)%kind == TK_EOF) exit
                 
-                ! Skip to next line
-                current_line = tokens(i)%line
-                do while (i <= size(tokens) .and. tokens(i)%line == current_line)
-                    i = i + 1
-                end do
-                stmt_count = stmt_count + 1
-            end do
-            
-            ! Parse statements properly into AST using wrapper pattern
-            if (stmt_count > 0) then
-                ! Allocate wrapper array
-                allocate(body_statements(stmt_count))
+                ! Find program unit boundary
+                call find_program_unit_boundary(tokens, i, unit_start, unit_end)
                 
-                ! Parse statements
-                i = 1
-                stmt_count = 0
-                do while (i <= size(tokens))
-                    if (tokens(i)%kind == TK_EOF) exit
+                if (unit_end >= unit_start) then
+                    ! Extract unit tokens and add EOF
+                    allocate(unit_tokens(unit_end - unit_start + 2))
+                    unit_tokens(1:unit_end - unit_start + 1) = tokens(unit_start:unit_end)
+                    ! Add EOF token
+                    unit_tokens(unit_end - unit_start + 2)%kind = TK_EOF
+                    unit_tokens(unit_end - unit_start + 2)%text = ""
+                    unit_tokens(unit_end - unit_start + 2)%line = tokens(unit_end)%line
+                    unit_tokens(unit_end - unit_start + 2)%column = tokens(unit_end)%column + 1
                     
-                    ! Get statement tokens for this line
-                    stmt_start = i
-                    current_line = tokens(i)%line
-                    stmt_end = i
+                    ! Parse the program unit
+                    stmt = parse_program_unit(unit_tokens)
                     
-                    do while (stmt_end <= size(tokens))
-                        if (tokens(stmt_end)%kind == TK_EOF .or. &
-                            tokens(stmt_end)%line > current_line) then
-                            stmt_end = stmt_end - 1
-                            exit
-                        end if
-                        stmt_end = stmt_end + 1
-                    end do
-                    
-                    if (stmt_end >= stmt_start) then
-                        ! Extract statement tokens and add EOF
-                        allocate(stmt_tokens(stmt_end - stmt_start + 2))
-                        stmt_tokens(1:stmt_end - stmt_start + 1) = tokens(stmt_start:stmt_end)
-                        ! Add EOF token
-                        stmt_tokens(stmt_end - stmt_start + 2)%kind = TK_EOF
-                        stmt_tokens(stmt_end - stmt_start + 2)%text = ""
-                        stmt_tokens(stmt_end - stmt_start + 2)%line = tokens(stmt_end)%line
-                        stmt_tokens(stmt_end - stmt_start + 2)%column = tokens(stmt_end)%column + 1
-                        
-                        ! Parse the statement
-                        stmt = parse_statement(stmt_tokens)
-                        
-                        if (allocated(stmt)) then
+                    if (allocated(stmt)) then
+                        ! Extend wrapper array using [array, new_element] pattern
+                        block
+                            type(ast_node_wrapper) :: new_wrapper
+                            allocate(new_wrapper%node, source=stmt)
+                            if (allocated(body_statements)) then
+                                body_statements = [body_statements, new_wrapper]
+                            else
+                                body_statements = [new_wrapper]
+                            end if
                             stmt_count = stmt_count + 1
-                            ! Store in wrapper - move the allocation instead of copying
-                            call move_alloc(stmt, body_statements(stmt_count)%node)
-                        end if
-                        
-                        deallocate(stmt_tokens)
+                        end block
                     end if
                     
-                    i = stmt_end + 1
-                end do
-                
-                ! Create polymorphic array properly using wrapper pattern
-                if (stmt_count > 0) then
-                    ! Create the wrapper array - this works now!
-                    allocate(prog%body(stmt_count))
-                    
-                    ! Copy each wrapper directly
-                    do i = 1, stmt_count
-                        allocate(prog%body(i)%node, source=body_statements(i)%node)
-                    end do
+                    deallocate(unit_tokens)
                 end if
+                
+                i = unit_end + 1
+            end do
+            
+            ! Create polymorphic array properly using wrapper pattern
+            if (stmt_count > 0) then
+                ! Create the wrapper array - this works now!
+                allocate(prog%body(stmt_count))
+                
+                ! Copy each wrapper directly
+                do i = 1, stmt_count
+                    allocate(prog%body(i)%node, source=body_statements(i)%node)
+                end do
                 
                 deallocate(body_statements)
             end if
         end select
     end subroutine parse_tokens
+
+    ! Find program unit boundary (function/subroutine/module spans multiple lines)
+    subroutine find_program_unit_boundary(tokens, start_pos, unit_start, unit_end)
+        type(token_t), intent(in) :: tokens(:)
+        integer, intent(in) :: start_pos
+        integer, intent(out) :: unit_start, unit_end
+        
+        integer :: i, current_line, nesting_level
+        logical :: in_function, in_subroutine, in_module
+        
+        unit_start = start_pos
+        unit_end = start_pos
+        in_function = .false.
+        in_subroutine = .false.
+        in_module = .false.
+        nesting_level = 0
+        
+        ! Check if starting token indicates a multi-line construct
+        if (start_pos <= size(tokens)) then
+            ! Look for function definition patterns
+            if (is_function_start(tokens, start_pos)) then
+                in_function = .true.
+                nesting_level = 1
+            else if (is_subroutine_start(tokens, start_pos)) then
+                in_subroutine = .true.
+                nesting_level = 1
+            else if (is_module_start(tokens, start_pos)) then
+                in_module = .true.
+                nesting_level = 1
+            end if
+        end if
+        
+        ! If this is a multi-line construct, find the end
+        if (in_function .or. in_subroutine .or. in_module) then
+            i = start_pos
+            do while (i <= size(tokens) .and. nesting_level > 0)
+                if (tokens(i)%kind == TK_EOF) exit
+                
+                ! Check for nested constructs
+                if (in_function .and. is_function_start(tokens, i)) then
+                    nesting_level = nesting_level + 1
+                else if (in_subroutine .and. is_subroutine_start(tokens, i)) then
+                    nesting_level = nesting_level + 1
+                else if (in_module .and. is_module_start(tokens, i)) then
+                    nesting_level = nesting_level + 1
+                end if
+                
+                ! Check for end constructs
+                if (in_function .and. is_end_function(tokens, i)) then
+                    nesting_level = nesting_level - 1
+                else if (in_subroutine .and. is_end_subroutine(tokens, i)) then
+                    nesting_level = nesting_level - 1
+                else if (in_module .and. is_end_module(tokens, i)) then
+                    nesting_level = nesting_level - 1
+                end if
+                
+                unit_end = i
+                i = i + 1
+            end do
+        else
+            ! Single line construct - find end of current line
+            current_line = tokens(start_pos)%line
+            i = start_pos
+            do while (i <= size(tokens) .and. tokens(i)%line == current_line)
+                unit_end = i
+                i = i + 1
+            end do
+        end if
+    end subroutine find_program_unit_boundary
+
+    ! Parse a program unit (function, subroutine, module, or statement)
+    function parse_program_unit(tokens) result(unit)
+        type(token_t), intent(in) :: tokens(:)
+        class(ast_node), allocatable :: unit
+        
+        ! Check what type of program unit this is
+        if (is_function_start(tokens, 1)) then
+            unit = parse_statement(tokens)  ! Use existing function parser for now
+        else if (is_subroutine_start(tokens, 1)) then
+            unit = parse_statement(tokens)  ! Use existing subroutine parser for now
+        else if (is_module_start(tokens, 1)) then
+            unit = parse_statement(tokens)  ! Use existing module parser for now
+        else
+            ! Single statement
+            unit = parse_statement(tokens)
+        end if
+    end function parse_program_unit
+
+    ! Helper functions to detect program unit types
+    logical function is_function_start(tokens, pos)
+        type(token_t), intent(in) :: tokens(:)
+        integer, intent(in) :: pos
+        
+        is_function_start = .false.
+        if (pos > size(tokens)) return
+        
+        ! Check for "function" keyword
+        if (tokens(pos)%kind == TK_KEYWORD .and. tokens(pos)%text == "function") then
+            is_function_start = .true.
+        ! Check for "type function" pattern
+        else if (tokens(pos)%kind == TK_KEYWORD .and. &
+                 (tokens(pos)%text == "real" .or. tokens(pos)%text == "integer" .or. &
+                  tokens(pos)%text == "logical" .or. tokens(pos)%text == "character")) then
+            if (pos + 1 <= size(tokens) .and. &
+                tokens(pos + 1)%kind == TK_KEYWORD .and. &
+                tokens(pos + 1)%text == "function") then
+                is_function_start = .true.
+            end if
+        end if
+    end function is_function_start
+
+    logical function is_subroutine_start(tokens, pos)
+        type(token_t), intent(in) :: tokens(:)
+        integer, intent(in) :: pos
+        
+        is_subroutine_start = .false.
+        if (pos > size(tokens)) return
+        
+        if (tokens(pos)%kind == TK_KEYWORD .and. tokens(pos)%text == "subroutine") then
+            is_subroutine_start = .true.
+        end if
+    end function is_subroutine_start
+
+    logical function is_module_start(tokens, pos)
+        type(token_t), intent(in) :: tokens(:)
+        integer, intent(in) :: pos
+        
+        is_module_start = .false.
+        if (pos > size(tokens)) return
+        
+        if (tokens(pos)%kind == TK_KEYWORD .and. tokens(pos)%text == "module") then
+            is_module_start = .true.
+        end if
+    end function is_module_start
+
+    logical function is_end_function(tokens, pos)
+        type(token_t), intent(in) :: tokens(:)
+        integer, intent(in) :: pos
+        
+        is_end_function = .false.
+        if (pos + 1 > size(tokens)) return
+        
+        if (tokens(pos)%kind == TK_KEYWORD .and. tokens(pos)%text == "end" .and. &
+            tokens(pos + 1)%kind == TK_KEYWORD .and. tokens(pos + 1)%text == "function") then
+            is_end_function = .true.
+        end if
+    end function is_end_function
+
+    logical function is_end_subroutine(tokens, pos)
+        type(token_t), intent(in) :: tokens(:)
+        integer, intent(in) :: pos
+        
+        is_end_subroutine = .false.
+        if (pos + 1 > size(tokens)) return
+        
+        if (tokens(pos)%kind == TK_KEYWORD .and. tokens(pos)%text == "end" .and. &
+            tokens(pos + 1)%kind == TK_KEYWORD .and. tokens(pos + 1)%text == "subroutine") then
+            is_end_subroutine = .true.
+        end if
+    end function is_end_subroutine
+
+    logical function is_end_module(tokens, pos)
+        type(token_t), intent(in) :: tokens(:)
+        integer, intent(in) :: pos
+        
+        is_end_module = .false.
+        if (pos + 1 > size(tokens)) return
+        
+        if (tokens(pos)%kind == TK_KEYWORD .and. tokens(pos)%text == "end" .and. &
+            tokens(pos + 1)%kind == TK_KEYWORD .and. tokens(pos + 1)%text == "module") then
+            is_end_module = .true.
+        end if
+    end function is_end_module
 
     ! Phase 4: Code Generation (using FALLBACK until full AST)
     subroutine generate_fortran_code(ast_tree, sem_ctx, code)

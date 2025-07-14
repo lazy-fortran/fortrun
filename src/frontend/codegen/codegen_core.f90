@@ -220,44 +220,76 @@ contains
         character(len=:), allocatable :: code
         integer :: i
         
-        ! Start function declaration
-        code = "function " // node%name // "("
-        
-        ! Add parameters if present
-        if (allocated(node%params)) then
-            do i = 1, size(node%params)
-                if (i > 1) code = code // ", "
-                select type (param => node%params(i))
+        ! Start function declaration with return type if present
+        block
+            character(len=:), allocatable :: return_type_str
+            
+            ! Get return type string
+            if (allocated(node%return_type)) then
+                select type (ret_type => node%return_type)
                 type is (identifier_node)
-                    code = code // param%name
+                    if (len_trim(ret_type%name) > 0) then
+                        return_type_str = ret_type%name
+                    else
+                        return_type_str = "real(8)"  ! Default
+                    end if
                 class default
-                    code = code // "param" // char(i + ichar('0'))
+                    return_type_str = "real(8)"  ! Default
                 end select
-            end do
-        end if
-        
-        code = code // ")" // new_line('a')
-        code = code // "    implicit none" // new_line('a')
-        
-        ! Add parameter declarations (simplified for now)
-        if (allocated(node%params)) then
-            do i = 1, size(node%params)
-                select type (param => node%params(i))
-                type is (identifier_node)
-                    code = code // "    real(8), intent(in) :: " // param%name // new_line('a')
-                class default
-                    code = code // "    real(8), intent(in) :: param" // char(i + ichar('0')) // new_line('a')
-                end select
-            end do
-        end if
-        
-        ! Add return type declaration
-        code = code // "    real(8) :: " // node%name // new_line('a')
+            else
+                return_type_str = "real(8)"  ! Default
+            end if
+            
+            ! Generate function declaration
+            if (return_type_str /= "real(8)") then
+                code = return_type_str // " function " // node%name // "("
+            else
+                code = "function " // node%name // "("
+            end if
+            
+            ! Add parameters if present
+            if (allocated(node%params)) then
+                do i = 1, size(node%params)
+                    if (i > 1) code = code // ", "
+                    select type (param => node%params(i)%node)
+                    type is (identifier_node)
+                        code = code // param%name
+                    class default
+                        code = code // "param" // char(i + ichar('0'))
+                    end select
+                end do
+            end if
+            
+            code = code // ")" // new_line('a')
+            code = code // "    implicit none" // new_line('a')
+            
+            ! Add parameter declarations (simplified for now)
+            if (allocated(node%params)) then
+                do i = 1, size(node%params)
+                    select type (param => node%params(i)%node)
+                    type is (identifier_node)
+                        code = code // "    real(8), intent(in) :: " // param%name // new_line('a')
+                    class default
+                        code = code // "    real(8), intent(in) :: param" // char(i + ichar('0')) // new_line('a')
+                    end select
+                end do
+            end if
+            
+            ! Add return type declaration
+            code = code // "    " // return_type_str // " :: " // node%name // new_line('a')
+        end block
         
         ! Add function body
         if (allocated(node%body)) then
             do i = 1, size(node%body)
-                code = code // "    " // generate_code_polymorphic(node%body(i)) // new_line('a')
+                block
+                    character(len=:), allocatable :: body_code
+                    body_code = generate_code_polymorphic(node%body(i)%node)
+                    ! Skip empty or placeholder statements
+                    if (len_trim(body_code) > 0 .and. body_code /= "! Function body statement") then
+                        code = code // "    " // body_code // new_line('a')
+                    end if
+                end block
             end do
         end if
         

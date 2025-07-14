@@ -290,12 +290,12 @@ contains
                 end if
             else
                 ! Fallback for unrecognized operators
-                expr = create_literal("0", LITERAL_INTEGER, 1, 1)
+                expr = create_literal("! Unrecognized operator", LITERAL_STRING, current%line, current%column)
             end if
             
         case default
             ! Fallback
-            expr = create_literal("0", LITERAL_INTEGER, 1, 1)
+            expr = create_literal("! Unrecognized token", LITERAL_STRING, current%line, current%column)
         end select
     end function parse_primary
 
@@ -469,15 +469,15 @@ contains
         
     end function parse_print_statement
 
-    ! Parse function definition: [type] function name(params)
+    ! Parse function definition: [type] function name(params) ... end function
     function parse_function_definition(parser) result(func_node)
         type(parser_state_t), intent(inout) :: parser
         class(ast_node), allocatable :: func_node
         
-        
         character(len=:), allocatable :: return_type_str, func_name
         type(token_t) :: token
-        class(ast_node), allocatable :: params(:), body(:), return_type
+        type(ast_node_wrapper), allocatable :: params(:), body(:)
+        class(ast_node), allocatable :: return_type
         integer :: line, column
         
         ! Initialize
@@ -515,10 +515,84 @@ contains
             return
         end if
         
-        ! For now, skip parameter parsing and create a simple function node
-        ! This is a minimal implementation for TDD
-        allocate(identifier_node :: params(0))  ! Empty parameters for now
-        allocate(identifier_node :: body(0))    ! Empty body for now
+        ! Parse parameters (basic implementation)
+        allocate(params(0))  ! Empty parameters for now
+        
+        ! Look for opening parenthesis
+        token = parser%peek()
+        if (token%kind == TK_OPERATOR .and. token%text == "(") then
+            token = parser%consume()
+            
+            ! Skip parameter parsing for now - just find closing paren
+            do while (.not. parser%is_at_end())
+                token = parser%peek()
+                if (token%kind == TK_OPERATOR .and. token%text == ")") then
+                    token = parser%consume()
+                    exit
+                end if
+                token = parser%consume()
+            end do
+        end if
+        
+        ! Parse function body (collect all statements until "end function")
+        block
+            type(ast_node_wrapper), allocatable :: body_statements(:)
+            class(ast_node), allocatable :: stmt
+            integer :: body_count, i
+            
+            body_count = 0
+            
+            ! Parse statements until we hit "end function"
+            do while (.not. parser%is_at_end())
+                token = parser%peek()
+                
+                ! Check for "end function"
+                if (token%kind == TK_KEYWORD .and. token%text == "end") then
+                    ! Look ahead for "function"
+                    if (parser%current_token + 1 <= size(parser%tokens)) then
+                        block
+                            type(token_t) :: next_token
+                            next_token = parser%tokens(parser%current_token + 1)
+                            if (next_token%kind == TK_KEYWORD .and. next_token%text == "function") then
+                                ! Consume "end function"
+                                token = parser%consume()
+                                token = parser%consume()
+                                exit
+                            end if
+                        end block
+                    end if
+                end if
+                
+                ! Parse the statement (simplified - just create a literal for now)
+                stmt = create_literal("! Function body statement", LITERAL_STRING, token%line, token%column)
+                
+                ! Extend body array using wrapper pattern
+                block
+                    type(ast_node_wrapper) :: new_wrapper
+                    allocate(new_wrapper%node, source=stmt)
+                    if (allocated(body_statements)) then
+                        body_statements = [body_statements, new_wrapper]
+                    else
+                        body_statements = [new_wrapper]
+                    end if
+                    body_count = body_count + 1
+                end block
+                
+                ! Skip to next token
+                token = parser%consume()
+            end do
+            
+            ! Convert wrapper array to body array
+            if (body_count > 0) then
+                allocate(body(body_count))
+                do i = 1, body_count
+                    allocate(body(i)%node, source=body_statements(i)%node)
+                end do
+                deallocate(body_statements)
+            else
+                allocate(body(0))  ! Empty body
+            end if
+        end block
         
         ! Create return type node from string
         if (len_trim(return_type_str) > 0) then
@@ -549,7 +623,7 @@ contains
             module_name = token%text
         else
             ! Invalid use statement - return placeholder
-            stmt = create_literal("0", LITERAL_INTEGER, token%line, token%column)
+            stmt = create_literal("! Invalid use statement", LITERAL_STRING, token%line, token%column)
             return
         end if
         

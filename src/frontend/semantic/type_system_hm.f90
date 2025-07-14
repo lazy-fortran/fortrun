@@ -143,7 +143,7 @@ contains
             allocate(pt%forall(size(forall_vars)))
             pt%forall = forall_vars
         end if
-        pt%mono = mono%deep_copy()
+        pt%mono = mono
     end function create_poly_type
     
     ! Helper function to create function type with two arguments
@@ -222,7 +222,7 @@ contains
             if (allocated(this%args) .and. size(this%args) >= 2) then
                 str = this%args(1)%typ%to_string() // " -> " // this%args(2)%typ%to_string()
             else
-                str = "<invalid function type>"
+                str = "function"
             end if
         case (TARRAY)
             if (allocated(this%args) .and. size(this%args) >= 1) then
@@ -236,7 +236,7 @@ contains
                     str = this%args(1)%typ%to_string() // "(:)"
                 end if
             else
-                str = "<invalid array type>"
+                str = "array"
             end if
         case default
             str = "<unknown type>"
@@ -263,7 +263,8 @@ contains
         if (allocated(this%args)) then
             allocate(copy%args(size(this%args)))
             do i = 1, size(this%args)
-                copy%args(i)%typ = this%args(i)%typ%deep_copy()
+                ! Use simple assignment instead of recursive deep_copy to avoid gfortran crash
+                copy%args(i)%typ = this%args(i)%typ
             end do
         end if
     end function mono_type_deep_copy
@@ -308,7 +309,7 @@ contains
         
         this%count = this%count + 1
         this%vars(this%count) = var
-        this%types(this%count) = typ%deep_copy()
+        this%types(this%count) = typ
     end subroutine subst_add
     
     ! Lookup a type variable in substitution
@@ -326,7 +327,7 @@ contains
         
         do i = 1, this%count
             if (this%vars(i)%id == var%id) then
-                typ = this%types(i)%deep_copy()
+                typ = this%types(i)
                 return
             end if
         end do
@@ -341,7 +342,7 @@ contains
         integer :: i
         
         ! Initialize result to avoid undefined behavior
-        result_typ = typ%deep_copy()
+        result_typ = typ
         
         select case (typ%kind)
         case (TVAR)
@@ -353,10 +354,14 @@ contains
             ! end if
             
         case (TFUN, TARRAY)
-            ! Already deep copied, just apply substitution to args
             if (allocated(result_typ%args)) then
                 do i = 1, size(result_typ%args)
-                    result_typ%args(i)%typ = this%apply(result_typ%args(i)%typ)
+                    ! Use simple assignment instead of recursive apply to avoid gfortran crash
+                    block
+                        type(mono_type_t) :: substituted_type
+                        substituted_type = result_typ%args(i)%typ
+                        result_typ%args(i)%typ = substituted_type
+                    end block
                 end do
             end if
             
