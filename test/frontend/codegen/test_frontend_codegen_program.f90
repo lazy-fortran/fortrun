@@ -83,16 +83,17 @@ contains
     logical function test_print_statement()
         type(print_statement_node) :: print_stmt
         type(identifier_node) :: var
-        class(ast_node), allocatable :: args(:)
+        type(ast_node_wrapper), allocatable :: wrapper_args(:)
         character(len=:), allocatable :: code
         
         test_print_statement = .true.
         print '(a)', "Testing print statement generation..."
         
-        ! Create print statement with one argument
+        ! Create print statement with one argument using wrapper pattern
         var = create_identifier("result", 1, 7)
-        allocate(args, source=[var])
-        print_stmt = create_print_statement(args, line=1, column=1)
+        allocate(wrapper_args(1))
+        allocate(wrapper_args(1)%node, source=var)
+        print_stmt = create_print_statement(wrapper_args, line=1, column=1)
         
         ! Generate code
         code = generate_code(print_stmt)
