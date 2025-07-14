@@ -40,6 +40,9 @@ contains
         ! Initialize type map
         ctx%type_map = create_type_map()
         
+        ! Initialize substitution
+        ctx%subst%count = 0
+        
         ! Initialize with builtin functions
         real_type = create_mono_type(TREAL)
         
@@ -396,7 +399,7 @@ contains
         
         ! Handle type variables
         if (t1_subst%kind == TVAR) then
-            if (t1_subst%var%id == t2_subst%var%id .and. t2_subst%kind == TVAR) then
+            if (t2_subst%kind == TVAR .and. t1_subst%var%id == t2_subst%var%id) then
                 ! Same variable - empty substitution
                 return
             else if (occurs_check(t1_subst%var, t2_subst)) then

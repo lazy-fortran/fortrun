@@ -131,6 +131,25 @@ src/frontend/
 
 **Status**: Need to investigate var field initialization and ensure it's safe for all type kinds
 
+### Progress Update (Latest)
+
+**Fixes Applied**:
+- Fixed unification check order to avoid accessing uninitialized var fields
+- Added proper var field initialization in create_fun_type
+- Fixed deep_copy to properly handle var field with allocatable components
+- Initialized substitution count explicitly
+
+**Current Status**:
+- Simple expressions work (assignments, arithmetic, print statements)
+- Function type creation works in isolation
+- Function call type inference still crashes with segfault at line 345 in subst_apply_to_mono
+- The crash occurs when processing TVAR types during substitution application
+
+**Next Steps**:
+- Need deeper investigation into substitution mechanics
+- May need to redesign how type variables are handled in the type system
+- Consider alternative approaches to type inference that avoid this issue
+
 Based on the current state and test files in the working directory:
 
 ### ✅ COMPLETED: Fix Existing Test Suite
