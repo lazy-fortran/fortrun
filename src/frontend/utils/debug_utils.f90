@@ -105,9 +105,72 @@ contains
     subroutine debug_output_codegen(input_file, code)
         character(len=*), intent(in) :: input_file
         character(len=*), intent(in) :: code
+        character(len=:), allocatable :: json_file
+        integer :: unit, i, line_start, line_end
         
-        ! TODO: Implement codegen JSON output
-        print *, "Debug codegen for ", trim(input_file), " (JSON output not implemented)"
+        ! Extract basename and create codegen filename
+        block
+            integer :: dot_pos, slash_pos
+            character(len=:), allocatable :: basename
+            
+            ! Find the last slash to get basename
+            slash_pos = index(input_file, '/', back=.true.)
+            if (slash_pos > 0) then
+                basename = input_file(slash_pos+1:)
+            else
+                basename = input_file
+            end if
+            
+            ! Remove extension if present
+            dot_pos = index(basename, '.', back=.true.)
+            if (dot_pos > 0) then
+                basename = basename(1:dot_pos-1)
+            end if
+            
+            json_file = trim(basename) // "_codegen.json"
+        end block
+        
+        ! Write JSON with generated code
+        open(newunit=unit, file=json_file, status='replace', action='write')
+        write(unit, '(a)') '{'
+        write(unit, '(a,a,a)') '  "input_file": "', trim(input_file), '",'
+        write(unit, '(a)') '  "generated_code": ['
+        
+        ! Write code line by line as JSON array
+        line_start = 1
+        do i = 1, len(code)
+            if (code(i:i) == new_line('a') .or. i == len(code)) then
+                line_end = i - 1
+                if (i == len(code) .and. code(i:i) /= new_line('a')) line_end = i
+                
+                ! Write line with proper JSON escaping
+                write(unit, '(a)', advance='no') '    "'
+                ! Basic JSON escaping for quotes
+                block
+                    integer :: j
+                    do j = line_start, line_end
+                        if (code(j:j) == '"') then
+                            write(unit, '(a)', advance='no') '\"'
+                        else if (code(j:j) == '\') then
+                            write(unit, '(a)', advance='no') '\\'
+                        else
+                            write(unit, '(a)', advance='no') code(j:j)
+                        end if
+                    end do
+                end block
+                write(unit, '(a)', advance='no') '"'
+                
+                ! Add comma if not last line
+                if (i < len(code)) write(unit, '(a)', advance='no') ','
+                write(unit, '(a)') ''
+                
+                line_start = i + 1
+            end if
+        end do
+        
+        write(unit, '(a)') '  ]'
+        write(unit, '(a)') '}'
+        close(unit)
     end subroutine debug_output_codegen
 
 end module debug_utils

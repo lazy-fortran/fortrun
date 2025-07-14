@@ -7,7 +7,7 @@ module declaration_generator
     use parser_core, only: parse_statement, parser_state_t, create_parser_state
     use ast_core
     use ast_lazy_fortran
-    use semantic_analyzer_simple, only: simple_semantic_context_t
+    use semantic_analyzer, only: semantic_context_t
     use token_fallback, only: get_function_names_from_tokens, current_tokens
     implicit none
     private
@@ -21,76 +21,77 @@ contains
 
     ! Generate variable declarations from AST with type info
     function generate_declarations(prog, sem_ctx) result(decls)
-        ! Generate declarations from all statements using stored tokens
+        ! Generate declarations from AST body
         type(lf_program_node), intent(in) :: prog
-        type(simple_semantic_context_t), intent(in) :: sem_ctx
+        type(semantic_context_t), intent(in) :: sem_ctx
         character(len=:), allocatable :: decls
         character(len=:), allocatable :: type_str, var_name
         character(len=:), allocatable :: function_names
-        
-        ! Parse all statements from stored tokens for type inference
-        type(parser_state_t) :: parser
-        class(ast_node), allocatable :: stmt
+        character(len=256), allocatable :: var_names(:)
+        logical, allocatable :: var_declared(:)
+        integer :: n_vars, i, j
         
         decls = ""
+        n_vars = 0
         
         ! Get list of all function names to avoid declaring them as variables
         function_names = get_function_names_from_tokens()
         
-        ! Process all statements from stored tokens
-        if (allocated(current_tokens)) then
-            parser = create_parser_state(current_tokens)
-            
-            ! Parse statements by finding EOF boundaries
-            do while (parser%current_token <= size(current_tokens))
-                ! Find the end of the current statement (next EOF or end of tokens)
-                block
-                    integer :: stmt_start, stmt_end, j
-                    type(token_t), allocatable :: stmt_tokens(:)
-                    
-                    stmt_start = parser%current_token
-                    stmt_end = stmt_start
-                    
-                    ! Find next EOF token to determine statement boundary
-                    do j = stmt_start, size(current_tokens)
-                        if (current_tokens(j)%kind == TK_EOF) then
-                            stmt_end = j - 1
-                            exit
-                        end if
-                        stmt_end = j
-                    end do
-                    
-                    ! Extract tokens for this statement
-                    if (stmt_end >= stmt_start) then
-                        allocate(stmt_tokens(stmt_end - stmt_start + 1))
-                        stmt_tokens = current_tokens(stmt_start:stmt_end)
-                        
-                        ! Parse this statement
-                        stmt = parse_statement(stmt_tokens)
-                        
-                        if (allocated(stmt)) then
-                            ! Extract declarations from assignment statements
-                            select type (stmt)
-                            type is (assignment_node)
-                                ! Get variable name
-                                select type (target => stmt%target)
-                                type is (identifier_node)
-                                    var_name = target%name
-                                    
-                                    ! Check if this variable name is actually a function name
-                                    if (.not. is_function_name(var_name, function_names)) then
-                                        ! Basic type inference from assignment value
-                                        type_str = infer_basic_type(stmt%value)
-                                        decls = decls // "    " // type_str // " :: " // var_name // new_line('a')
+        ! First pass: count variables
+        if (allocated(prog%body)) then
+            do i = 1, size(prog%body)
+                if (allocated(prog%body(i)%node)) then
+                    select type (stmt => prog%body(i)%node)
+                    type is (assignment_node)
+                        n_vars = n_vars + 1
+                    end select
+                end if
+            end do
+        end if
+        
+        if (n_vars == 0) return
+        
+        ! Allocate arrays to track variables
+        allocate(var_names(n_vars))
+        allocate(var_declared(n_vars))
+        var_declared = .false.
+        
+        ! Second pass: collect variables and generate declarations
+        n_vars = 0
+        if (allocated(prog%body)) then
+            do i = 1, size(prog%body)
+                if (allocated(prog%body(i)%node)) then
+                    select type (stmt => prog%body(i)%node)
+                    type is (assignment_node)
+                        ! Get variable name
+                        select type (target => stmt%target)
+                        type is (identifier_node)
+                            var_name = target%name
+                            
+                            ! Check if already declared
+                            block
+                                logical :: already_declared
+                                already_declared = .false.
+                                do j = 1, n_vars
+                                    if (var_names(j) == var_name) then
+                                        already_declared = .true.
+                                        exit
                                     end if
-                                end select
-                            end select
-                        end if
-                    end if
-                    
-                    ! Move to next statement (skip past EOF)
-                    parser%current_token = stmt_end + 2  ! Skip EOF token
-                end block
+                                end do
+                                
+                                if (.not. already_declared .and. &
+                                    .not. is_function_name(var_name, function_names)) then
+                                    n_vars = n_vars + 1
+                                    var_names(n_vars) = var_name
+                                    
+                                    ! Basic type inference from assignment value
+                                    type_str = infer_basic_type(stmt%value)
+                                    decls = decls // "    " // type_str // " :: " // var_name // new_line('a')
+                                end if
+                            end block
+                        end select
+                    end select
+                end if
             end do
         end if
         

@@ -73,15 +73,14 @@ contains
         type(semantic_context_t), intent(inout) :: ctx
         class(ast_node), intent(inout) :: ast
         
-        ! Temporary fix: disable type inference to avoid segfaults
-        ! Just return without doing analysis
+        ! TODO: Fix HM type inference segfault before enabling
         return
         
         select type (ast)
         type is (program_node)
             call analyze_program_node(ctx, ast)
         type is (lf_program_node)
-            call analyze_program_node(ctx, ast%program_node)
+            call analyze_lf_program_node(ctx, ast)
         class default
             ! Single statement/expression
             call infer_and_store_type(ctx, ast)
@@ -96,10 +95,41 @@ contains
         
         if (allocated(prog%body)) then
             do i = 1, size(prog%body)
-                call infer_and_store_type(ctx, prog%body(i))
+                if (allocated(prog%body(i)%node)) then
+                    call infer_and_store_type(ctx, prog%body(i)%node)
+                end if
             end do
         end if
     end subroutine analyze_program_node
+    
+    ! Analyze a lazy fortran program node
+    subroutine analyze_lf_program_node(ctx, prog)
+        type(semantic_context_t), intent(inout) :: ctx
+        type(lf_program_node), intent(inout) :: prog
+        integer :: i
+        
+        ! lf_program_node extends program_node, so we can use its body directly
+        if (allocated(prog%body)) then
+            do i = 1, size(prog%body)
+                if (allocated(prog%body(i)%node)) then
+                    call infer_and_store_type(ctx, prog%body(i)%node)
+                end if
+            end do
+        end if
+        
+        ! Store inferred variable types in the lf_program_node
+        ! This will be used during code generation
+        call collect_inferred_variables(ctx, prog)
+    end subroutine analyze_lf_program_node
+    
+    ! Collect all inferred variables and their types
+    subroutine collect_inferred_variables(ctx, prog)
+        type(semantic_context_t), intent(inout) :: ctx
+        type(lf_program_node), intent(inout) :: prog
+        
+        ! TODO: Implement variable collection from type environment
+        ! For now, just mark that inference has been done by setting a flag
+    end subroutine collect_inferred_variables
     
     ! Infer type and store in AST node
     subroutine infer_and_store_type(ctx, node)

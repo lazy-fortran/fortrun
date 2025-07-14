@@ -7,7 +7,7 @@ module frontend
     use parser_core, only: parse_expression, parse_statement, parser_state_t, create_parser_state
     use ast_core
     use ast_lazy_fortran
-    use semantic_analyzer_simple, only: simple_semantic_context_t, create_simple_context, analyze_program_simple
+    use semantic_analyzer, only: semantic_context_t, create_semantic_context, analyze_program
     use codegen_core, only: generate_code, generate_code_polymorphic
     
     ! FALLBACK modules (temporary until full AST)
@@ -49,7 +49,7 @@ contains
         ! Local variables
         type(token_t), allocatable :: tokens(:)
         class(ast_node), allocatable :: ast_tree
-        type(simple_semantic_context_t) :: sem_ctx
+        type(semantic_context_t) :: sem_ctx
         character(len=:), allocatable :: code, source
         integer :: unit, iostat
         
@@ -86,8 +86,8 @@ contains
         if (options%debug_ast) call debug_output_ast(input_file, ast_tree)
         
         ! Phase 3: Semantic Analysis  
-        sem_ctx = create_simple_context()
-        call analyze_program_simple(sem_ctx, ast_tree)
+        sem_ctx = create_semantic_context()
+        call analyze_program(sem_ctx, ast_tree)
         
         ! Phase 4: Code Generation
         call generate_fortran_code(ast_tree, sem_ctx, code)
@@ -220,7 +220,7 @@ contains
     ! Phase 4: Code Generation (using FALLBACK until full AST)
     subroutine generate_fortran_code(ast_tree, sem_ctx, code)
         class(ast_node), intent(in) :: ast_tree
-        type(simple_semantic_context_t), intent(in) :: sem_ctx
+        type(semantic_context_t), intent(in) :: sem_ctx
         character(len=:), allocatable, intent(out) :: code
         
         select type (prog => ast_tree)
@@ -234,7 +234,7 @@ contains
     ! Generate Fortran program (FALLBACK approach until full AST)
     function generate_fortran_program(prog, sem_ctx) result(code)
         type(lf_program_node), intent(in) :: prog
-        type(simple_semantic_context_t), intent(in) :: sem_ctx
+        type(semantic_context_t), intent(in) :: sem_ctx
         character(len=:), allocatable :: code
         character(len=:), allocatable :: use_statements, declarations, statements, functions
         

@@ -1,0 +1,9 @@
+{
+  "input_file": "/home/ert/code/fortran/example/hello/hello.f",
+  "generated_code": [
+    "program main",
+    "    implicit none",
+    "    print *, 'Hello from fortran CLI!'",
+    "end program main"
+  ]
+}
