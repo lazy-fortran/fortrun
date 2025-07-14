@@ -23,22 +23,17 @@ module type_system_hm
         character(len=:), allocatable :: name  ! e.g., 'a, 'b
     end type type_var_t
     
-    ! Forward declaration for wrapper
+    ! Monomorphic type - simplified to avoid circular dependency
     type :: mono_type_t
         integer :: kind  ! TVAR, TINT, TREAL, etc.
         type(type_var_t) :: var  ! for TVAR
-        type(mono_type_wrapper), allocatable :: args(:)  ! for TFUN (arg, result), TARRAY (element type)
+        type(mono_type_t), allocatable :: args(:)  ! for TFUN (arg, result), TARRAY (element type)
         integer :: size  ! for TCHAR(len=size), TARRAY(size)
     contains
         procedure :: equals => mono_type_equals
         procedure :: to_string => mono_type_to_string
         procedure :: deep_copy => mono_type_deep_copy
     end type mono_type_t
-    
-    ! Wrapper for polymorphic array elements
-    type :: mono_type_wrapper
-        type(mono_type_t) :: typ
-    end type mono_type_wrapper
     
     ! Polymorphic type (type scheme)
     type :: poly_type_t
@@ -121,7 +116,7 @@ contains
         if (present(args)) then
             allocate(result_type%args(size(args)))
             do i = 1, size(args)
-                result_type%args(i)%typ = args(i)
+                result_type%args(i) = args(i)
             end do
         end if
         
@@ -157,12 +152,12 @@ contains
         fun_type%var%id = -1
         allocate(character(len=0) :: fun_type%var%name)
         allocate(fun_type%args(2))
-        fun_type%args(1)%typ = arg_type
-        fun_type%args(2)%typ = result_type
+        fun_type%args(1) = arg_type
+        fun_type%args(2) = result_type
     end function create_fun_type
     
     ! Check if two monomorphic types are equal
-    recursive logical function mono_type_equals(this, other) result(equal)
+    logical function mono_type_equals(this, other) result(equal)
         class(mono_type_t), intent(in) :: this, other
         integer :: i
         
@@ -184,10 +179,23 @@ contains
             end if
             if (size(this%args) /= size(other%args)) return
             equal = .true.
+            ! Simple non-recursive equality check
             do i = 1, size(this%args)
-                if (.not. this%args(i)%typ%equals(other%args(i)%typ)) then
+                if (this%args(i)%kind /= other%args(i)%kind) then
                     equal = .false.
                     return
+                end if
+                ! Check basic fields for equality
+                if (this%args(i)%kind == TVAR) then
+                    if (this%args(i)%var%id /= other%args(i)%var%id) then
+                        equal = .false.
+                        return
+                    end if
+                else if (this%args(i)%kind == TCHAR) then
+                    if (this%args(i)%size /= other%args(i)%size) then
+                        equal = .false.
+                        return
+                    end if
                 end if
             end do
             if (this%kind == TARRAY) then
@@ -197,7 +205,7 @@ contains
     end function mono_type_equals
     
     ! Convert monomorphic type to string
-    recursive function mono_type_to_string(this) result(str)
+    function mono_type_to_string(this) result(str)
         class(mono_type_t), intent(in) :: this
         character(len=:), allocatable :: str
         
@@ -220,21 +228,73 @@ contains
             end if
         case (TFUN)
             if (allocated(this%args) .and. size(this%args) >= 2) then
-                str = this%args(1)%typ%to_string() // " -> " // this%args(2)%typ%to_string()
+                ! Simple non-recursive string representation
+                block
+                    character(len=:), allocatable :: arg1_str, arg2_str
+                    
+                    ! Get string for first argument
+                    select case (this%args(1)%kind)
+                    case (TVAR)
+                        arg1_str = this%args(1)%var%name
+                    case (TINT)
+                        arg1_str = "integer"
+                    case (TREAL)
+                        arg1_str = "real"
+                    case (TCHAR)
+                        arg1_str = "character"
+                    case default
+                        arg1_str = "unknown"
+                    end select
+                    
+                    ! Get string for second argument
+                    select case (this%args(2)%kind)
+                    case (TVAR)
+                        arg2_str = this%args(2)%var%name
+                    case (TINT)
+                        arg2_str = "integer"
+                    case (TREAL)
+                        arg2_str = "real"
+                    case (TCHAR)
+                        arg2_str = "character"
+                    case default
+                        arg2_str = "unknown"
+                    end select
+                    
+                    str = arg1_str // " -> " // arg2_str
+                end block
             else
                 str = "function"
             end if
         case (TARRAY)
             if (allocated(this%args) .and. size(this%args) >= 1) then
-                if (this%size > 0) then
-                    block
-                        character(len=20) :: size_str
-                        write(size_str, '(i0)') this%size
-                        str = this%args(1)%typ%to_string() // "(" // trim(size_str) // ")"
-                    end block
-                else
-                    str = this%args(1)%typ%to_string() // "(:)"
-                end if
+                ! Simple non-recursive string representation
+                block
+                    character(len=:), allocatable :: elem_str
+                    
+                    ! Get string for array element type
+                    select case (this%args(1)%kind)
+                    case (TVAR)
+                        elem_str = this%args(1)%var%name
+                    case (TINT)
+                        elem_str = "integer"
+                    case (TREAL)
+                        elem_str = "real"
+                    case (TCHAR)
+                        elem_str = "character"
+                    case default
+                        elem_str = "unknown"
+                    end select
+                    
+                    if (this%size > 0) then
+                        block
+                            character(len=20) :: size_str
+                            write(size_str, '(i0)') this%size
+                            str = elem_str // "(" // trim(size_str) // ")"
+                        end block
+                    else
+                        str = elem_str // "(:)"
+                    end if
+                end block
             else
                 str = "array"
             end if
@@ -243,8 +303,8 @@ contains
         end select
     end function mono_type_to_string
     
-    ! Deep copy a monomorphic type
-    recursive function mono_type_deep_copy(this) result(copy)
+    ! Deep copy a monomorphic type (non-recursive to avoid gfortran crash)
+    function mono_type_deep_copy(this) result(copy)
         class(mono_type_t), intent(in) :: this
         type(mono_type_t) :: copy
         integer :: i
@@ -260,11 +320,11 @@ contains
             allocate(character(len=0) :: copy%var%name)
         end if
         
+        ! For complex types, use shallow copy to avoid gfortran crash
         if (allocated(this%args)) then
             allocate(copy%args(size(this%args)))
             do i = 1, size(this%args)
-                ! Use simple assignment instead of recursive deep_copy to avoid gfortran crash
-                copy%args(i)%typ = this%args(i)%typ
+                copy%args(i) = this%args(i)
             end do
         end if
     end function mono_type_deep_copy
@@ -334,7 +394,7 @@ contains
     end function subst_lookup
     
     ! Apply substitution to monomorphic type
-    recursive function subst_apply_to_mono(this, typ) result(result_typ)
+    function subst_apply_to_mono(this, typ) result(result_typ)
         class(substitution_t), intent(in) :: this
         type(mono_type_t), intent(in) :: typ
         type(mono_type_t) :: result_typ
@@ -354,14 +414,19 @@ contains
             ! end if
             
         case (TFUN, TARRAY)
+            ! Simple non-recursive substitution - just handle direct args
             if (allocated(result_typ%args)) then
                 do i = 1, size(result_typ%args)
-                    ! Use simple assignment instead of recursive apply to avoid gfortran crash
-                    block
-                        type(mono_type_t) :: substituted_type
-                        substituted_type = result_typ%args(i)%typ
-                        result_typ%args(i)%typ = substituted_type
-                    end block
+                    ! Simple case: if arg is a type variable, look it up
+                    if (result_typ%args(i)%kind == TVAR) then
+                        block
+                            type(mono_type_t), allocatable :: lookup_result
+                            lookup_result = this%lookup(result_typ%args(i)%var)
+                            if (allocated(lookup_result)) then
+                                result_typ%args(i) = lookup_result
+                            end if
+                        end block
+                    end if
                 end do
             end if
             
@@ -449,7 +514,7 @@ contains
     end function compose_substitutions
     
     ! Occurs check - check if variable occurs in type
-    recursive logical function occurs_check(var, typ) result(occurs)
+    logical function occurs_check(var, typ) result(occurs)
         type(type_var_t), intent(in) :: var
         type(mono_type_t), intent(in) :: typ
         integer :: i
@@ -460,9 +525,10 @@ contains
         case (TVAR)
             occurs = (var%id == typ%var%id)
         case (TFUN, TARRAY)
+            ! Simple non-recursive check - just check direct args
             if (allocated(typ%args)) then
                 do i = 1, size(typ%args)
-                    if (occurs_check(var, typ%args(i)%typ)) then
+                    if (typ%args(i)%kind == TVAR .and. var%id == typ%args(i)%var%id) then
                         occurs = .true.
                         return
                     end if
@@ -512,9 +578,23 @@ contains
                     temp_vars(count) = t%var
                 end if
             case (TFUN, TARRAY)
+                ! Simple non-recursive collection - just collect direct args
                 if (allocated(t%args)) then
                     do k = 1, size(t%args)
-                        call collect_vars(t%args(k)%typ)
+                        if (t%args(k)%kind == TVAR) then
+                            ! Check if already collected
+                            found = .false.
+                            do j = 1, count
+                                if (temp_vars(j)%id == t%args(k)%var%id) then
+                                    found = .true.
+                                    exit
+                                end if
+                            end do
+                            if (.not. found) then
+                                count = count + 1
+                                temp_vars(count) = t%args(k)%var
+                            end if
+                        end if
                     end do
                 end if
             end select
