@@ -372,7 +372,7 @@ contains
             character(len=:), allocatable :: var_declarations
             var_declarations = analyze_for_variable_declarations(node)
             if (len_trim(var_declarations) > 0) then
-                code = code // var_declarations
+                code = code // var_declarations // new_line('a')
             end if
         end block
         
@@ -578,7 +578,28 @@ contains
                         if (index(var_list, target%name) == 0) then
                             if (len_trim(var_list) > 0) var_list = var_list // ","
                             var_list = var_list // target%name
-                            declarations = declarations // "    real(8) :: " // target%name // new_line('a')
+                            
+                            ! Simple type inference based on assigned value
+                            block
+                                character(len=:), allocatable :: var_type
+                                var_type = "real(8)"  ! Default
+                                
+                                ! Check assignment value for type hints
+                                select type (value => stmt%value)
+                                type is (literal_node)
+                                    if (value%literal_kind == LITERAL_INTEGER) then
+                                        var_type = "integer"
+                                    else if (value%literal_kind == LITERAL_REAL) then
+                                        var_type = "real(8)"
+                                    else if (value%literal_kind == LITERAL_STRING) then
+                                        var_type = "character(len=*)"
+                                    else if (value%literal_kind == LITERAL_LOGICAL) then
+                                        var_type = "logical"
+                                    end if
+                                end select
+                                
+                                declarations = declarations // "    " // var_type // " :: " // target%name // new_line('a')
+                            end block
                         end if
                     end select
                 end select

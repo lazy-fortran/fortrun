@@ -44,8 +44,9 @@ AFTER: Clean build, no conflicts
 
 ### Remaining Issues (Non-Critical)
 1. **Use statement generation** - FIXED ✅
-2. **Type inference** - Disabled for stability, defaults to real(8)
-   - Causes test_frontend_statements test 3 to fail (expects integer, gets real(8))
+2. **Type inference** - FIXED with simple heuristics ✅
+   - Literals determine variable type (integer, real, string, logical)
+   - test_frontend_statements now 3/3 passing
 3. **Some CLI tests** - Logical failures, not crashes
 4. **Some frontend tests** - AST generation incomplete
 
