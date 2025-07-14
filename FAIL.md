@@ -1,73 +1,105 @@
-# Test Failures Report
+# CRITICAL FAILURES - MUST FIX IMMEDIATELY
 
-This document tracks current test failures to guide development priorities.
+## BROKEN TESTS - 37 TOTAL, 13 FAILED
 
-## Test Run Summary
+The system is fundamentally broken. These are not "minor issues" - they are critical failures that prevent basic functionality.
 
-Date: 2025-07-13
-Branch: ast
-Test Command: `fpm test`
+## IMMEDIATE BLOCKERS
 
-## Critical Issues
+### 1. SEGMENTATION FAULTS - SYSTEM CRASHES
+```
+Program received signal SIGSEGV: Segmentation fault - invalid memory reference.
+#0  0x7f6bc0e4deef in ???
+#1  0x50f24b in __type_system_hm_MOD_subst_apply_to_mono
+    at ././src/frontend/semantic/type_system_hm.f90:308
+```
+**STATUS: CRITICAL - CRASHES DURING TYPE INFERENCE**
 
-### 1. USE Statement Placement Errors
-**Error**: "USE statement at (1) cannot follow data declaration statement at (2)"
-**Affected**: Multiple example programs
-**Issue**: Frontend is placing USE statements after variable declarations instead of before
-**Priority**: HIGH - This breaks Fortran syntax rules
+### 2. PRINT STATEMENT GENERATION BROKEN
+```
+Expected:
+print *, "Hello"
+Got:
+print * , "Hello"
+```
+**STATUS: BROKEN - EXTRA SPACE BREAKS FORTRAN SYNTAX**
 
-### 2. Function Declaration Issues
-**Error**: "Procedure 'X' called with an implicit interface" and "Function 'X' at (1) has no IMPLICIT type"
-**Affected**: Examples with function calls (add, multiply, calculate_area, etc.)
-**Issue**: Frontend not generating proper function declarations or interfaces
-**Priority**: HIGH - Missing core functionality
+### 3. TYPE UNIFICATION FAILURES
+```
+ERROR STOP Type mismatch: cannot unify real(8) with integer
+```
+**STATUS: BROKEN - BASIC TYPE INFERENCE FAILING**
 
-### 3. Function Definition Parsing
-**Error**: "Syntax error in data declaration at (1)" and "'square' at (1) is not a variable"
-**Affected**: Examples with function definitions
-**Issue**: Parser doesn't handle function definitions properly
-**Priority**: HIGH - Core language feature missing
+### 4. DUPLICATE MODULE ERRORS
+```
+Warning: Module test_mod in ././src/test_module_out.f90 is a duplicate
+<ERROR> *build_model*:Error: One or more duplicate module names found.
+```
+**STATUS: BROKEN - BUILD SYSTEM CONFLICTS**
 
-### 4. Program Structure Errors
-**Error**: "Syntax error in END PROGRAM statement" and "Expecting END PROGRAM statement"
-**Affected**: Various test programs
-**Issue**: Malformed program structure generation
-**Priority**: MEDIUM - Affects program completeness
+## SPECIFIC FAILING TESTS
 
-### 5. Notebook Module Dependencies
-**Error**: "Unable to find source for module dependency: notebook_output"
-**Affected**: Notebook tests
-**Issue**: Missing module dependency
-**Priority**: LOW - Feature-specific issue
+### Frontend Tests (BROKEN)
+- `test_frontend_statements` - Print formatting wrong
+- `test_example_test_cases` - Print formatting wrong
 
-## Passing Tests
+### Semantic Analysis (BROKEN)
+- `test_frontend_semantic_inference_integration` - SEGFAULT
+- `test_step1_single_file` - SEGFAULT
+- `test_step1_integration` - SEGFAULT
 
-- Basic error handling tests
-- Cache management tests
-- Example test cases (use_statement, print_statement, multi_statement)
-- Frontend statement tests
+### CLI Tests (BROKEN)  
+- `test_cli_cache` - SEGFAULT
+- `test_cli_debug` - SEGFAULT
+- `test_cli_system` - Basic execution failing
 
-## Root Cause Analysis
+### Runner Tests (BROKEN)
+- `test_runner_edge_cases` - SEGFAULT
+- `test_runner_comprehensive` - Build model errors
 
-The main issues stem from:
-1. **Statement ordering** - USE statements placed after declarations
-2. **Missing parser support** - Functions, subroutines not properly parsed
-3. **Incomplete code generation** - Missing function interfaces and declarations
+### Notebook Tests (BROKEN)
+- `test_notebook_figure_integration` - Missing files
+- `test_notebook_integration` - Missing files
 
-## Next Steps
+### Example Tests (BROKEN)
+- `test_examples` - Build failures
+- Multiple advanced inference examples failing
 
-1. Fix USE statement placement in frontend code generation
-2. Add function/subroutine parsing support to parser
-3. Implement function declaration generation
-4. Add proper program structure validation
-5. Fix notebook module dependencies
+## ROOT CAUSES
 
-## Test Categories Status
+### 1. TYPE SYSTEM HM MODULE UNSTABLE
+The Hindley-Milner type system implementation is fundamentally broken:
+- Crashes during substitution application
+- Memory corruption issues
+- Cannot handle basic type unification
 
-- ✅ Basic frontend functionality (assignments, use, print)
-- ✅ Error handling
-- ✅ Cache management
-- ❌ Function definitions and calls
-- ❌ Complex program structures
-- ❌ Example programs with functions
-- ❌ Notebook functionality
+### 2. CODE GENERATION BROKEN
+The codegen module produces invalid Fortran:
+- Wrong print statement syntax
+- Incorrect spacing in generated code
+- Missing proper formatting
+
+### 3. BUILD SYSTEM CONFLICTS
+- Duplicate module names causing build failures
+- Missing required files for notebook system
+- FPM integration issues
+
+### 4. CLI ARGUMENT PARSING BROKEN
+Basic command line functionality crashes with segfaults.
+
+## IMMEDIATE ACTION REQUIRED
+
+1. **FIX TYPE SYSTEM CRASHES** - System unusable with segfaults
+2. **FIX PRINT STATEMENT GENERATION** - Invalid Fortran syntax generated
+3. **FIX TYPE UNIFICATION** - Basic inference not working
+4. **CLEAN UP BUILD CONFLICTS** - Remove duplicate modules
+5. **FIX CLI CRASHES** - Basic tool functionality broken
+
+## THIS IS NOT ACCEPTABLE
+
+- 35% test failure rate is UNACCEPTABLE for a compiler tool
+- Segmentation faults are UNACCEPTABLE 
+- Invalid code generation is UNACCEPTABLE
+- CLI crashes are UNACCEPTABLE
+
+**ALL TESTS MUST PASS. NO EXCEPTIONS. NO EXCUSES.**
