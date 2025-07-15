@@ -1,6 +1,6 @@
 program main
     implicit none
-    integer(4) :: x
+    integer :: x
 
     x = 1
 end program main
