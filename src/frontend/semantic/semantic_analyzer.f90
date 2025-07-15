@@ -2,7 +2,6 @@ module semantic_analyzer
     ! Hindley-Milner type inference (Algorithm W) - dialect-agnostic
     use type_system_hm
     use ast_core
-    use ast_extensions, only: ast_type_map_t, create_type_map, set_node_type, get_node_type
     implicit none
     private
     
@@ -14,7 +13,6 @@ module semantic_analyzer
         type(type_env_t) :: env
         integer :: next_var_id = 0
         type(substitution_t) :: subst
-        type(ast_type_map_t) :: type_map  ! Store type information separately
     contains
         procedure :: infer => infer_type
         procedure :: infer_stmt => infer_statement_type
@@ -32,9 +30,6 @@ contains
     ! Create a new semantic context with builtin functions
     function create_semantic_context() result(ctx)
         type(semantic_context_t) :: ctx
-        
-        ! Initialize type map
-        ctx%type_map = create_type_map()
         
         ! Initialize substitution
         ctx%subst%count = 0
@@ -83,8 +78,7 @@ contains
         
         inferred = ctx%infer_stmt(node)
         
-        ! Store inferred type in type map
-        ! call set_node_type(ctx%type_map, node, inferred)
+        ! Type inference result is not stored (stub implementation)
     end subroutine infer_and_store_type
     
     ! Infer type of a statement
@@ -118,16 +112,14 @@ contains
         ! Infer type of RHS
         typ = ctx%infer(assign%value)
         
-        ! Store type in value node
-        call set_node_type(ctx%type_map, assign%value, typ)
+        ! Type storage removed (stub implementation)
         
         ! Get variable name from target
         select type (target => assign%target)
         type is (identifier_node)
             var_name = target%name
             
-            ! Store type in target node
-            call set_node_type(ctx%type_map, target, typ)
+            ! Type storage removed (stub implementation)
         class default
             error stop "Assignment target must be identifier"
         end select
@@ -167,8 +159,7 @@ contains
         ! Apply current substitution
         typ = this%apply_subst_to_type(typ)
         
-        ! Store inferred type in node
-        call set_node_type(this%type_map, expr, typ)
+        ! Type storage removed (stub implementation)
     end function infer_type
     
     ! Infer type of literal
