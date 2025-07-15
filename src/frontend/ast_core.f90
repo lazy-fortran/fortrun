@@ -46,6 +46,9 @@ module ast_core
     type, extends(ast_node), public :: assignment_node
         class(ast_node), allocatable :: target
         class(ast_node), allocatable :: value
+        ! Type inference support (dialect-agnostic)
+        logical :: inferred_type = .false.  ! true if type was inferred
+        character(len=:), allocatable :: inferred_type_name
     contains
         procedure :: accept => assignment_accept
         procedure :: to_json => assignment_to_json
@@ -164,16 +167,20 @@ contains
         if (present(column)) node%column = column
     end function create_program
 
-    function create_assignment(target, value, line, column) result(node)
+    function create_assignment(target, value, line, column, inferred_type, inferred_type_name) result(node)
         class(ast_node), intent(in) :: target
         class(ast_node), intent(in) :: value
         integer, intent(in), optional :: line, column
+        logical, intent(in), optional :: inferred_type
+        character(len=*), intent(in), optional :: inferred_type_name
         type(assignment_node) :: node
         
         allocate(node%target, source=target)
         allocate(node%value, source=value)
         if (present(line)) node%line = line
         if (present(column)) node%column = column
+        if (present(inferred_type)) node%inferred_type = inferred_type
+        if (present(inferred_type_name)) node%inferred_type_name = inferred_type_name
     end function create_assignment
 
     function create_binary_op(left, right, operator, line, column) result(node)
@@ -401,6 +408,10 @@ contains
         call json%add(obj, 'type', 'assignment')
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
+        call json%add(obj, 'inferred_type', this%inferred_type)
+        if (allocated(this%inferred_type_name)) then
+            call json%add(obj, 'inferred_type_name', this%inferred_type_name)
+        end if
         
         block
             type(json_value), pointer :: target_obj, value_obj

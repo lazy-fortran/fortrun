@@ -43,18 +43,12 @@ module ast_lazy_fortran
         procedure :: to_json => fstring_to_json
     end type fstring_node
 
-    ! Enhanced assignment node with auto type inference
-    type, extends(assignment_node), public :: lf_assignment_node
-        logical :: inferred_type = .false.  ! true if type was inferred
-        character(len=:), allocatable :: inferred_type_name
-    contains
-        procedure :: accept => lf_assignment_accept
-        procedure :: to_json => lf_assignment_to_json
-    end type lf_assignment_node
+    ! Note: lf_assignment_node removed - type inference now in core assignment_node
 
     ! Public interface for creating Simple Fortran nodes
     public :: create_lf_program, create_inferred_var, create_list_comp
-    public :: create_fstring, create_lf_assignment
+    public :: create_fstring
+    ! Note: create_lf_assignment removed - use core create_assignment
 
 contains
 
@@ -129,21 +123,7 @@ contains
         if (present(column)) node%column = column
     end function create_fstring
 
-    function create_lf_assignment(target, value, inferred_type, inferred_type_name, line, column) result(node)
-        class(ast_node), intent(in) :: target
-        class(ast_node), intent(in) :: value
-        logical, intent(in), optional :: inferred_type
-        character(len=*), intent(in), optional :: inferred_type_name
-        integer, intent(in), optional :: line, column
-        type(lf_assignment_node) :: node
-        
-        allocate(node%target, source=target)
-        allocate(node%value, source=value)
-        if (present(inferred_type)) node%inferred_type = inferred_type
-        if (present(inferred_type_name)) node%inferred_type_name = inferred_type_name
-        if (present(line)) node%line = line
-        if (present(column)) node%column = column
-    end function create_lf_assignment
+    ! create_lf_assignment removed - use core create_assignment which now has type inference
 
     ! Visitor pattern implementations for Simple Fortran nodes
 
@@ -171,11 +151,7 @@ contains
         ! Implementation depends on specific visitor
     end subroutine fstring_accept
 
-    subroutine lf_assignment_accept(this, visitor)
-        class(lf_assignment_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
-    end subroutine lf_assignment_accept
+    ! lf_assignment_accept removed - core assignment_accept handles type inference
 
     ! JSON serialization implementations for Simple Fortran nodes
 
@@ -268,25 +244,6 @@ contains
         call json%add(parent, obj)
     end subroutine fstring_to_json
 
-    subroutine lf_assignment_to_json(this, json, parent)
-        class(lf_assignment_node), intent(in) :: this
-        type(json_core), intent(inout) :: json
-        type(json_value), pointer, intent(in) :: parent
-        type(json_value), pointer :: obj
-        
-        call json%create_object(obj, '')
-        call json%add(obj, 'type', 'lf_assignment')
-        call json%add(obj, 'inferred_type', this%inferred_type)
-        if (allocated(this%inferred_type_name)) then
-            call json%add(obj, 'inferred_type_name', this%inferred_type_name)
-        end if
-        call json%add(obj, 'line', this%line)
-        call json%add(obj, 'column', this%column)
-        
-        call this%target%to_json(json, obj)
-        call this%value%to_json(json, obj)
-        
-        call json%add(parent, obj)
-    end subroutine lf_assignment_to_json
+    ! lf_assignment_to_json removed - core assignment_to_json now handles type inference
 
 end module ast_lazy_fortran

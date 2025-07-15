@@ -21,7 +21,6 @@ module codegen_core
         module procedure generate_code_print_statement
         ! Postmodern Fortran specific
         module procedure generate_code_lf_program
-        module procedure generate_code_lf_assignment
         module procedure generate_code_inferred_var
     end interface generate_code
 
@@ -449,8 +448,6 @@ contains
                     ! Skip - already generated before implicit none
                 type is (assignment_node)
                     code = code // "    " // generate_code(stmt) // new_line('a')
-                type is (lf_assignment_node)
-                    code = code // "    " // generate_code(stmt) // new_line('a')
                 type is (function_def_node)
                     if (.not. has_contains) then
                         code = code // new_line('a') // "contains" // new_line('a')
@@ -468,22 +465,7 @@ contains
         code = code // "end program " // node%name
     end function generate_code_lf_program
 
-    ! Generate code for Simple Fortran assignment (with type inference)
-    function generate_code_lf_assignment(node) result(code)
-        type(lf_assignment_node), intent(in) :: node
-        character(len=:), allocatable :: code
-        
-        ! For now, just generate as regular assignment
-        ! In the future, we'd handle type declarations here based on inferred_type
-        block
-            type(assignment_node) :: base_node
-            base_node%target = node%target
-            base_node%value = node%value
-            base_node%line = node%line
-            base_node%column = node%column
-            code = generate_code_assignment(base_node)
-        end block
-    end function generate_code_lf_assignment
+    ! generate_code_lf_assignment removed - core assignment_node now has type inference
 
     ! Generate code for inferred variable
     function generate_code_inferred_var(node) result(code)
@@ -518,8 +500,6 @@ contains
             code = generate_code_subroutine_def(node)
         type is (lf_program_node)
             code = generate_code_lf_program(node)
-        type is (lf_assignment_node)
-            code = generate_code_lf_assignment(node)
         type is (print_statement_node)
             code = generate_code_print_statement(node)
         type is (use_statement_node)
