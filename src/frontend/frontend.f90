@@ -6,7 +6,6 @@ module frontend
     use lexer_core, only: token_t, tokenize_core, TK_EOF, TK_KEYWORD
     use parser_core, only: parse_expression, parse_statement, parser_state_t, create_parser_state, parse_function_definition
     use ast_core
-    use ast_lazy_fortran
     use semantic_analyzer, only: semantic_context_t, create_semantic_context, analyze_program
     use codegen_core, only: generate_code, generate_code_polymorphic
     
@@ -24,6 +23,8 @@ module frontend
     public :: compile_source, compilation_options_t
     public :: compile_from_tokens_json, compile_from_ast_json, compile_from_semantic_json
     public :: BACKEND_FORTRAN, BACKEND_LLVM, BACKEND_C
+    ! Debug functions (temporary)
+    public :: find_program_unit_boundary, is_function_start, parse_program_unit
     
     ! Backend target enumeration
     integer, parameter :: BACKEND_FORTRAN = 1  ! Standard Fortran (current IR)
@@ -233,13 +234,11 @@ contains
         error_msg = ""
         stmt_count = 0
         
-        ! Create program node (lazy fortran auto-wrapping)
-        allocate(lf_program_node :: ast_tree)
+        ! Create program node (dialect-agnostic core)
+        allocate(program_node :: ast_tree)
         select type (prog => ast_tree)
-        type is (lf_program_node)
+        type is (program_node)
             prog%name = "main"
-            prog%implicit = .true.
-            prog%auto_contains = .false.
             prog%line = 1
             prog%column = 1
             

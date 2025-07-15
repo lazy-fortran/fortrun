@@ -32,7 +32,9 @@ contains
         select case (node%literal_kind)
         case (LITERAL_STRING)
             ! String literals need quotes if not already present
-            if (len(node%value) > 0 .and. node%value(1:1) /= '"' .and. node%value(1:1) /= "'") then
+            if (len_trim(node%value) == 0) then
+                code = ""  ! Skip empty literals (parser placeholders)
+            else if (len(node%value) > 0 .and. node%value(1:1) /= '"' .and. node%value(1:1) /= "'") then
                 code = '"' // node%value // '"'
             else
                 code = node%value
