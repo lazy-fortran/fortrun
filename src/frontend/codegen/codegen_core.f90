@@ -271,10 +271,35 @@ contains
             do i = 1, size(node%body)
                 block
                     character(len=:), allocatable :: body_code
-                    body_code = generate_code_polymorphic(node%body(i)%node)
-                    ! Skip empty or placeholder statements
-                    if (len_trim(body_code) > 0 .and. body_code /= "! Function body statement") then
-                        code = code // "    " // body_code // new_line('a')
+                    logical :: skip_statement
+                    skip_statement = .false.
+                    
+                    ! Check if this is a declaration for a parameter
+                    select type (stmt => node%body(i)%node)
+                    type is (declaration_node)
+                        ! Skip declarations that match parameter names
+                        if (allocated(node%params)) then
+                            block
+                                integer :: j
+                                do j = 1, size(node%params)
+                                    select type (param => node%params(j)%node)
+                                    type is (identifier_node)
+                                        if (stmt%var_name == param%name) then
+                                            skip_statement = .true.
+                                            exit
+                                        end if
+                                    end select
+                                end do
+                            end block
+                        end if
+                    end select
+                    
+                    if (.not. skip_statement) then
+                        body_code = generate_code_polymorphic(node%body(i)%node)
+                        ! Skip empty or placeholder statements
+                        if (len_trim(body_code) > 0 .and. body_code /= "! Function body statement") then
+                            code = code // "    " // body_code // new_line('a')
+                        end if
                     end if
                 end block
             end do
