@@ -1,7 +1,7 @@
 ! Test Step 1: Handle explicitly typed functions with opinionated defaults
 program test_step1_integration
     use, intrinsic :: iso_fortran_env, only: error_unit
-    use preprocessor, only: preprocess_file
+    use standardizer, only: standardize_file
     implicit none
     
     integer :: test_count = 0
@@ -31,7 +31,7 @@ contains
             '  square = x * x' // new_line('a') // &
             'end function')
         
-        call preprocess_file(input_file, output_file, error_msg)
+        call standardize_file(input_file, output_file, error_msg)
         
         if (len_trim(error_msg) == 0) then
             ! Check for opinionated defaults applied
@@ -63,7 +63,7 @@ contains
             '  compute = a + b' // new_line('a') // &
             'end function')
         
-        call preprocess_file(input_file, output_file, error_msg)
+        call standardize_file(input_file, output_file, error_msg)
         
         if (len_trim(error_msg) == 0) then
             success = check_output_contains(output_file, 'integer(4), intent(in) :: a, b')
@@ -92,7 +92,7 @@ contains
             '  half = value / 2.0' // new_line('a') // &
             'end function')
         
-        call preprocess_file(input_file, output_file, error_msg)
+        call standardize_file(input_file, output_file, error_msg)
         
         if (len_trim(error_msg) == 0) then
             success = check_output_contains(output_file, 'real(8), intent(in) :: value')

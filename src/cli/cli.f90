@@ -7,7 +7,7 @@ contains
 
   subroutine parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                              custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
-                             notebook_output, preprocess_only, custom_flags, &
+                             notebook_output, standardize_only, custom_flags, &
                              clear_cache, cache_info, debug_tokens, debug_ast, debug_semantic, debug_codegen, &
                              from_tokens, from_ast, from_semantic)
     character(len=*), intent(out) :: filename
@@ -19,7 +19,7 @@ contains
     logical, intent(out) :: no_wait
     logical, intent(out) :: notebook_mode
     character(len=*), intent(out) :: notebook_output
-    logical, intent(out) :: preprocess_only
+    logical, intent(out) :: standardize_only
     character(len=*), intent(out), optional :: custom_flags
     logical, intent(out) :: clear_cache
     logical, intent(out) :: cache_info
@@ -44,7 +44,7 @@ contains
     no_wait = .false.
     notebook_mode = .false.
     notebook_output = ''
-    preprocess_only = .false.
+    standardize_only = .false.
     clear_cache = .false.
     cache_info = .false.
     debug_tokens = .false.
@@ -131,8 +131,8 @@ contains
         no_wait = .true.
       else if (arg == '--notebook') then
         notebook_mode = .true.
-      else if (arg == '--preprocess') then
-        preprocess_only = .true.
+      else if (arg == '--standardize') then
+        standardize_only = .true.
       else if (arg == '--clear-cache') then
         clear_cache = .true.
       else if (arg == '--cache-info') then
