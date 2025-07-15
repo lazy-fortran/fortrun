@@ -1,8 +1,7 @@
 module semantic_analyzer
-    ! Hindley-Milner type inference (Algorithm W) for lazy fortran
+    ! Hindley-Milner type inference (Algorithm W) - dialect-agnostic
     use type_system_hm
     use ast_core
-    use ast_lazy_fortran
     use ast_extensions, only: ast_type_map_t, create_type_map, set_node_type, get_node_type
     implicit none
     private
@@ -54,8 +53,6 @@ contains
         select type (ast)
         type is (program_node)
             call analyze_program_node(ctx, ast)
-        type is (lf_program_node)
-            call analyze_lf_program_node(ctx, ast)
         class default
             ! Single statement/expression
             call infer_and_store_type(ctx, ast)
@@ -77,34 +74,6 @@ contains
         end if
     end subroutine analyze_program_node
     
-    ! Analyze a lazy fortran program node
-    subroutine analyze_lf_program_node(ctx, prog)
-        type(semantic_context_t), intent(inout) :: ctx
-        type(lf_program_node), intent(inout) :: prog
-        integer :: i
-        
-        ! lf_program_node extends program_node, so we can use its body directly
-        if (allocated(prog%body)) then
-            do i = 1, size(prog%body)
-                if (allocated(prog%body(i)%node)) then
-                    call infer_and_store_type(ctx, prog%body(i)%node)
-                end if
-            end do
-        end if
-        
-        ! Store inferred variable types in the lf_program_node
-        ! This will be used during code generation
-        call collect_inferred_variables(ctx, prog)
-    end subroutine analyze_lf_program_node
-    
-    ! Collect all inferred variables and their types
-    subroutine collect_inferred_variables(ctx, prog)
-        type(semantic_context_t), intent(inout) :: ctx
-        type(lf_program_node), intent(inout) :: prog
-        
-        ! TODO: Implement variable collection from type environment
-        ! For now, just mark that inference has been done by setting a flag
-    end subroutine collect_inferred_variables
     
     ! Infer type and store in AST node
     subroutine infer_and_store_type(ctx, node)
@@ -127,8 +96,6 @@ contains
         select type (stmt)
         type is (assignment_node)
             typ = infer_assignment(this, stmt)
-        type is (lf_assignment_node)
-            typ = infer_assignment(this, stmt%assignment_node)
         type is (print_statement_node)
             typ = create_mono_type(TINT)  ! print returns unit/void, use int
         class default
