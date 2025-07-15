@@ -110,24 +110,33 @@ contains
             case (LITERAL_REAL)
                 type_str = "real(8)"
             case (LITERAL_STRING)
-                type_str = "character(len=*)"
+                ! Use fixed length for now - proper length inference needed
+                type_str = "character(len=256)"
             case (LITERAL_LOGICAL)
                 type_str = "logical"
             case default
-                type_str = "real(8)"  ! Default fallback
+                error stop "Type inference failed: Unknown literal kind"
             end select
         type is (binary_op_node)
             ! For binary operations, infer from left operand
             type_str = infer_basic_type(value_node%left)
         type is (identifier_node)
-            ! For identifiers, default to real(8) (lazy fortran default)
-            type_str = "real(8)"
+            ! Cannot infer type from identifier alone
+            error stop "Type inference failed: Cannot infer type for identifier '" // trim(value_node%name) // "'"
         type is (function_call_node)
-            ! Function calls default to real(8)
-            type_str = "real(8)"
+            ! Try to infer from function name
+            select case (trim(value_node%name))
+            case ("sin", "cos", "tan", "exp", "log", "sqrt", "abs", "acos", "asin", "atan")
+                type_str = "real(8)"
+            case ("len", "len_trim", "index", "size", "count", "nint", "int")
+                type_str = "integer"
+            case default
+                ! Unknown function
+                error stop "Type inference failed: Unknown function '" // trim(value_node%name) // "'"
+            end select
         class default
-            ! Default fallback
-            type_str = "real(8)"
+            ! Unknown node type
+            error stop "Type inference failed: Unknown AST node type"
         end select
     end function infer_basic_type
 

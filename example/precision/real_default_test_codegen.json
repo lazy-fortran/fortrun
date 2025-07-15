@@ -1,0 +1,14 @@
+{
+  "input_file": "/afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran/example/precision/real_default_test.f",
+  "generated_code": [
+    "program main",
+    "    implicit none",
+    "    print *, 'Size comparison:'",
+    "    print *, 'sizeof(real) = ', sizeof(x), ' bytes'",
+    "    print *, 'sizeof(real*4) = ', sizeof(x4), ' bytes'",
+    "    print *, 'sizeof(real*8) = ', sizeof(x8), ' bytes'",
+    "    print *, ''",
+    "    print *, 'With .f files and -fdefault-real-8, real should be 8 bytes'",
+    "end program main"
+  ]
+}

@@ -1,3 +1,8 @@
+! Test default real precision
+x = 1.0
+x4 = 1.0
+x8 = 1.0d0
+
 print *, 'Size comparison:'
 print *, 'sizeof(real) = ', sizeof(x), ' bytes'
 print *, 'sizeof(real*4) = ', sizeof(x4), ' bytes'

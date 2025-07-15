@@ -622,7 +622,7 @@ contains
                                     else if (value%literal_kind == LITERAL_REAL) then
                                         var_type = "real(8)"
                                     else if (value%literal_kind == LITERAL_STRING) then
-                                        var_type = "character(len=*)"
+                                        var_type = "character(len=256)"  ! Use fixed length for variables
                                     else if (value%literal_kind == LITERAL_LOGICAL) then
                                         var_type = "logical"
                                     end if
