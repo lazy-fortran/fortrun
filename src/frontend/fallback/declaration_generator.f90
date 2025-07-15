@@ -44,6 +44,8 @@ contains
                     select type (stmt => prog%body(i)%node)
                     type is (assignment_node)
                         n_vars = n_vars + 1
+                    type is (do_loop_node)
+                        n_vars = n_vars + 1  ! Count do loop variable
                     end select
                 end if
             end do
@@ -90,6 +92,30 @@ contains
                                 end if
                             end block
                         end select
+                    type is (do_loop_node)
+                        ! Handle do loop variable
+                        var_name = stmt%var_name
+                        
+                        ! Check if already declared
+                        block
+                            logical :: already_declared
+                            already_declared = .false.
+                            do j = 1, n_vars
+                                if (var_names(j) == var_name) then
+                                    already_declared = .true.
+                                    exit
+                                end if
+                            end do
+                            
+                            if (.not. already_declared .and. &
+                                .not. is_function_name(var_name, function_names)) then
+                                n_vars = n_vars + 1
+                                var_names(n_vars) = var_name
+                                
+                                ! Do loop variables are integers
+                                decls = decls // "    integer :: " // var_name // new_line('a')
+                            end if
+                        end block
                     end select
                 end if
             end do

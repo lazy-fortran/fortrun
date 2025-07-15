@@ -26,6 +26,7 @@ module frontend
     public :: BACKEND_FORTRAN, BACKEND_LLVM, BACKEND_C
     ! Debug functions for unit testing
     public :: find_program_unit_boundary, is_function_start, is_end_function, parse_program_unit
+    public :: is_do_loop_start, is_select_case_start, is_end_do, is_end_select
     
     ! Backend target enumeration
     integer, parameter :: BACKEND_FORTRAN = 1  ! Standard Fortran (current IR)
@@ -337,13 +338,15 @@ contains
         integer, intent(out) :: unit_start, unit_end
         
         integer :: i, current_line, nesting_level
-        logical :: in_function, in_subroutine, in_module
+        logical :: in_function, in_subroutine, in_module, in_do_loop, in_select_case
         
         unit_start = start_pos
         unit_end = start_pos
         in_function = .false.
         in_subroutine = .false.
         in_module = .false.
+        in_do_loop = .false.
+        in_select_case = .false.
         nesting_level = 0
         
         ! Check if starting token indicates a multi-line construct
@@ -360,11 +363,17 @@ contains
             else if (is_module_start(tokens, start_pos)) then
                 in_module = .true.
                 nesting_level = 1
+            else if (is_do_loop_start(tokens, start_pos)) then
+                in_do_loop = .true.
+                nesting_level = 1
+            else if (is_select_case_start(tokens, start_pos)) then
+                in_select_case = .true.
+                nesting_level = 1
             end if
         end if
         
         ! If this is a multi-line construct, find the end
-        if (in_function .or. in_subroutine .or. in_module) then
+        if (in_function .or. in_subroutine .or. in_module .or. in_do_loop .or. in_select_case) then
             i = start_pos
             do while (i <= size(tokens) .and. nesting_level > 0)
                 if (tokens(i)%kind == TK_EOF) exit
@@ -380,6 +389,10 @@ contains
                         nesting_level = nesting_level + 1
                     else if (in_module .and. is_module_start(tokens, i)) then
                         nesting_level = nesting_level + 1
+                    else if (in_do_loop .and. is_do_loop_start(tokens, i)) then
+                        nesting_level = nesting_level + 1
+                    else if (in_select_case .and. is_select_case_start(tokens, i)) then
+                        nesting_level = nesting_level + 1
                     end if
                 end if
                 
@@ -392,10 +405,18 @@ contains
                     nesting_level = nesting_level - 1
                 else if (in_module .and. is_end_module(tokens, i)) then
                     nesting_level = nesting_level - 1
+                else if (in_do_loop .and. is_end_do(tokens, i)) then
+                    nesting_level = nesting_level - 1
+                    unit_end = i + 1  ! Include both "end" and "do" tokens
+                    i = i + 2  ! Skip both "end" and "do" tokens
+                else if (in_select_case .and. is_end_select(tokens, i)) then
+                    nesting_level = nesting_level - 1
+                    unit_end = i + 1  ! Include both "end" and "select" tokens
+                    i = i + 2  ! Skip both "end" and "select" tokens
+                else
+                    unit_end = i
+                    i = i + 1
                 end if
-                
-                unit_end = i
-                i = i + 1
                 
                 ! Stop when we've closed all nested constructs
                 if (nesting_level == 0) exit
@@ -653,5 +674,60 @@ contains
         character(len=20) :: str
         write(str, '(I0)') num
     end function int_to_str
+
+    ! Check if token sequence starts a do loop
+    logical function is_do_loop_start(tokens, pos)
+        type(token_t), intent(in) :: tokens(:)
+        integer, intent(in) :: pos
+        
+        is_do_loop_start = .false.
+        if (pos <= size(tokens)) then
+            if (tokens(pos)%kind == TK_KEYWORD .and. tokens(pos)%text == "do") then
+                is_do_loop_start = .true.
+            end if
+        end if
+    end function is_do_loop_start
+
+    ! Check if token sequence starts a select case
+    logical function is_select_case_start(tokens, pos)
+        type(token_t), intent(in) :: tokens(:)
+        integer, intent(in) :: pos
+        
+        is_select_case_start = .false.
+        if (pos <= size(tokens) - 1) then
+            if (tokens(pos)%kind == TK_KEYWORD .and. tokens(pos)%text == "select" .and. &
+                tokens(pos+1)%kind == TK_KEYWORD .and. tokens(pos+1)%text == "case") then
+                is_select_case_start = .true.
+            end if
+        end if
+    end function is_select_case_start
+
+    ! Check if token sequence ends a do loop
+    logical function is_end_do(tokens, pos)
+        type(token_t), intent(in) :: tokens(:)
+        integer, intent(in) :: pos
+        
+        is_end_do = .false.
+        if (pos <= size(tokens) - 1) then
+            if (tokens(pos)%kind == TK_KEYWORD .and. tokens(pos)%text == "end" .and. &
+                tokens(pos+1)%kind == TK_KEYWORD .and. tokens(pos+1)%text == "do") then
+                is_end_do = .true.
+            end if
+        end if
+    end function is_end_do
+
+    ! Check if token sequence ends a select case
+    logical function is_end_select(tokens, pos)
+        type(token_t), intent(in) :: tokens(:)
+        integer, intent(in) :: pos
+        
+        is_end_select = .false.
+        if (pos <= size(tokens) - 1) then
+            if (tokens(pos)%kind == TK_KEYWORD .and. tokens(pos)%text == "end" .and. &
+                tokens(pos+1)%kind == TK_KEYWORD .and. tokens(pos+1)%text == "select") then
+                is_end_select = .true.
+            end if
+        end if
+    end function is_end_select
 
 end module frontend
