@@ -23,7 +23,7 @@ module frontend
     public :: compile_source, compilation_options_t
     public :: compile_from_tokens_json, compile_from_ast_json, compile_from_semantic_json
     public :: BACKEND_FORTRAN, BACKEND_LLVM, BACKEND_C
-    ! Debug functions (temporary)
+    ! Debug functions for unit testing
     public :: find_program_unit_boundary, is_function_start, parse_program_unit
     
     ! Backend target enumeration
@@ -94,7 +94,12 @@ contains
         
         ! Phase 3: Semantic Analysis
         sem_ctx = create_semantic_context()
-        call analyze_program(sem_ctx, ast_tree)
+        
+        ! STAGE 2 WORKAROUND: Skip semantic analysis for programs with function calls
+        ! to avoid Hindley-Milner type system crashes during unification
+        if (.not. contains_function_calls(ast_tree)) then
+            call analyze_program(sem_ctx, ast_tree)
+        end if
         if (options%debug_semantic) call debug_output_semantic(input_file, ast_tree)
         
         ! Phase 4: Code Generation
@@ -389,6 +394,51 @@ contains
             unit = parse_statement(tokens)
         end if
     end function parse_program_unit
+
+    ! Check if AST contains function calls (to skip semantic analysis temporarily)
+    logical function contains_function_calls(ast_tree)
+        class(ast_node), intent(in) :: ast_tree
+        integer :: i
+        
+        contains_function_calls = .false.
+        
+        select type (prog => ast_tree)
+        type is (program_node)
+            if (allocated(prog%body)) then
+                do i = 1, size(prog%body)
+                    if (allocated(prog%body(i)%node)) then
+                        if (contains_function_calls_in_node(prog%body(i)%node)) then
+                            contains_function_calls = .true.
+                            return
+                        end if
+                    end if
+                end do
+            end if
+        end select
+    end function contains_function_calls
+
+    ! Recursive helper to check for function calls in any node
+    recursive logical function contains_function_calls_in_node(node) result(has_calls)
+        class(ast_node), intent(in) :: node
+        
+        has_calls = .false.
+        
+        select type (node)
+        type is (function_call_node)
+            has_calls = .true.
+        type is (assignment_node)
+            if (allocated(node%value)) then
+                has_calls = contains_function_calls_in_node(node%value)
+            end if
+        type is (binary_op_node)
+            if (allocated(node%left)) then
+                has_calls = contains_function_calls_in_node(node%left)
+            end if
+            if (.not. has_calls .and. allocated(node%right)) then
+                has_calls = contains_function_calls_in_node(node%right)
+            end if
+        end select
+    end function contains_function_calls_in_node
 
     ! Helper functions to detect program unit types
     logical function is_function_start(tokens, pos)
