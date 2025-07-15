@@ -1,0 +1,91 @@
+{
+  "": {
+    "type": "program",
+    "name": "main",
+    "line": 1,
+    "column": 1,
+    "body": [
+      {"type": "assignment"}
+,
+      {"type": "assignment"}
+,
+      {"type": "assignment"}
+,
+      {"type": "print_statement"}
+,
+      {"type": "print_statement"}
+,
+      {"type": "literal"}
+,
+      {"type": "print_statement"}
+,
+      {"type": "literal"}
+,
+      {"type": "print_statement"}
+,
+      {"type": "literal"}
+,
+      {"type": "print_statement"}
+,
+      {"type": "literal"}
+,
+      {"type": "print_statement"}
+,
+      {"type": "literal"}
+,
+      {"type": "literal"}
+,
+      {"type": "assignment"}
+,
+      {"type": "print_statement"}
+,
+      {"type": "literal"}
+,
+      {"type": "assignment"}
+,
+      {"type": "print_statement"}
+,
+      {"type": "literal"}
+,
+      {"type": "literal"}
+,
+      {"type": "print_statement"}
+,
+      {"type": "literal"}
+,
+      {"type": "print_statement"}
+,
+      {"type": "literal"}
+,
+      {"type": "print_statement"}
+,
+      {"type": "literal"}
+,
+      {"type": "print_statement"}
+,
+      {"type": "literal"}
+,
+      {"type": "print_statement"}
+,
+      {"type": "unknown"}
+,
+      {"type": "assignment"}
+,
+      {"type": "assignment"}
+,
+      {"type": "assignment"}
+,
+      {"type": "print_statement"}
+,
+      {"type": "print_statement"}
+,
+      {"type": "print_statement"}
+,
+      {"type": "unknown"}
+,
+      {"type": "assignment"}
+,
+      {"type": "unknown"}
+    ]
+  }
+}

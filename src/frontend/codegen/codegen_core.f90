@@ -20,6 +20,7 @@ module codegen_core
         module procedure generate_code_print_statement
         module procedure generate_code_declaration
         module procedure generate_code_do_loop
+        module procedure generate_code_do_while
         module procedure generate_code_select_case
     end interface generate_code
 
