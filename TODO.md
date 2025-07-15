@@ -24,6 +24,16 @@
 - Parser now creates proper AST nodes for declarations (not empty literals)
 - **Fixed duplicate parameter declarations** - functions no longer generate redundant declarations
 
+### Recent Discoveries (2025-01-15):
+- **Type Inference Status**: Frontend uses FALLBACK system, not Hindley-Milner
+- **Fallback System**: `declaration_generator` module with `infer_basic_type`
+  - Infers types from literal values in AST
+  - Binary ops inherit type from left operand
+  - Identifiers/functions default to real(8)
+- **Semantic Analyzer**: SKIPPED for programs with function calls (workaround)
+- **ast_extensions**: Stub module that caused gfortran 14.1.0 segfault
+- **Why Tests Pass**: Fallback type inference generates working code
+
 ## 🚧 IN PROGRESS: AST Implementation (doc/plan/AST.md)
 
 ### Current Status:
@@ -45,14 +55,60 @@
 3. [ ] Handle contains sections properly
 4. [ ] Support interface blocks
 
-### Stage 3: Re-enable Type Inference
-**Goal**: Restore Hindley-Milner type system
+### Stage 3: Replace Basic Type Inference with Semantic Analysis
+**Goal**: Replace fallback type inference with proper Hindley-Milner + AST annotations
 
-**Tasks**:
-1. [ ] Fix type variable substitution crashes
-2. [ ] Implement function type inference
-3. [ ] Add array type support
-4. [ ] Handle user-defined types
+**Current State**:
+- Frontend uses `declaration_generator` module with `infer_basic_type` (fallback system)
+- Semantic analyzer with Hindley-Milner is SKIPPED for programs with function calls
+- ast_extensions module was stub code that crashed gfortran 14.1.0
+- Type information is NOT stored in AST nodes currently
+
+**Step-by-Step Plan**:
+
+#### Phase 3.1: Analysis Only (No AST Modification)
+1. [ ] Fix semantic analyzer crashes for function calls
+   - Debug type variable substitution in `unify_types`
+   - Handle function type inference properly
+   - Ensure semantic analysis completes without modifying AST
+
+2. [ ] Verify semantic analysis produces correct types
+   - Add debug output to show inferred types
+   - Compare with fallback `infer_basic_type` results
+   - Create test cases for type inference validation
+
+#### Phase 3.2: AST Extension Design
+3. [ ] Design proper AST annotation mechanism
+   - Option A: Add `inferred_type` field to base `ast_node`
+   - Option B: Create separate type annotation table (like ast_extensions tried)
+   - Option C: Create typed wrapper nodes (e.g., `typed_assignment_node`)
+   - Choose based on gfortran compatibility and memory efficiency
+
+4. [ ] Implement chosen AST annotation mechanism
+   - Ensure no gfortran crashes (test with 14.1.0)
+   - Keep modifications minimal and focused
+   - Maintain AST immutability where possible
+
+#### Phase 3.3: Integration
+5. [ ] Modify semantic analyzer to annotate AST
+   - After successful type inference, store type in AST node
+   - Handle all node types systematically
+   - Ensure annotation doesn't break existing functionality
+
+6. [ ] Update codegen to use annotated types
+   - Modify `generate_declarations` to read from AST annotations
+   - Remove dependency on `infer_basic_type` fallback
+   - Ensure all declaration generation uses semantic analysis results
+
+7. [ ] Remove fallback system
+   - Delete `declaration_generator` module
+   - Remove `contains_function_calls` workaround in frontend.f90
+   - Always run semantic analysis for all programs
+
+**Critical Requirements**:
+- Analysis phase MUST complete successfully before any AST modification
+- AST modifications MUST be validated to not crash gfortran
+- Type information MUST be accessible to codegen without circular dependencies
 
 ## ⚠️ CRITICAL ARCHITECTURAL REQUIREMENTS
 
