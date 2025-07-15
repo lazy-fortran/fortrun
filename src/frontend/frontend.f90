@@ -692,7 +692,16 @@ contains
         is_do_loop_start = .false.
         if (pos <= size(tokens)) then
             if (tokens(pos)%kind == TK_KEYWORD .and. tokens(pos)%text == "do") then
-                is_do_loop_start = .true.
+                ! Check if it's a do while (not supported yet)
+                if (pos + 1 <= size(tokens)) then
+                    if (tokens(pos + 1)%kind == TK_KEYWORD .and. tokens(pos + 1)%text == "while") then
+                        is_do_loop_start = .false.
+                    else
+                        is_do_loop_start = .true.
+                    end if
+                else
+                    is_do_loop_start = .true.
+                end if
             end if
         end if
     end function is_do_loop_start

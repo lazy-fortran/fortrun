@@ -875,6 +875,13 @@ contains
         line = do_token%line
         column = do_token%column
         
+        ! Check if it's a do while loop (not supported yet)
+        var_token = parser%peek()
+        if (var_token%kind == TK_KEYWORD .and. var_token%text == "while") then
+            ! Return empty node for do while (not implemented)
+            return
+        end if
+        
         ! Get variable name
         var_token = parser%consume()
         if (var_token%kind /= TK_IDENTIFIER) then
