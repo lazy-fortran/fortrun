@@ -1290,6 +1290,7 @@ contains
             body_count = 0
             
             ! Parse body statements
+            ! Starting do while body parsing
             do while (parser%current_token <= size(parser%tokens))
                 ! Check for 'end do'
                 block
@@ -1351,8 +1352,19 @@ contains
             
             ! Create do while node
             allocate(while_node)
-            ! TODO: Pass body statements properly
-            while_node = create_do_while(condition, line=line, column=column)
+            
+            ! Pass body statements if available  
+            if (body_count > 0 .and. allocated(body_statements)) then
+                ! Set body after creation
+                while_node = create_do_while(condition, line=line, column=column)
+                allocate(while_node%body(body_count))
+                do j = 1, body_count
+                    allocate(while_node%body(j)%node, source=body_statements(j)%node)
+                end do
+            else
+                while_node = create_do_while(condition, line=line, column=column)
+            end if
+            
             allocate(loop_node, source=while_node)
             
             if (allocated(body_statements)) deallocate(body_statements)

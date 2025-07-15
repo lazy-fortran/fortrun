@@ -13,6 +13,7 @@ program test_frontend_statements
     call test_use_statement(test_count, pass_count)
     call test_print_statement(test_count, pass_count)
     call test_multiple_statements(test_count, pass_count)
+    call test_do_while_statement(test_count, pass_count)
     
     write(*, '(a)') ''
     write(*, '(a,i0,a,i0,a)') 'Frontend statement tests: ', pass_count, '/', test_count, ' passed'
@@ -82,6 +83,35 @@ contains
         end if
         
     end subroutine test_multiple_statements
+    
+    subroutine test_do_while_statement(test_count, pass_count)
+        integer, intent(inout) :: test_count, pass_count
+        
+        write(*, '(a)') 'Test 4: Do while statement'
+        test_count = test_count + 1
+        
+        if (compile_and_check('i = 0' // new_line('a') // &
+                             'do while (i < 3)' // new_line('a') // &
+                             '    print *, i' // new_line('a') // &
+                             '    i = i + 1' // new_line('a') // &
+                             'end do', &
+                             'program main' // new_line('a') // &
+                             '    implicit none' // new_line('a') // &
+                             '    integer :: i' // new_line('a') // &
+                             '' // new_line('a') // &
+                             '    i = 0' // new_line('a') // &
+                             '    do while (i < 3)' // new_line('a') // &
+                             '    print *, i' // new_line('a') // &
+                             '    i = i + 1' // new_line('a') // &
+                             'end do' // new_line('a') // &
+                             'end program main')) then
+            write(*, '(a)') '  ✓ PASS: Do while statement parsed correctly'
+            pass_count = pass_count + 1
+        else
+            write(*, '(a)') '  ✗ FAIL: Do while statement parsing failed'
+        end if
+        
+    end subroutine test_do_while_statement
     
     function compile_and_check(input_code, expected_output) result(success)
         use frontend, only: compile_source, compilation_options_t, BACKEND_FORTRAN
