@@ -143,12 +143,20 @@
 
 ## 🎯 IMMEDIATE PRIORITIES
 
-### P0 (COMPLETED TODAY) ✅:
-1. [x] Fixed function parameter duplicate declarations
-2. [x] All frontend tests now passing (100%)
-3. [x] Stage 1 complete
+### P0 (CRITICAL - FIX FAILING TESTS):
+1. [ ] Fix select case statement parsing/codegen
+   - `example/notebook/control_flow_simple.f` fails with "Unclassifiable statement"
+   - Parser or codegen not handling select case properly
+   - Check if select_case_node exists and is properly implemented
+2. [ ] Fix intrinsic function handling  
+   - `example/advanced_inference/intrinsic_functions.f` fails with abs() function
+   - "Invalid character in name" suggests tokenization or parsing issue
+   - Check intrinsic function recognition in parser
+3. [ ] Fix registry enhancement test
+   - `test_registry_enhancement` expects "pyplot-fortran" in output
+   - Registry resolution not working as expected
 
-### P1 (THIS WEEK):
+### P1 (THIS WEEK - AFTER FIXES):
 1. [ ] Start Stage 2 - Module parsing support
 2. [ ] Add subroutine parsing
 3. [ ] Handle interface blocks

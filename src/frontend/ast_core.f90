@@ -141,6 +141,34 @@ module ast_core
         procedure :: to_json => declaration_to_json
     end type declaration_node
 
+    ! Do loop node
+    type, extends(ast_node), public :: do_loop_node
+        character(len=:), allocatable :: var_name     ! Loop variable
+        class(ast_node), allocatable :: start_expr    ! Start expression
+        class(ast_node), allocatable :: end_expr      ! End expression
+        class(ast_node), allocatable :: step_expr     ! Step expression (optional)
+        type(ast_node_wrapper), allocatable :: body(:) ! Loop body
+    contains
+        procedure :: accept => do_loop_accept
+        procedure :: to_json => do_loop_to_json
+    end type do_loop_node
+
+    ! Select case node
+    type, extends(ast_node), public :: select_case_node
+        class(ast_node), allocatable :: expr          ! Expression to match
+        type(case_wrapper), allocatable :: cases(:)   ! Case statements
+    contains
+        procedure :: accept => select_case_accept
+        procedure :: to_json => select_case_to_json
+    end type select_case_node
+
+    ! Case statement wrapper
+    type, public :: case_wrapper
+        character(len=:), allocatable :: case_type    ! "case", "case_default"
+        class(ast_node), allocatable :: value         ! Case value (optional for default)
+        type(ast_node_wrapper), allocatable :: body(:) ! Case body
+    end type case_wrapper
+
     ! Wrapper type for polymorphic arrays - concrete type containing abstract member
     type, public :: ast_node_wrapper
         class(ast_node), allocatable :: node
@@ -156,7 +184,7 @@ module ast_core
     public :: create_program, create_assignment, create_binary_op
     public :: create_function_def, create_subroutine_def, create_function_call
     public :: create_identifier, create_literal, create_use_statement, create_print_statement
-    public :: create_declaration
+    public :: create_declaration, create_do_loop, create_select_case
 
 contains
 
@@ -708,5 +736,92 @@ contains
         
         call json%add(parent, obj)
     end subroutine declaration_to_json
+
+    ! Factory function for do loop
+    function create_do_loop(var_name, start_expr, end_expr, step_expr, body, line, column) result(node)
+        character(len=*), intent(in) :: var_name
+        class(ast_node), intent(in) :: start_expr, end_expr
+        class(ast_node), intent(in), optional :: step_expr
+        class(ast_node), intent(in), optional :: body(:)
+        integer, intent(in), optional :: line, column
+        type(do_loop_node) :: node
+        integer :: i
+        
+        node%var_name = var_name
+        allocate(node%start_expr, source=start_expr)
+        allocate(node%end_expr, source=end_expr)
+        if (present(step_expr)) allocate(node%step_expr, source=step_expr)
+        
+        if (present(body)) then
+            if (size(body) > 0) then
+                allocate(node%body(size(body)))
+                do i = 1, size(body)
+                    allocate(node%body(i)%node, source=body(i))
+                end do
+            end if
+        end if
+        
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_do_loop
+
+    ! Factory function for select case
+    function create_select_case(expr, cases, line, column) result(node)
+        class(ast_node), intent(in) :: expr
+        type(case_wrapper), intent(in), optional :: cases(:)
+        integer, intent(in), optional :: line, column
+        type(select_case_node) :: node
+        integer :: i
+        
+        allocate(node%expr, source=expr)
+        
+        if (present(cases) .and. size(cases) > 0) then
+            allocate(node%cases(size(cases)))
+            node%cases = cases
+        end if
+        
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_select_case
+
+    ! Visitor methods for new nodes
+    subroutine do_loop_accept(this, visitor)
+        class(do_loop_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! TODO: Implement visitor pattern for do_loop
+    end subroutine do_loop_accept
+
+    subroutine do_loop_to_json(this, json, parent)
+        class(do_loop_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj
+        
+        call json%create_object(obj, '')
+        call json%add(obj, 'type', 'do_loop')
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+        call json%add(obj, 'var_name', this%var_name)
+        call json%add(parent, obj)
+    end subroutine do_loop_to_json
+
+    subroutine select_case_accept(this, visitor)
+        class(select_case_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! TODO: Implement visitor pattern for select_case
+    end subroutine select_case_accept
+
+    subroutine select_case_to_json(this, json, parent)
+        class(select_case_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj
+        
+        call json%create_object(obj, '')
+        call json%add(obj, 'type', 'select_case')
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+        call json%add(parent, obj)
+    end subroutine select_case_to_json
 
 end module ast_core

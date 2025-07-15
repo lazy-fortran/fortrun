@@ -2,10 +2,10 @@ module parser_core
     use lexer_core
     use ast_core, only: ast_node, ast_node_wrapper, assignment_node, binary_op_node, identifier_node, &
                          literal_node, function_call_node, function_def_node, print_statement_node, &
-                         use_statement_node, declaration_node, &
+                         use_statement_node, declaration_node, do_loop_node, select_case_node, &
                          create_assignment, create_binary_op, create_identifier, &
                          create_literal, create_function_call, create_function_def, create_print_statement, &
-                         create_use_statement, create_declaration, &
+                         create_use_statement, create_declaration, create_do_loop, create_select_case, &
                          LITERAL_INTEGER, LITERAL_REAL, LITERAL_STRING, LITERAL_LOGICAL
     implicit none
     private
@@ -24,6 +24,7 @@ module parser_core
     ! Public parsing interface
     public :: parse_expression, parse_statement
     public :: create_parser_state, parse_primary, parse_function_definition
+    public :: parse_do_loop, parse_select_case
 
 contains
 
@@ -398,6 +399,14 @@ contains
                     end if
                 end block
             end if
+        ! Check for do loop
+        else if (first_token%kind == TK_KEYWORD .and. first_token%text == "do") then
+            stmt = parse_do_loop(parser)
+            return
+        ! Check for select case
+        else if (first_token%kind == TK_KEYWORD .and. first_token%text == "select") then
+            stmt = parse_select_case(parser)
+            return
         end if
         
         ! Look for pattern: IDENTIFIER = EXPRESSION or IDENTIFIER(params) = EXPRESSION
@@ -828,5 +837,119 @@ contains
         stmt = create_use_statement(module_name, line=token%line, column=token%column)
         
     end function parse_use_statement
+
+    ! Parse do loop: do var = start, end [, step]
+    function parse_do_loop(parser) result(loop_node)
+        type(parser_state_t), intent(inout) :: parser
+        class(ast_node), allocatable :: loop_node
+        
+        type(token_t) :: do_token, var_token, eq_token, comma_token
+        character(len=:), allocatable :: var_name
+        class(ast_node), allocatable :: start_expr, end_expr, step_expr
+        integer :: line, column
+        
+        ! Consume 'do'
+        do_token = parser%consume()
+        line = do_token%line
+        column = do_token%column
+        
+        ! Get variable name
+        var_token = parser%consume()
+        if (var_token%kind /= TK_IDENTIFIER) then
+            ! Error: expected identifier
+            return
+        end if
+        var_name = var_token%text
+        
+        ! Expect '='
+        eq_token = parser%consume()
+        if (eq_token%kind /= TK_OPERATOR .or. eq_token%text /= "=") then
+            ! Error: expected '='
+            return
+        end if
+        
+        ! Parse start expression (simplified - just parse next token as literal)
+        start_expr = parse_primary(parser)
+        
+        ! Expect ','
+        comma_token = parser%consume()
+        if (comma_token%kind /= TK_OPERATOR .or. comma_token%text /= ",") then
+            ! Error: expected ','
+            return
+        end if
+        
+        ! Parse end expression
+        end_expr = parse_primary(parser)
+        
+        ! Check for optional step
+        if (.not. parser%is_at_end()) then
+            comma_token = parser%peek()
+            if (comma_token%kind == TK_OPERATOR .and. comma_token%text == ",") then
+                comma_token = parser%consume()  ! consume comma
+                step_expr = parse_primary(parser)
+            end if
+        end if
+        
+        ! Create do loop node (empty body for now)
+        block
+            type(do_loop_node), allocatable :: do_node
+            allocate(do_node)
+            if (allocated(step_expr)) then
+                do_node = create_do_loop(var_name, start_expr, end_expr, step_expr, line=line, column=column)
+            else
+                do_node = create_do_loop(var_name, start_expr, end_expr, line=line, column=column)
+            end if
+            allocate(loop_node, source=do_node)
+        end block
+        
+    end function parse_do_loop
+
+    ! Parse select case: select case (expr)
+    function parse_select_case(parser) result(select_node)
+        type(parser_state_t), intent(inout) :: parser
+        class(ast_node), allocatable :: select_node
+        
+        type(token_t) :: select_token, case_token, lparen_token, rparen_token
+        class(ast_node), allocatable :: expr
+        integer :: line, column
+        
+        ! Consume 'select'
+        select_token = parser%consume()
+        line = select_token%line
+        column = select_token%column
+        
+        ! Expect 'case'
+        case_token = parser%consume()
+        if (case_token%kind /= TK_KEYWORD .or. case_token%text /= "case") then
+            ! Error: expected 'case'
+            return
+        end if
+        
+        ! Expect '('
+        lparen_token = parser%consume()
+        if (lparen_token%kind /= TK_OPERATOR .or. lparen_token%text /= "(") then
+            ! Error: expected '('
+            return
+        end if
+        
+        ! Parse expression
+        expr = parse_primary(parser)
+        
+        ! Expect ')'
+        rparen_token = parser%consume()
+        if (rparen_token%kind /= TK_OPERATOR .or. rparen_token%text /= ")") then
+            ! Error: expected ')'
+            return
+        end if
+        
+        ! Create select case node (empty cases for now)
+        block
+            type(select_case_node), allocatable :: sel_node
+            allocate(sel_node)
+            sel_node = create_select_case(expr, line=line, column=column)
+            allocate(select_node, source=sel_node)
+        end block
+        
+    end function parse_select_case
 
 end module parser_core

@@ -19,6 +19,8 @@ module codegen_core
         module procedure generate_code_use_statement
         module procedure generate_code_print_statement
         module procedure generate_code_declaration
+        module procedure generate_code_do_loop
+        module procedure generate_code_select_case
     end interface generate_code
 
 contains
@@ -470,6 +472,10 @@ contains
             code = generate_code_use_statement(node)
         type is (declaration_node)
             code = generate_code_declaration(node)
+        type is (do_loop_node)
+            code = generate_code_do_loop(node)
+        type is (select_case_node)
+            code = generate_code_select_case(node)
         class default
             ! NEVER generate "0" - always generate a comment for debugging
             code = "! Unimplemented AST node"
@@ -737,5 +743,123 @@ contains
             result_type = "real(8)"
         end select
     end function infer_binary_op_type
+
+    ! Generate code for do loop node
+    function generate_code_do_loop(node) result(code)
+        type(do_loop_node), intent(in) :: node
+        character(len=:), allocatable :: code
+        character(len=:), allocatable :: start_code, end_code, step_code, body_code
+        integer :: i
+        
+        ! Generate code for loop bounds
+        select type (start => node%start_expr)
+        type is (literal_node)
+            start_code = generate_code_literal(start)
+        type is (identifier_node)
+            start_code = generate_code_identifier(start)
+        class default
+            start_code = "1"
+        end select
+        
+        select type (end => node%end_expr)
+        type is (literal_node)
+            end_code = generate_code_literal(end)
+        type is (identifier_node)
+            end_code = generate_code_identifier(end)
+        class default
+            end_code = "10"
+        end select
+        
+        ! Generate step if present
+        if (allocated(node%step_expr)) then
+            select type (step => node%step_expr)
+            type is (literal_node)
+                step_code = generate_code_literal(step)
+            type is (identifier_node)
+                step_code = generate_code_identifier(step)
+            class default
+                step_code = "1"
+            end select
+        else
+            step_code = ""
+        end if
+        
+        ! Generate body
+        body_code = ""
+        if (allocated(node%body)) then
+            do i = 1, size(node%body)
+                if (allocated(node%body(i)%node)) then
+                    body_code = body_code // "    " // generate_code_polymorphic(node%body(i)%node) // new_line('a')
+                end if
+            end do
+        end if
+        
+        ! Construct do loop
+        if (len_trim(step_code) > 0) then
+            code = "do " // node%var_name // " = " // start_code // ", " // end_code // ", " // step_code // new_line('a') // &
+                   body_code // &
+                   "end do"
+        else
+            code = "do " // node%var_name // " = " // start_code // ", " // end_code // new_line('a') // &
+                   body_code // &
+                   "end do"
+        end if
+    end function generate_code_do_loop
+
+    ! Generate code for select case node
+    function generate_code_select_case(node) result(code)
+        type(select_case_node), intent(in) :: node
+        character(len=:), allocatable :: code
+        character(len=:), allocatable :: expr_code, cases_code
+        integer :: i, j
+        
+        ! Generate expression code
+        select type (expr => node%expr)
+        type is (literal_node)
+            expr_code = generate_code_literal(expr)
+        type is (identifier_node)
+            expr_code = generate_code_identifier(expr)
+        class default
+            expr_code = "expr"
+        end select
+        
+        ! Generate cases
+        cases_code = ""
+        if (allocated(node%cases)) then
+            do i = 1, size(node%cases)
+                if (node%cases(i)%case_type == "case_default") then
+                    cases_code = cases_code // "case default" // new_line('a')
+                else
+                    ! Generate case value
+                    if (allocated(node%cases(i)%value)) then
+                        select type (val => node%cases(i)%value)
+                        type is (literal_node)
+                            cases_code = cases_code // "case (" // generate_code_literal(val) // ")" // new_line('a')
+                        type is (identifier_node)
+                            cases_code = cases_code // "case (" // generate_code_identifier(val) // ")" // new_line('a')
+                        class default
+                            cases_code = cases_code // "case (default)" // new_line('a')
+                        end select
+                    else
+                        cases_code = cases_code // "case default" // new_line('a')
+                    end if
+                end if
+                
+                ! Generate case body
+                if (allocated(node%cases(i)%body)) then
+                    do j = 1, size(node%cases(i)%body)
+                        if (allocated(node%cases(i)%body(j)%node)) then
+                            cases_code = cases_code // "    " // generate_code_polymorphic(node%cases(i)%body(j)%node) // new_line('a')
+                        end if
+                    end do
+                end if
+            end do
+        end if
+        
+        ! Construct select case
+        code = "select case (" // expr_code // ")" // new_line('a') // &
+               cases_code // &
+               "end select"
+    end function generate_code_select_case
 
 end module codegen_core
