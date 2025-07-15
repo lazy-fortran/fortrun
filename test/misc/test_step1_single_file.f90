@@ -1,7 +1,7 @@
 ! Test Step 1: Single-file type inference and enhancements
 program test_step1_single_file
     use, intrinsic :: iso_fortran_env, only: error_unit
-    use preprocessor, only: preprocess_file
+    use standardizer, only: standardize_file
     implicit none
     
     integer :: test_count = 0
@@ -34,7 +34,7 @@ contains
             '  compute = x * x' // new_line('a') // &
             'end function')
         
-        call preprocess_file(input_file, output_file, error_msg)
+        call standardize_file(input_file, output_file, error_msg)
         
         if (len_trim(error_msg) == 0) then
             ! Check for function signature enhancement
@@ -65,7 +65,7 @@ contains
             '  rectangle_area = width * height' // new_line('a') // &
             'end function')
         
-        call preprocess_file(input_file, output_file, error_msg)
+        call standardize_file(input_file, output_file, error_msg)
         
         if (len_trim(error_msg) == 0) then
             ! Check for parameter enhancement (parameters can be on same line)
@@ -97,7 +97,7 @@ contains
             '  get_pi = 3.14159265' // new_line('a') // &
             'end function')
         
-        call preprocess_file(input_file, output_file, error_msg)
+        call standardize_file(input_file, output_file, error_msg)
         
         if (len_trim(error_msg) == 0) then
             ! Check that pi_value gets the right type from function return
@@ -135,7 +135,7 @@ contains
             '  cube = val * val * val' // new_line('a') // &
             'end function')
         
-        call preprocess_file(input_file, output_file, error_msg)
+        call standardize_file(input_file, output_file, error_msg)
         
         if (len_trim(error_msg) == 0) then
             ! Check both functions are enhanced and variables get correct types
@@ -169,7 +169,7 @@ contains
             '  get_rate = 1.25' // new_line('a') // &
             'end function')
         
-        call preprocess_file(input_file, output_file, error_msg)
+        call standardize_file(input_file, output_file, error_msg)
         
         if (len_trim(error_msg) == 0) then
             ! Check that integer and real types are properly inferred
@@ -207,7 +207,7 @@ contains
             '  double_it = x * 2.0' // new_line('a') // &
             'end function')
         
-        call preprocess_file(input_file, output_file, error_msg)
+        call standardize_file(input_file, output_file, error_msg)
         
         if (len_trim(error_msg) == 0) then
             ! Check nested calls work correctly

@@ -56,7 +56,7 @@ contains
     ! Test preprocessing
     test_count = test_count + 1
     temp_output = '/tmp/test_basic_types.f90'
-    call test_preprocess_file(temp_input, temp_output, error_msg, expected_lines, 4, found_declarations)
+    call test_standardize_file(temp_input, temp_output, error_msg, expected_lines, 4, found_declarations)
     
     if (len_trim(error_msg) == 0 .and. found_declarations) then
       pass_count = pass_count + 1
@@ -109,7 +109,7 @@ contains
     ! Test preprocessing
     test_count = test_count + 1
     temp_output = '/tmp/test_arithmetic.f90'
-    call test_preprocess_file(temp_input, temp_output, error_msg, expected_lines, 6, found_declarations)
+    call test_standardize_file(temp_input, temp_output, error_msg, expected_lines, 6, found_declarations)
     
     if (len_trim(error_msg) == 0 .and. found_declarations) then
       pass_count = pass_count + 1
@@ -156,7 +156,7 @@ contains
     ! Test preprocessing
     test_count = test_count + 1
     temp_output = '/tmp/test_mixed.f90'
-    call test_preprocess_file(temp_input, temp_output, error_msg, expected_lines, 3, found_declarations)
+    call test_standardize_file(temp_input, temp_output, error_msg, expected_lines, 3, found_declarations)
     
     if (len_trim(error_msg) == 0 .and. found_declarations) then
       pass_count = pass_count + 1
@@ -205,7 +205,7 @@ contains
     ! Test preprocessing
     test_count = test_count + 1
     temp_output = '/tmp/test_intrinsics.f90'
-    call test_preprocess_file(temp_input, temp_output, error_msg, expected_lines, 4, found_declarations)
+    call test_standardize_file(temp_input, temp_output, error_msg, expected_lines, 4, found_declarations)
     
     if (len_trim(error_msg) == 0 .and. found_declarations) then
       pass_count = pass_count + 1
@@ -247,7 +247,7 @@ contains
     ! Test preprocessing
     test_count = test_count + 1
     temp_output = '/tmp/test_print_filter.f90'
-    call preprocess_file_wrapper(temp_input, temp_output, error_msg)
+    call standardize_file_wrapper(temp_input, temp_output, error_msg)
     
     if (len_trim(error_msg) == 0) then
       ! Check that no invalid declarations were created
@@ -287,7 +287,7 @@ contains
     
   end subroutine test_print_statement_filtering
   
-  subroutine test_preprocess_file(input_file, output_file, error_msg, expected_lines, num_expected, found_all)
+  subroutine test_standardize_file(input_file, output_file, error_msg, expected_lines, num_expected, found_all)
     character(len=*), intent(in) :: input_file
     character(len=*), intent(inout) :: output_file
     character(len=*), intent(out) :: error_msg
@@ -303,7 +303,7 @@ contains
     found_lines = .false.
     
     ! Preprocess the file
-    call preprocess_file_wrapper(input_file, output_file, error_msg)
+    call standardize_file_wrapper(input_file, output_file, error_msg)
     
     if (len_trim(error_msg) > 0) return
     
@@ -352,16 +352,16 @@ contains
       end if
     end if
     
-  end subroutine test_preprocess_file
+  end subroutine test_standardize_file
   
-  subroutine preprocess_file_wrapper(input_file, output_file, error_msg)
-    use preprocessor, only: preprocess_file
+  subroutine standardize_file_wrapper(input_file, output_file, error_msg)
+    use standardizer, only: standardize_file
     character(len=*), intent(in) :: input_file
     character(len=*), intent(in) :: output_file
     character(len=*), intent(out) :: error_msg
     
-    call preprocess_file(input_file, output_file, error_msg)
+    call standardize_file(input_file, output_file, error_msg)
     
-  end subroutine preprocess_file_wrapper
+  end subroutine standardize_file_wrapper
 
 end program test_type_inference_integration
