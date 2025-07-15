@@ -55,8 +55,8 @@ contains
     ! Expected declarations in order
     expected_lines(1) = 'integer :: count'
     expected_lines(2) = 'real(8) :: pi'
-    expected_lines(3) = 'character(len=*) :: name'
-    expected_lines(4) = 'character(len=*) :: ready'
+    expected_lines(3) = 'character(len=256) :: name'
+    expected_lines(4) = 'logical :: ready'
     
     ! Test preprocessing
     test_count = test_count + 1
