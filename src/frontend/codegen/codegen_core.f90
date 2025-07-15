@@ -134,8 +134,12 @@ contains
             right_code = "???"
         end select
 
-        ! Combine with operator
-        code = left_code//" "//node%operator//" "//right_code
+        ! Combine with operator - different spacing for different operators
+        if (node%operator == "*" .or. node%operator == "/") then
+            code = left_code//node%operator//right_code  ! No spaces for * and /
+        else
+            code = left_code//" "//node%operator//" "//right_code  ! Spaces for + and -
+        end if
     end function generate_code_binary_op
 
     ! Generate code for program node
