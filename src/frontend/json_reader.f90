@@ -5,13 +5,15 @@ module json_reader
     use json_module
     use lexer_core, only: token_t, TK_IDENTIFIER, TK_KEYWORD, TK_OPERATOR, TK_NUMBER, TK_STRING, TK_NEWLINE, TK_EOF
     use ast_core
+    use semantic_analyzer, only: semantic_context_t, create_semantic_context
     ! Note: Using core AST nodes only - no dialect-specific imports
     implicit none
     private
     
     ! Public interface
     public :: json_read_tokens_from_file, json_read_ast_from_file
-    public :: json_to_tokens, json_to_ast
+    public :: json_read_semantic_from_file
+    public :: json_to_tokens, json_to_ast, json_to_semantic
     
 contains
     
@@ -541,5 +543,53 @@ contains
         end do
         
     end function json_to_ast_array
+    
+    ! Read semantic analysis result from JSON file
+    subroutine json_read_semantic_from_file(filename, ast, sem_ctx)
+        character(len=*), intent(in) :: filename
+        class(ast_node), allocatable, intent(out) :: ast
+        type(semantic_context_t), intent(out) :: sem_ctx
+        type(json_file) :: json
+        
+        ! Load JSON file
+        call json%load(filename=filename)
+        
+        ! Convert JSON to semantic analysis result
+        call json_to_semantic(json, ast, sem_ctx)
+        
+        ! Clean up
+        call json%destroy()
+        
+    end subroutine json_read_semantic_from_file
+    
+    ! Convert JSON to semantic analysis result (AST + context)
+    subroutine json_to_semantic(json, ast, sem_ctx)
+        type(json_file), intent(inout) :: json
+        class(ast_node), allocatable, intent(out) :: ast
+        type(semantic_context_t), intent(out) :: sem_ctx
+        type(json_core) :: core
+        type(json_value), pointer :: root, ast_obj
+        logical :: found
+        
+        ! Get root object
+        call json%get(root)
+        
+        ! Initialize semantic context
+        sem_ctx = create_semantic_context()
+        
+        ! Get annotated AST from JSON
+        call core%get(root, 'annotated_ast', ast_obj, found)
+        if (found) then
+            ast = json_to_ast_node(core, ast_obj)
+        else
+            ! Fallback: try to get regular AST and reconstruct type info
+            ast = json_to_ast_node(core, root)
+        end if
+        
+        ! Type environment reconstruction is handled by the type inference metadata
+        ! already stored in the AST nodes (inferred_type, inferred_type_name)
+        ! The semantic context will be rebuilt when needed during further processing
+        
+    end subroutine json_to_semantic
     
 end module json_reader

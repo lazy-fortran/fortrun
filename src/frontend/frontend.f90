@@ -16,11 +16,13 @@ module frontend
                               generate_function_definitions_from_tokens
     use declaration_generator, only: generate_declarations
     use debug_utils, only: debug_output_tokens, debug_output_ast, debug_output_semantic, debug_output_codegen
+    use json_reader, only: json_read_tokens_from_file, json_read_ast_from_file, json_read_semantic_from_file
     
     implicit none
     private
     
     public :: compile_source, compilation_options_t
+    public :: compile_from_tokens_json, compile_from_ast_json, compile_from_semantic_json
     public :: BACKEND_FORTRAN, BACKEND_LLVM, BACKEND_C
     
     ! Backend target enumeration
@@ -105,6 +107,103 @@ contains
         end if
         
     end subroutine compile_source
+
+    ! Compile from tokens JSON (skip phase 1)
+    subroutine compile_from_tokens_json(tokens_json_file, options, error_msg)
+        character(len=*), intent(in) :: tokens_json_file
+        type(compilation_options_t), intent(in) :: options
+        character(len=*), intent(out) :: error_msg
+        
+        type(token_t), allocatable :: tokens(:)
+        class(ast_node), allocatable :: ast_tree
+        type(semantic_context_t) :: sem_ctx
+        character(len=:), allocatable :: code
+        
+        error_msg = ""
+        
+        ! Read tokens from JSON
+        tokens = json_read_tokens_from_file(tokens_json_file)
+        if (options%debug_tokens) call debug_output_tokens(tokens_json_file, tokens)
+        
+        ! Phase 2: Parsing
+        call parse_tokens(tokens, ast_tree, error_msg)
+        if (error_msg /= "") return
+        if (options%debug_ast) call debug_output_ast(tokens_json_file, ast_tree)
+        
+        ! Phase 3: Semantic Analysis
+        sem_ctx = create_semantic_context()
+        call analyze_program(sem_ctx, ast_tree)
+        if (options%debug_semantic) call debug_output_semantic(tokens_json_file, ast_tree)
+        
+        ! Phase 4: Code Generation
+        call generate_fortran_code(ast_tree, sem_ctx, code)
+        if (options%debug_codegen) call debug_output_codegen(tokens_json_file, code)
+        
+        ! Write output
+        if (allocated(options%output_file)) then
+            call write_output_file(options%output_file, code, error_msg)
+        end if
+        
+    end subroutine compile_from_tokens_json
+
+    ! Compile from AST JSON (skip phases 1-2)
+    subroutine compile_from_ast_json(ast_json_file, options, error_msg)
+        character(len=*), intent(in) :: ast_json_file
+        type(compilation_options_t), intent(in) :: options
+        character(len=*), intent(out) :: error_msg
+        
+        class(ast_node), allocatable :: ast_tree
+        type(semantic_context_t) :: sem_ctx
+        character(len=:), allocatable :: code
+        
+        error_msg = ""
+        
+        ! Read AST from JSON
+        ast_tree = json_read_ast_from_file(ast_json_file)
+        if (options%debug_ast) call debug_output_ast(ast_json_file, ast_tree)
+        
+        ! Phase 3: Semantic Analysis
+        sem_ctx = create_semantic_context()
+        call analyze_program(sem_ctx, ast_tree)
+        if (options%debug_semantic) call debug_output_semantic(ast_json_file, ast_tree)
+        
+        ! Phase 4: Code Generation
+        call generate_fortran_code(ast_tree, sem_ctx, code)
+        if (options%debug_codegen) call debug_output_codegen(ast_json_file, code)
+        
+        ! Write output
+        if (allocated(options%output_file)) then
+            call write_output_file(options%output_file, code, error_msg)
+        end if
+        
+    end subroutine compile_from_ast_json
+
+    ! Compile from semantic JSON (skip phases 1-3) - ANNOTATED AST TO CODEGEN
+    subroutine compile_from_semantic_json(semantic_json_file, options, error_msg)
+        character(len=*), intent(in) :: semantic_json_file
+        type(compilation_options_t), intent(in) :: options
+        character(len=*), intent(out) :: error_msg
+        
+        class(ast_node), allocatable :: ast_tree
+        type(semantic_context_t) :: sem_ctx
+        character(len=:), allocatable :: code
+        
+        error_msg = ""
+        
+        ! Read annotated AST and semantic context from JSON
+        call json_read_semantic_from_file(semantic_json_file, ast_tree, sem_ctx)
+        if (options%debug_semantic) call debug_output_semantic(semantic_json_file, ast_tree)
+        
+        ! Phase 4: Code Generation (direct from annotated AST)
+        call generate_fortran_code(ast_tree, sem_ctx, code)
+        if (options%debug_codegen) call debug_output_codegen(semantic_json_file, code)
+        
+        ! Write output
+        if (allocated(options%output_file)) then
+            call write_output_file(options%output_file, code, error_msg)
+        end if
+        
+    end subroutine compile_from_semantic_json
 
     ! Phase 1: Lexical Analysis
     subroutine lex_file(source, tokens, error_msg)
@@ -385,7 +484,7 @@ contains
         character(len=:), allocatable, intent(out) :: code
         
         select type (prog => ast_tree)
-        type is (lf_program_node)
+        type is (program_node)
             code = generate_fortran_program(prog, sem_ctx)
         class default
             code = "! Error: Unsupported AST node type"
@@ -394,7 +493,7 @@ contains
 
     ! Generate Fortran program (FALLBACK approach until full AST)
     function generate_fortran_program(prog, sem_ctx) result(code)
-        type(lf_program_node), intent(in) :: prog
+        type(program_node), intent(in) :: prog
         type(semantic_context_t), intent(in) :: sem_ctx
         character(len=:), allocatable :: code
         character(len=:), allocatable :: use_statements, declarations, statements, functions

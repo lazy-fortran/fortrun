@@ -320,6 +320,13 @@ end subroutine
 3. **Add bidirectional type checking** for explicit declarations
 4. **Test with type inference scenarios**
 
+#### CRITICAL: Lazy Fortran Program vs Module Decision
+**TODO**: Implement deferred program/module decision in semantic analyzer for lazy fortran:
+- **Parser must be permissive**: Allow any statements valid in either program OR module context
+- **Semantic analyzer decides**: Based on content analysis (executable statements → program, only procedures/declarations → module)  
+- **File basename becomes name**: program/module name derived from input filename
+- **Architecture requirement**: Core modules stay dialect-agnostic, decision logic only in lazy fortran semantic analysis
+
 ### Stage 4: Complete Standard Compliance (FUTURE)
 1. **Full Fortran 95 standard compliance** testing
 2. **Module system integration**

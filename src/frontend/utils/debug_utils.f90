@@ -4,7 +4,6 @@ module debug_utils
     
     use lexer_core, only: token_t
     use ast_core
-    use ast_lazy_fortran, only: lf_program_node
     use json_writer, only: json_write_tokens_to_file, json_write_ast_to_file
     implicit none
     private
@@ -52,13 +51,11 @@ contains
             integer :: unit, i
             open(newunit=unit, file=json_file, status='replace', action='write')
             select type (ast => ast_tree)
-            type is (lf_program_node)
+            type is (program_node)
                 write(unit, '(a)') '{'
                 write(unit, '(a)') '  "": {'
-                write(unit, '(a)') '    "type": "lf_program",'
+                write(unit, '(a)') '    "type": "program",'
                 write(unit, '(a,a,a)') '    "name": "', trim(ast%name), '",'
-                write(unit, '(a,l1,a)') '    "implicit": ', ast%implicit, ','
-                write(unit, '(a,l1,a)') '    "auto_contains": ', ast%auto_contains, ','
                 write(unit, '(a,i0,a)') '    "line": ', ast%line, ','
                 write(unit, '(a,i0,a)') '    "column": ', ast%column, ','
                 write(unit, '(a)', advance='no') '    "body": ['
