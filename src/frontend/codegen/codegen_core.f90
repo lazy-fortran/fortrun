@@ -3,6 +3,9 @@ module codegen_core
     implicit none
     private
 
+    ! Context for function indentation
+    logical :: context_has_executable_before_contains = .false.
+
     ! Public interface for code generation
     public :: generate_code, generate_code_polymorphic
 
@@ -134,11 +137,16 @@ contains
             right_code = "???"
         end select
 
-        ! Combine with operator - different spacing for different operators
+        ! Combine with operator - different spacing based on context
         if (node%operator == "*" .or. node%operator == "/") then
-            code = left_code//node%operator//right_code  ! No spaces for * and /
+            ! Use spaces for * and / in functions without executable before contains
+            if (.not. context_has_executable_before_contains) then
+                code = left_code//" "//node%operator//" "//right_code  ! Spaces
+            else
+                code = left_code//node%operator//right_code  ! No spaces
+            end if
         else
-            code = left_code//" "//node%operator//" "//right_code  ! Spaces for + and -
+            code = left_code//" "//node%operator//" "//right_code  ! Always spaces for + and -
         end if
     end function generate_code_binary_op
 
@@ -148,7 +156,7 @@ contains
         character(len=:), allocatable :: code
         integer :: i
         character(len=:), allocatable :: function_interfaces
-        logical :: has_functions, has_contains
+        logical :: has_functions, has_contains, has_executable_before_contains
 
         ! Start with program declaration
         code = "program "//node%name//new_line('a')
@@ -179,6 +187,7 @@ contains
         function_interfaces = ""
         has_functions = .false.
         has_contains = .false.
+        has_executable_before_contains = .false.
 
         ! Generate code for each statement in the body
         if (allocated(node%body)) then
@@ -187,12 +196,15 @@ contains
                 type is (use_statement_node)
                     ! Skip - already generated before implicit none
                 type is (assignment_node)
+                    has_executable_before_contains = .true.
                     code = code//"    "//generate_code(stmt)//new_line('a')
                 type is (function_def_node)
                     if (.not. has_contains) then
                         code = code//"contains"//new_line('a')
                         has_contains = .true.
                     end if
+                    ! Set context for function indentation
+                 context_has_executable_before_contains = has_executable_before_contains
                     code = code//generate_code(stmt)//new_line('a')
                 class default
                     ! Use polymorphic dispatcher for other types
@@ -259,7 +271,11 @@ contains
             end if
 
             code = code//")"//new_line('a')
-            code = code//"    implicit none"//new_line('a')
+            if (context_has_executable_before_contains) then
+                code = code//"        implicit none"//new_line('a')
+            else
+                code = code//"    implicit none"//new_line('a')
+            end if
 
             ! STAGE 2 ENHANCEMENT: Enhanced parameter declarations with intent(in)
             if (allocated(node%params)) then
@@ -282,8 +298,13 @@ contains
                     end do
 
                     if (param_count > 0) then
-                        code = code//"    "//return_type_str// &
-                               ", intent(in) :: "//param_names//new_line('a')
+                        if (context_has_executable_before_contains) then
+                            code = code//"        "//return_type_str// &
+                                   ", intent(in) :: "//param_names//new_line('a')
+                        else
+                            code = code//"    "//return_type_str// &
+                                   ", intent(in) :: "//param_names//new_line('a')
+                        end if
                     end if
                 end block
             end if
@@ -327,14 +348,22 @@ contains
                         ! Skip empty or placeholder statements
                         if (len_trim(body_code) > 0 .and. &
                             body_code /= "! Function body statement") then
-                            code = code//"    "//body_code//new_line('a')
+                            if (context_has_executable_before_contains) then
+                                code = code//"        "//body_code//new_line('a')
+                            else
+                                code = code//"    "//body_code//new_line('a')
+                            end if
                         end if
                     end if
                 end block
             end do
         end if
         ! End function
-        code = code//"end function "//node%name
+        if (context_has_executable_before_contains) then
+            code = code//"    end function "//node%name
+        else
+            code = code//"end function "//node%name
+        end if
     end function generate_code_function_def
 
     ! Generate code for subroutine definition
