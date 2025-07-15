@@ -1,7 +1,7 @@
 program test_frontend_parser_declaration
     use lexer_core, only: tokenize_core, token_t
     use parser_core, only: parse_statement
-    use ast_core, only: ast_node, literal_node, LITERAL_STRING
+    use ast_core, only: ast_node, literal_node, declaration_node, LITERAL_STRING
     implicit none
     
     type(token_t), allocatable :: tokens(:)
@@ -41,17 +41,17 @@ contains
             return
         end if
         
-        ! For now, declarations are skipped and return empty literal
+        ! Declarations should now return proper declaration nodes
         select type (ast)
-        type is (literal_node)
-            if (ast%value == "" .and. ast%literal_kind == LITERAL_STRING) then
-                print *, "PASS: Declaration skipped as expected (returns empty literal)"
+        type is (declaration_node)
+            if (ast%type_name == "real" .and. ast%var_name == "x") then
+                print *, "PASS: Declaration properly parsed as declaration_node"
             else
-                print *, "FAIL: Expected empty literal, got '", ast%value, "'"
+                print *, "FAIL: Expected real declaration for x, got type='", ast%type_name, "', var='", ast%var_name, "'"
                 all_tests_passed = .false.
             end if
         class default
-            print *, "FAIL: Expected literal node for skipped declaration"
+            print *, "FAIL: Expected declaration_node for declaration"
             all_tests_passed = .false.
         end select
         
