@@ -837,6 +837,14 @@ contains
                             cases_code = cases_code // "case (" // generate_code_literal(val) // ")" // new_line('a')
                         type is (identifier_node)
                             cases_code = cases_code // "case (" // generate_code_identifier(val) // ")" // new_line('a')
+                        type is (binary_op_node)
+                            ! Handle range syntax (2:5)
+                            if (val%operator == ":") then
+                                cases_code = cases_code // "case (" // generate_code_polymorphic(val%left) // &
+                                           ":" // generate_code_polymorphic(val%right) // ")" // new_line('a')
+                            else
+                                cases_code = cases_code // "case (" // generate_code_binary_op(val) // ")" // new_line('a')
+                            end if
                         class default
                             cases_code = cases_code // "case (default)" // new_line('a')
                         end select

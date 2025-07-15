@@ -2,7 +2,7 @@ module parser_core
     use lexer_core
     use ast_core, only: ast_node, ast_node_wrapper, assignment_node, binary_op_node, identifier_node, &
                          literal_node, function_call_node, function_def_node, print_statement_node, &
-                         use_statement_node, declaration_node, do_loop_node, select_case_node, &
+                         use_statement_node, declaration_node, do_loop_node, select_case_node, case_wrapper, &
                          create_assignment, create_binary_op, create_identifier, &
                          create_literal, create_function_call, create_function_def, create_print_statement, &
                          create_use_statement, create_declaration, create_do_loop, create_select_case, &
@@ -289,6 +289,28 @@ contains
                 if (current%text == ")") then
                     current = parser%consume()  ! consume ')'
                 end if
+            else if (current%text == "-" .or. current%text == "+") then
+                ! Unary operator
+                block
+                    type(token_t) :: op_token
+                    class(ast_node), allocatable :: operand
+                    op_token = parser%consume()
+                    operand = parse_primary(parser)
+                    if (allocated(operand)) then
+                        ! Create unary expression as binary op with zero
+                        if (op_token%text == "-") then
+                            ! For unary minus, create 0 - operand
+                            block
+                                class(ast_node), allocatable :: zero
+                                zero = create_literal("0", LITERAL_INTEGER, op_token%line, op_token%column)
+                                expr = create_binary_op(zero, operand, "-")
+                            end block
+                        else
+                            ! For unary plus, just return the operand
+                            allocate(expr, source=operand)
+                        end if
+                    end if
+                end block
             else if (current%text == ".") then
                 ! Check for logical literals (.true. or .false.)
                 block
@@ -904,14 +926,17 @@ contains
         
     end function parse_do_loop
 
-    ! Parse select case: select case (expr)
+    ! Parse select case: select case (expr) ... end select
     function parse_select_case(parser) result(select_node)
         type(parser_state_t), intent(inout) :: parser
         class(ast_node), allocatable :: select_node
         
         type(token_t) :: select_token, case_token, lparen_token, rparen_token
         class(ast_node), allocatable :: expr
-        integer :: line, column
+        type(case_wrapper), allocatable :: cases(:), temp_cases(:)
+        type(ast_node_wrapper), allocatable :: case_body(:), temp_body(:)
+        integer :: line, column, case_count, body_count
+        logical :: parsing_cases
         
         ! Consume 'select'
         select_token = parser%consume()
@@ -942,11 +967,163 @@ contains
             return
         end if
         
-        ! Create select case node (empty cases for now)
+        ! Parse case blocks
+        case_count = 0
+        parsing_cases = .true.
+        
+        do while (parsing_cases .and. parser%current_token <= size(parser%tokens))
+            ! Look for case keyword or end select
+            block
+                type(token_t) :: current_token
+                current_token = parser%peek()
+                
+                if (current_token%kind == TK_KEYWORD) then
+                    if (current_token%text == "case") then
+                    ! Parse a case block
+                    case_token = parser%consume()
+                    
+                    ! Allocate case wrapper
+                    if (case_count == 0) then
+                        allocate(cases(1))
+                    else
+                        allocate(temp_cases(case_count))
+                        temp_cases = cases(1:case_count)
+                        deallocate(cases)
+                        allocate(cases(case_count + 1))
+                        cases(1:case_count) = temp_cases
+                        deallocate(temp_cases)
+                    end if
+                    case_count = case_count + 1
+                    
+                    ! Check for default case
+                    current_token = parser%peek()
+                    if (current_token%kind == TK_KEYWORD .and. current_token%text == "default") then
+                        cases(case_count)%case_type = "case_default"
+                        case_token = parser%consume()  ! consume 'default'
+                    else
+                        cases(case_count)%case_type = "case"
+                        ! Parse case value (could be single value or range)
+                        current_token = parser%peek()
+                        if (current_token%kind == TK_OPERATOR .and. current_token%text == "(") then
+                            lparen_token = parser%consume()
+                            
+                            ! Parse first value
+                            block
+                                class(ast_node), allocatable :: first_val, second_val
+                                type(token_t) :: colon_token
+                                
+                                allocate(first_val, source=parse_primary(parser))
+                                
+                                ! Check for range syntax (2:5)
+                                current_token = parser%peek()
+                                if (current_token%kind == TK_OPERATOR .and. current_token%text == ":") then
+                                    colon_token = parser%consume()
+                                    allocate(second_val, source=parse_primary(parser))
+                                    ! Create a binary op node to represent the range
+                                    allocate(cases(case_count)%value, source=create_binary_op(first_val, second_val, ":"))
+                                else
+                                    allocate(cases(case_count)%value, source=first_val)
+                                end if
+                            end block
+                            
+                            current_token = parser%peek()
+                            if (current_token%kind == TK_OPERATOR .and. current_token%text == ")") then
+                                rparen_token = parser%consume()
+                            end if
+                        end if
+                    end if
+                    
+                    ! Parse case body statements until next case or end
+                    body_count = 0
+                    do while (parser%current_token <= size(parser%tokens))
+                        current_token = parser%peek()
+                        if (current_token%kind == TK_KEYWORD .and. &
+                            (current_token%text == "case" .or. current_token%text == "end")) exit
+                        
+                        ! Parse statement tokens
+                        block
+                            integer :: stmt_start, stmt_end, j
+                            type(token_t), allocatable :: stmt_tokens(:)
+                            class(ast_node), allocatable :: stmt
+                            
+                            stmt_start = parser%current_token
+                            stmt_end = stmt_start
+                            
+                            ! Find end of statement (next line or EOF)
+                            do j = stmt_start, size(parser%tokens)
+                                if (j > stmt_start .and. parser%tokens(j)%line > parser%tokens(stmt_start)%line) exit
+                                if (parser%tokens(j)%kind == TK_EOF) exit
+                                stmt_end = j
+                            end do
+                            
+                            if (stmt_end >= stmt_start) then
+                                allocate(stmt_tokens(stmt_end - stmt_start + 2))
+                                stmt_tokens(1:stmt_end - stmt_start + 1) = parser%tokens(stmt_start:stmt_end)
+                                stmt_tokens(stmt_end - stmt_start + 2)%kind = TK_EOF
+                                stmt_tokens(stmt_end - stmt_start + 2)%text = ""
+                                
+                                stmt = parse_statement(stmt_tokens)
+                                
+                                if (allocated(stmt)) then
+                                    if (body_count == 0) then
+                                        allocate(case_body(1))
+                                    else
+                                        allocate(temp_body(body_count))
+                                        temp_body = case_body(1:body_count)
+                                        deallocate(case_body)
+                                        allocate(case_body(body_count + 1))
+                                        case_body(1:body_count) = temp_body
+                                        deallocate(temp_body)
+                                    end if
+                                    body_count = body_count + 1
+                                    allocate(case_body(body_count)%node, source=stmt)
+                                end if
+                                
+                                deallocate(stmt_tokens)
+                            end if
+                            
+                            parser%current_token = stmt_end + 1
+                        end block
+                    end do
+                    
+                    ! Store case body
+                    if (body_count > 0) then
+                        allocate(cases(case_count)%body(body_count))
+                        cases(case_count)%body = case_body(1:body_count)
+                        deallocate(case_body)
+                    end if
+                    
+                    else if (current_token%text == "end") then
+                        ! Check for end select
+                        case_token = parser%consume()  ! consume 'end'
+                        current_token = parser%peek()
+                        if (current_token%kind == TK_KEYWORD .and. current_token%text == "select") then
+                            case_token = parser%consume()  ! consume 'select'
+                            parsing_cases = .false.
+                        else
+                            ! Not end select, error
+                            parsing_cases = .false.
+                        end if
+                    else
+                        ! Skip other tokens
+                        case_token = parser%consume()
+                    end if
+                else
+                    ! Skip non-keyword tokens
+                    case_token = parser%consume()
+                end if
+            end block
+        end do
+        
+        ! Create select case node with cases
         block
             type(select_case_node), allocatable :: sel_node
             allocate(sel_node)
-            sel_node = create_select_case(expr, line=line, column=column)
+            if (case_count > 0) then
+                sel_node = create_select_case(expr, cases(1:case_count), line=line, column=column)
+            else
+                sel_node = create_select_case(expr, line=line, column=column)
+            end if
             allocate(select_node, source=sel_node)
         end block
         
