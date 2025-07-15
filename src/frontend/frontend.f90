@@ -289,6 +289,8 @@ contains
                     unit_tokens(unit_end - unit_start + 2)%line = tokens(unit_end)%line
                     unit_tokens(unit_end - unit_start + 2)%column = tokens(unit_end)%column + 1
                     
+                    ! Debug: Extracted tokens for do construct
+                    
                     call log_verbose("parsing", "Extracted " // trim(adjustl(int_to_str(size(unit_tokens)))) // &
                                     " tokens for unit")
                     
@@ -296,6 +298,8 @@ contains
                     stmt = parse_program_unit(unit_tokens)
                     
                     if (allocated(stmt)) then
+                        ! Note: Statement added to AST
+                        
                         ! Extend wrapper array using [array, new_element] pattern
                         block
                             type(ast_node_wrapper) :: new_wrapper
@@ -370,6 +374,7 @@ contains
             else if (is_do_loop_start(tokens, start_pos)) then
                 in_do_loop = .true.
                 nesting_level = 1
+                ! Boundary detection: found do loop at token
             else if (is_select_case_start(tokens, start_pos)) then
                 in_select_case = .true.
                 nesting_level = 1
@@ -459,6 +464,8 @@ contains
         type(token_t), intent(in) :: tokens(:)
         class(ast_node), allocatable :: unit
         type(parser_state_t) :: parser
+        
+        ! Note: Parsing program unit
         
         ! Check what type of program unit this is
         if (is_function_start(tokens, 1)) then
@@ -703,11 +710,14 @@ contains
                 if (pos + 1 <= size(tokens)) then
                     if (tokens(pos + 1)%kind == TK_KEYWORD .and. tokens(pos + 1)%text == "while") then
                         is_do_loop_start = .false.  ! It's a do while, not a regular do loop
+                        ! Found do while, not do loop
                     else
                         is_do_loop_start = .true.
+                        ! Found do loop start
                     end if
                 else
                     is_do_loop_start = .true.
+                    ! Found do loop start (end of tokens)
                 end if
             end if
         end if
