@@ -1,6 +1,26 @@
 # *Lazy Fortran* Compiler Frontend TODO
 
-## CRITICAL ARCHITECTURAL ISSUE ⚠️
+## ✅ PHASE 8 COMPLETE: Dialect-Agnostic AST with JSON Workflow
+
+**MAJOR MILESTONE ACHIEVED**: Core modules are now completely dialect-agnostic with full JSON pipeline support.
+
+### ✅ Recently Completed:
+- **Dialect-agnostic core modules**: codegen_core, debug_utils, semantic_analyzer
+- **Unified type inference**: Available to all dialects through core assignment_node
+- **Complete JSON workflow**: --from-tokens, --from-ast, --from-semantic CLI options
+- **JSON deserializer**: Made dialect-agnostic (creates core program_node)
+- **CLI integration**: All JSON input options working end-to-end
+- **Test coverage**: Unit tests for all components, integration tests for CLI
+- **Architecture compliance**: Core modules handle common features, dialects add specializations
+
+### ⚠️ CRITICAL NOTE: Lazy Fortran Program vs Module Decision
+**TODO**: Implement deferred program/module decision in semantic analyzer for lazy fortran:
+- **Parser must be permissive**: Allow any statements valid in either program OR module context
+- **Semantic analyzer decides**: Based on content analysis (executable statements → program, only procedures/declarations → module)  
+- **File basename becomes name**: program/module name derived from input filename
+- **Architecture requirement**: Core modules stay dialect-agnostic, decision logic only in lazy fortran semantic analysis
+
+## CRITICAL ARCHITECTURAL ISSUE ⚠️ (Future Phase)
 
 **ROOT CAUSE IDENTIFIED**: The parser violates Fortran 95 standard by processing **multi-line program units** as individual **line-by-line statements**.
 
