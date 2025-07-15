@@ -128,6 +128,18 @@ module ast_core
         procedure :: accept => print_statement_accept
         procedure :: to_json => print_statement_to_json
     end type print_statement_node
+    
+    ! Declaration node
+    type, extends(ast_node), public :: declaration_node
+        character(len=:), allocatable :: type_name     ! real, integer, etc.
+        character(len=:), allocatable :: var_name      ! Variable name
+        integer :: kind_value                          ! Kind parameter (e.g., 8 for real(8))
+        logical :: has_kind                            ! Whether kind was specified
+        class(ast_node), allocatable :: initializer    ! Optional initialization value
+    contains
+        procedure :: accept => declaration_accept
+        procedure :: to_json => declaration_to_json
+    end type declaration_node
 
     ! Wrapper type for polymorphic arrays - concrete type containing abstract member
     type, public :: ast_node_wrapper
@@ -144,6 +156,7 @@ module ast_core
     public :: create_program, create_assignment, create_binary_op
     public :: create_function_def, create_subroutine_def, create_function_call
     public :: create_identifier, create_literal, create_use_statement, create_print_statement
+    public :: create_declaration
 
 contains
 
@@ -276,6 +289,33 @@ contains
         if (present(line)) node%line = line
         if (present(column)) node%column = column
     end function create_literal
+    
+    function create_declaration(type_name, var_name, kind_value, initializer, line, column) result(node)
+        character(len=*), intent(in) :: type_name
+        character(len=*), intent(in) :: var_name
+        integer, intent(in), optional :: kind_value
+        class(ast_node), allocatable, intent(in), optional :: initializer
+        integer, intent(in), optional :: line, column
+        type(declaration_node) :: node
+        
+        node%type_name = type_name
+        node%var_name = var_name
+        
+        if (present(kind_value)) then
+            node%kind_value = kind_value
+            node%has_kind = .true.
+        else
+            node%kind_value = 0
+            node%has_kind = .false.
+        end if
+        
+        if (present(initializer)) then
+            allocate(node%initializer, source=initializer)
+        end if
+        
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_declaration
 
     function create_use_statement(module_name, only_list, line, column) result(node)
         character(len=*), intent(in) :: module_name
@@ -370,6 +410,12 @@ contains
         class(*), intent(inout) :: visitor
         ! Implementation depends on specific visitor
     end subroutine print_statement_accept
+    
+    subroutine declaration_accept(this, visitor)
+        class(declaration_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Implementation depends on specific visitor
+    end subroutine declaration_accept
 
     ! JSON serialization implementations
 
@@ -633,5 +679,34 @@ contains
         
         call json%add(parent, obj)
     end subroutine print_statement_to_json
+    
+    subroutine declaration_to_json(this, json, parent)
+        class(declaration_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj
+        
+        call json%create_object(obj, '')
+        call json%add(obj, 'type', 'declaration')
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+        call json%add(obj, 'type_name', this%type_name)
+        call json%add(obj, 'var_name', this%var_name)
+        
+        if (this%has_kind) then
+            call json%add(obj, 'kind_value', this%kind_value)
+        end if
+        
+        if (allocated(this%initializer)) then
+            block
+                type(json_value), pointer :: init_obj
+                call json%create_object(init_obj, 'initializer')
+                call this%initializer%to_json(json, init_obj)
+                call json%add(obj, init_obj)
+            end block
+        end if
+        
+        call json%add(parent, obj)
+    end subroutine declaration_to_json
 
 end module ast_core

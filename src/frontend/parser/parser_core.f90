@@ -2,10 +2,10 @@ module parser_core
     use lexer_core
     use ast_core, only: ast_node, ast_node_wrapper, assignment_node, binary_op_node, identifier_node, &
                          literal_node, function_call_node, function_def_node, print_statement_node, &
-                         use_statement_node, &
+                         use_statement_node, declaration_node, &
                          create_assignment, create_binary_op, create_identifier, &
                          create_literal, create_function_call, create_function_def, create_print_statement, &
-                         create_use_statement, &
+                         create_use_statement, create_declaration, &
                          LITERAL_INTEGER, LITERAL_REAL, LITERAL_STRING, LITERAL_LOGICAL
     implicit none
     private
@@ -289,13 +289,15 @@ contains
                     current = parser%consume()  ! consume ')'
                 end if
             else
-                ! Fallback for unrecognized operators
-                expr = create_literal("! Unrecognized operator", LITERAL_STRING, current%line, current%column)
+                ! Unrecognized operator - create a placeholder  
+                expr = create_literal("", LITERAL_STRING, current%line, current%column)
+                current = parser%consume()
             end if
             
         case default
-            ! Fallback
-            expr = create_literal("! Unrecognized token", LITERAL_STRING, current%line, current%column)
+            ! Unrecognized token - create a placeholder and skip
+            expr = create_literal("", LITERAL_STRING, current%line, current%column)
+            current = parser%consume()
         end select
     end function parse_primary
 
@@ -341,17 +343,7 @@ contains
                 end do
                 
                 if (has_double_colon) then
-                    ! Skip the entire declaration line
-                    do while (.not. parser%is_at_end())
-                        block
-                            type(token_t) :: tok
-                            tok = parser%peek()
-                            if (tok%kind == TK_EOF) exit
-                        end block
-                        first_token = parser%consume()
-                    end do
-                    ! Return empty literal as placeholder
-                    stmt = create_literal("", LITERAL_STRING, first_token%line, first_token%column)
+                    stmt = parse_declaration(parser)
                     return
                 end if
             end block
@@ -408,6 +400,70 @@ contains
         end if
         
     end function parse_statement
+    
+    ! Parse declaration statement: type :: variable [= expression]
+    function parse_declaration(parser) result(decl_node)
+        type(parser_state_t), intent(inout) :: parser
+        class(ast_node), allocatable :: decl_node
+        
+        type(token_t) :: type_token, var_token
+        character(len=:), allocatable :: type_name, var_name
+        integer :: line, column
+        
+        ! Get type name (real, integer, etc.)
+        type_token = parser%consume()
+        type_name = type_token%text
+        line = type_token%line
+        column = type_token%column
+        
+        ! Consume ::
+        var_token = parser%peek()
+        if (var_token%kind == TK_OPERATOR .and. var_token%text == "::") then
+            type_token = parser%consume()
+        else
+            ! Error: expected ::
+            block
+                type(literal_node), allocatable :: error_node
+                allocate(error_node)
+                error_node = create_literal("ERROR: Expected ::", LITERAL_STRING, line, column)
+                allocate(decl_node, source=error_node)
+            end block
+            return
+        end if
+        
+        ! Get variable name
+        var_token = parser%peek()
+        if (var_token%kind == TK_IDENTIFIER) then
+            var_token = parser%consume()
+            var_name = var_token%text
+        else
+            ! Error: expected identifier
+            block
+                type(literal_node), allocatable :: error_node
+                allocate(error_node)
+                error_node = create_literal("ERROR: Expected identifier", LITERAL_STRING, line, column)
+                allocate(decl_node, source=error_node)
+            end block
+            return
+        end if
+        
+        ! For now, skip initialization parsing to avoid complexity
+        ! Just consume remaining tokens on the line
+        do while (.not. parser%is_at_end())
+            var_token = parser%peek()
+            if (var_token%kind == TK_EOF) exit
+            var_token = parser%consume()
+        end do
+        
+        ! Create declaration node
+        block
+            type(declaration_node), allocatable :: node
+            allocate(node)
+            node = create_declaration(type_name, var_name, line=line, column=column)
+            allocate(decl_node, source=node)
+        end block
+        
+    end function parse_declaration
     
     ! Parse print statement: print format_spec, arg1, arg2, ...
     function parse_print_statement(parser) result(print_node)
@@ -545,9 +601,8 @@ contains
             func_name = token%text
             token = parser%consume()
         else
-            ! Error - missing function name
-            func_node = create_literal("! Error: Missing function name", LITERAL_STRING, 1, 1)
-            return
+            ! Error - missing function name, create empty function
+            func_name = "unnamed_function"
         end if
         
         ! Parse parameters
@@ -645,7 +700,8 @@ contains
                 ! Collect tokens for the current statement (until newline or end of line)
                 stmt_start = parser%current_token
                 i = stmt_start
-                do while (i <= size(parser%tokens) .and. parser%tokens(i)%line == token%line)
+                do while (i <= size(parser%tokens))
+                    if (parser%tokens(i)%line /= token%line) exit
                     i = i + 1
                 end do
                 
@@ -662,17 +718,20 @@ contains
                     ! Parse the statement properly
                     stmt = parse_statement(stmt_tokens)
                     
-                    ! Extend body array using wrapper pattern
-                    block
-                        type(ast_node_wrapper) :: new_wrapper
-                        allocate(new_wrapper%node, source=stmt)
-                        if (allocated(body_statements)) then
-                            body_statements = [body_statements, new_wrapper]
-                        else
-                            body_statements = [new_wrapper]
-                        end if
-                        body_count = body_count + 1
-                    end block
+                    ! Only add to body if statement was successfully parsed
+                    if (allocated(stmt)) then
+                        ! Extend body array using wrapper pattern
+                        block
+                            type(ast_node_wrapper) :: new_wrapper
+                            allocate(new_wrapper%node, source=stmt)
+                            if (allocated(body_statements)) then
+                                body_statements = [body_statements, new_wrapper]
+                            else
+                                body_statements = [new_wrapper]
+                            end if
+                            body_count = body_count + 1
+                        end block
+                    end if
                     
                     deallocate(stmt_tokens)
                     

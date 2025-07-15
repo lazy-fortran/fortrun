@@ -137,6 +137,13 @@ prefix = "fortplot"  # Modules starting with "fortplot"
 - **Test-Driven Development** - Tests before code
 - **Zero Configuration** - Works out of the box
 
+## Testing Strategy
+
+1. **Unit Tests First** - Write small unit tests that test modules directly without file I/O
+2. **Frontend API Tests** - Test frontend compilation through API (test_frontend_test_cases.f90)
+3. **System Tests Last** - Only after unit tests pass, test the full fortran command-line tool
+4. **No File Output in Unit Tests** - Keep unit tests fast and isolated
+
 ## ⚠️ CRITICAL FORTRAN PATTERNS ⚠️
 
 ### Polymorphic Arrays - ALWAYS Use Wrapper Pattern

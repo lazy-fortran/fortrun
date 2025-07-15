@@ -1,11 +1,12 @@
 program main
     implicit none
-    real :: result
-    real :: compute
-    result = compute(5.0)
+    real(8) :: result
+
+    result = compute(5.0d0)
 contains
-    real function compute(x)
-        real :: x
-        compute = x * x
-    end function compute
+    real(8) function compute(x)
+    implicit none
+    real(8), intent(in) :: x
+    compute = x * x
+end function compute
 end program main

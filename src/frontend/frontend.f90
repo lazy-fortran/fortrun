@@ -8,6 +8,7 @@ module frontend
     use ast_core
     use semantic_analyzer, only: semantic_context_t, create_semantic_context, analyze_program
     use codegen_core, only: generate_code, generate_code_polymorphic
+    use logger, only: log_debug, log_verbose, set_verbose_level
     
     ! FALLBACK modules (temporary until full AST)
     use token_fallback, only: set_current_tokens, generate_use_statements_from_tokens, &
@@ -24,7 +25,7 @@ module frontend
     public :: compile_from_tokens_json, compile_from_ast_json, compile_from_semantic_json
     public :: BACKEND_FORTRAN, BACKEND_LLVM, BACKEND_C
     ! Debug functions for unit testing
-    public :: find_program_unit_boundary, is_function_start, parse_program_unit
+    public :: find_program_unit_boundary, is_function_start, is_end_function, parse_program_unit
     
     ! Backend target enumeration
     integer, parameter :: BACKEND_FORTRAN = 1  ! Standard Fortran (current IR)
@@ -57,8 +58,8 @@ contains
         character(len=:), allocatable :: code, source
         integer :: unit, iostat
         
-        ! DEBUG: Print entry point
-        print *, "DEBUG: compile_source called with: ", trim(input_file)
+        ! Log compilation start
+        call log_verbose("frontend", "compile_source called with: " // trim(input_file))
         
         error_msg = ""
         
@@ -252,10 +253,31 @@ contains
             do while (i <= size(tokens))
                 if (tokens(i)%kind == TK_EOF) exit
                 
+                ! Skip empty lines (just EOF tokens)
+                if (i < size(tokens) .and. tokens(i)%kind == TK_EOF) then
+                    i = i + 1
+                    cycle
+                end if
+                
                 ! Find program unit boundary
                 call find_program_unit_boundary(tokens, i, unit_start, unit_end)
                 
-                if (unit_end >= unit_start) then
+                block
+                    character(len=20) :: start_str, end_str
+                    write(start_str, '(I0)') unit_start
+                    write(end_str, '(I0)') unit_end
+                    call log_verbose("parsing", "Found program unit from token " // &
+                                    trim(start_str) // " to " // trim(end_str))
+                end block
+                
+                ! Skip empty units, units with just EOF, or single-token keywords that are part of larger constructs
+                if (unit_end >= unit_start .and. &
+                    .not. (unit_end == unit_start .and. tokens(unit_start)%kind == TK_EOF) .and. &
+                    .not. (unit_end == unit_start .and. tokens(unit_start)%kind == TK_KEYWORD .and. &
+                           (tokens(unit_start)%text == "real" .or. tokens(unit_start)%text == "integer" .or. &
+                            tokens(unit_start)%text == "logical" .or. tokens(unit_start)%text == "character" .or. &
+                            tokens(unit_start)%text == "function" .or. tokens(unit_start)%text == "subroutine" .or. &
+                            tokens(unit_start)%text == "module"))) then
                     ! Extract unit tokens and add EOF
                     allocate(unit_tokens(unit_end - unit_start + 2))
                     unit_tokens(1:unit_end - unit_start + 1) = tokens(unit_start:unit_end)
@@ -264,6 +286,9 @@ contains
                     unit_tokens(unit_end - unit_start + 2)%text = ""
                     unit_tokens(unit_end - unit_start + 2)%line = tokens(unit_end)%line
                     unit_tokens(unit_end - unit_start + 2)%column = tokens(unit_end)%column + 1
+                    
+                    call log_verbose("parsing", "Extracted " // trim(adjustl(int_to_str(size(unit_tokens)))) // &
+                                    " tokens for unit")
                     
                     ! Parse the program unit
                     stmt = parse_program_unit(unit_tokens)
@@ -286,6 +311,8 @@ contains
                 end if
                 
                 i = unit_end + 1
+                call log_verbose("parsing", "Next iteration will start at token " // &
+                                trim(adjustl(int_to_str(i))))
             end do
             
             ! Create polymorphic array properly using wrapper pattern
@@ -325,6 +352,8 @@ contains
             if (is_function_start(tokens, start_pos)) then
                 in_function = .true.
                 nesting_level = 1
+                call log_verbose("parsing", "Starting function at token " // &
+                                trim(adjustl(int_to_str(start_pos))))
             else if (is_subroutine_start(tokens, start_pos)) then
                 in_subroutine = .true.
                 nesting_level = 1
@@ -340,18 +369,25 @@ contains
             do while (i <= size(tokens) .and. nesting_level > 0)
                 if (tokens(i)%kind == TK_EOF) exit
                 
-                ! Check for nested constructs
-                if (in_function .and. is_function_start(tokens, i)) then
-                    nesting_level = nesting_level + 1
-                else if (in_subroutine .and. is_subroutine_start(tokens, i)) then
-                    nesting_level = nesting_level + 1
-                else if (in_module .and. is_module_start(tokens, i)) then
-                    nesting_level = nesting_level + 1
+                ! Check for nested constructs (but skip the first one at start_pos)
+                if (i /= start_pos) then
+                    if (in_function .and. is_function_start(tokens, i)) then
+                        nesting_level = nesting_level + 1
+                        call log_verbose("parsing", "Found nested function at token " // &
+                                        trim(adjustl(int_to_str(i))) // ", nesting level now: " // &
+                                        trim(adjustl(int_to_str(nesting_level))))
+                    else if (in_subroutine .and. is_subroutine_start(tokens, i)) then
+                        nesting_level = nesting_level + 1
+                    else if (in_module .and. is_module_start(tokens, i)) then
+                        nesting_level = nesting_level + 1
+                    end if
                 end if
                 
                 ! Check for end constructs
                 if (in_function .and. is_end_function(tokens, i)) then
                     nesting_level = nesting_level - 1
+                    call log_verbose("parsing", "Found END FUNCTION, nesting level now: " // &
+                                    trim(adjustl(int_to_str(nesting_level))))
                 else if (in_subroutine .and. is_end_subroutine(tokens, i)) then
                     nesting_level = nesting_level - 1
                 else if (in_module .and. is_end_module(tokens, i)) then
@@ -360,6 +396,9 @@ contains
                 
                 unit_end = i
                 i = i + 1
+                
+                ! Stop when we've closed all nested constructs
+                if (nesting_level == 0) exit
             end do
         else
             ! Single line construct - find end of current line
@@ -369,6 +408,24 @@ contains
                 unit_end = i
                 i = i + 1
             end do
+            
+            ! Skip empty lines (single EOF token on its own line)
+            if (unit_end == unit_start .and. tokens(unit_start)%kind == TK_EOF) then
+                unit_end = unit_start - 1  ! Signal to skip this unit
+            end if
+            
+            ! Skip single "real", "integer", etc. that are part of function definitions
+            if (unit_end == unit_start .and. start_pos < size(tokens) .and. &
+                tokens(start_pos)%kind == TK_KEYWORD .and. &
+                (tokens(start_pos)%text == "real" .or. tokens(start_pos)%text == "integer" .or. &
+                 tokens(start_pos)%text == "logical" .or. tokens(start_pos)%text == "character")) then
+                ! Check if next token is "function"
+                if (start_pos + 1 <= size(tokens) .and. &
+                    tokens(start_pos + 1)%kind == TK_KEYWORD .and. &
+                    tokens(start_pos + 1)%text == "function") then
+                    unit_end = unit_start - 1  ! Signal to skip this unit - it's part of a function def
+                end if
+            end if
         end if
     end subroutine find_program_unit_boundary
 
@@ -448,16 +505,37 @@ contains
         is_function_start = .false.
         if (pos > size(tokens)) return
         
-        ! Check for "function" keyword
-        if (tokens(pos)%kind == TK_KEYWORD .and. tokens(pos)%text == "function") then
-            is_function_start = .true.
-        ! Check for "type function" pattern
-        else if (tokens(pos)%kind == TK_KEYWORD .and. &
-                 (tokens(pos)%text == "real" .or. tokens(pos)%text == "integer" .or. &
-                  tokens(pos)%text == "logical" .or. tokens(pos)%text == "character")) then
+        ! Only detect function start at the beginning of a line/statement
+        ! Check for "type function" pattern first
+        if (tokens(pos)%kind == TK_KEYWORD .and. &
+            (tokens(pos)%text == "real" .or. tokens(pos)%text == "integer" .or. &
+             tokens(pos)%text == "logical" .or. tokens(pos)%text == "character")) then
             if (pos + 1 <= size(tokens) .and. &
                 tokens(pos + 1)%kind == TK_KEYWORD .and. &
                 tokens(pos + 1)%text == "function") then
+                ! Check if this is at the start of a line or after a statement boundary
+                if (pos == 1) then
+                    is_function_start = .true.
+                else if (pos > 1 .and. tokens(pos-1)%line < tokens(pos)%line) then
+                    is_function_start = .true.  ! New line
+                else if (pos > 2 .and. tokens(pos-2)%text == "end" .and. &
+                         tokens(pos-1)%text == "function") then
+                    is_function_start = .true.  ! After "end function"
+                end if
+            end if
+        ! Check for standalone "function" keyword (not preceded by a type)
+        else if (tokens(pos)%kind == TK_KEYWORD .and. tokens(pos)%text == "function") then
+            ! Make sure this isn't the second part of "type function" or "end function"
+            if (pos > 1) then
+                if (tokens(pos - 1)%kind == TK_KEYWORD .and. &
+                    (tokens(pos - 1)%text == "real" .or. tokens(pos - 1)%text == "integer" .or. &
+                     tokens(pos - 1)%text == "logical" .or. tokens(pos - 1)%text == "character" .or. &
+                     tokens(pos - 1)%text == "end")) then
+                    is_function_start = .false.  ! Already counted with the type or it's "end function"
+                else
+                    is_function_start = .true.
+                end if
+            else
                 is_function_start = .true.
             end if
         end if
@@ -568,5 +646,12 @@ contains
         close(unit)
         error_msg = ""
     end subroutine write_output_file
+
+    ! Helper function to convert integer to string
+    function int_to_str(num) result(str)
+        integer, intent(in) :: num
+        character(len=20) :: str
+        write(str, '(I0)') num
+    end function int_to_str
 
 end module frontend
