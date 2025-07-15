@@ -121,15 +121,42 @@ All lines: parse_program_unit(all_tokens) → function_def_node
 
 ## IMPLEMENTATION PRIORITY
 
-### P0 (CRITICAL - Today):
-1. **Fix `generate_code_polymorphic`** to never generate `0` 
-2. **Fix `parse_function_definition`** to handle multi-line constructs
-3. **Test basic function parsing** with simple examples
+### P0 (CRITICAL - IMMEDIATE):
+1. **REMOVE ALL DIALECT-SPECIFIC NAMING FROM CORE MODULES**:
+   - ⚠️ lexer_core, parser_core, semantic_analyzer, codegen_core must be dialect-agnostic
+   - ⚠️ Rename lf_program_node → program_node (common to all dialects)
+   - ⚠️ Remove lf_assignment_node → just use assignment_node
+   - ⚠️ Move any dialect-specific features to specialized modules ONLY
+   - ⚠️ Core modules handle COMMON Fortran features only
+
+### P0 (COMPLETED):
+1. **WRITE MINIMAL UNIT TESTS FIRST** - One line tests for each feature! ✓
+2. **Fix `generate_code_polymorphic`** to never generate `0` ✓
+3. **Fix `parse_function_definition`** to handle multi-line constructs ✓
+4. **Test basic function parsing** with simple examples ✓
+5. **FIX SEMANTIC ANALYZER DOUBLE FREE** ✓ (Fixed by simplifying initialization)
+
+### COMPLETED TODAY:
+- Created atomic unit tests for lexer, parser, and codegen
+- Fixed parser to handle function parameters
+- Fixed code generation to not declare function name as variable
+- Fixed semantic analyzer initialization (removed problematic builtins)
+- Added proper test structure documentation in CLAUDE.md
+- ✓ Implemented JSON to AST deserialization (json_reader.f90)
+- ✓ Created comprehensive tests for JSON workflows
+- ✓ Fixed lf_program_node code generation in polymorphic dispatcher
 
 ### P1 (URGENT - This Week):
-1. **Implement program unit parser** architecture
-2. **Add proper AST nodes** for Fortran 95 constructs
-3. **Replace line-by-line parsing** with program unit parsing
+1. **Implement JSON input/output for all stages**:
+   - ✓ JSON to tokens (basic implementation)
+   - ✓ Tokens to parser (working)
+   - ✓ JSON to AST deserialization (completed!)
+   - ⚠️ AST to semantic analyzer (needs implementation)
+   - ⚠️ Annotated AST to codegen (needs implementation)
+   - ⚠️ CLI options: --from-tokens, --from-ast, --from-semantic
+3. **Implement program unit parser** architecture
+4. **Add proper AST nodes** for Fortran 95 constructs
+5. **Replace line-by-line parsing** with program unit parsing
 
 ### P2 (HIGH - Next Week):
 1. **Re-enable type inference** with simplified approach

@@ -3,7 +3,7 @@ module frontend
     ! Clean coordinator module - delegates to extracted specialized modules
     ! Architecture: Lexer → Parser → Semantic → Codegen with FALLBACK support
     
-    use lexer_core, only: token_t, tokenize_core, TK_EOF
+    use lexer_core, only: token_t, tokenize_core, TK_EOF, TK_KEYWORD
     use parser_core, only: parse_expression, parse_statement, parser_state_t, create_parser_state, parse_function_definition
     use ast_core
     use ast_lazy_fortran
@@ -89,14 +89,15 @@ contains
         if (error_msg /= "") return
         if (options%debug_ast) call debug_output_ast(input_file, ast_tree)
         
-        ! Phase 3: Semantic Analysis - DISABLED TO FIX CODE GENERATION
+        ! Phase 3: Semantic Analysis
         sem_ctx = create_semantic_context()
-        ! call analyze_program(sem_ctx, ast_tree)
-        ! if (options%debug_semantic) call debug_output_semantic(input_file, ast_tree)
+        call analyze_program(sem_ctx, ast_tree)
+        if (options%debug_semantic) call debug_output_semantic(input_file, ast_tree)
         
         ! Phase 4: Code Generation
         call generate_fortran_code(ast_tree, sem_ctx, code)
         if (options%debug_codegen) call debug_output_codegen(input_file, code)
+        
         
         ! Write output
         if (allocated(options%output_file)) then

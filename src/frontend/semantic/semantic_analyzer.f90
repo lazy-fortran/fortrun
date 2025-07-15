@@ -33,9 +33,6 @@ contains
     ! Create a new semantic context with builtin functions
     function create_semantic_context() result(ctx)
         type(semantic_context_t) :: ctx
-        type(poly_type_t) :: scheme
-        type(mono_type_t) :: real_type, fun_type
-        type(type_var_t) :: a
         
         ! Initialize type map
         ctx%type_map = create_type_map()
@@ -43,32 +40,10 @@ contains
         ! Initialize substitution
         ctx%subst%count = 0
         
-        ! Initialize with builtin functions
-        real_type = create_mono_type(TREAL)
+        ! Start with empty environment to avoid crashes
+        ! TODO: Fix type system memory management before adding builtins
         
-        ! sqrt: real -> real
-        fun_type = create_fun_type(create_mono_type(TREAL), create_mono_type(TREAL))
-        scheme = create_poly_type(forall_vars=[type_var_t::], mono=fun_type)
-        call ctx%env%extend("sqrt", scheme)
-        
-        ! sin, cos, tan: real -> real
-        call ctx%env%extend("sin", scheme)
-        call ctx%env%extend("cos", scheme)
-        call ctx%env%extend("tan", scheme)
-        
-        ! exp, log: real -> real
-        call ctx%env%extend("exp", scheme)
-        call ctx%env%extend("log", scheme)
-        
-        ! abs: 'a -> 'a (polymorphic)
-        a = create_type_var(1, "'a")
-        fun_type = create_fun_type(&
-            create_mono_type(TVAR, var=a), &
-            create_mono_type(TVAR, var=a))
-        scheme = create_poly_type(forall_vars=[a], mono=fun_type)
-        call ctx%env%extend("abs", scheme)
-        
-        ctx%next_var_id = 2  ! Start after 'a
+        ctx%next_var_id = 1
     end function create_semantic_context
     
     ! Main entry point: analyze entire program
@@ -375,7 +350,7 @@ contains
         else
             ! No arguments - function type is the result
             if (fun_typ%kind == TFUN .and. allocated(fun_typ%args)) then
-                typ = fun_typ%args(size(fun_typ%args))%typ  ! Last element is return type
+                typ = fun_typ%args(size(fun_typ%args))  ! Last element is return type
             else
                 typ = fun_typ
             end if
@@ -447,8 +422,8 @@ contains
                 type(substitution_t) :: s
                 
                 do i = 1, size(t1_subst%args)
-                    s = this%unify(this%apply_subst_to_type(t1_subst%args(i)%typ), &
-                                   this%apply_subst_to_type(t2_subst%args(i)%typ))
+                    s = this%unify(this%apply_subst_to_type(t1_subst%args(i)), &
+                                   this%apply_subst_to_type(t2_subst%args(i)))
                     subst = compose_substitutions(s, subst)
                     call this%compose_with_subst(s)
                 end do
@@ -460,7 +435,7 @@ contains
             end if
             
             ! Unify element types
-            subst = this%unify(t1_subst%args(1)%typ, t2_subst%args(1)%typ)
+            subst = this%unify(t1_subst%args(1), t2_subst%args(1))
             
             ! Check sizes if known
             if (t1_subst%size > 0 .and. t2_subst%size > 0) then

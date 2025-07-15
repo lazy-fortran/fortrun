@@ -320,6 +320,41 @@ contains
         else if (first_token%kind == TK_KEYWORD .and. first_token%text == "print") then
             stmt = parse_print_statement(parser)
             return
+        ! Skip variable declarations for now (real :: x, integer :: i, etc.)
+        else if (first_token%kind == TK_KEYWORD .and. &
+                 (first_token%text == "real" .or. first_token%text == "integer" .or. &
+                  first_token%text == "logical" .or. first_token%text == "character") .and. &
+                 parser%current_token + 1 <= size(parser%tokens)) then
+            ! Check if it's a declaration (has ::)
+            block
+                integer :: i
+                logical :: has_double_colon
+                has_double_colon = .false.
+                
+                do i = parser%current_token + 1, min(parser%current_token + 5, size(parser%tokens))
+                    if (parser%tokens(i)%kind == TK_OPERATOR .and. parser%tokens(i)%text == "::") then
+                        has_double_colon = .true.
+                        exit
+                    else if (parser%tokens(i)%kind == TK_KEYWORD .or. parser%tokens(i)%kind == TK_EOF) then
+                        exit
+                    end if
+                end do
+                
+                if (has_double_colon) then
+                    ! Skip the entire declaration line
+                    do while (.not. parser%is_at_end())
+                        block
+                            type(token_t) :: tok
+                            tok = parser%peek()
+                            if (tok%kind == TK_EOF) exit
+                        end block
+                        first_token = parser%consume()
+                    end do
+                    ! Return empty literal as placeholder
+                    stmt = create_literal("", LITERAL_STRING, first_token%line, first_token%column)
+                    return
+                end if
+            end block
         ! Check for function definition: [type] function name(params)
         else if (first_token%kind == TK_KEYWORD .and. first_token%text == "function") then
             stmt = parse_function_definition(parser)
@@ -515,23 +550,66 @@ contains
             return
         end if
         
-        ! Parse parameters (basic implementation)
-        allocate(params(0))  ! Empty parameters for now
-        
+        ! Parse parameters
         ! Look for opening parenthesis
         token = parser%peek()
         if (token%kind == TK_OPERATOR .and. token%text == "(") then
             token = parser%consume()
             
-            ! Skip parameter parsing for now - just find closing paren
-            do while (.not. parser%is_at_end())
-                token = parser%peek()
-                if (token%kind == TK_OPERATOR .and. token%text == ")") then
-                    token = parser%consume()
-                    exit
+            ! Parse parameter list
+            block
+                type(ast_node_wrapper), allocatable :: temp_params(:)
+                integer :: param_count, i
+                
+                param_count = 0
+                
+                do while (.not. parser%is_at_end())
+                    token = parser%peek()
+                    
+                    ! Check for closing parenthesis
+                    if (token%kind == TK_OPERATOR .and. token%text == ")") then
+                        token = parser%consume()
+                        exit
+                    end if
+                    
+                    ! Check for comma (parameter separator)
+                    if (token%kind == TK_OPERATOR .and. token%text == ",") then
+                        token = parser%consume()
+                        cycle
+                    end if
+                    
+                    ! Parse parameter identifier
+                    if (token%kind == TK_IDENTIFIER) then
+                        block
+                            type(ast_node_wrapper) :: param_wrapper
+                            allocate(param_wrapper%node, source=create_identifier(token%text, token%line, token%column))
+                            
+                            if (param_count == 0) then
+                                temp_params = [param_wrapper]
+                            else
+                                temp_params = [temp_params, param_wrapper]
+                            end if
+                            param_count = param_count + 1
+                        end block
+                        token = parser%consume()
+                    else
+                        ! Skip unexpected token
+                        token = parser%consume()
+                    end if
+                end do
+                
+                ! Copy parameters to final array
+                if (param_count > 0) then
+                    allocate(params(param_count))
+                    do i = 1, param_count
+                        allocate(params(i)%node, source=temp_params(i)%node)
+                    end do
+                else
+                    allocate(params(0))
                 end if
-                token = parser%consume()
-            end do
+            end block
+        else
+            allocate(params(0))
         end if
         
         ! Parse function body (collect all statements until "end function")
