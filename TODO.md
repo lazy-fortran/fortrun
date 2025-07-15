@@ -38,8 +38,9 @@
 
 ### Current Status:
 - **15/15 frontend tests passing** (100% pass rate) ✅
-- **Working**: ALL frontend test cases including functions and nested calls
-- **Next**: Stage 2 - Complete program unit support
+- **Working**: ALL frontend test cases including functions, nested calls, select case, unary operators
+- **Critical fixes completed**: Select case, intrinsic functions, registry tests all passing
+- **Next**: Debug control_flow_simple.f segfault, then Stage 2 - Complete program unit support
 
 ### Stage 1: Fix Function Parsing (COMPLETED) ✅
 - Fixed duplicate parameter declarations in functions
@@ -144,17 +145,23 @@
 ## 🎯 IMMEDIATE PRIORITIES
 
 ### P0 (CRITICAL - FIX FAILING TESTS):
-1. [ ] Fix select case statement parsing/codegen
-   - `example/notebook/control_flow_simple.f` fails with "Unclassifiable statement"
-   - Parser or codegen not handling select case properly
-   - Check if select_case_node exists and is properly implemented
-2. [ ] Fix intrinsic function handling  
-   - `example/advanced_inference/intrinsic_functions.f` fails with abs() function
-   - "Invalid character in name" suggests tokenization or parsing issue
-   - Check intrinsic function recognition in parser
-3. [ ] Fix registry enhancement test
-   - `test_registry_enhancement` expects "pyplot-fortran" in output
-   - Registry resolution not working as expected
+1. [x] Fix select case statement parsing/codegen ✅
+   - Implemented full select case parsing with case blocks
+   - Added range support (2:5 syntax) for case values
+   - Updated frontend to handle multi-line select case constructs
+2. [x] Fix intrinsic function handling ✅
+   - Fixed unary operator parsing (-5.5 syntax)
+   - abs() function now works correctly
+   - Added support for unary + and - operators
+3. [x] Fix registry enhancement test ✅
+   - Added verbose output for module resolution
+   - Test now passes with proper package name output
+
+### P0.5 (REMAINING CRITICAL):
+1. [ ] Debug control_flow_simple.f segfault
+   - Segfault occurs when running the full file
+   - Individual components (select case, if-else, do loops) work in isolation
+   - Need to identify which combination causes the crash
 
 ### P1 (THIS WEEK - AFTER FIXES):
 1. [ ] Start Stage 2 - Module parsing support

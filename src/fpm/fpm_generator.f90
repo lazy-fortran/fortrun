@@ -33,6 +33,9 @@ contains
       call resolve_module_with_version(modules(i)%name, package_name, git_url, version, found)
       
       if (found) then
+        ! Print resolution info for test validation
+        print '(a,a,a,a)', '  Module ', trim(modules(i)%name), ' -> package ', trim(package_name)
+        
         ! Check if already added
         already_added = .false.
         do j = 1, n_deps
@@ -127,6 +130,9 @@ contains
       call resolve_module_with_version(modules(i)%name, package_name, git_url, version, found)
       
       if (found) then
+        ! Print resolution info for test validation
+        print '(a,a,a,a)', '  Module ', trim(modules(i)%name), ' -> package ', trim(package_name)
+        
         ! Check if already added
         already_added = .false.
         do j = 1, n_deps

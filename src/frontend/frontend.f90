@@ -4,7 +4,8 @@ module frontend
     ! Architecture: Lexer → Parser → Semantic → Codegen with FALLBACK support
     
     use lexer_core, only: token_t, tokenize_core, TK_EOF, TK_KEYWORD
-    use parser_core, only: parse_expression, parse_statement, parser_state_t, create_parser_state, parse_function_definition
+    use parser_core, only: parse_expression, parse_statement, parser_state_t, create_parser_state, &
+                           parse_function_definition, parse_do_loop, parse_select_case
     use ast_core
     use semantic_analyzer, only: semantic_context_t, create_semantic_context, analyze_program
     use codegen_core, only: generate_code, generate_code_polymorphic
@@ -467,6 +468,14 @@ contains
         else if (is_module_start(tokens, 1)) then
             ! Multi-line module definition - fallback to statement parser for now
             unit = parse_statement(tokens)
+        else if (is_do_loop_start(tokens, 1)) then
+            ! Multi-line do loop - use proper parser
+            parser = create_parser_state(tokens)
+            unit = parse_do_loop(parser)
+        else if (is_select_case_start(tokens, 1)) then
+            ! Multi-line select case - use proper parser
+            parser = create_parser_state(tokens)
+            unit = parse_select_case(parser)
         else
             ! Single statement
             unit = parse_statement(tokens)
