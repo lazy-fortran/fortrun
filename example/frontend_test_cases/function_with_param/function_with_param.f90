@@ -7,8 +7,7 @@ program main
 contains
     real(8) function add_numbers(a, b)
     implicit none
-    real(8), intent(in) :: a
-    real(8), intent(in) :: b
+    real(8), intent(in) :: a, b
     add_numbers = a + b
 end function add_numbers
 end program main
