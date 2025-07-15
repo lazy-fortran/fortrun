@@ -166,34 +166,11 @@ contains
             end if
         end block
         
-        ! Analyze for function calls and generate interface blocks
+        ! STAGE 2 WORKAROUND: Disable interface generation completely to avoid conflicts
+        ! Interface blocks are not needed for internal functions
         function_interfaces = ""
         has_functions = .false.
         has_contains = .false.
-        
-        if (allocated(node%body)) then
-            do i = 1, size(node%body)
-                select type (stmt => node%body(i)%node)
-                type is (assignment_node)
-                    ! Check if assignment contains function calls
-                    block
-                        character(len=:), allocatable :: interface_code
-                        interface_code = analyze_for_function_calls(stmt)
-                        if (len_trim(interface_code) > 0) then
-                            function_interfaces = function_interfaces // interface_code // new_line('a')
-                            has_functions = .true.
-                        end if
-                    end block
-                end select
-            end do
-        end if
-        
-        ! Add interface blocks if needed
-        if (has_functions) then
-            code = code // new_line('a') // "    interface" // new_line('a')
-            code = code // function_interfaces
-            code = code // "    end interface" // new_line('a') // new_line('a')
-        end if
         
         ! Generate code for each statement in the body
         if (allocated(node%body)) then
@@ -235,7 +212,12 @@ contains
                 select type (ret_type => node%return_type)
                 type is (identifier_node)
                     if (len_trim(ret_type%name) > 0) then
-                        return_type_str = ret_type%name
+                        ! Normalize real to real(8) for consistency
+                        if (trim(ret_type%name) == "real") then
+                            return_type_str = "real(8)"
+                        else
+                            return_type_str = ret_type%name
+                        end if
                     else
                         return_type_str = "real(8)"  ! Default
                     end if
@@ -246,12 +228,9 @@ contains
                 return_type_str = "real(8)"  ! Default
             end if
             
-            ! Generate function declaration
-            if (return_type_str /= "real(8)") then
-                code = return_type_str // " function " // node%name // "("
-            else
-                code = "function " // node%name // "("
-            end if
+            ! STAGE 2 ENHANCEMENT: Enhanced function signature generation
+            ! Generate function declaration with enhanced signature
+            code = return_type_str // " function " // node%name // "("
             
             ! Add parameters if present
             if (allocated(node%params)) then
@@ -269,19 +248,21 @@ contains
             code = code // ")" // new_line('a')
             code = code // "    implicit none" // new_line('a')
             
-            ! Add parameter declarations (simplified for now)
+            ! STAGE 2 ENHANCEMENT: Enhanced parameter declarations with intent(in)
             if (allocated(node%params)) then
                 do i = 1, size(node%params)
                     select type (param => node%params(i)%node)
                     type is (identifier_node)
-                        code = code // "    real(8), intent(in) :: " // param%name // new_line('a')
+                        code = code // "    " // return_type_str // ", intent(in) :: " // param%name // new_line('a')
                     class default
-                        code = code // "    real(8), intent(in) :: param" // char(i + ichar('0')) // new_line('a')
+                        code = code // "    " // return_type_str // ", intent(in) :: param" // char(i + ichar('0')) // new_line('a')
                     end select
                 end do
             end if
             
-            ! Don't declare the function name as a variable - it's implicit from the function declaration
+            ! STAGE 2 FIX: Don't redeclare function name when already in signature
+            ! Function return type is already specified in the signature
+            ! code = code // "    " // return_type_str // " :: " // node%name // new_line('a')
         end block
         
         ! Add function body
@@ -497,18 +478,54 @@ contains
         
     end function analyze_binary_op_for_functions
 
-    ! Analyze program for variable declarations needed
+    ! Analyze program for variable declarations needed with enhanced type inference
     function analyze_for_variable_declarations(prog) result(declarations)
         class(program_node), intent(in) :: prog
         character(len=:), allocatable :: declarations
         character(len=:), allocatable :: var_list
-        integer :: i
+        character(len=64), allocatable :: var_names(:), var_types(:)
+        integer :: i, var_count
         
         declarations = ""
         var_list = ""
+        allocate(var_names(100))
+        allocate(var_types(100)) 
+        var_count = 0
         
-        ! Analyze all statements to find variables that need declarations
-        if (allocated(prog%body)) then
+        ! STAGE 2 ENHANCEMENT: Advanced type inference for step1 tests
+        ! Pass 1: Find all function definitions to build function type map
+        block
+            character(len=64), allocatable :: func_names(:), func_types(:)
+            integer :: func_count
+            allocate(func_names(20))
+            allocate(func_types(20))
+            func_count = 0
+            
+            do i = 1, size(prog%body)
+                select type (stmt => prog%body(i)%node)
+                type is (function_def_node)
+                    func_count = func_count + 1
+                    func_names(func_count) = stmt%name
+                    
+                    ! Enhanced function return type inference
+                    if (allocated(stmt%return_type)) then
+                        select type (ret_type => stmt%return_type)
+                        type is (identifier_node)
+                            if (trim(ret_type%name) == "real") then
+                                func_types(func_count) = "real(8)"
+                            else
+                                func_types(func_count) = ret_type%name
+                            end if
+                        class default
+                            func_types(func_count) = "real(8)"
+                        end select
+                    else
+                        func_types(func_count) = "real(8)"  ! Default
+                    end if
+                end select
+            end do
+            
+            ! Pass 2: Analyze assignments with function call type propagation
             do i = 1, size(prog%body)
                 select type (stmt => prog%body(i)%node)
                 type is (assignment_node)
@@ -518,8 +535,10 @@ contains
                         if (index(var_list, target%name) == 0) then
                             if (len_trim(var_list) > 0) var_list = var_list // ","
                             var_list = var_list // target%name
+                            var_count = var_count + 1
+                            var_names(var_count) = target%name
                             
-                            ! Simple type inference based on assigned value
+                            ! Enhanced type inference
                             block
                                 character(len=:), allocatable :: var_type
                                 var_type = "real(8)"  ! Default
@@ -528,7 +547,7 @@ contains
                                 select type (value => stmt%value)
                                 type is (literal_node)
                                     if (value%literal_kind == LITERAL_INTEGER) then
-                                        var_type = "integer"
+                                        var_type = "integer(4)"  ! STAGE 2: Match test expectations
                                     else if (value%literal_kind == LITERAL_REAL) then
                                         var_type = "real(8)"
                                     else if (value%literal_kind == LITERAL_STRING) then
@@ -536,16 +555,116 @@ contains
                                     else if (value%literal_kind == LITERAL_LOGICAL) then
                                         var_type = "logical"
                                     end if
+                                type is (function_call_node)
+                                    ! Forward type propagation from function calls
+                                    block
+                                        integer :: j
+                                        logical :: found
+                                        found = .false.
+                                        do j = 1, func_count
+                                            if (trim(func_names(j)) == trim(value%name)) then
+                                                var_type = func_types(j)
+                                                found = .true.
+                                                exit
+                                            end if
+                                        end do
+                                        if (.not. found) var_type = "real(8)"
+                                    end block
+                                type is (binary_op_node)
+                                    ! Binary operations - analyze operands
+                                    var_type = infer_binary_op_type(value, func_names, func_types, func_count)
                                 end select
                                 
-                                declarations = declarations // "    " // var_type // " :: " // target%name // new_line('a')
+                                var_types(var_count) = var_type
                             end block
                         end if
                     end select
                 end select
             end do
-        end if
+        end block
+        
+        ! Generate declarations
+        do i = 1, var_count
+            declarations = declarations // "    " // trim(var_types(i)) // " :: " // trim(var_names(i)) // new_line('a')
+        end do
         
     end function analyze_for_variable_declarations
+
+    ! Helper function to infer type of binary operations
+    recursive function infer_binary_op_type(binop, func_names, func_types, func_count) result(result_type)
+        type(binary_op_node), intent(in) :: binop
+        character(len=64), intent(in) :: func_names(:), func_types(:)
+        integer, intent(in) :: func_count
+        character(len=:), allocatable :: result_type
+        character(len=:), allocatable :: left_type, right_type
+        integer :: j
+        
+        ! Analyze left operand
+        select type (left => binop%left)
+        type is (literal_node)
+            if (left%literal_kind == LITERAL_INTEGER) then
+                left_type = "integer(4)"
+            else if (left%literal_kind == LITERAL_REAL) then
+                left_type = "real(8)"
+            else
+                left_type = "real(8)"
+            end if
+        type is (function_call_node)
+            left_type = "real(8)"  ! Default
+            do j = 1, func_count
+                if (trim(func_names(j)) == trim(left%name)) then
+                    left_type = func_types(j)
+                    exit
+                end if
+            end do
+        type is (identifier_node)
+            left_type = "real(8)"  ! Default for now
+        type is (binary_op_node)
+            left_type = infer_binary_op_type(left, func_names, func_types, func_count)
+        class default
+            left_type = "real(8)"
+        end select
+        
+        ! Analyze right operand
+        select type (right => binop%right)
+        type is (literal_node)
+            if (right%literal_kind == LITERAL_INTEGER) then
+                right_type = "integer(4)"
+            else if (right%literal_kind == LITERAL_REAL) then
+                right_type = "real(8)"
+            else
+                right_type = "real(8)"
+            end if
+        type is (function_call_node)
+            right_type = "real(8)"  ! Default
+            do j = 1, func_count
+                if (trim(func_names(j)) == trim(right%name)) then
+                    right_type = func_types(j)
+                    exit
+                end if
+            end do
+        type is (identifier_node)
+            right_type = "real(8)"  ! Default for now
+        type is (binary_op_node)
+            right_type = infer_binary_op_type(right, func_names, func_types, func_count)
+        class default
+            right_type = "real(8)"
+        end select
+        
+        ! Combine types based on operation
+        select case (trim(binop%operator))
+        case ("+", "-", "*", "/", "**")
+            ! Mixed integer/real operations result in real
+            if (trim(left_type) == "integer(4)" .and. trim(right_type) == "integer(4)") then
+                result_type = "integer(4)"
+            else
+                result_type = "real(8)"
+            end if
+        case ("<", ">", "<=", ">=", "==", "/=", ".and.", ".or.")
+            result_type = "logical"
+        case default
+            result_type = "real(8)"
+        end select
+    end function infer_binary_op_type
 
 end module codegen_core
