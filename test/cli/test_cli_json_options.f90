@@ -38,7 +38,8 @@ contains
             
             if (iostat == 0) then
                 ! Test --from-tokens option
-                call execute_command_line('fpm run fortran -- /tmp/test_tokens.json --from-tokens > /dev/null 2>&1', exitstat=iostat)
+                call execute_command_line('fpm run fortran -- /tmp/test_tokens.json ' // &
+                                         '--from-tokens > /dev/null 2>&1', exitstat=iostat)
                 
                 if (iostat == 0) then
                     print *, '    PASS: --from-tokens executed successfully'
@@ -58,11 +59,13 @@ contains
             integer :: iostat
             
             ! Create a simple JSON AST file
-            call execute_command_line('echo ''{"type": "program", "name": "test"}'' > /tmp/test_ast.json', exitstat=iostat)
+            call execute_command_line('echo ''{"type": "program", "name": "test"}'' > ' // &
+                                     '/tmp/test_ast.json', exitstat=iostat)
             
             if (iostat == 0) then
                 ! Test --from-ast option
-                call execute_command_line('fpm run fortran -- /tmp/test_ast.json --from-ast > /dev/null 2>&1', exitstat=iostat)
+                call execute_command_line('fpm run fortran -- /tmp/test_ast.json ' // &
+                                         '--from-ast > /dev/null 2>&1', exitstat=iostat)
                 
                 if (iostat == 0) then
                     print *, '    PASS: --from-ast executed successfully'
@@ -82,11 +85,13 @@ contains
             integer :: iostat
             
             ! Create a simple JSON semantic file
-            call execute_command_line('echo ''{"annotated_ast": {"type": "program", "name": "test"}}'' > /tmp/test_semantic.json', exitstat=iostat)
+            call execute_command_line('echo ''{"annotated_ast": {"type": "program", ' // &
+                                     '"name": "test"}}'' > /tmp/test_semantic.json', exitstat=iostat)
             
             if (iostat == 0) then
                 ! Test --from-semantic option
-                call execute_command_line('fpm run fortran -- /tmp/test_semantic.json --from-semantic > /dev/null 2>&1', exitstat=iostat)
+                call execute_command_line('fpm run fortran -- /tmp/test_semantic.json ' // &
+                                         '--from-semantic > /dev/null 2>&1', exitstat=iostat)
                 
                 if (iostat == 0) then
                     print *, '    PASS: --from-semantic executed successfully'
@@ -103,7 +108,8 @@ contains
         ! Clean up test files
         block
             integer :: iostat
-            call execute_command_line('rm -f /tmp/test_*.json /tmp/test_*.f90', exitstat=iostat)
+            call execute_command_line('rm -f /tmp/test_*.json /tmp/test_*.f90', &
+                                     exitstat=iostat)
         end block
         
     end function test_json_functionality
