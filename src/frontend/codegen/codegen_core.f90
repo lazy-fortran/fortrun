@@ -38,7 +38,8 @@ contains
             ! String literals need quotes if not already present
             if (len_trim(node%value) == 0) then
                 code = ""  ! Skip empty literals (parser placeholders)
-            else if (len(node%value) > 0 .and. node%value(1:1) /= '"' .and. node%value(1:1) /= "'") then
+            else if (len(node%value) > 0 .and. node%value(1:1) /= '"' .and. &
+                     node%value(1:1) /= "'") then
                 code = '"' // node%value // '"'
             else
                 code = node%value
@@ -161,7 +162,7 @@ contains
         
         code = code // "    implicit none" // new_line('a')
         
-        ! Add variable declarations based on type inference (now in core assignment_node)
+        ! Add variable declarations based on type inference
         block
             character(len=:), allocatable :: var_declarations
             var_declarations = analyze_for_variable_declarations(node)
@@ -192,7 +193,8 @@ contains
                     code = code // "    " // generate_code(stmt) // new_line('a')
                 class default
                     ! Use polymorphic dispatcher for other types
-                    code = code // "    " // generate_code_polymorphic(stmt) // new_line('a')
+                    code = code // "    " // generate_code_polymorphic(stmt) // &
+                           new_line('a')
                 end select
             end do
         end if
@@ -273,14 +275,16 @@ contains
                     end do
                     
                     if (param_count > 0) then
-                        code = code // "    " // return_type_str // ", intent(in) :: " // param_names // new_line('a')
+                        code = code // "    " // return_type_str // &
+                               ", intent(in) :: " // param_names // new_line('a')
                     end if
                 end block
             end if
             
             ! STAGE 2 FIX: Don't redeclare function name when already in signature
             ! Function return type is already specified in the signature
-            ! code = code // "    " // return_type_str // " :: " // node%name // new_line('a')
+            ! code = code // "    " // return_type_str // " :: " // &
+            !        node%name // new_line('a')
         end block
         
         ! Add function body
@@ -314,7 +318,8 @@ contains
                     if (.not. skip_statement) then
                         body_code = generate_code_polymorphic(node%body(i)%node)
                         ! Skip empty or placeholder statements
-                        if (len_trim(body_code) > 0 .and. body_code /= "! Function body statement") then
+                        if (len_trim(body_code) > 0 .and. &
+                            body_code /= "! Function body statement") then
                             code = code // "    " // body_code // new_line('a')
                         end if
                     end if
@@ -439,7 +444,7 @@ contains
         end if
     end function generate_code_declaration
 
-    ! generate_code_lf_program removed - core program_node handler now includes type inference
+    ! generate_code_lf_program removed - core program_node handler includes inference
 
     ! generate_code_lf_assignment removed - core assignment_node now has type inference
 
@@ -501,8 +506,10 @@ contains
                 interface_code = interface_code // "x"  ! Simplified parameter
             end if
             interface_code = interface_code // ")" // new_line('a')
-            interface_code = interface_code // "            real(8) :: " // value%name // new_line('a')
-            interface_code = interface_code // "            real(8), intent(in) :: x" // new_line('a')
+            interface_code = interface_code // "            real(8) :: " // &
+                           value%name // new_line('a')
+            interface_code = interface_code // &
+                           "            real(8), intent(in) :: x" // new_line('a')
             interface_code = interface_code // "        end function " // value%name
         type is (binary_op_node)
             ! Recursively check binary operations for function calls
@@ -526,8 +533,10 @@ contains
                 interface_code = interface_code // "x"
             end if
             interface_code = interface_code // ")" // new_line('a')
-            interface_code = interface_code // "            real(8) :: " // left%name // new_line('a')
-            interface_code = interface_code // "            real(8), intent(in) :: x" // new_line('a')
+            interface_code = interface_code // "            real(8) :: " // &
+                           left%name // new_line('a')
+            interface_code = interface_code // &
+                           "            real(8), intent(in) :: x" // new_line('a')
             interface_code = interface_code // "        end function " // left%name
         type is (binary_op_node)
             interface_code = interface_code // analyze_binary_op_for_functions(left)
@@ -536,21 +545,27 @@ contains
         ! Check right operand
         select type (right => binop%right)
         type is (function_call_node)
-            if (len_trim(interface_code) > 0) interface_code = interface_code // new_line('a')
+            if (len_trim(interface_code) > 0) then
+                interface_code = interface_code // new_line('a')
+            end if
             interface_code = interface_code // "        function " // right%name // "("
             if (allocated(right%args) .and. size(right%args) > 0) then
                 interface_code = interface_code // "x"
             end if
             interface_code = interface_code // ")" // new_line('a')
-            interface_code = interface_code // "            real(8) :: " // right%name // new_line('a')
-            interface_code = interface_code // "            real(8), intent(in) :: x" // new_line('a')
+            interface_code = interface_code // "            real(8) :: " // &
+                           right%name // new_line('a')
+            interface_code = interface_code // &
+                           "            real(8), intent(in) :: x" // new_line('a')
             interface_code = interface_code // "        end function " // right%name
         type is (binary_op_node)
             block
                 character(len=:), allocatable :: right_interface
                 right_interface = analyze_binary_op_for_functions(right)
                 if (len_trim(right_interface) > 0) then
-                    if (len_trim(interface_code) > 0) interface_code = interface_code // new_line('a')
+                    if (len_trim(interface_code) > 0) then
+                interface_code = interface_code // new_line('a')
+            end if
                     interface_code = interface_code // right_interface
                 end if
             end block
@@ -631,7 +646,7 @@ contains
                                     else if (value%literal_kind == LITERAL_REAL) then
                                         var_type = "real(8)"
                                     else if (value%literal_kind == LITERAL_STRING) then
-                                        var_type = "character(len=256)"  ! Use fixed length for variables
+                                        var_type = "character(len=256)"
                                     else if (value%literal_kind == LITERAL_LOGICAL) then
                                         var_type = "logical"
                                     end if
@@ -642,7 +657,8 @@ contains
                                         logical :: found
                                         found = .false.
                                         do j = 1, func_count
-                                            if (trim(func_names(j)) == trim(value%name)) then
+                                            if (trim(func_names(j)) == &
+                                                trim(value%name)) then
                                                 var_type = func_types(j)
                                                 found = .true.
                                                 exit
@@ -652,7 +668,8 @@ contains
                                     end block
                                 type is (binary_op_node)
                                     ! Binary operations - analyze operands
-                                    var_type = infer_binary_op_type(value, func_names, func_types, func_count)
+                                    var_type = infer_binary_op_type(value, func_names, &
+                                                     func_types, func_count)
                                 end select
                                 
                                 var_types(var_count) = var_type
@@ -726,7 +743,8 @@ contains
                                                             end if
                                                         type is (binary_op_node)
                                                             ! For binary operations, infer based on operands
-                                                            var_type = infer_binary_op_type(value, func_names, func_types, func_count)
+                                                            var_type = infer_binary_op_type(value, func_names, &
+                                                     func_types, func_count)
                                                         end select
                                                         
                                                         var_types(var_count) = var_type
