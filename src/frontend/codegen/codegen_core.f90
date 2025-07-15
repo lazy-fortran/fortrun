@@ -630,6 +630,12 @@ contains
             allocate (func_types(20))
             func_count = 0
 
+            ! Safety check: ensure prog%body is allocated and has elements
+            if (.not. allocated(prog%body) .or. size(prog%body) == 0) then
+                ! No body to analyze, return empty declarations
+                return
+            end if
+
             do i = 1, size(prog%body)
                 select type (stmt => prog%body(i)%node)
                 type is (function_def_node)
@@ -655,6 +661,7 @@ contains
             end do
 
             ! Pass 2: Analyze assignments with function call type propagation
+            ! Safety check already performed above, prog%body is guaranteed to be allocated
             do i = 1, size(prog%body)
                 select type (stmt => prog%body(i)%node)
                 type is (assignment_node)
