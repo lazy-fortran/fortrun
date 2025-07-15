@@ -1,0 +1,8 @@
+{
+  "input_file": "/home/ert/code/fortran/example/frontend_test_cases/single_real_declaration/single_real_declaration.f",
+  "phase": "semantic_analysis",
+  "description": "AST annotated with inferred types",
+  "annotated_ast": {
+    "TODO": "Implement annotated AST serialization with type information"
+  }
+}

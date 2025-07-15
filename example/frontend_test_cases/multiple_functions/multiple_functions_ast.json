@@ -1,0 +1,25 @@
+{
+  "": {
+    "type": "program",
+    "name": "main",
+    "line": 1,
+    "column": 1,
+    "body": [
+      {"type": "assignment"}
+,
+      {"type": "assignment"}
+,
+      {"type": "assignment"}
+,
+      {"type": "print_statement"}
+,
+      {"type": "function_def"}
+,
+      {"type": "function_def"}
+,
+      {"type": "function_def"}
+,
+      {"type": "function_def"}
+    ]
+  }
+}

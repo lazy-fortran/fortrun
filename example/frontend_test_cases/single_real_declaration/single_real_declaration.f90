@@ -1,7 +1,4 @@
 program main
     implicit none
-    integer(4) :: x
-
-    x = 42
-    print *, x
+    real(8) :: x
 end program main

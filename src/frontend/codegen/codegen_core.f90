@@ -18,6 +18,7 @@ module codegen_core
         module procedure generate_code_function_call
         module procedure generate_code_use_statement
         module procedure generate_code_print_statement
+        module procedure generate_code_declaration
     end interface generate_code
 
 contains
@@ -366,6 +367,35 @@ contains
             end do
         end if
     end function generate_code_print_statement
+    
+    ! Generate code for declaration node
+    function generate_code_declaration(node) result(code)
+        type(declaration_node), intent(in) :: node
+        character(len=:), allocatable :: code
+        
+        ! Generate type declaration
+        code = node%type_name
+        
+        ! Add kind if specified
+        if (node%has_kind) then
+            block
+                character(len=10) :: kind_str
+                write(kind_str, '(I0)') node%kind_value
+                code = code // "(" // trim(adjustl(kind_str)) // ")"
+            end block
+        else if (node%type_name == "real") then
+            ! Default to real(8) for lazy fortran
+            code = code // "(8)"
+        end if
+        
+        ! Add variable name
+        code = code // " :: " // node%var_name
+        
+        ! Add initialization if present
+        if (allocated(node%initializer)) then
+            code = code // " = " // generate_code_polymorphic(node%initializer)
+        end if
+    end function generate_code_declaration
 
     ! generate_code_lf_program removed - core program_node handler now includes type inference
 
@@ -399,6 +429,8 @@ contains
             code = generate_code_print_statement(node)
         type is (use_statement_node)
             code = generate_code_use_statement(node)
+        type is (declaration_node)
+            code = generate_code_declaration(node)
         class default
             ! NEVER generate "0" - always generate a comment for debugging
             code = "! Unimplemented AST node"

@@ -5,6 +5,7 @@ program main
   use frontend, only: compile_from_tokens_json, compile_from_ast_json, compile_from_semantic_json, compilation_options_t
   use cache, only: clear_cache, get_cache_info
   use debug_state, only: set_debug_flags
+  use logger, only: set_verbose_level
   use notebook_parser
   use notebook_executor
   use notebook_renderer
@@ -22,6 +23,9 @@ program main
                       parallel_jobs, no_wait, notebook_mode, notebook_output, standardize_only, custom_flags, &
                       clear_cache_flag, cache_info_flag, debug_tokens, debug_ast, debug_semantic, debug_codegen, &
                       from_tokens, from_ast, from_semantic)
+  
+  ! Initialize logging based on verbose level
+  call set_verbose_level(verbose_level)
   
   if (show_help) then
     call print_help()

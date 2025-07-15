@@ -103,6 +103,8 @@ contains
         verbose_level = 1
       else if (arg == '-vv') then
         verbose_level = 2
+      else if (arg == '-vvv') then
+        verbose_level = 3
       else if (arg == '--verbose') then
         ! Check if next argument is a number (1 or 2)
         if (i < nargs) then
@@ -112,6 +114,9 @@ contains
             i = i + 1  ! Skip the next argument since we consumed it
           else if (arg == '2') then
             verbose_level = 2
+            i = i + 1  ! Skip the next argument since we consumed it
+          else if (arg == '3') then
+            verbose_level = 3
             i = i + 1  ! Skip the next argument since we consumed it
           else
             ! Next arg is not a number, default to level 1

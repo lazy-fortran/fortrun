@@ -1,15 +1,10 @@
 program main
     implicit none
-    real(8) :: add_one
-
-
 contains
-
-function add_one()
+    real(8) function add_one(x)
     implicit none
-    real(8) :: add_one
-end function add_one
-    0
+    real(8), intent(in) :: x
+    real(8) :: x
     add_one = x + 1.0d0
-    0
+end function add_one
 end program main
