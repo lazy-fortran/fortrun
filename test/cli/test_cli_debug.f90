@@ -33,6 +33,7 @@ contains
         logical :: show_help, no_wait, notebook_mode, preprocess_only
         logical :: clear_cache, cache_info
         logical :: debug_tokens, debug_ast, debug_semantic, debug_codegen
+        logical :: from_tokens, from_ast, from_semantic
         integer :: verbose_level, parallel_jobs
         character(len=256), dimension(3) :: args
         
@@ -48,7 +49,8 @@ contains
         call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                             custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
                             notebook_output, preprocess_only, custom_flags, &
-                            clear_cache, cache_info, debug_tokens, debug_ast, debug_semantic, debug_codegen)
+                            clear_cache, cache_info, debug_tokens, debug_ast, debug_semantic, debug_codegen, &
+                            from_tokens, from_ast, from_semantic)
         
         ! This will fail until we implement the CLI parsing
         if (.not. debug_tokens) then
@@ -69,6 +71,7 @@ contains
         logical :: show_help, no_wait, notebook_mode, preprocess_only
         logical :: clear_cache, cache_info
         logical :: debug_tokens, debug_ast, debug_semantic, debug_codegen
+        logical :: from_tokens, from_ast, from_semantic
         integer :: verbose_level, parallel_jobs
         character(len=256), dimension(3) :: args
         
@@ -84,7 +87,8 @@ contains
         call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                             custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
                             notebook_output, preprocess_only, custom_flags, &
-                            clear_cache, cache_info, debug_tokens, debug_ast, debug_semantic, debug_codegen)
+                            clear_cache, cache_info, debug_tokens, debug_ast, debug_semantic, debug_codegen, &
+                            from_tokens, from_ast, from_semantic)
         
         if (.not. debug_ast) then
             print *, 'FAIL: --debug-ast flag not recognized'
@@ -104,6 +108,7 @@ contains
         logical :: show_help, no_wait, notebook_mode, preprocess_only
         logical :: clear_cache, cache_info
         logical :: debug_tokens, debug_ast, debug_semantic, debug_codegen
+        logical :: from_tokens, from_ast, from_semantic
         integer :: verbose_level, parallel_jobs
         character(len=256), dimension(3) :: args
         
@@ -119,7 +124,8 @@ contains
         call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                             custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
                             notebook_output, preprocess_only, custom_flags, &
-                            clear_cache, cache_info, debug_tokens, debug_ast, debug_semantic, debug_codegen)
+                            clear_cache, cache_info, debug_tokens, debug_ast, debug_semantic, debug_codegen, &
+                            from_tokens, from_ast, from_semantic)
         
         if (.not. debug_codegen) then
             print *, 'FAIL: --debug-codegen flag not recognized'
@@ -139,6 +145,7 @@ contains
         logical :: show_help, no_wait, notebook_mode, preprocess_only
         logical :: clear_cache, cache_info
         logical :: debug_tokens, debug_ast, debug_semantic, debug_codegen
+        logical :: from_tokens, from_ast, from_semantic
         integer :: verbose_level, parallel_jobs
         character(len=256), dimension(5) :: args
         
@@ -156,7 +163,8 @@ contains
         call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                             custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
                             notebook_output, preprocess_only, custom_flags, &
-                            clear_cache, cache_info, debug_tokens, debug_ast, debug_semantic, debug_codegen)
+                            clear_cache, cache_info, debug_tokens, debug_ast, debug_semantic, debug_codegen, &
+                            from_tokens, from_ast, from_semantic)
         
         if (.not. (debug_tokens .and. debug_ast .and. debug_semantic .and. debug_codegen)) then
             print *, 'FAIL: Not all debug flags recognized'
