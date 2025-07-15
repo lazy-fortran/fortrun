@@ -1,2 +1,0 @@
-Project is up to date
-/home/ert/.cache/fortran/simple_test_simple_simple_test.f/build/gfortran_764BCDC58073FF0F/simple_test/app_main.f90.o
