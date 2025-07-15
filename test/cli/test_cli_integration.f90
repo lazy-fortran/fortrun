@@ -48,7 +48,8 @@ contains
             close(unit)
             
             ! Test processing the file
-            call execute_command_line('fpm run fortran -- /tmp/test_simple.f > /tmp/test_output.f90 2>/dev/null', exitstat=iostat)
+            call execute_command_line('fpm run fortran -- /tmp/test_simple.f > ' // &
+                                     '/tmp/test_output.f90 2>/dev/null', exitstat=iostat)
             
             if (iostat == 0) then
                 print *, '  PASS: Basic file processing works'
@@ -58,7 +59,8 @@ contains
             end if
             
             ! Clean up
-            call execute_command_line('rm -f /tmp/test_simple.f /tmp/test_output.f90', exitstat=iostat)
+            call execute_command_line('rm -f /tmp/test_simple.f /tmp/test_output.f90', &
+                                     exitstat=iostat)
         end block
         
     end function test_basic_file_processing
@@ -84,7 +86,9 @@ contains
             close(unit)
             
             ! Test --debug-tokens
-            call execute_command_line('fpm run fortran -- /tmp/test_debug.f --debug-tokens > /tmp/debug_tokens.json 2>/dev/null', exitstat=iostat)
+            call execute_command_line('fpm run fortran -- /tmp/test_debug.f ' // &
+                                     '--debug-tokens > /tmp/debug_tokens.json 2>/dev/null', &
+                                     exitstat=iostat)
             if (iostat /= 0) then
                 print *, '  FAIL: --debug-tokens failed'
                 test_debug_output_pipeline = .false.
@@ -92,7 +96,9 @@ contains
             end if
             
             ! Test --debug-ast
-            call execute_command_line('fpm run fortran -- /tmp/test_debug.f --debug-ast > /tmp/debug_ast.json 2>/dev/null', exitstat=iostat)
+            call execute_command_line('fpm run fortran -- /tmp/test_debug.f ' // &
+                                     '--debug-ast > /tmp/debug_ast.json 2>/dev/null', &
+                                     exitstat=iostat)
             if (iostat /= 0) then
                 print *, '  FAIL: --debug-ast failed'
                 test_debug_output_pipeline = .false.
@@ -100,7 +106,9 @@ contains
             end if
             
             ! Test --debug-semantic
-            call execute_command_line('fpm run fortran -- /tmp/test_debug.f --debug-semantic > /tmp/debug_semantic.json 2>/dev/null', exitstat=iostat)
+            call execute_command_line('fpm run fortran -- /tmp/test_debug.f ' // &
+                                     '--debug-semantic > /tmp/debug_semantic.json 2>/dev/null', &
+                                     exitstat=iostat)
             if (iostat /= 0) then
                 print *, '  FAIL: --debug-semantic failed'
                 test_debug_output_pipeline = .false.
@@ -108,7 +116,9 @@ contains
             end if
             
             ! Test --debug-codegen
-            call execute_command_line('fpm run fortran -- /tmp/test_debug.f --debug-codegen > /tmp/debug_codegen.json 2>/dev/null', exitstat=iostat)
+            call execute_command_line('fpm run fortran -- /tmp/test_debug.f ' // &
+                                     '--debug-codegen > /tmp/debug_codegen.json 2>/dev/null', &
+                                     exitstat=iostat)
             if (iostat /= 0) then
                 print *, '  FAIL: --debug-codegen failed'
                 test_debug_output_pipeline = .false.
@@ -118,7 +128,8 @@ contains
             print *, '  PASS: All debug output flags work'
             
             ! Clean up
-            call execute_command_line('rm -f /tmp/test_debug.f /tmp/debug_*.json', exitstat=iostat)
+            call execute_command_line('rm -f /tmp/test_debug.f /tmp/debug_*.json', &
+                                     exitstat=iostat)
         end block
         
     end function test_debug_output_pipeline
@@ -133,7 +144,8 @@ contains
             integer :: unit
             
             ! Create minimal tokens JSON
-            open(newunit=unit, file='/tmp/pipeline_tokens.json', action='write', iostat=iostat)
+            open(newunit=unit, file='/tmp/pipeline_tokens.json', action='write', &
+                 iostat=iostat)
             if (iostat /= 0) then
                 print *, 'FAIL: Could not create tokens JSON'
                 test_json_pipeline_workflow = .false.
@@ -144,24 +156,29 @@ contains
             close(unit)
             
             ! Test --from-tokens
-            call execute_command_line('fpm run fortran -- /tmp/pipeline_tokens.json --from-tokens > /dev/null 2>&1', exitstat=iostat)
+            call execute_command_line('fpm run fortran -- /tmp/pipeline_tokens.json ' // &
+                                     '--from-tokens > /dev/null 2>&1', exitstat=iostat)
             if (iostat == 0) then
                 print *, '  PASS: --from-tokens pipeline works'
             else
-                print *, '  PARTIAL: --from-tokens pipeline returned exit code', iostat, '(expected for empty tokens)'
+                print *, '  PARTIAL: --from-tokens pipeline returned exit code', &
+                         iostat, '(expected for empty tokens)'
             end if
             
             ! Create minimal AST JSON 
-            open(newunit=unit, file='/tmp/pipeline_ast.json', action='write', iostat=iostat)
+            open(newunit=unit, file='/tmp/pipeline_ast.json', action='write', &
+                 iostat=iostat)
             write(unit, '(a)') '{"type": "program", "name": "test"}'
             close(unit)
             
             ! Test --from-ast
-            call execute_command_line('fpm run fortran -- /tmp/pipeline_ast.json --from-ast > /dev/null 2>&1', exitstat=iostat)
+            call execute_command_line('fpm run fortran -- /tmp/pipeline_ast.json ' // &
+                                     '--from-ast > /dev/null 2>&1', exitstat=iostat)
             if (iostat == 0) then
                 print *, '  PASS: --from-ast pipeline works'
             else
-                print *, '  PARTIAL: --from-ast pipeline returned exit code', iostat, '(expected for minimal AST)'
+                print *, '  PARTIAL: --from-ast pipeline returned exit code', &
+                         iostat, '(expected for minimal AST)'
             end if
             
             ! Clean up
@@ -178,7 +195,8 @@ contains
         block
             integer :: iostat
             
-            call execute_command_line('fpm run fortran -- /tmp/nonexistent.f > /dev/null 2>&1', exitstat=iostat)
+            call execute_command_line('fpm run fortran -- /tmp/nonexistent.f > ' // &
+                                     '/dev/null 2>&1', exitstat=iostat)
             if (iostat /= 0) then
                 print *, '  PASS: Non-existent file properly handled'
             else
@@ -196,7 +214,8 @@ contains
             write(unit, '(a)') 'invalid json content'
             close(unit)
             
-            call execute_command_line('fpm run fortran -- /tmp/invalid.json --from-tokens > /dev/null 2>&1', exitstat=iostat)
+            call execute_command_line('fpm run fortran -- /tmp/invalid.json ' // &
+                                     '--from-tokens > /dev/null 2>&1', exitstat=iostat)
             if (iostat /= 0) then
                 print *, '  PASS: Invalid JSON properly handled'
             else
