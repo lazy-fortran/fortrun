@@ -474,8 +474,15 @@ contains
         character(len=:), allocatable :: code
         
         ! For now, just generate as regular assignment
-        ! In the future, we'd handle type declarations here
-        code = generate_code_assignment(node%assignment_node)
+        ! In the future, we'd handle type declarations here based on inferred_type
+        block
+            type(assignment_node) :: base_node
+            base_node%target = node%target
+            base_node%value = node%value
+            base_node%line = node%line
+            base_node%column = node%column
+            code = generate_code_assignment(base_node)
+        end block
     end function generate_code_lf_assignment
 
     ! Generate code for inferred variable

@@ -85,8 +85,8 @@ contains
         
         ! Check if it's a program node
         select type (ast)
-        type is (lf_program_node)
-            print *, "PASS: Got lf_program node"
+        type is (program_node)
+            print *, "PASS: Got program node"
             if (size(ast%body) == 1) then
                 print *, "PASS: Program has 1 statement"
                 
@@ -103,7 +103,7 @@ contains
                 all_tests_passed = .false.
             end if
         class default
-            print *, "FAIL: Expected lf_program node"
+            print *, "FAIL: Expected program node"
             all_tests_passed = .false.
         end select
         

@@ -5,7 +5,7 @@ module json_reader
     use json_module
     use lexer_core, only: token_t, TK_IDENTIFIER, TK_KEYWORD, TK_OPERATOR, TK_NUMBER, TK_STRING, TK_NEWLINE, TK_EOF
     use ast_core
-    use ast_lazy_fortran, only: lf_program_node, create_lf_program
+    ! Note: Using core AST nodes only - no dialect-specific imports
     implicit none
     private
     
@@ -154,7 +154,7 @@ contains
         
         ! Create appropriate node based on type
         select case (node_type)
-        case ('lf_program')
+        case ('lf_program', 'program')
             node = json_to_program_node(core, json_obj)
         case ('assignment')
             node = json_to_assignment_node(core, json_obj)
@@ -179,17 +179,16 @@ contains
         
     end function json_to_ast_node
     
-    ! Convert JSON to program node
+    ! Convert JSON to program node (core program_node, not dialect-specific)
     function json_to_program_node(core, json_obj) result(node)
         type(json_core), intent(inout) :: core
         type(json_value), pointer, intent(in) :: json_obj
-        type(lf_program_node) :: node
+        type(program_node) :: node
         character(len=:), allocatable :: name
         integer :: line, column, i
-        logical :: found, implicit_value, auto_contains
+        logical :: found
         type(json_value), pointer :: body_array
         type(ast_node_wrapper), allocatable :: body_wrappers(:)
-        class(ast_node), allocatable :: body_nodes(:)
         
         ! Get properties
         call core%get(json_obj, 'name', name, found)
@@ -198,10 +197,6 @@ contains
         if (.not. found) line = 1
         call core%get(json_obj, 'column', column, found)
         if (.not. found) column = 1
-        call core%get(json_obj, 'implicit', implicit_value, found)
-        if (.not. found) implicit_value = .true.
-        call core%get(json_obj, 'auto_contains', auto_contains, found)
-        if (.not. found) auto_contains = .false.
         
         ! Get body array
         call core%get(json_obj, 'body', body_array, found)
@@ -211,26 +206,18 @@ contains
             allocate(body_wrappers(0))
         end if
         
-        ! Create node - create_lf_program will handle the wrapper array conversion
-        block
-            type(lf_program_node), allocatable :: temp_node
-            allocate(temp_node)
-            temp_node%name = name
-            temp_node%implicit = implicit_value
-            temp_node%auto_contains = auto_contains
-            temp_node%line = line
-            temp_node%column = column
-            
-            ! Directly assign the wrapper array
-            if (allocated(body_wrappers)) then
-                allocate(temp_node%body(size(body_wrappers)))
-                temp_node%body = body_wrappers
-            else
-                allocate(temp_node%body(0))
-            end if
-            
-            node = temp_node
-        end block
+        ! Create core program node (dialect-agnostic)
+        node%name = name
+        node%line = line
+        node%column = column
+        
+        ! Assign the wrapper array
+        if (allocated(body_wrappers)) then
+            allocate(node%body(size(body_wrappers)))
+            node%body = body_wrappers
+        else
+            allocate(node%body(0))
+        end if
         
     end function json_to_program_node
     
