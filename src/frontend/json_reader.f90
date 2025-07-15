@@ -229,13 +229,19 @@ contains
         type(json_value), pointer :: target_obj, value_obj
         class(ast_node), allocatable :: target, value
         integer :: line, column
-        logical :: found
+        logical :: found, inferred_type
+        character(len=:), allocatable :: inferred_type_name
         
         ! Get line and column
         call core%get(json_obj, 'line', line, found)
         if (.not. found) line = 1
         call core%get(json_obj, 'column', column, found)
         if (.not. found) column = 1
+        
+        ! Get type inference fields
+        call core%get(json_obj, 'inferred_type', inferred_type, found)
+        if (.not. found) inferred_type = .false.
+        call core%get(json_obj, 'inferred_type_name', inferred_type_name, found)
         
         ! Get target
         call core%get(json_obj, 'target', target_obj, found)
@@ -253,8 +259,12 @@ contains
             value = create_literal("0", LITERAL_INTEGER, line, column)
         end if
         
-        ! Create node
-        node = create_assignment(target, value, line, column)
+        ! Create node with type inference
+        if (allocated(inferred_type_name)) then
+            node = create_assignment(target, value, line, column, inferred_type, inferred_type_name)
+        else
+            node = create_assignment(target, value, line, column, inferred_type)
+        end if
         
     end function json_to_assignment_node
     

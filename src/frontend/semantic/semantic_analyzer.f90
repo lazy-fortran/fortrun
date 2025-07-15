@@ -96,6 +96,9 @@ contains
         select type (stmt)
         type is (assignment_node)
             typ = infer_assignment(this, stmt)
+            ! Store inference metadata in the assignment_node for error detection
+            stmt%inferred_type = .true.
+            stmt%inferred_type_name = typ%to_string()
         type is (print_statement_node)
             typ = create_mono_type(TINT)  ! print returns unit/void, use int
         class default
