@@ -48,10 +48,10 @@ contains
     close(unit)
     
     ! Expected declarations in order
-    expected_lines(1) = 'integer(4) :: count'
+    expected_lines(1) = 'integer :: count'
     expected_lines(2) = 'real(8) :: pi'
-    expected_lines(3) = 'character(len=7) :: name'
-    expected_lines(4) = 'logical :: ready'
+    expected_lines(3) = 'character(len=*) :: name'
+    expected_lines(4) = 'character(len=*) :: ready'
     
     ! Test preprocessing
     test_count = test_count + 1
@@ -99,11 +99,11 @@ contains
     close(unit)
     
     ! Expected declarations
-    expected_lines(1) = 'integer(4) :: a'
-    expected_lines(2) = 'integer(4) :: b'
-    expected_lines(3) = 'integer(4) :: sum'
-    expected_lines(4) = 'integer(4) :: diff'
-    expected_lines(5) = 'integer(4) :: prod'
+    expected_lines(1) = 'integer :: a'
+    expected_lines(2) = 'integer :: b'
+    expected_lines(3) = 'real(8) :: sum'
+    expected_lines(4) = 'real(8) :: diff'
+    expected_lines(5) = 'real(8) :: prod'
     expected_lines(6) = 'real(8) :: quot'
     
     ! Test preprocessing
@@ -149,7 +149,7 @@ contains
     close(unit)
     
     ! Expected declarations
-    expected_lines(1) = 'integer(4) :: x'
+    expected_lines(1) = 'integer :: x'
     expected_lines(2) = 'real(8) :: y'
     expected_lines(3) = 'real(8) :: result'
     

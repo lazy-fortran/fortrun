@@ -25,7 +25,7 @@ contains
     logical function test_clear_cache_option()
         character(len=256) :: filename, custom_cache_dir, custom_config_dir
         character(len=256) :: notebook_output, custom_flags
-        logical :: show_help, no_wait, notebook_mode, preprocess_only
+        logical :: show_help, no_wait, notebook_mode, standardize_only
         logical :: clear_cache_flag, cache_info_flag
         integer :: verbose_level, parallel_jobs
         character(len=256), dimension(2) :: args
@@ -42,7 +42,7 @@ contains
             logical :: debug_tokens, debug_ast, debug_semantic, debug_codegen, from_tokens, from_ast, from_semantic
             call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                                 custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
-                                notebook_output, preprocess_only, custom_flags, &
+                                notebook_output, standardize_only, custom_flags, &
                                 clear_cache_flag, cache_info_flag, debug_tokens, debug_ast, debug_semantic, debug_codegen, &
                                 from_tokens, from_ast, from_semantic)
         end block
@@ -65,7 +65,7 @@ contains
     logical function test_cache_info_option()
         character(len=256) :: filename, custom_cache_dir, custom_config_dir
         character(len=256) :: notebook_output, custom_flags
-        logical :: show_help, no_wait, notebook_mode, preprocess_only
+        logical :: show_help, no_wait, notebook_mode, standardize_only
         logical :: clear_cache_flag, cache_info_flag
         integer :: verbose_level, parallel_jobs
         character(len=256), dimension(2) :: args
@@ -82,7 +82,7 @@ contains
             logical :: debug_tokens, debug_ast, debug_semantic, debug_codegen, from_tokens, from_ast, from_semantic
             call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                                 custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
-                                notebook_output, preprocess_only, custom_flags, &
+                                notebook_output, standardize_only, custom_flags, &
                                 clear_cache_flag, cache_info_flag, debug_tokens, debug_ast, debug_semantic, debug_codegen, &
                                 from_tokens, from_ast, from_semantic)
         end block
@@ -105,7 +105,7 @@ contains
     logical function test_clear_cache_with_file()
         character(len=256) :: filename, custom_cache_dir, custom_config_dir
         character(len=256) :: notebook_output, custom_flags
-        logical :: show_help, no_wait, notebook_mode, preprocess_only
+        logical :: show_help, no_wait, notebook_mode, standardize_only
         logical :: clear_cache_flag, cache_info_flag
         integer :: verbose_level, parallel_jobs
         character(len=256), dimension(3) :: args
@@ -123,7 +123,7 @@ contains
             logical :: debug_tokens, debug_ast, debug_semantic, debug_codegen, from_tokens, from_ast, from_semantic
             call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                                 custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
-                                notebook_output, preprocess_only, custom_flags, &
+                                notebook_output, standardize_only, custom_flags, &
                                 clear_cache_flag, cache_info_flag, debug_tokens, debug_ast, debug_semantic, debug_codegen, &
                                 from_tokens, from_ast, from_semantic)
         end block
