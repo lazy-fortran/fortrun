@@ -1,7 +1,7 @@
 module json_reader
     ! JSON deserialization for frontend stages
     ! Reads JSON files and reconstructs tokens, AST nodes, etc.
-    
+
     use json_module
     use lexer_core, only: token_t, TK_IDENTIFIER, TK_KEYWORD, TK_OPERATOR, TK_NUMBER, TK_STRING, TK_NEWLINE, TK_EOF
     use ast_core
@@ -9,32 +9,40 @@ module json_reader
     ! Note: Using core AST nodes only - no dialect-specific imports
     implicit none
     private
-    
+
     ! Public interface
     public :: json_read_tokens_from_file, json_read_ast_from_file
     public :: json_read_semantic_from_file
     public :: json_to_tokens, json_to_ast, json_to_semantic
-    
+
 contains
-    
+
     ! Read tokens from JSON file
     function json_read_tokens_from_file(filename) result(tokens)
         character(len=*), intent(in) :: filename
         type(token_t), allocatable :: tokens(:)
         type(json_file) :: json
-        logical :: found
-        
+        logical :: found, status_ok
+        character(len=:), allocatable :: error_msg
+
         ! Load JSON file
         call json%load(filename=filename)
-        
+
+        ! Check for JSON parsing errors
+        call json%check_for_errors(status_ok, error_msg)
+        if (.not. status_ok) then
+            ! Invalid JSON - fail with appropriate error
+            error stop "Invalid JSON format: "//error_msg
+        end if
+
         ! Convert JSON to tokens
         tokens = json_to_tokens(json)
-        
+
         ! Clean up
         call json%destroy()
-        
+
     end function json_read_tokens_from_file
-    
+
     ! Convert JSON to tokens
     function json_to_tokens(json) result(tokens)
         type(json_file), intent(inout) :: json
@@ -45,36 +53,36 @@ contains
         character(len=:), allocatable :: token_type, token_text
         integer :: line, column
         logical :: found
-        
+
         ! Get root object
         call json%get(root)
-        
+
         ! Get tokens array
         call json%get('tokens', token_array, found)
         if (.not. found) then
-            allocate(tokens(0))
+            allocate (tokens(0))
             return
         end if
-        
+
         ! Get number of tokens
         call core%info(token_array, n_children=n_tokens)
-        allocate(tokens(n_tokens))
-        
+        allocate (tokens(n_tokens))
+
         ! Process each token
         do i = 1, n_tokens
             call core%get_child(token_array, i, token_obj)
-            
+
             ! Get token properties
             call core%get(token_obj, 'type', token_type, found)
             call core%get(token_obj, 'text', token_text, found)
             call core%get(token_obj, 'line', line, found)
             call core%get(token_obj, 'column', column, found)
-            
+
             ! Set token properties
             tokens(i)%text = token_text
             tokens(i)%line = line
             tokens(i)%column = column
-            
+
             ! Convert type string to token kind
             select case (token_type)
             case ('identifier')
@@ -95,26 +103,26 @@ contains
                 tokens(i)%kind = TK_EOF
             end select
         end do
-        
+
     end function json_to_tokens
-    
+
     ! Read AST from JSON file
     function json_read_ast_from_file(filename) result(ast)
         character(len=*), intent(in) :: filename
         class(ast_node), allocatable :: ast
         type(json_file) :: json
-        
+
         ! Load JSON file
         call json%load(filename=filename)
-        
+
         ! Convert JSON to AST
         ast = json_to_ast(json)
-        
+
         ! Clean up
         call json%destroy()
-        
+
     end function json_read_ast_from_file
-    
+
     ! Convert JSON to AST (full implementation)
     function json_to_ast(json) result(ast)
         type(json_file), intent(inout) :: json
@@ -122,15 +130,15 @@ contains
         type(json_core) :: core
         type(json_value), pointer :: root
         logical :: found
-        
+
         ! Get root object
         call json%get(root)
-        
+
         ! Recursively build AST from JSON
         ast = json_to_ast_node(core, root)
-        
+
     end function json_to_ast
-    
+
     ! Recursive function to convert JSON object to AST node
     recursive function json_to_ast_node(core, json_obj) result(node)
         type(json_core), intent(inout) :: core
@@ -138,7 +146,7 @@ contains
         class(ast_node), allocatable :: node
         character(len=:), allocatable :: node_type
         logical :: found
-        
+
         ! Get node type
         call core%get(json_obj, 'type', node_type, found)
         if (.not. found) then
@@ -153,7 +161,7 @@ contains
             end block
             return
         end if
-        
+
         ! Create appropriate node based on type
         select case (node_type)
         case ('lf_program', 'program')
@@ -176,11 +184,11 @@ contains
             node = json_to_print_statement_node(core, json_obj)
         case default
             ! Unknown node type - create a literal as placeholder
-            node = create_literal("Unknown node type: " // node_type, LITERAL_STRING, 1, 1)
+           node = create_literal("Unknown node type: "//node_type, LITERAL_STRING, 1, 1)
         end select
-        
+
     end function json_to_ast_node
-    
+
     ! Convert JSON to program node (core program_node, not dialect-specific)
     function json_to_program_node(core, json_obj) result(node)
         type(json_core), intent(inout) :: core
@@ -191,7 +199,7 @@ contains
         logical :: found
         type(json_value), pointer :: body_array
         type(ast_node_wrapper), allocatable :: body_wrappers(:)
-        
+
         ! Get properties
         call core%get(json_obj, 'name', name, found)
         if (.not. found) name = 'main'
@@ -199,30 +207,30 @@ contains
         if (.not. found) line = 1
         call core%get(json_obj, 'column', column, found)
         if (.not. found) column = 1
-        
+
         ! Get body array
         call core%get(json_obj, 'body', body_array, found)
         if (found) then
             body_wrappers = json_to_ast_array(core, body_array)
         else
-            allocate(body_wrappers(0))
+            allocate (body_wrappers(0))
         end if
-        
+
         ! Create core program node (dialect-agnostic)
         node%name = name
         node%line = line
         node%column = column
-        
+
         ! Assign the wrapper array
         if (allocated(body_wrappers)) then
-            allocate(node%body(size(body_wrappers)))
+            allocate (node%body(size(body_wrappers)))
             node%body = body_wrappers
         else
-            allocate(node%body(0))
+            allocate (node%body(0))
         end if
-        
+
     end function json_to_program_node
-    
+
     ! Convert JSON to assignment node
     function json_to_assignment_node(core, json_obj) result(node)
         type(json_core), intent(inout) :: core
@@ -233,18 +241,18 @@ contains
         integer :: line, column
         logical :: found, inferred_type
         character(len=:), allocatable :: inferred_type_name
-        
+
         ! Get line and column
         call core%get(json_obj, 'line', line, found)
         if (.not. found) line = 1
         call core%get(json_obj, 'column', column, found)
         if (.not. found) column = 1
-        
+
         ! Get type inference fields
         call core%get(json_obj, 'inferred_type', inferred_type, found)
         if (.not. found) inferred_type = .false.
         call core%get(json_obj, 'inferred_type_name', inferred_type_name, found)
-        
+
         ! Get target
         call core%get(json_obj, 'target', target_obj, found)
         if (found) then
@@ -252,7 +260,7 @@ contains
         else
             target = create_identifier("unknown", line, column)
         end if
-        
+
         ! Get value
         call core%get(json_obj, 'value', value_obj, found)
         if (found) then
@@ -260,16 +268,16 @@ contains
         else
             value = create_literal("0", LITERAL_INTEGER, line, column)
         end if
-        
+
         ! Create node with type inference
         if (allocated(inferred_type_name)) then
-            node = create_assignment(target, value, line, column, inferred_type, inferred_type_name)
+node = create_assignment(target, value, line, column, inferred_type, inferred_type_name)
         else
             node = create_assignment(target, value, line, column, inferred_type)
         end if
-        
+
     end function json_to_assignment_node
-    
+
     ! Convert JSON to binary op node
     function json_to_binary_op_node(core, json_obj) result(node)
         type(json_core), intent(inout) :: core
@@ -280,7 +288,7 @@ contains
         character(len=:), allocatable :: operator
         integer :: line, column
         logical :: found
-        
+
         ! Get properties
         call core%get(json_obj, 'operator', operator, found)
         if (.not. found) operator = '+'
@@ -288,7 +296,7 @@ contains
         if (.not. found) line = 1
         call core%get(json_obj, 'column', column, found)
         if (.not. found) column = 1
-        
+
         ! Get left operand
         call core%get(json_obj, 'left', left_obj, found)
         if (found) then
@@ -296,7 +304,7 @@ contains
         else
             left = create_literal("0", LITERAL_INTEGER, line, column)
         end if
-        
+
         ! Get right operand
         call core%get(json_obj, 'right', right_obj, found)
         if (found) then
@@ -304,12 +312,12 @@ contains
         else
             right = create_literal("0", LITERAL_INTEGER, line, column)
         end if
-        
+
         ! Create node
         node = create_binary_op(left, right, operator, line, column)
-        
+
     end function json_to_binary_op_node
-    
+
     ! Convert JSON to identifier node
     function json_to_identifier_node(core, json_obj) result(node)
         type(json_core), intent(inout) :: core
@@ -318,7 +326,7 @@ contains
         character(len=:), allocatable :: name
         integer :: line, column
         logical :: found
-        
+
         ! Get properties
         call core%get(json_obj, 'name', name, found)
         if (.not. found) name = 'unknown'
@@ -326,12 +334,12 @@ contains
         if (.not. found) line = 1
         call core%get(json_obj, 'column', column, found)
         if (.not. found) column = 1
-        
+
         ! Create node
         node = create_identifier(name, line, column)
-        
+
     end function json_to_identifier_node
-    
+
     ! Convert JSON to literal node
     function json_to_literal_node(core, json_obj) result(node)
         type(json_core), intent(inout) :: core
@@ -340,7 +348,7 @@ contains
         character(len=:), allocatable :: value, kind_str
         integer :: line, column, literal_kind
         logical :: found
-        
+
         ! Get properties
         call core%get(json_obj, 'value', value, found)
         if (.not. found) value = '0'
@@ -348,7 +356,7 @@ contains
         if (.not. found) line = 1
         call core%get(json_obj, 'column', column, found)
         if (.not. found) column = 1
-        
+
         ! Get literal kind
         call core%get(json_obj, 'kind', kind_str, found)
         if (found) then
@@ -367,12 +375,12 @@ contains
         else
             literal_kind = LITERAL_INTEGER
         end if
-        
+
         ! Create node
         node = create_literal(value, literal_kind, line, column)
-        
+
     end function json_to_literal_node
-    
+
     ! Convert JSON to function definition node
     function json_to_function_def_node(core, json_obj) result(node)
         type(json_core), intent(inout) :: core
@@ -384,7 +392,7 @@ contains
         class(ast_node), allocatable :: return_type
         integer :: line, column
         logical :: found
-        
+
         ! Get properties
         call core%get(json_obj, 'name', name, found)
         if (.not. found) name = 'unknown'
@@ -392,34 +400,34 @@ contains
         if (.not. found) line = 1
         call core%get(json_obj, 'column', column, found)
         if (.not. found) column = 1
-        
+
         ! Get parameters
         call core%get(json_obj, 'params', params_array, found)
         if (found) then
             params = json_to_ast_array(core, params_array)
         else
-            allocate(params(0))
+            allocate (params(0))
         end if
-        
+
         ! Get return type
         call core%get(json_obj, 'return_type', return_type_obj, found)
         if (found) then
             return_type = json_to_ast_node(core, return_type_obj)
         end if
-        
+
         ! Get body
         call core%get(json_obj, 'body', body_array, found)
         if (found) then
             body = json_to_ast_array(core, body_array)
         else
-            allocate(body(0))
+            allocate (body(0))
         end if
-        
+
         ! Create node
         node = create_function_def(name, params, return_type, body, line, column)
-        
+
     end function json_to_function_def_node
-    
+
     ! Convert JSON to function call node
     function json_to_function_call_node(core, json_obj) result(node)
         type(json_core), intent(inout) :: core
@@ -430,7 +438,7 @@ contains
         type(ast_node_wrapper), allocatable :: args(:)
         integer :: line, column
         logical :: found
-        
+
         ! Get properties
         call core%get(json_obj, 'name', name, found)
         if (.not. found) name = 'unknown'
@@ -438,20 +446,20 @@ contains
         if (.not. found) line = 1
         call core%get(json_obj, 'column', column, found)
         if (.not. found) column = 1
-        
+
         ! Get arguments
         call core%get(json_obj, 'args', args_array, found)
         if (found) then
             args = json_to_ast_array(core, args_array)
         else
-            allocate(args(0))
+            allocate (args(0))
         end if
-        
+
         ! Create node
         node = create_function_call(name, args, line, column)
-        
+
     end function json_to_function_call_node
-    
+
     ! Convert JSON to use statement node
     function json_to_use_statement_node(core, json_obj) result(node)
         type(json_core), intent(inout) :: core
@@ -462,7 +470,7 @@ contains
         type(json_value), pointer :: only_array
         integer :: line, column, i, n_only
         logical :: found
-        
+
         ! Get properties
         call core%get(json_obj, 'module_name', module_name, found)
         if (.not. found) module_name = 'unknown'
@@ -470,12 +478,12 @@ contains
         if (.not. found) line = 1
         call core%get(json_obj, 'column', column, found)
         if (.not. found) column = 1
-        
+
         ! Get only list
         call core%get(json_obj, 'only_list', only_array, found)
         if (found) then
             call core%info(only_array, n_children=n_only)
-            allocate(character(len=50) :: only_list(n_only))
+            allocate (character(len=50) :: only_list(n_only))
             do i = 1, n_only
                 block
                     type(json_value), pointer :: item
@@ -486,12 +494,12 @@ contains
                 end block
             end do
         end if
-        
+
         ! Create node
         node = create_use_statement(module_name, only_list, line, column)
-        
+
     end function json_to_use_statement_node
-    
+
     ! Convert JSON to print statement node
     function json_to_print_statement_node(core, json_obj) result(node)
         type(json_core), intent(inout) :: core
@@ -502,7 +510,7 @@ contains
         type(ast_node_wrapper), allocatable :: args(:)
         integer :: line, column
         logical :: found
-        
+
         ! Get properties
         call core%get(json_obj, 'format_spec', format_spec, found)
         if (.not. found) format_spec = '*'
@@ -510,20 +518,20 @@ contains
         if (.not. found) line = 1
         call core%get(json_obj, 'column', column, found)
         if (.not. found) column = 1
-        
+
         ! Get arguments
         call core%get(json_obj, 'args', args_array, found)
         if (found) then
             args = json_to_ast_array(core, args_array)
         else
-            allocate(args(0))
+            allocate (args(0))
         end if
-        
+
         ! Create node
         node = create_print_statement(args, format_spec, line, column)
-        
+
     end function json_to_print_statement_node
-    
+
     ! Convert JSON array to AST node wrapper array
     function json_to_ast_array(core, json_array) result(array)
         type(json_core), intent(inout) :: core
@@ -531,37 +539,37 @@ contains
         type(ast_node_wrapper), allocatable :: array(:)
         integer :: i, n_elements
         type(json_value), pointer :: element
-        
+
         ! Get array size
         call core%info(json_array, n_children=n_elements)
-        allocate(array(n_elements))
-        
+        allocate (array(n_elements))
+
         ! Process each element
         do i = 1, n_elements
             call core%get_child(json_array, i, element)
-            allocate(array(i)%node, source=json_to_ast_node(core, element))
+            allocate (array(i)%node, source=json_to_ast_node(core, element))
         end do
-        
+
     end function json_to_ast_array
-    
+
     ! Read semantic analysis result from JSON file
     subroutine json_read_semantic_from_file(filename, ast, sem_ctx)
         character(len=*), intent(in) :: filename
         class(ast_node), allocatable, intent(out) :: ast
         type(semantic_context_t), intent(out) :: sem_ctx
         type(json_file) :: json
-        
+
         ! Load JSON file
         call json%load(filename=filename)
-        
+
         ! Convert JSON to semantic analysis result
         call json_to_semantic(json, ast, sem_ctx)
-        
+
         ! Clean up
         call json%destroy()
-        
+
     end subroutine json_read_semantic_from_file
-    
+
     ! Convert JSON to semantic analysis result (AST + context)
     subroutine json_to_semantic(json, ast, sem_ctx)
         type(json_file), intent(inout) :: json
@@ -570,13 +578,13 @@ contains
         type(json_core) :: core
         type(json_value), pointer :: root, ast_obj
         logical :: found
-        
+
         ! Get root object
         call json%get(root)
-        
+
         ! Initialize semantic context
         sem_ctx = create_semantic_context()
-        
+
         ! Get annotated AST from JSON
         call core%get(root, 'annotated_ast', ast_obj, found)
         if (found) then
@@ -585,11 +593,11 @@ contains
             ! Fallback: try to get regular AST and reconstruct type info
             ast = json_to_ast_node(core, root)
         end if
-        
+
         ! Type environment reconstruction is handled by the type inference metadata
         ! already stored in the AST nodes (inferred_type, inferred_type_name)
         ! The semantic context will be rebuilt when needed during further processing
-        
+
     end subroutine json_to_semantic
-    
+
 end module json_reader
