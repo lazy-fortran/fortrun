@@ -2,10 +2,10 @@ module codegen_core
     use ast_core
     implicit none
     private
-    
+
     ! Public interface for code generation
     public :: generate_code, generate_code_polymorphic
-    
+
     ! Generic interface for all AST node types
     interface generate_code
         module procedure generate_code_literal
@@ -26,12 +26,11 @@ module codegen_core
 
 contains
 
-
     ! Generate code for literal node
     function generate_code_literal(node) result(code)
         type(literal_node), intent(in) :: node
         character(len=:), allocatable :: code
-        
+
         ! Return the literal value with proper formatting
         select case (node%literal_kind)
         case (LITERAL_STRING)
@@ -40,7 +39,7 @@ contains
                 code = ""  ! Skip empty literals (parser placeholders)
             else if (len(node%value) > 0 .and. node%value(1:1) /= '"' .and. &
                      node%value(1:1) /= "'") then
-                code = '"' // node%value // '"'
+                code = '"'//node%value//'"'
             else
                 code = node%value
             end if
@@ -48,7 +47,7 @@ contains
             ! For real literals, ensure double precision by adding 'd0' suffix if needed
             if (index(node%value, 'd') == 0 .and. index(node%value, 'D') == 0 .and. &
                 index(node%value, '_') == 0) then
-                code = node%value // "d0"
+                code = node%value//"d0"
             else
                 code = node%value
             end if
@@ -66,7 +65,7 @@ contains
     function generate_code_identifier(node) result(code)
         type(identifier_node), intent(in) :: node
         character(len=:), allocatable :: code
-        
+
         ! Simply return the identifier name
         code = node%name
     end function generate_code_identifier
@@ -76,7 +75,7 @@ contains
         type(assignment_node), intent(in) :: node
         character(len=:), allocatable :: code
         character(len=:), allocatable :: target_code, value_code
-        
+
         ! Generate code for target and value
         select type (target => node%target)
         type is (identifier_node)
@@ -84,7 +83,7 @@ contains
         class default
             target_code = "???"
         end select
-        
+
         select type (value => node%value)
         type is (literal_node)
             value_code = generate_code_literal(value)
@@ -97,9 +96,9 @@ contains
         class default
             value_code = "???"
         end select
-        
+
         ! Combine with assignment operator
-        code = target_code // " = " // value_code
+        code = target_code//" = "//value_code
     end function generate_code_assignment
 
     ! Generate code for binary operation node
@@ -107,7 +106,7 @@ contains
         type(binary_op_node), intent(in) :: node
         character(len=:), allocatable :: code
         character(len=:), allocatable :: left_code, right_code
-        
+
         ! Generate code for left and right operands
         select type (left => node%left)
         type is (literal_node)
@@ -121,7 +120,7 @@ contains
         class default
             left_code = "???"
         end select
-        
+
         select type (right => node%right)
         type is (literal_node)
             right_code = generate_code_literal(right)
@@ -134,9 +133,9 @@ contains
         class default
             right_code = "???"
         end select
-        
+
         ! Combine with operator
-        code = left_code // " " // node%operator // " " // right_code
+        code = left_code//" "//node%operator//" "//right_code
     end function generate_code_binary_op
 
     ! Generate code for program node
@@ -146,37 +145,37 @@ contains
         integer :: i
         character(len=:), allocatable :: function_interfaces
         logical :: has_functions, has_contains
-        
+
         ! Start with program declaration
-        code = "program " // node%name // new_line('a')
-        
+        code = "program "//node%name//new_line('a')
+
         ! Generate use statements first (must come before implicit none)
         if (allocated(node%body)) then
             do i = 1, size(node%body)
                 select type (stmt => node%body(i)%node)
                 type is (use_statement_node)
-                    code = code // "    " // generate_code(stmt) // new_line('a')
+                    code = code//"    "//generate_code(stmt)//new_line('a')
                 end select
             end do
         end if
-        
-        code = code // "    implicit none" // new_line('a')
-        
+
+        code = code//"    implicit none"//new_line('a')
+
         ! Add variable declarations based on type inference
         block
             character(len=:), allocatable :: var_declarations
             var_declarations = analyze_for_variable_declarations(node)
             if (len_trim(var_declarations) > 0) then
-                code = code // var_declarations // new_line('a')
+                code = code//var_declarations//new_line('a')
             end if
         end block
-        
+
         ! STAGE 2 WORKAROUND: Disable interface generation completely to avoid conflicts
         ! Interface blocks are not needed for internal functions
         function_interfaces = ""
         has_functions = .false.
         has_contains = .false.
-        
+
         ! Generate code for each statement in the body
         if (allocated(node%body)) then
             do i = 1, size(node%body)
@@ -184,23 +183,27 @@ contains
                 type is (use_statement_node)
                     ! Skip - already generated before implicit none
                 type is (assignment_node)
-                    code = code // "    " // generate_code(stmt) // new_line('a')
+                    code = code//"    "//generate_code(stmt)//new_line('a')
                 type is (function_def_node)
                     if (.not. has_contains) then
-                        code = code // "contains" // new_line('a')
+                        code = code//"contains"//new_line('a')
                         has_contains = .true.
                     end if
-                    code = code // "    " // generate_code(stmt) // new_line('a')
+                    code = code//generate_code(stmt)//new_line('a')
                 class default
                     ! Use polymorphic dispatcher for other types
-                    code = code // "    " // generate_code_polymorphic(stmt) // &
-                           new_line('a')
+                    block
+                        character(len=:), allocatable :: stmt_code
+                        stmt_code = generate_code_polymorphic(stmt)
+                        if (len_trim(stmt_code) > 0) then
+                            code = code//"    "//stmt_code//new_line('a')
+                        end if
+                    end block
                 end select
             end do
         end if
-        
         ! End program
-        code = code // "end program " // node%name
+        code = code//"end program "//node%name
     end function generate_code_program
 
     ! Generate code for function definition
@@ -208,11 +211,11 @@ contains
         type(function_def_node), intent(in) :: node
         character(len=:), allocatable :: code
         integer :: i
-        
+
         ! Start function declaration with return type if present
         block
             character(len=:), allocatable :: return_type_str
-            
+
             ! Get return type string
             if (allocated(node%return_type)) then
                 select type (ret_type => node%return_type)
@@ -233,27 +236,27 @@ contains
             else
                 return_type_str = "real(8)"  ! Default
             end if
-            
+
             ! STAGE 2 ENHANCEMENT: Enhanced function signature generation
             ! Generate function declaration with enhanced signature
-            code = return_type_str // " function " // node%name // "("
-            
+            code = "    "//return_type_str//" function "//node%name//"("
+
             ! Add parameters if present
             if (allocated(node%params)) then
                 do i = 1, size(node%params)
-                    if (i > 1) code = code // ", "
+                    if (i > 1) code = code//", "
                     select type (param => node%params(i)%node)
                     type is (identifier_node)
-                        code = code // param%name
+                        code = code//param%name
                     class default
-                        code = code // "param" // char(i + ichar('0'))
+                        code = code//"param"//char(i + ichar('0'))
                     end select
                 end do
             end if
-            
-            code = code // ")" // new_line('a')
-            code = code // "    implicit none" // new_line('a')
-            
+
+            code = code//")"//new_line('a')
+            code = code//"    implicit none"//new_line('a')
+
             ! STAGE 2 ENHANCEMENT: Enhanced parameter declarations with intent(in)
             if (allocated(node%params)) then
                 ! Combine parameters of the same type onto one line
@@ -262,31 +265,31 @@ contains
                     integer :: param_count
                     param_count = 0
                     param_names = ""
-                    
+
                     do i = 1, size(node%params)
                         select type (param => node%params(i)%node)
                         type is (identifier_node)
                             param_count = param_count + 1
                             if (param_count > 1) then
-                                param_names = param_names // ", "
+                                param_names = param_names//", "
                             end if
-                            param_names = param_names // param%name
+                            param_names = param_names//param%name
                         end select
                     end do
-                    
+
                     if (param_count > 0) then
-                        code = code // "    " // return_type_str // &
-                               ", intent(in) :: " // param_names // new_line('a')
+                        code = code//"    "//return_type_str// &
+                               ", intent(in) :: "//param_names//new_line('a')
                     end if
                 end block
             end if
-            
+
             ! STAGE 2 FIX: Don't redeclare function name when already in signature
             ! Function return type is already specified in the signature
             ! code = code // "    " // return_type_str // " :: " // &
             !        node%name // new_line('a')
         end block
-        
+
         ! Add function body
         if (allocated(node%body)) then
             do i = 1, size(node%body)
@@ -294,7 +297,7 @@ contains
                     character(len=:), allocatable :: body_code
                     logical :: skip_statement
                     skip_statement = .false.
-                    
+
                     ! Check if this is a declaration for a parameter
                     select type (stmt => node%body(i)%node)
                     type is (declaration_node)
@@ -314,29 +317,28 @@ contains
                             end block
                         end if
                     end select
-                    
+
                     if (.not. skip_statement) then
                         body_code = generate_code_polymorphic(node%body(i)%node)
                         ! Skip empty or placeholder statements
                         if (len_trim(body_code) > 0 .and. &
                             body_code /= "! Function body statement") then
-                            code = code // "    " // body_code // new_line('a')
+                            code = code//"    "//body_code//new_line('a')
                         end if
                     end if
                 end block
             end do
         end if
-        
         ! End function
-        code = code // "end function " // node%name
+        code = code//"end function "//node%name
     end function generate_code_function_def
 
     ! Generate code for subroutine definition
     function generate_code_subroutine_def(node) result(code)
         type(subroutine_def_node), intent(in) :: node
         character(len=:), allocatable :: code
-        
-        code = "subroutine " // node%name // "()"
+
+        code = "subroutine "//node%name//"()"
     end function generate_code_subroutine_def
 
     ! Generate code for function call
@@ -345,38 +347,38 @@ contains
         character(len=:), allocatable :: code
         character(len=:), allocatable :: args_code
         integer :: i
-        
-        code = node%name // "("
-        
+
+        code = node%name//"("
+
         ! Generate arguments
         if (allocated(node%args)) then
             do i = 1, size(node%args)
-                if (i > 1) code = code // ", "
-                
+                if (i > 1) code = code//", "
+
                 select type (arg => node%args(i)%node)
                 type is (literal_node)
-                    code = code // generate_code_literal(arg)
+                    code = code//generate_code_literal(arg)
                 type is (identifier_node)
-                    code = code // generate_code_identifier(arg)
+                    code = code//generate_code_identifier(arg)
                 type is (binary_op_node)
-                    code = code // generate_code_binary_op(arg)
+                    code = code//generate_code_binary_op(arg)
                 type is (function_call_node)
-                    code = code // generate_code_function_call(arg)
+                    code = code//generate_code_function_call(arg)
                 class default
-                    code = code // "?"
+                    code = code//"?"
                 end select
             end do
         end if
-        
-        code = code // ")"
+
+        code = code//")"
     end function generate_code_function_call
 
     ! Generate code for use statement
     function generate_code_use_statement(node) result(code)
         type(use_statement_node), intent(in) :: node
         character(len=:), allocatable :: code
-        
-        code = "use " // node%module_name
+
+        code = "use "//node%module_name
     end function generate_code_use_statement
 
     ! Generate code for print statement
@@ -385,62 +387,62 @@ contains
         character(len=:), allocatable :: code
         character(len=:), allocatable :: args_code
         integer :: i
-        
+
         ! Start with format spec
         if (allocated(node%format_spec) .and. len_trim(node%format_spec) > 0) then
-            code = "print " // node%format_spec
+            code = "print "//node%format_spec
         else
             code = "print *"
         end if
-        
+
         ! Add arguments if present
         if (allocated(node%args) .and. size(node%args) > 0) then
-            code = code // ", "
+            code = code//", "
             do i = 1, size(node%args)
-                if (i > 1) code = code // ", "
-                
+                if (i > 1) code = code//", "
+
                 select type (arg => node%args(i)%node)
                 type is (literal_node)
-                    code = code // generate_code_literal(arg)
+                    code = code//generate_code_literal(arg)
                 type is (identifier_node)
-                    code = code // generate_code_identifier(arg)
+                    code = code//generate_code_identifier(arg)
                 type is (binary_op_node)
-                    code = code // generate_code_binary_op(arg)
+                    code = code//generate_code_binary_op(arg)
                 type is (function_call_node)
-                    code = code // generate_code_function_call(arg)
+                    code = code//generate_code_function_call(arg)
                 class default
-                    code = code // "?"
+                    code = code//"?"
                 end select
             end do
         end if
     end function generate_code_print_statement
-    
+
     ! Generate code for declaration node
     function generate_code_declaration(node) result(code)
         type(declaration_node), intent(in) :: node
         character(len=:), allocatable :: code
-        
+
         ! Generate type declaration
         code = node%type_name
-        
+
         ! Add kind if specified
         if (node%has_kind) then
             block
                 character(len=10) :: kind_str
-                write(kind_str, '(I0)') node%kind_value
-                code = code // "(" // trim(adjustl(kind_str)) // ")"
+                write (kind_str, '(I0)') node%kind_value
+                code = code//"("//trim(adjustl(kind_str))//")"
             end block
         else if (node%type_name == "real") then
             ! Default to real(8) for lazy fortran
-            code = code // "(8)"
+            code = code//"(8)"
         end if
-        
+
         ! Add variable name
-        code = code // " :: " // node%var_name
-        
+        code = code//" :: "//node%var_name
+
         ! Add initialization if present
         if (allocated(node%initializer)) then
-            code = code // " = " // generate_code_polymorphic(node%initializer)
+            code = code//" = "//generate_code_polymorphic(node%initializer)
         end if
     end function generate_code_declaration
 
@@ -448,12 +450,11 @@ contains
 
     ! generate_code_lf_assignment removed - core assignment_node now has type inference
 
-
     ! Polymorphic dispatcher for class(ast_node)
     function generate_code_polymorphic(node) result(code)
         class(ast_node), intent(in) :: node
         character(len=:), allocatable :: code
-        
+
         select type (node)
         type is (literal_node)
             code = generate_code_literal(node)
@@ -471,7 +472,7 @@ contains
             code = generate_code_function_def(node)
         type is (subroutine_def_node)
             code = generate_code_subroutine_def(node)
-        ! lf_program_node now handled by program_node case through inheritance
+            ! lf_program_node now handled by program_node case through inheritance
         type is (print_statement_node)
             code = generate_code_print_statement(node)
         type is (use_statement_node)
@@ -494,83 +495,83 @@ contains
     recursive function analyze_for_function_calls(stmt) result(interface_code)
         type(assignment_node), intent(in) :: stmt
         character(len=:), allocatable :: interface_code
-        
+
         interface_code = ""
-        
+
         ! Check the value side of assignment for function calls
         select type (value => stmt%value)
         type is (function_call_node)
             ! Generate interface for this function call
-            interface_code = "        function " // value%name // "("
+            interface_code = "        function "//value%name//"("
             if (allocated(value%args) .and. size(value%args) > 0) then
-                interface_code = interface_code // "x"  ! Simplified parameter
+                interface_code = interface_code//"x"  ! Simplified parameter
             end if
-            interface_code = interface_code // ")" // new_line('a')
-            interface_code = interface_code // "            real(8) :: " // &
-                           value%name // new_line('a')
-            interface_code = interface_code // &
-                           "            real(8), intent(in) :: x" // new_line('a')
-            interface_code = interface_code // "        end function " // value%name
+            interface_code = interface_code//")"//new_line('a')
+            interface_code = interface_code//"            real(8) :: "// &
+                             value%name//new_line('a')
+            interface_code = interface_code// &
+                             "            real(8), intent(in) :: x"//new_line('a')
+            interface_code = interface_code//"        end function "//value%name
         type is (binary_op_node)
             ! Recursively check binary operations for function calls
             interface_code = analyze_binary_op_for_functions(value)
         end select
-        
+
     end function analyze_for_function_calls
-    
+
     ! Recursively analyze binary operations for function calls
     recursive function analyze_binary_op_for_functions(binop) result(interface_code)
         type(binary_op_node), intent(in) :: binop
         character(len=:), allocatable :: interface_code
-        
+
         interface_code = ""
-        
+
         ! Check left operand
         select type (left => binop%left)
         type is (function_call_node)
-            interface_code = "        function " // left%name // "("
+            interface_code = "        function "//left%name//"("
             if (allocated(left%args) .and. size(left%args) > 0) then
-                interface_code = interface_code // "x"
+                interface_code = interface_code//"x"
             end if
-            interface_code = interface_code // ")" // new_line('a')
-            interface_code = interface_code // "            real(8) :: " // &
-                           left%name // new_line('a')
-            interface_code = interface_code // &
-                           "            real(8), intent(in) :: x" // new_line('a')
-            interface_code = interface_code // "        end function " // left%name
+            interface_code = interface_code//")"//new_line('a')
+            interface_code = interface_code//"            real(8) :: "// &
+                             left%name//new_line('a')
+            interface_code = interface_code// &
+                             "            real(8), intent(in) :: x"//new_line('a')
+            interface_code = interface_code//"        end function "//left%name
         type is (binary_op_node)
-            interface_code = interface_code // analyze_binary_op_for_functions(left)
+            interface_code = interface_code//analyze_binary_op_for_functions(left)
         end select
-        
+
         ! Check right operand
         select type (right => binop%right)
         type is (function_call_node)
             if (len_trim(interface_code) > 0) then
-                interface_code = interface_code // new_line('a')
+                interface_code = interface_code//new_line('a')
             end if
-            interface_code = interface_code // "        function " // right%name // "("
+            interface_code = interface_code//"        function "//right%name//"("
             if (allocated(right%args) .and. size(right%args) > 0) then
-                interface_code = interface_code // "x"
+                interface_code = interface_code//"x"
             end if
-            interface_code = interface_code // ")" // new_line('a')
-            interface_code = interface_code // "            real(8) :: " // &
-                           right%name // new_line('a')
-            interface_code = interface_code // &
-                           "            real(8), intent(in) :: x" // new_line('a')
-            interface_code = interface_code // "        end function " // right%name
+            interface_code = interface_code//")"//new_line('a')
+            interface_code = interface_code//"            real(8) :: "// &
+                             right%name//new_line('a')
+            interface_code = interface_code// &
+                             "            real(8), intent(in) :: x"//new_line('a')
+            interface_code = interface_code//"        end function "//right%name
         type is (binary_op_node)
             block
                 character(len=:), allocatable :: right_interface
                 right_interface = analyze_binary_op_for_functions(right)
                 if (len_trim(right_interface) > 0) then
                     if (len_trim(interface_code) > 0) then
-                interface_code = interface_code // new_line('a')
-            end if
-                    interface_code = interface_code // right_interface
+                        interface_code = interface_code//new_line('a')
+                    end if
+                    interface_code = interface_code//right_interface
                 end if
             end block
         end select
-        
+
     end function analyze_binary_op_for_functions
 
     ! Analyze program for variable declarations needed with enhanced type inference
@@ -580,28 +581,28 @@ contains
         character(len=:), allocatable :: var_list
         character(len=64), allocatable :: var_names(:), var_types(:)
         integer :: i, var_count
-        
+
         declarations = ""
         var_list = ""
-        allocate(var_names(100))
-        allocate(var_types(100)) 
+        allocate (var_names(100))
+        allocate (var_types(100))
         var_count = 0
-        
+
         ! STAGE 2 ENHANCEMENT: Advanced type inference for step1 tests
         ! Pass 1: Find all function definitions to build function type map
         block
             character(len=64), allocatable :: func_names(:), func_types(:)
             integer :: func_count
-            allocate(func_names(20))
-            allocate(func_types(20))
+            allocate (func_names(20))
+            allocate (func_types(20))
             func_count = 0
-            
+
             do i = 1, size(prog%body)
                 select type (stmt => prog%body(i)%node)
                 type is (function_def_node)
                     func_count = func_count + 1
                     func_names(func_count) = stmt%name
-                    
+
                     ! Enhanced function return type inference
                     if (allocated(stmt%return_type)) then
                         select type (ret_type => stmt%return_type)
@@ -619,7 +620,7 @@ contains
                     end if
                 end select
             end do
-            
+
             ! Pass 2: Analyze assignments with function call type propagation
             do i = 1, size(prog%body)
                 select type (stmt => prog%body(i)%node)
@@ -628,16 +629,16 @@ contains
                     select type (target => stmt%target)
                     type is (identifier_node)
                         if (index(var_list, target%name) == 0) then
-                            if (len_trim(var_list) > 0) var_list = var_list // ","
-                            var_list = var_list // target%name
+                            if (len_trim(var_list) > 0) var_list = var_list//","
+                            var_list = var_list//target%name
                             var_count = var_count + 1
                             var_names(var_count) = target%name
-                            
+
                             ! Enhanced type inference
                             block
                                 character(len=:), allocatable :: var_type
                                 var_type = "real(8)"  ! Default
-                                
+
                                 ! Check assignment value for type hints
                                 select type (value => stmt%value)
                                 type is (literal_node)
@@ -669,9 +670,9 @@ contains
                                 type is (binary_op_node)
                                     ! Binary operations - analyze operands
                                     var_type = infer_binary_op_type(value, func_names, &
-                                                     func_types, func_count)
+                                                                 func_types, func_count)
                                 end select
-                                
+
                                 var_types(var_count) = var_type
                             end block
                         end if
@@ -688,7 +689,7 @@ contains
                                 exit
                             end if
                         end do
-                        
+
                         if (.not. already_declared) then
                             var_count = var_count + 1
                             var_names(var_count) = stmt%var_name
@@ -715,38 +716,38 @@ contains
                                                 integer :: j
                                                 already_declared = .false.
                                                 do j = 1, var_count
-                                                    if (var_names(j) == target%name) then
+                                                   if (var_names(j) == target%name) then
                                                         already_declared = .true.
                                                         exit
                                                     end if
                                                 end do
-                                                
+
                                                 if (.not. already_declared) then
                                                     var_count = var_count + 1
                                                     var_names(var_count) = target%name
-                                                    
+
                                                     ! Enhanced type inference for do while body variables
                                                     block
-                                                        character(len=:), allocatable :: var_type
+                                               character(len=:), allocatable :: var_type
                                                         var_type = "real(8)"  ! Default
-                                                        
-                                                        select type (value => body_stmt%value)
+
+                                                  select type (value => body_stmt%value)
                                                         type is (literal_node)
-                                                            if (value%literal_kind == LITERAL_INTEGER) then
+                                         if (value%literal_kind == LITERAL_INTEGER) then
                                                                 var_type = "integer"
-                                                            else if (value%literal_kind == LITERAL_REAL) then
+                                       else if (value%literal_kind == LITERAL_REAL) then
                                                                 var_type = "real(8)"
-                                                            else if (value%literal_kind == LITERAL_STRING) then
-                                                                var_type = "character(len=256)"
-                                                            else if (value%literal_kind == LITERAL_LOGICAL) then
+                                     else if (value%literal_kind == LITERAL_STRING) then
+                                                         var_type = "character(len=256)"
+                                    else if (value%literal_kind == LITERAL_LOGICAL) then
                                                                 var_type = "logical"
                                                             end if
                                                         type is (binary_op_node)
                                                             ! For binary operations, infer based on operands
-                                                            var_type = infer_binary_op_type(value, func_names, &
-                                                     func_types, func_count)
+                                    var_type = infer_binary_op_type(value, func_names, &
+                                                                 func_types, func_count)
                                                         end select
-                                                        
+
                                                         var_types(var_count) = var_type
                                                     end block
                                                 end if
@@ -760,13 +761,13 @@ contains
                 end select
             end do
         end block
-        
+
         ! Generate declarations
         do i = 1, var_count
-            declarations = declarations // "    " // trim(var_types(i)) // " :: " // &
-                         trim(var_names(i)) // new_line('a')
+            declarations = declarations//"    "//trim(var_types(i))//" :: "// &
+                           trim(var_names(i))//new_line('a')
         end do
-        
+
     end function analyze_for_variable_declarations
 
     ! Helper function to infer type of binary operations
@@ -778,7 +779,7 @@ contains
         character(len=:), allocatable :: result_type
         character(len=:), allocatable :: left_type, right_type
         integer :: j
-        
+
         ! Analyze left operand
         select type (left => binop%left)
         type is (literal_node)
@@ -804,7 +805,7 @@ contains
         class default
             left_type = "real(8)"
         end select
-        
+
         ! Analyze right operand
         select type (right => binop%right)
         type is (literal_node)
@@ -830,7 +831,7 @@ contains
         class default
             right_type = "real(8)"
         end select
-        
+
         ! Combine types based on operation
         select case (trim(binop%operator))
         case ("+", "-", "*", "/", "**")
@@ -853,7 +854,7 @@ contains
         character(len=:), allocatable :: code
         character(len=:), allocatable :: start_code, end_code, step_code, body_code
         integer :: i
-        
+
         ! Generate code for loop bounds
         select type (start => node%start_expr)
         type is (literal_node)
@@ -863,7 +864,7 @@ contains
         class default
             start_code = "1"
         end select
-        
+
         select type (end => node%end_expr)
         type is (literal_node)
             end_code = generate_code_literal(end)
@@ -872,7 +873,7 @@ contains
         class default
             end_code = "10"
         end select
-        
+
         ! Generate step if present
         if (allocated(node%step_expr)) then
             select type (step => node%step_expr)
@@ -886,29 +887,29 @@ contains
         else
             step_code = ""
         end if
-        
+
         ! Generate body
         body_code = ""
         if (allocated(node%body)) then
             do i = 1, size(node%body)
                 if (allocated(node%body(i)%node)) then
-                    body_code = body_code // "    " // &
-                              generate_code_polymorphic(node%body(i)%node) // &
-                              new_line('a')
+                    body_code = body_code//"    "// &
+                                generate_code_polymorphic(node%body(i)%node)// &
+                                new_line('a')
                 end if
             end do
         end if
-        
+
         ! Construct do loop
         if (len_trim(step_code) > 0) then
-            code = "do " // node%var_name // " = " // start_code // ", " // end_code // &
-                   ", " // step_code // new_line('a') // &
-                   body_code // &
+            code = "do "//node%var_name//" = "//start_code//", "//end_code// &
+                   ", "//step_code//new_line('a')// &
+                   body_code// &
                    "end do"
         else
-            code = "do " // node%var_name // " = " // start_code // ", " // &
-                   end_code // new_line('a') // &
-                   body_code // &
+            code = "do "//node%var_name//" = "//start_code//", "// &
+                   end_code//new_line('a')// &
+                   body_code// &
                    "end do"
         end if
     end function generate_code_do_loop
@@ -919,25 +920,25 @@ contains
         character(len=:), allocatable :: code
         character(len=:), allocatable :: condition_code, body_code
         integer :: i
-        
+
         ! Generate condition code
         condition_code = generate_code_polymorphic(node%condition)
-        
+
         ! Generate body code
         body_code = ""
         if (allocated(node%body)) then
             do i = 1, size(node%body)
                 if (allocated(node%body(i)%node)) then
-                    body_code = body_code // "    " // &
-                              generate_code_polymorphic(node%body(i)%node) // &
-                              new_line('a')
+                    body_code = body_code//"    "// &
+                                generate_code_polymorphic(node%body(i)%node)// &
+                                new_line('a')
                 end if
             end do
         end if
-        
+
         ! Construct do while loop
-        code = "do while (" // condition_code // ")" // new_line('a') // &
-               body_code // &
+        code = "do while ("//condition_code//")"//new_line('a')// &
+               body_code// &
                "end do"
     end function generate_code_do_while
 
@@ -947,7 +948,7 @@ contains
         character(len=:), allocatable :: code
         character(len=:), allocatable :: expr_code, cases_code
         integer :: i, j
-        
+
         ! Generate expression code
         select type (expr => node%expr)
         type is (literal_node)
@@ -957,58 +958,58 @@ contains
         class default
             expr_code = "expr"
         end select
-        
+
         ! Generate cases
         cases_code = ""
         if (allocated(node%cases)) then
             do i = 1, size(node%cases)
                 if (node%cases(i)%case_type == "case_default") then
-                    cases_code = cases_code // "case default" // new_line('a')
+                    cases_code = cases_code//"case default"//new_line('a')
                 else
                     ! Generate case value
                     if (allocated(node%cases(i)%value)) then
                         select type (val => node%cases(i)%value)
                         type is (literal_node)
-                            cases_code = cases_code // "case (" // &
-                                       generate_code_literal(val) // ")" // new_line('a')
+                            cases_code = cases_code//"case ("// &
+                                         generate_code_literal(val)//")"//new_line('a')
                         type is (identifier_node)
-                            cases_code = cases_code // "case (" // &
-                                       generate_code_identifier(val) // ")" // new_line('a')
+                            cases_code = cases_code//"case ("// &
+                                       generate_code_identifier(val)//")"//new_line('a')
                         type is (binary_op_node)
                             ! Handle range syntax (2:5)
                             if (val%operator == ":") then
-                                cases_code = cases_code // "case (" // &
-                                           generate_code_polymorphic(val%left) // ":" // &
-                                           generate_code_polymorphic(val%right) // ")" // &
-                                           new_line('a')
+                                cases_code = cases_code//"case ("// &
+                                            generate_code_polymorphic(val%left)//":"// &
+                                           generate_code_polymorphic(val%right)//")"// &
+                                             new_line('a')
                             else
-                                cases_code = cases_code // "case (" // &
-                                           generate_code_binary_op(val) // ")" // new_line('a')
+                                cases_code = cases_code//"case ("// &
+                                        generate_code_binary_op(val)//")"//new_line('a')
                             end if
                         class default
-                            cases_code = cases_code // "case (default)" // new_line('a')
+                            cases_code = cases_code//"case (default)"//new_line('a')
                         end select
                     else
-                        cases_code = cases_code // "case default" // new_line('a')
+                        cases_code = cases_code//"case default"//new_line('a')
                     end if
                 end if
-                
+
                 ! Generate case body
                 if (allocated(node%cases(i)%body)) then
                     do j = 1, size(node%cases(i)%body)
                         if (allocated(node%cases(i)%body(j)%node)) then
-                            cases_code = cases_code // "    " // &
-                                       generate_code_polymorphic(node%cases(i)%body(j)%node) // &
-                                       new_line('a')
+                            cases_code = cases_code//"    "// &
+                               generate_code_polymorphic(node%cases(i)%body(j)%node)// &
+                                         new_line('a')
                         end if
                     end do
                 end if
             end do
         end if
-        
+
         ! Construct select case
-        code = "select case (" // expr_code // ")" // new_line('a') // &
-               cases_code // &
+        code = "select case ("//expr_code//")"//new_line('a')// &
+               cases_code// &
                "end select"
     end function generate_code_select_case
 
