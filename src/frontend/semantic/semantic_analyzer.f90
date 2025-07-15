@@ -176,6 +176,8 @@ contains
         case (LITERAL_STRING)
             ! Calculate string length (subtract 2 for quotes)
             typ = create_mono_type(TCHAR, char_size=len_trim(lit%value)-2)
+        case (LITERAL_LOGICAL)
+            typ = create_mono_type(TINT)  ! Boolean as integer
         case default
             error stop "Unknown literal kind"
         end select

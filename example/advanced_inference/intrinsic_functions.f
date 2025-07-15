@@ -10,7 +10,9 @@ angle = sin(x)           ! real(8) - from intrinsic sin
 length = len_trim(text)  ! integer - from intrinsic len_trim  
 value = sqrt(number)     ! real(8) - from intrinsic sqrt
 cosine = cos(angle)      ! real(8) - from intrinsic cos
-absolute = abs(-5.5)     ! real(8) - from intrinsic abs
+! WORKAROUND: Basic codegen can't handle negative literals in function calls
+neg_val = -5.5
+absolute = abs(neg_val)  ! real(8) - from intrinsic abs
 
 print *, 'X:', x
 print *, 'Text:', text
