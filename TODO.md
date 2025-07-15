@@ -158,10 +158,10 @@
    - Test now passes with proper package name output
 
 ### P0.5 (REMAINING CRITICAL):
-1. [ ] Debug control_flow_simple.f segfault
-   - Segfault occurs when running the full file
-   - Individual components (select case, if-else, do loops) work in isolation
-   - Need to identify which combination causes the crash
+1. [x] Debug control_flow_simple.f segfault ✅
+   - Root cause: do while loops are not implemented in parser
+   - Added temporary workaround to prevent segfault
+   - do while loops now need proper implementation
 
 ### P1 (THIS WEEK - AFTER FIXES):
 1. [ ] Start Stage 2 - Module parsing support
