@@ -604,7 +604,7 @@ contains
                                 select type (value => stmt%value)
                                 type is (literal_node)
                                     if (value%literal_kind == LITERAL_INTEGER) then
-                                        var_type = "integer(4)"  ! STAGE 2: Match test expectations
+                                        var_type = "integer"  ! Use simple integer type
                                     else if (value%literal_kind == LITERAL_REAL) then
                                         var_type = "real(8)"
                                     else if (value%literal_kind == LITERAL_STRING) then
@@ -660,7 +660,7 @@ contains
         select type (left => binop%left)
         type is (literal_node)
             if (left%literal_kind == LITERAL_INTEGER) then
-                left_type = "integer(4)"
+                left_type = "integer"
             else if (left%literal_kind == LITERAL_REAL) then
                 left_type = "real(8)"
             else
@@ -686,7 +686,7 @@ contains
         select type (right => binop%right)
         type is (literal_node)
             if (right%literal_kind == LITERAL_INTEGER) then
-                right_type = "integer(4)"
+                right_type = "integer"
             else if (right%literal_kind == LITERAL_REAL) then
                 right_type = "real(8)"
             else
@@ -712,8 +712,8 @@ contains
         select case (trim(binop%operator))
         case ("+", "-", "*", "/", "**")
             ! Mixed integer/real operations result in real
-            if (trim(left_type) == "integer(4)" .and. trim(right_type) == "integer(4)") then
-                result_type = "integer(4)"
+            if (trim(left_type) == "integer" .and. trim(right_type) == "integer") then
+                result_type = "integer"
             else
                 result_type = "real(8)"
             end if
