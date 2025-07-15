@@ -1,5 +1,6 @@
 program test_type_inference_integration
   use iso_fortran_env, only: error_unit
+  use temp_utils, only: temp_dir_manager
   implicit none
   
   integer :: test_count, pass_count
@@ -28,15 +29,19 @@ contains
   subroutine test_basic_type_inference_integration(test_count, pass_count)
     integer, intent(inout) :: test_count, pass_count
     
-    character(len=256) :: temp_input, temp_output, error_msg
+    character(len=:), allocatable :: temp_input, temp_output
+    character(len=256) :: error_msg
     character(len=1024) :: line, expected_lines(20)
     integer :: unit, ios, line_count, i
     logical :: found_declarations
+    type(temp_dir_manager) :: temp_mgr
     
     write(*, '(a)') 'Test 1: Basic type inference integration'
     
-    ! Create a temporary .f file
-    temp_input = '/tmp/test_basic_types.f'
+    ! Create temporary directory and .f file
+    call temp_mgr%create('test_basic_types')
+    temp_input = temp_mgr%get_file_path('test_basic_types.f')
+    temp_output = temp_mgr%get_file_path('test_basic_types.f90')
     
     open(newunit=unit, file=temp_input, status='replace', action='write')
     write(unit, '(a)') '! Test basic type inference'
@@ -55,7 +60,6 @@ contains
     
     ! Test preprocessing
     test_count = test_count + 1
-    temp_output = '/tmp/test_basic_types.f90'
     call test_standardize_file(temp_input, temp_output, error_msg, expected_lines, 4, found_declarations)
     
     if (len_trim(error_msg) == 0 .and. found_declarations) then
@@ -68,24 +72,26 @@ contains
       end if
     end if
     
-    ! Clean up
-    call execute_command_line('rm -f ' // trim(temp_input))
-    call execute_command_line('rm -f ' // trim(temp_output))
+    ! Cleanup is automatic via temp_mgr finalizer
     
   end subroutine test_basic_type_inference_integration
   
   subroutine test_arithmetic_expressions_integration(test_count, pass_count)
     integer, intent(inout) :: test_count, pass_count
     
-    character(len=256) :: temp_input, temp_output, error_msg
+    character(len=:), allocatable :: temp_input, temp_output
+    character(len=256) :: error_msg
     character(len=1024) :: expected_lines(20)
     integer :: unit
     logical :: found_declarations
+    type(temp_dir_manager) :: temp_mgr
     
     write(*, '(a)') 'Test 2: Arithmetic expressions integration'
     
-    ! Create a temporary .f file with arithmetic
-    temp_input = '/tmp/test_arithmetic.f'
+    ! Create temporary directory and .f file
+    call temp_mgr%create('test_arithmetic')
+    temp_input = temp_mgr%get_file_path('test_arithmetic.f')
+    temp_output = temp_mgr%get_file_path('test_arithmetic.f90')
     
     open(newunit=unit, file=temp_input, status='replace', action='write')
     write(unit, '(a)') '! Test arithmetic expression inference'
@@ -108,7 +114,6 @@ contains
     
     ! Test preprocessing
     test_count = test_count + 1
-    temp_output = '/tmp/test_arithmetic.f90'
     call test_standardize_file(temp_input, temp_output, error_msg, expected_lines, 6, found_declarations)
     
     if (len_trim(error_msg) == 0 .and. found_declarations) then
@@ -121,24 +126,26 @@ contains
       end if
     end if
     
-    ! Clean up
-    call execute_command_line('rm -f ' // trim(temp_input))
-    call execute_command_line('rm -f ' // trim(temp_output))
+    ! Cleanup is automatic via temp_mgr finalizer
     
   end subroutine test_arithmetic_expressions_integration
   
   subroutine test_mixed_types_integration(test_count, pass_count)
     integer, intent(inout) :: test_count, pass_count
     
-    character(len=256) :: temp_input, temp_output, error_msg
+    character(len=:), allocatable :: temp_input, temp_output
+    character(len=256) :: error_msg
     character(len=1024) :: expected_lines(20)
     integer :: unit
     logical :: found_declarations
+    type(temp_dir_manager) :: temp_mgr
     
     write(*, '(a)') 'Test 3: Mixed type expressions integration'
     
     ! Create a temporary .f file with mixed types
-    temp_input = '/tmp/test_mixed.f'
+    call temp_mgr%create('test_mixed')
+    temp_input = temp_mgr%get_file_path('test_mixed.f')
+    temp_output = temp_mgr%get_file_path('test_mixed.f90')
     
     open(newunit=unit, file=temp_input, status='replace', action='write')
     write(unit, '(a)') '! Test mixed type inference and promotion'
@@ -155,7 +162,6 @@ contains
     
     ! Test preprocessing
     test_count = test_count + 1
-    temp_output = '/tmp/test_mixed.f90'
     call test_standardize_file(temp_input, temp_output, error_msg, expected_lines, 3, found_declarations)
     
     if (len_trim(error_msg) == 0 .and. found_declarations) then
@@ -168,24 +174,26 @@ contains
       end if
     end if
     
-    ! Clean up
-    call execute_command_line('rm -f ' // trim(temp_input))
-    call execute_command_line('rm -f ' // trim(temp_output))
+    ! Cleanup is automatic via temp_mgr finalizer
     
   end subroutine test_mixed_types_integration
   
   subroutine test_intrinsic_functions_integration(test_count, pass_count)
     integer, intent(inout) :: test_count, pass_count
     
-    character(len=256) :: temp_input, temp_output, error_msg
+    character(len=:), allocatable :: temp_input, temp_output
+    character(len=256) :: error_msg
     character(len=1024) :: expected_lines(20)
     integer :: unit
     logical :: found_declarations
+    type(temp_dir_manager) :: temp_mgr
     
     write(*, '(a)') 'Test 4: Intrinsic functions integration'
     
     ! Create a temporary .f file with intrinsic functions
-    temp_input = '/tmp/test_intrinsics.f'
+    call temp_mgr%create('test_intrinsics')
+    temp_input = temp_mgr%get_file_path('test_intrinsics.f')
+    temp_output = temp_mgr%get_file_path('test_intrinsics.f90')
     
     open(newunit=unit, file=temp_input, status='replace', action='write')
     write(unit, '(a)') '! Test intrinsic function inference'
@@ -204,7 +212,6 @@ contains
     
     ! Test preprocessing
     test_count = test_count + 1
-    temp_output = '/tmp/test_intrinsics.f90'
     call test_standardize_file(temp_input, temp_output, error_msg, expected_lines, 4, found_declarations)
     
     if (len_trim(error_msg) == 0 .and. found_declarations) then
@@ -217,24 +224,26 @@ contains
       end if
     end if
     
-    ! Clean up
-    call execute_command_line('rm -f ' // trim(temp_input))
-    call execute_command_line('rm -f ' // trim(temp_output))
+    ! Cleanup is automatic via temp_mgr finalizer
     
   end subroutine test_intrinsic_functions_integration
   
   subroutine test_print_statement_filtering(test_count, pass_count)
     integer, intent(inout) :: test_count, pass_count
     
-    character(len=256) :: temp_input, temp_output, error_msg
+    character(len=:), allocatable :: temp_input, temp_output
+    character(len=256) :: error_msg
     character(len=1024) :: line
     integer :: unit, ios
     logical :: found_invalid_decl
+    type(temp_dir_manager) :: temp_mgr
     
     write(*, '(a)') 'Test 5: Print statement filtering'
     
     ! Create a temporary .f file with print statements containing =
-    temp_input = '/tmp/test_print_filter.f'
+    call temp_mgr%create('test_print_filter')
+    temp_input = temp_mgr%get_file_path('test_print_filter.f')
+    temp_output = temp_mgr%get_file_path('test_print_filter.f90')
     
     open(newunit=unit, file=temp_input, status='replace', action='write')
     write(unit, '(a)') '! Test that print statements are not treated as assignments'
@@ -246,7 +255,6 @@ contains
     
     ! Test preprocessing
     test_count = test_count + 1
-    temp_output = '/tmp/test_print_filter.f90'
     call standardize_file_wrapper(temp_input, temp_output, error_msg)
     
     if (len_trim(error_msg) == 0) then
@@ -281,9 +289,7 @@ contains
       write(*, '(a)') '    Error: ' // trim(error_msg)
     end if
     
-    ! Clean up
-    call execute_command_line('rm -f ' // trim(temp_input))
-    call execute_command_line('rm -f ' // trim(temp_output))
+    ! Cleanup is automatic via temp_mgr finalizer
     
   end subroutine test_print_statement_filtering
   
