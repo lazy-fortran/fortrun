@@ -1,5 +1,6 @@
 program test_runner_comprehensive
   use runner, only: run_fortran_file
+  use temp_utils, only: temp_dir_manager
   implicit none
   
   logical :: all_tests_passed
@@ -84,13 +85,16 @@ contains
   function test_invalid_extension() result(passed)
     logical :: passed
     integer :: exit_code
-    character(len=256) :: test_file
+    character(len=:), allocatable :: test_file
     integer :: unit
+    type(temp_dir_manager) :: temp_dir
     
     print *, "Test 2: Invalid file extension"
     
-    ! Create a test file with invalid extension
-    test_file = '/tmp/test_invalid.txt'
+    ! Create temporary directory and invalid extension file
+    call temp_dir%create('test_invalid_ext')
+    test_file = temp_dir%get_file_path('test_invalid.txt')
+    
     open(newunit=unit, file=test_file)
     write(unit, '(a)') 'program test'
     write(unit, '(a)') 'print *, "hello"'
@@ -99,8 +103,7 @@ contains
     
     call run_fortran_file(test_file, exit_code, 0, '', '', 0, .false.)
     
-    ! Clean up
-    call execute_command_line('rm -f ' // trim(test_file))
+    ! Cleanup is automatic via temp_dir finalizer
     
     if (exit_code == 1) then
       print *, "  PASS: Invalid extension error handled correctly"
@@ -115,13 +118,16 @@ contains
   function test_basic_f90_execution() result(passed)
     logical :: passed
     integer :: exit_code
-    character(len=256) :: test_file
+    character(len=:), allocatable :: test_file
     integer :: unit
+    type(temp_dir_manager) :: temp_dir
     
     print *, "Test 3: Basic .f90 file execution"
     
-    ! Create a simple test file
-    test_file = '/tmp/test_basic.f90'
+    ! Create temporary directory and file
+    call temp_dir%create('test_basic_f90')
+    test_file = temp_dir%get_file_path('test_basic.f90')
+    
     open(newunit=unit, file=test_file)
     write(unit, '(a)') 'program test_basic'
     write(unit, '(a)') '  implicit none'
@@ -131,8 +137,7 @@ contains
     
     call run_fortran_file(test_file, exit_code, 0, '', '', 0, .false.)
     
-    ! Clean up
-    call execute_command_line('rm -f ' // trim(test_file))
+    ! Cleanup is automatic via temp_dir finalizer
     
     if (exit_code == 0) then
       print *, "  PASS: Basic .f90 execution successful"
@@ -147,13 +152,16 @@ contains
   function test_f_file_preprocessing() result(passed)
     logical :: passed
     integer :: exit_code
-    character(len=256) :: test_file
+    character(len=:), allocatable :: test_file
     integer :: unit
+    type(temp_dir_manager) :: temp_dir
     
     print *, "Test 4: .f file preprocessing"
     
-    ! Create a .f file that needs preprocessing
-    test_file = '/tmp/test_preprocess.f'
+    ! Create temporary directory and .f file
+    call temp_dir%create('test_preprocess')
+    test_file = temp_dir%get_file_path('test_preprocess.f')
+    
     open(newunit=unit, file=test_file)
     write(unit, '(a)') 'x = 42'
     write(unit, '(a)') 'print *, x'
@@ -161,9 +169,7 @@ contains
     
     call run_fortran_file(test_file, exit_code, 1, '', '', 0, .false.)
     
-    ! Clean up
-    call execute_command_line('rm -f ' // trim(test_file))
-    call execute_command_line('rm -f ' // trim(test_file) // '90') ! Remove preprocessed file
+    ! Cleanup is automatic via temp_dir finalizer
     
     if (exit_code == 0) then
       print *, "  PASS: .f file preprocessing successful"
@@ -178,14 +184,18 @@ contains
   function test_cache_hit() result(passed)
     logical :: passed
     integer :: exit_code
-    character(len=256) :: test_file, cache_dir
+    character(len=:), allocatable :: test_file, cache_dir
     integer :: unit
+    type(temp_dir_manager) :: temp_dir, cache_temp_dir
     
     print *, "Test 5: Cache hit scenario"
     
-    ! Create test file and cache directory
-    test_file = '/tmp/test_cache_hit.f90'
-    cache_dir = '/tmp/test_runner_cache'
+    ! Create temporary directories for test file and cache
+    call temp_dir%create('test_cache_hit')
+    call cache_temp_dir%create('test_runner_cache')
+    
+    test_file = temp_dir%get_file_path('test_cache_hit.f90')
+    cache_dir = cache_temp_dir%path
     
     open(newunit=unit, file=test_file)
     write(unit, '(a)') 'program test_cache'
@@ -206,9 +216,7 @@ contains
     ! Second run (should be cache hit)
     call run_fortran_file(test_file, exit_code, 1, cache_dir, '', 0, .false.)
     
-    ! Clean up
-    call execute_command_line('rm -f ' // trim(test_file))
-    call execute_command_line('rm -rf ' // trim(cache_dir))
+    ! Cleanup is automatic via temp_dir finalizers
     
     if (exit_code == 0) then
       print *, "  PASS: Cache hit scenario successful"
@@ -223,13 +231,16 @@ contains
   function test_verbose_modes() result(passed)
     logical :: passed
     integer :: exit_code
-    character(len=256) :: test_file
+    character(len=:), allocatable :: test_file
     integer :: unit
+    type(temp_dir_manager) :: temp_dir
     
     print *, "Test 6: Verbose modes"
     
-    ! Create test file
-    test_file = '/tmp/test_verbose.f90'
+    ! Create temporary directory and file
+    call temp_dir%create('test_verbose')
+    test_file = temp_dir%get_file_path('test_verbose.f90')
+    
     open(newunit=unit, file=test_file)
     write(unit, '(a)') 'program test_verbose'
     write(unit, '(a)') '  implicit none'
@@ -256,8 +267,7 @@ contains
     ! Test verbose level 2 (very verbose)
     call run_fortran_file(test_file, exit_code, 2, '', '', 0, .false.)
     
-    ! Clean up
-    call execute_command_line('rm -f ' // trim(test_file))
+    ! Cleanup is automatic via temp_dir finalizer
     
     if (exit_code == 0) then
       print *, "  PASS: All verbose modes successful"
@@ -272,14 +282,18 @@ contains
   function test_custom_cache_dir() result(passed)
     logical :: passed
     integer :: exit_code
-    character(len=256) :: test_file, custom_cache
+    character(len=:), allocatable :: test_file, custom_cache
     integer :: unit
+    type(temp_dir_manager) :: temp_dir, cache_temp_dir
     
     print *, "Test 7: Custom cache directory"
     
-    ! Create test file and custom cache directory
-    test_file = '/tmp/test_custom_cache.f90'
-    custom_cache = '/tmp/my_custom_cache'
+    ! Create temporary directories for test file and custom cache
+    call temp_dir%create('test_custom_cache')
+    call cache_temp_dir%create('my_custom_cache')
+    
+    test_file = temp_dir%get_file_path('test_custom_cache.f90')
+    custom_cache = cache_temp_dir%path
     
     open(newunit=unit, file=test_file)
     write(unit, '(a)') 'program test_custom'
@@ -290,9 +304,7 @@ contains
     
     call run_fortran_file(test_file, exit_code, 1, custom_cache, '', 0, .false.)
     
-    ! Clean up
-    call execute_command_line('rm -f ' // trim(test_file))
-    call execute_command_line('rm -rf ' // trim(custom_cache))
+    ! Cleanup is automatic via temp_dir finalizers
     
     if (exit_code == 0) then
       print *, "  PASS: Custom cache directory successful"
@@ -307,17 +319,18 @@ contains
   function test_custom_config_dir() result(passed)
     logical :: passed
     integer :: exit_code
-    character(len=256) :: test_file, custom_config
+    character(len=:), allocatable :: test_file, custom_config
     integer :: unit
+    type(temp_dir_manager) :: temp_dir, config_temp_dir
     
     print *, "Test 8: Custom config directory"
     
-    ! Create test file and custom config directory
-    test_file = '/tmp/test_custom_config.f90'
-    custom_config = '/tmp/my_custom_config'
+    ! Create temporary directories for test file and custom config
+    call temp_dir%create('test_custom_config')
+    call config_temp_dir%create('my_custom_config')
     
-    ! Ensure custom config directory exists
-    call execute_command_line('mkdir -p ' // trim(custom_config))
+    test_file = temp_dir%get_file_path('test_custom_config.f90')
+    custom_config = config_temp_dir%path
     
     open(newunit=unit, file=test_file)
     write(unit, '(a)') 'program test_config'
@@ -328,9 +341,7 @@ contains
     
     call run_fortran_file(test_file, exit_code, 1, '', custom_config, 0, .false.)
     
-    ! Clean up
-    call execute_command_line('rm -f ' // trim(test_file))
-    call execute_command_line('rm -rf ' // trim(custom_config))
+    ! Cleanup is automatic via temp_dir finalizers
     
     if (exit_code == 0) then
       print *, "  PASS: Custom config directory successful"
@@ -345,13 +356,16 @@ contains
   function test_parallel_jobs() result(passed)
     logical :: passed
     integer :: exit_code
-    character(len=256) :: test_file
+    character(len=:), allocatable :: test_file
     integer :: unit
+    type(temp_dir_manager) :: temp_dir
     
     print *, "Test 9: Parallel jobs flag"
     
-    ! Create test file
-    test_file = '/tmp/test_parallel.f90'
+    ! Create temporary directory and file
+    call temp_dir%create('test_parallel')
+    test_file = temp_dir%get_file_path('test_parallel.f90')
+    
     open(newunit=unit, file=test_file)
     write(unit, '(a)') 'program test_parallel'
     write(unit, '(a)') '  implicit none'
@@ -362,8 +376,7 @@ contains
     ! Test with parallel jobs (should show warning about unsupported feature)
     call run_fortran_file(test_file, exit_code, 1, '', '', 4, .false.)
     
-    ! Clean up
-    call execute_command_line('rm -f ' // trim(test_file))
+    ! Cleanup is automatic via temp_dir finalizer
     
     if (exit_code == 0) then
       print *, "  PASS: Parallel jobs flag handling successful"
@@ -378,13 +391,16 @@ contains
   function test_no_wait_locking() result(passed)
     logical :: passed
     integer :: exit_code
-    character(len=256) :: test_file
+    character(len=:), allocatable :: test_file
     integer :: unit
+    type(temp_dir_manager) :: temp_dir
     
     print *, "Test 10: No-wait locking"
     
-    ! Create test file
-    test_file = '/tmp/test_no_wait.f90'
+    ! Create temporary directory and file
+    call temp_dir%create('test_no_wait')
+    test_file = temp_dir%get_file_path('test_no_wait.f90')
+    
     open(newunit=unit, file=test_file)
     write(unit, '(a)') 'program test_no_wait'
     write(unit, '(a)') '  implicit none'
@@ -395,8 +411,7 @@ contains
     ! Test with no-wait flag
     call run_fortran_file(test_file, exit_code, 1, '', '', 0, .true.)
     
-    ! Clean up
-    call execute_command_line('rm -f ' // trim(test_file))
+    ! Cleanup is automatic via temp_dir finalizer
     
     if (exit_code == 0) then
       print *, "  PASS: No-wait locking successful"
@@ -411,17 +426,17 @@ contains
   function test_local_modules() result(passed)
     logical :: passed
     integer :: exit_code
-    character(len=256) :: test_file, module_file, test_dir
+    character(len=:), allocatable :: test_file, module_file
     integer :: unit
+    type(temp_dir_manager) :: temp_dir
     
     print *, "Test 11: Local modules"
     
-    ! Create test directory and files
-    test_dir = '/tmp/test_local_modules'
-    call execute_command_line('mkdir -p ' // trim(test_dir))
+    ! Create temporary directory for test files
+    call temp_dir%create('test_local_modules')
     
     ! Create a local module
-    module_file = trim(test_dir) // '/my_module.f90'
+    module_file = temp_dir%get_file_path('my_module.f90')
     open(newunit=unit, file=module_file)
     write(unit, '(a)') 'module my_module'
     write(unit, '(a)') '  implicit none'
@@ -434,7 +449,7 @@ contains
     close(unit)
     
     ! Create main file that uses the module
-    test_file = trim(test_dir) // '/main.f90'
+    test_file = temp_dir%get_file_path('main.f90')
     open(newunit=unit, file=test_file)
     write(unit, '(a)') 'program test_modules'
     write(unit, '(a)') '  use my_module'
@@ -445,8 +460,7 @@ contains
     
     call run_fortran_file(test_file, exit_code, 1, '', '', 0, .false.)
     
-    ! Clean up
-    call execute_command_line('rm -rf ' // trim(test_dir))
+    ! Cleanup is automatic via temp_dir finalizer
     
     if (exit_code == 0) then
       print *, "  PASS: Local modules handling successful"
@@ -461,13 +475,16 @@ contains
   function test_error_paths() result(passed)
     logical :: passed
     integer :: exit_code
-    character(len=256) :: test_file
+    character(len=:), allocatable :: test_file
     integer :: unit
+    type(temp_dir_manager) :: temp_dir
     
     print *, "Test 12: Error handling paths"
     
-    ! Create a file with compilation errors
-    test_file = '/tmp/test_error.f90'
+    ! Create temporary directory and file with compilation errors
+    call temp_dir%create('test_error')
+    test_file = temp_dir%get_file_path('test_error.f90')
+    
     open(newunit=unit, file=test_file)
     write(unit, '(a)') 'program test_error'
     write(unit, '(a)') '  implicit none'
@@ -490,8 +507,7 @@ contains
     ! Test error handling in verbose mode
     call run_fortran_file(test_file, exit_code, 1, '', '', 0, .false.)
     
-    ! Clean up
-    call execute_command_line('rm -f ' // trim(test_file))
+    ! Cleanup is automatic via temp_dir finalizer
     
     if (exit_code /= 0) then
       print *, "  PASS: Error handling paths successful"
