@@ -2,10 +2,10 @@ module parser_core
     use lexer_core
     use ast_core, only: ast_node, ast_node_wrapper, assignment_node, binary_op_node, identifier_node, &
                          literal_node, function_call_node, function_def_node, print_statement_node, &
-                         use_statement_node, declaration_node, do_loop_node, select_case_node, case_wrapper, &
+                         use_statement_node, declaration_node, do_loop_node, do_while_node, select_case_node, case_wrapper, &
                          create_assignment, create_binary_op, create_identifier, &
                          create_literal, create_function_call, create_function_def, create_print_statement, &
-                         create_use_statement, create_declaration, create_do_loop, create_select_case, &
+                         create_use_statement, create_declaration, create_do_loop, create_do_while, create_select_case, &
                          LITERAL_INTEGER, LITERAL_REAL, LITERAL_STRING, LITERAL_LOGICAL
     implicit none
     private
@@ -24,7 +24,7 @@ module parser_core
     ! Public parsing interface
     public :: parse_expression, parse_statement
     public :: create_parser_state, parse_primary, parse_function_definition
-    public :: parse_do_loop, parse_select_case
+    public :: parse_do_loop, parse_do_while, parse_select_case
 
 contains
 
@@ -875,10 +875,11 @@ contains
         line = do_token%line
         column = do_token%column
         
-        ! Check if it's a do while loop (not supported yet)
+        ! Check if it's a do while loop
         var_token = parser%peek()
         if (var_token%kind == TK_KEYWORD .and. var_token%text == "while") then
-            ! Return empty node for do while (not implemented)
+            ! Parse as do while loop
+            loop_node = parse_do_while_from_do(parser, line, column)
             return
         end if
         
@@ -1135,5 +1136,135 @@ contains
         end block
         
     end function parse_select_case
+
+    ! Parse do while loop (from 'do while')
+    function parse_do_while(parser) result(loop_node)
+        type(parser_state_t), intent(inout) :: parser
+        class(ast_node), allocatable :: loop_node
+        
+        type(token_t) :: do_token
+        integer :: line, column
+        
+        ! Consume 'do'
+        do_token = parser%consume()
+        line = do_token%line
+        column = do_token%column
+        
+        loop_node = parse_do_while_from_do(parser, line, column)
+    end function parse_do_while
+    
+    ! Parse do while loop after 'do' has been consumed
+    function parse_do_while_from_do(parser, line, column) result(loop_node)
+        type(parser_state_t), intent(inout) :: parser
+        integer, intent(in) :: line, column
+        class(ast_node), allocatable :: loop_node
+        
+        type(token_t) :: while_token, lparen_token, rparen_token
+        class(ast_node), allocatable :: condition
+        
+        ! Consume 'while'
+        while_token = parser%consume()
+        if (while_token%kind /= TK_KEYWORD .or. while_token%text /= "while") then
+            ! Error: expected 'while'
+            return
+        end if
+        
+        ! Expect '('
+        lparen_token = parser%consume()
+        if (lparen_token%kind /= TK_OPERATOR .or. lparen_token%text /= "(") then
+            ! Error: expected '('
+            return
+        end if
+        
+        ! Parse condition
+        condition = parse_comparison(parser)
+        
+        ! Expect ')'
+        rparen_token = parser%consume()
+        if (rparen_token%kind /= TK_OPERATOR .or. rparen_token%text /= ")") then
+            ! Error: expected ')'
+            return
+        end if
+        
+        ! Parse body statements until 'end do'
+        block
+            type(ast_node_wrapper), allocatable :: body_statements(:), temp_body(:)
+            class(ast_node), allocatable :: stmt
+            integer :: body_count, stmt_start, stmt_end, j
+            type(token_t), allocatable :: stmt_tokens(:)
+            type(do_while_node), allocatable :: while_node
+            
+            body_count = 0
+            
+            ! Parse body statements
+            do while (parser%current_token <= size(parser%tokens))
+                ! Check for 'end do'
+                block
+                    type(token_t) :: current_token
+                    current_token = parser%peek()
+                    
+                    if (current_token%kind == TK_KEYWORD .and. current_token%text == "end") then
+                        if (parser%current_token + 1 <= size(parser%tokens)) then
+                            if (parser%tokens(parser%current_token + 1)%kind == TK_KEYWORD .and. &
+                                parser%tokens(parser%current_token + 1)%text == "do") then
+                                ! Found 'end do', consume both tokens and exit
+                                while_token = parser%consume()  ! consume 'end'
+                                while_token = parser%consume()  ! consume 'do'
+                                exit
+                            end if
+                        end if
+                    end if
+                end block
+                
+                ! Parse a statement
+                stmt_start = parser%current_token
+                stmt_end = stmt_start
+                
+                ! Find end of statement (next line or EOF)
+                do j = stmt_start, size(parser%tokens)
+                    if (j > stmt_start .and. parser%tokens(j)%line > parser%tokens(stmt_start)%line) exit
+                    if (parser%tokens(j)%kind == TK_EOF) exit
+                    stmt_end = j
+                end do
+                
+                if (stmt_end >= stmt_start) then
+                    allocate(stmt_tokens(stmt_end - stmt_start + 2))
+                    stmt_tokens(1:stmt_end - stmt_start + 1) = parser%tokens(stmt_start:stmt_end)
+                    stmt_tokens(stmt_end - stmt_start + 2)%kind = TK_EOF
+                    stmt_tokens(stmt_end - stmt_start + 2)%text = ""
+                    
+                    stmt = parse_statement(stmt_tokens)
+                    
+                    if (allocated(stmt)) then
+                        if (body_count == 0) then
+                            allocate(body_statements(1))
+                        else
+                            allocate(temp_body(body_count))
+                            temp_body = body_statements(1:body_count)
+                            deallocate(body_statements)
+                            allocate(body_statements(body_count + 1))
+                            body_statements(1:body_count) = temp_body
+                            deallocate(temp_body)
+                        end if
+                        body_count = body_count + 1
+                        allocate(body_statements(body_count)%node, source=stmt)
+                    end if
+                    
+                    deallocate(stmt_tokens)
+                end if
+                
+                parser%current_token = stmt_end + 1
+            end do
+            
+            ! Create do while node
+            allocate(while_node)
+            ! TODO: Pass body statements properly
+            while_node = create_do_while(condition, line=line, column=column)
+            allocate(loop_node, source=while_node)
+            
+            if (allocated(body_statements)) deallocate(body_statements)
+        end block
+        
+    end function parse_do_while_from_do
 
 end module parser_core

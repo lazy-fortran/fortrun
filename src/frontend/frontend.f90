@@ -5,7 +5,7 @@ module frontend
     
     use lexer_core, only: token_t, tokenize_core, TK_EOF, TK_KEYWORD
     use parser_core, only: parse_expression, parse_statement, parser_state_t, create_parser_state, &
-                           parse_function_definition, parse_do_loop, parse_select_case
+                           parse_function_definition, parse_do_loop, parse_do_while, parse_select_case
     use ast_core
     use semantic_analyzer, only: semantic_context_t, create_semantic_context, analyze_program
     use codegen_core, only: generate_code, generate_code_polymorphic
@@ -27,7 +27,7 @@ module frontend
     public :: BACKEND_FORTRAN, BACKEND_LLVM, BACKEND_C
     ! Debug functions for unit testing
     public :: find_program_unit_boundary, is_function_start, is_end_function, parse_program_unit
-    public :: is_do_loop_start, is_select_case_start, is_end_do, is_end_select
+    public :: is_do_loop_start, is_do_while_start, is_select_case_start, is_end_do, is_end_select
     
     ! Backend target enumeration
     integer, parameter :: BACKEND_FORTRAN = 1  ! Standard Fortran (current IR)
@@ -364,6 +364,9 @@ contains
             else if (is_module_start(tokens, start_pos)) then
                 in_module = .true.
                 nesting_level = 1
+            else if (is_do_while_start(tokens, start_pos)) then
+                in_do_loop = .true.
+                nesting_level = 1
             else if (is_do_loop_start(tokens, start_pos)) then
                 in_do_loop = .true.
                 nesting_level = 1
@@ -468,6 +471,10 @@ contains
         else if (is_module_start(tokens, 1)) then
             ! Multi-line module definition - fallback to statement parser for now
             unit = parse_statement(tokens)
+        else if (is_do_while_start(tokens, 1)) then
+            ! Multi-line do while loop - use proper parser
+            parser = create_parser_state(tokens)
+            unit = parse_do_while(parser)
         else if (is_do_loop_start(tokens, 1)) then
             ! Multi-line do loop - use proper parser
             parser = create_parser_state(tokens)
@@ -692,10 +699,10 @@ contains
         is_do_loop_start = .false.
         if (pos <= size(tokens)) then
             if (tokens(pos)%kind == TK_KEYWORD .and. tokens(pos)%text == "do") then
-                ! Check if it's a do while (not supported yet)
+                ! Regular do loop (not do while)
                 if (pos + 1 <= size(tokens)) then
                     if (tokens(pos + 1)%kind == TK_KEYWORD .and. tokens(pos + 1)%text == "while") then
-                        is_do_loop_start = .false.
+                        is_do_loop_start = .false.  ! It's a do while, not a regular do loop
                     else
                         is_do_loop_start = .true.
                     end if
@@ -705,6 +712,20 @@ contains
             end if
         end if
     end function is_do_loop_start
+
+    ! Check if token sequence starts a do while loop
+    logical function is_do_while_start(tokens, pos)
+        type(token_t), intent(in) :: tokens(:)
+        integer, intent(in) :: pos
+        
+        is_do_while_start = .false.
+        if (pos <= size(tokens) - 1) then
+            if (tokens(pos)%kind == TK_KEYWORD .and. tokens(pos)%text == "do" .and. &
+                tokens(pos + 1)%kind == TK_KEYWORD .and. tokens(pos + 1)%text == "while") then
+                is_do_while_start = .true.
+            end if
+        end if
+    end function is_do_while_start
 
     ! Check if token sequence starts a select case
     logical function is_select_case_start(tokens, pos)
