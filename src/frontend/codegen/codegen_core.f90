@@ -680,6 +680,64 @@ contains
                             ! Variable already declared, skipping
                         end if
                     end block
+                type is (do_while_node)
+                    ! Analyze variables in do while loop body
+                    if (allocated(stmt%body)) then
+                        block
+                            integer :: k
+                            do k = 1, size(stmt%body)
+                                if (allocated(stmt%body(k)%node)) then
+                                    select type (body_stmt => stmt%body(k)%node)
+                                    type is (assignment_node)
+                                        ! Handle assignment in do while body
+                                        select type (target => body_stmt%target)
+                                        type is (identifier_node)
+                                            block
+                                                logical :: already_declared
+                                                integer :: j
+                                                already_declared = .false.
+                                                do j = 1, var_count
+                                                    if (var_names(j) == target%name) then
+                                                        already_declared = .true.
+                                                        exit
+                                                    end if
+                                                end do
+                                                
+                                                if (.not. already_declared) then
+                                                    var_count = var_count + 1
+                                                    var_names(var_count) = target%name
+                                                    
+                                                    ! Enhanced type inference for do while body variables
+                                                    block
+                                                        character(len=:), allocatable :: var_type
+                                                        var_type = "real(8)"  ! Default
+                                                        
+                                                        select type (value => body_stmt%value)
+                                                        type is (literal_node)
+                                                            if (value%literal_kind == LITERAL_INTEGER) then
+                                                                var_type = "integer"
+                                                            else if (value%literal_kind == LITERAL_REAL) then
+                                                                var_type = "real(8)"
+                                                            else if (value%literal_kind == LITERAL_STRING) then
+                                                                var_type = "character(len=256)"
+                                                            else if (value%literal_kind == LITERAL_LOGICAL) then
+                                                                var_type = "logical"
+                                                            end if
+                                                        type is (binary_op_node)
+                                                            ! For binary operations, infer based on operands
+                                                            var_type = infer_binary_op_type(value, func_names, func_types, func_count)
+                                                        end select
+                                                        
+                                                        var_types(var_count) = var_type
+                                                    end block
+                                                end if
+                                            end block
+                                        end select
+                                    end select
+                                end if
+                            end do
+                        end block
+                    end if
                 end select
             end do
         end block
