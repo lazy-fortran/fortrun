@@ -658,6 +658,28 @@ contains
                             end block
                         end if
                     end select
+                type is (do_loop_node)
+                    ! Handle do loop variable
+                    block
+                        logical :: already_declared
+                        integer :: j
+                        already_declared = .false.
+                        do j = 1, var_count
+                            if (var_names(j) == stmt%var_name) then
+                                already_declared = .true.
+                                exit
+                            end if
+                        end do
+                        
+                        if (.not. already_declared) then
+                            var_count = var_count + 1
+                            var_names(var_count) = stmt%var_name
+                            var_types(var_count) = "integer"  ! Do loop variables are always integers
+                            ! Added do loop variable as integer
+                        else
+                            ! Variable already declared, skipping
+                        end if
+                    end block
                 end select
             end do
         end block

@@ -1,36 +1,33 @@
 # Current Test Failures
 
-## 1. control_flow_simple.f - COMPILATION ERROR (Exit code 1)
+## 1. control_flow_simple.f - PARTIAL SUCCESS (Exit code 1)
 
 **File**: `example/notebook/control_flow_simple.f`
 
-**Error**: 
-```
-Error: Symbol 'i' at (1) has no IMPLICIT type
-```
+**Status Update**: 
+- ✅ **DO LOOP FIXED** - do loop variables now properly declared
+- ✅ **SEGFAULT FIXED** - do while loops no longer cause segmentation faults
+- ✅ **DO LOOP PARSING** - do loops correctly parsed as do_loop_node
+- ✅ **VARIABLE DECLARATION** - loop variable 'i' now declared as integer
+- ⚠️ **PARTIAL FAILURE** - other constructs may still have issues
 
-**Root Cause**: 
-- The file contains `do i = 1, 5` loops where the loop variable 'i' is not declared
-- In lazy fortran dialect, type inference should handle loop variables automatically  
-- The type inference system doesn't recognize loop variables from do loops
+**Fixed Issues**:
+- Do loop variable declaration: `integer :: i` is now generated
+- Do loop execution: properly prints "Count: 1", "Count: 2", etc.
+- Parse do loops as proper AST nodes instead of "unknown"
 
-**Status**: 
-- ✅ SEGFAULT FIXED - do while loops no longer cause segmentation faults
-- ✅ DO WHILE PARSING IMPLEMENTED - basic do while loop parsing is working
-- ⚠️ TYPE INFERENCE ISSUE - loop variables not being inferred/declared
+**Remaining Issues**:
+- Test still fails (exit code 1) but do loops work correctly
+- May be related to do while loops or select case statements
+- Need further investigation of other language constructs
 
-**Fix Required**:
-- Ensure the do loop is properly parsed as a do_loop_node (not "unknown")
-- The declaration generator already handles do_loop_node variables
-- Need to debug why do loops are not being parsed correctly
-
-**Test Case**:
+**Successful Test Case**:
 ```fortran
 do i = 1, 5
     print *, i
 end do
 ```
-Should generate:
+Now generates:
 ```fortran
 program main
     implicit none
@@ -40,3 +37,8 @@ program main
     end do
 end program main
 ```
+
+**Next Steps**:
+- Investigate remaining compilation issues in control_flow_simple.f
+- Check do while loops and select case statements
+- Test other complex language constructs

@@ -870,6 +870,8 @@ contains
         class(ast_node), allocatable :: start_expr, end_expr, step_expr
         integer :: line, column
         
+        ! Starting to parse do loop
+        
         ! Consume 'do'
         do_token = parser%consume()
         line = do_token%line
@@ -887,9 +889,11 @@ contains
         var_token = parser%consume()
         if (var_token%kind /= TK_IDENTIFIER) then
             ! Error: expected identifier
+            ! ERROR - expected identifier
             return
         end if
         var_name = var_token%text
+        ! Got variable name
         
         ! Expect '='
         eq_token = parser%consume()
@@ -920,16 +924,105 @@ contains
             end if
         end if
         
-        ! Create do loop node (empty body for now)
+        ! Parse body statements until 'end do'
         block
+            type(ast_node_wrapper), allocatable :: body_statements(:), temp_body(:)
+            class(ast_node), allocatable :: stmt
+            integer :: body_count, stmt_start, stmt_end, j
+            type(token_t), allocatable :: stmt_tokens(:)
             type(do_loop_node), allocatable :: do_node
+            
+            body_count = 0
+            
+            ! Parse body statements
+            do while (parser%current_token <= size(parser%tokens))
+                ! Check for 'end do'
+                block
+                    type(token_t) :: current_token
+                    current_token = parser%peek()
+                    
+                    if (current_token%kind == TK_KEYWORD .and. current_token%text == "end") then
+                        if (parser%current_token + 1 <= size(parser%tokens)) then
+                            if (parser%tokens(parser%current_token + 1)%kind == TK_KEYWORD .and. &
+                                parser%tokens(parser%current_token + 1)%text == "do") then
+                                ! Found 'end do', consume both tokens and exit
+                                current_token = parser%consume()  ! consume 'end'
+                                current_token = parser%consume()  ! consume 'do'
+                                exit
+                            end if
+                        end if
+                    end if
+                end block
+                
+                ! Parse statement until end of line
+                stmt_start = parser%current_token
+                stmt_end = stmt_start
+                
+                ! Find end of current statement (same line)
+                do j = stmt_start, size(parser%tokens)
+                    if (parser%tokens(j)%kind == TK_EOF) then
+                        stmt_end = j
+                        exit
+                    end if
+                    if (j > stmt_start .and. parser%tokens(j)%line > parser%tokens(stmt_start)%line) then
+                        stmt_end = j - 1
+                        exit
+                    end if
+                    stmt_end = j
+                end do
+                
+                ! Extract statement tokens
+                if (stmt_end >= stmt_start) then
+                    allocate(stmt_tokens(stmt_end - stmt_start + 2))
+                    stmt_tokens(1:stmt_end - stmt_start + 1) = parser%tokens(stmt_start:stmt_end)
+                    ! Add EOF token
+                    stmt_tokens(stmt_end - stmt_start + 2)%kind = TK_EOF
+                    stmt_tokens(stmt_end - stmt_start + 2)%text = ""
+                    stmt_tokens(stmt_end - stmt_start + 2)%line = parser%tokens(stmt_end)%line
+                    stmt_tokens(stmt_end - stmt_start + 2)%column = parser%tokens(stmt_end)%column + 1
+                    
+                    ! Parse the statement
+                    stmt = parse_statement(stmt_tokens)
+                    
+                    ! Add to body if successfully parsed
+                    if (allocated(stmt)) then
+                        block
+                            type(ast_node_wrapper) :: new_wrapper
+                            allocate(new_wrapper%node, source=stmt)
+                            if (allocated(body_statements)) then
+                                body_statements = [body_statements, new_wrapper]
+                            else
+                                body_statements = [new_wrapper]
+                            end if
+                            body_count = body_count + 1
+                        end block
+                    end if
+                    
+                    deallocate(stmt_tokens)
+                end if
+                
+                ! Move to next statement
+                parser%current_token = stmt_end + 1
+            end do
+            
+            ! Create do loop node with body
             allocate(do_node)
             if (allocated(step_expr)) then
                 do_node = create_do_loop(var_name, start_expr, end_expr, step_expr, line=line, column=column)
             else
                 do_node = create_do_loop(var_name, start_expr, end_expr, line=line, column=column)
             end if
+            
+            ! Set body if we have statements
+            if (body_count > 0) then
+                allocate(do_node%body(body_count))
+                do j = 1, body_count
+                    allocate(do_node%body(j)%node, source=body_statements(j)%node)
+                end do
+            end if
+            
             allocate(loop_node, source=do_node)
+            ! Successfully created do loop node
         end block
         
     end function parse_do_loop
