@@ -763,13 +763,15 @@ contains
         
         ! Generate declarations
         do i = 1, var_count
-            declarations = declarations // "    " // trim(var_types(i)) // " :: " // trim(var_names(i)) // new_line('a')
+            declarations = declarations // "    " // trim(var_types(i)) // " :: " // &
+                         trim(var_names(i)) // new_line('a')
         end do
         
     end function analyze_for_variable_declarations
 
     ! Helper function to infer type of binary operations
-    recursive function infer_binary_op_type(binop, func_names, func_types, func_count) result(result_type)
+    recursive function infer_binary_op_type(binop, func_names, func_types, &
+                                            func_count) result(result_type)
         type(binary_op_node), intent(in) :: binop
         character(len=64), intent(in) :: func_names(:), func_types(:)
         integer, intent(in) :: func_count
@@ -890,18 +892,22 @@ contains
         if (allocated(node%body)) then
             do i = 1, size(node%body)
                 if (allocated(node%body(i)%node)) then
-                    body_code = body_code // "    " // generate_code_polymorphic(node%body(i)%node) // new_line('a')
+                    body_code = body_code // "    " // &
+                              generate_code_polymorphic(node%body(i)%node) // &
+                              new_line('a')
                 end if
             end do
         end if
         
         ! Construct do loop
         if (len_trim(step_code) > 0) then
-            code = "do " // node%var_name // " = " // start_code // ", " // end_code // ", " // step_code // new_line('a') // &
+            code = "do " // node%var_name // " = " // start_code // ", " // end_code // &
+                   ", " // step_code // new_line('a') // &
                    body_code // &
                    "end do"
         else
-            code = "do " // node%var_name // " = " // start_code // ", " // end_code // new_line('a') // &
+            code = "do " // node%var_name // " = " // start_code // ", " // &
+                   end_code // new_line('a') // &
                    body_code // &
                    "end do"
         end if
@@ -922,7 +928,9 @@ contains
         if (allocated(node%body)) then
             do i = 1, size(node%body)
                 if (allocated(node%body(i)%node)) then
-                    body_code = body_code // "    " // generate_code_polymorphic(node%body(i)%node) // new_line('a')
+                    body_code = body_code // "    " // &
+                              generate_code_polymorphic(node%body(i)%node) // &
+                              new_line('a')
                 end if
             end do
         end if
@@ -961,16 +969,21 @@ contains
                     if (allocated(node%cases(i)%value)) then
                         select type (val => node%cases(i)%value)
                         type is (literal_node)
-                            cases_code = cases_code // "case (" // generate_code_literal(val) // ")" // new_line('a')
+                            cases_code = cases_code // "case (" // &
+                                       generate_code_literal(val) // ")" // new_line('a')
                         type is (identifier_node)
-                            cases_code = cases_code // "case (" // generate_code_identifier(val) // ")" // new_line('a')
+                            cases_code = cases_code // "case (" // &
+                                       generate_code_identifier(val) // ")" // new_line('a')
                         type is (binary_op_node)
                             ! Handle range syntax (2:5)
                             if (val%operator == ":") then
-                                cases_code = cases_code // "case (" // generate_code_polymorphic(val%left) // &
-                                           ":" // generate_code_polymorphic(val%right) // ")" // new_line('a')
+                                cases_code = cases_code // "case (" // &
+                                           generate_code_polymorphic(val%left) // ":" // &
+                                           generate_code_polymorphic(val%right) // ")" // &
+                                           new_line('a')
                             else
-                                cases_code = cases_code // "case (" // generate_code_binary_op(val) // ")" // new_line('a')
+                                cases_code = cases_code // "case (" // &
+                                           generate_code_binary_op(val) // ")" // new_line('a')
                             end if
                         class default
                             cases_code = cases_code // "case (default)" // new_line('a')
@@ -984,7 +997,9 @@ contains
                 if (allocated(node%cases(i)%body)) then
                     do j = 1, size(node%cases(i)%body)
                         if (allocated(node%cases(i)%body(j)%node)) then
-                            cases_code = cases_code // "    " // generate_code_polymorphic(node%cases(i)%body(j)%node) // new_line('a')
+                            cases_code = cases_code // "    " // &
+                                       generate_code_polymorphic(node%cases(i)%body(j)%node) // &
+                                       new_line('a')
                         end if
                     end do
                 end if
