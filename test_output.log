@@ -6,32 +6,9 @@ Test 1: Use statement
 Test 2: Print statement
   ✓ PASS: Print statement parsed correctly
 Test 3: Multiple statements
-    Expected:
-program main
-    implicit none
-    integer :: x
+  ✓ PASS: Multiple statements parsed correctly
 
-    x = 42
-    print *, x
-end program main
-    Got:
-program main
-    implicit none
-    integer(4) :: x
-
-    x = 42
-    print *, x
-end program main
-  ✗ FAIL: Multiple statements parsing failed
-
-Frontend statement tests: 2/3 passed
-ERROR STOP Some frontend statement tests failed!
-
-Error termination. Backtrace:
-#0  0x4036d3 in test_frontend_statements
-	at test/test_frontend_statements.f90:21
-#1  0x403d27 in main
-	at test/test_frontend_statements.f90:20
+Frontend statement tests: 3/3 passed
 === Example Test Cases ===
 
 Test: use_statement
@@ -88,9 +65,7 @@ Error: Input file must have .f90, .F90, .f, or .F extension
  + mkdir -p /home/ert/.cache/fortran/modules
  + mkdir -p /home/ert/.cache/fortran/modules/gfortran
  + mkdir -p /home/ert/.cache/fortran/modules/gfortran/13.0.0
-<ERROR> Compilation failed for object " src_test_simple_prog_out.f90.o "
-Error: Invalid character in name at (1)
-<ERROR> stopping due to failed compilation
+<ERROR> *build_model*:Error: One or more duplicate module names found.
    FAIL: Expected exit code 0, got            1
  Test 4: .f file preprocessing
 Processing Simple Fortran file with frontend...
@@ -103,45 +78,25 @@ Module cache enabled for dependency optimization
 [100%]                test_preprocess  done.
 [100%] Project compiled successfully.
 Caching newly compiled dependency modules...
-/home/ert/.cache/fortran/test_preprocess_fpm_F8CCF21B20FD9320/build/gfortran_764BCDC58073FF0F/test_preprocess/app_main.f90.o
+/home/ert/.cache/fortran/test_preprocess_fpm_BC7CD87F09B03BC/build/gfortran_764BCDC58073FF0F/test_preprocess/app_main.f90.o
 Module caching completed
           42
    PASS: .f file preprocessing successful
  Test 5: Cache hit scenario
 Cache hit: Using existing build
-[  0%]       test_simple_prog_out.f90
-[ 16%]       test_simple_prog_out.f90  done.
-
-././src/test_simple_prog_out.f90:1:2:
-
-    1 | /home/ert/.cache/fortran/test_simple_prog_fpm_A1660FF0737DB74C/build/gfortran_E34ED9D522D08DD2/test_simple_prog/app_main.f90.o
-      |  1
-Error: Invalid character in name at (1)
-compilation terminated due to -fmax-errors=1.
-<ERROR> Compilation failed for object " src_test_simple_prog_out.f90.o "
-<ERROR> stopping due to failed compilation
+ Warning: Module test_passthrough_mod_xyz in ././src/test_module_out.f90 is a duplicate
+<ERROR> *build_model*:Error: One or more duplicate module names found.
 STOP 1
    FAIL: First run failed with exit code            1
  Test 6: Verbose modes
-<ERROR> Compilation failed for object " src_test_simple_prog_out.f90.o "
-Error: Invalid character in name at (1)
-<ERROR> stopping due to failed compilation
+<ERROR> *build_model*:Error: One or more duplicate module names found.
    FAIL: Verbose level 0 failed
  Test 7: Custom cache directory
 Cache miss: Setting up new build
 Module cache enabled for dependency optimization
  + mkdir -p build/dependencies
-[  0%]       test_simple_prog_out.f90
-[ 16%]       test_simple_prog_out.f90  done.
-
-././src/test_simple_prog_out.f90:1:2:
-
-    1 | /home/ert/.cache/fortran/test_simple_prog_fpm_A1660FF0737DB74C/build/gfortran_E34ED9D522D08DD2/test_simple_prog/app_main.f90.o
-      |  1
-Error: Invalid character in name at (1)
-compilation terminated due to -fmax-errors=1.
-<ERROR> Compilation failed for object " src_test_simple_prog_out.f90.o "
-<ERROR> stopping due to failed compilation
+ Warning: Module test_passthrough_mod_xyz in ././src/test_module_out.f90 is a duplicate
+<ERROR> *build_model*:Error: One or more duplicate module names found.
 STOP 1
    FAIL: Custom cache directory failed with exit code            1
  Test 8: Custom config directory
@@ -149,17 +104,8 @@ Cache miss: Setting up new build
  Created default registry at: /tmp/my_custom_config/registry.toml
 Module cache enabled for dependency optimization
  + mkdir -p build/dependencies
-[  0%]       test_simple_prog_out.f90
-[ 16%]       test_simple_prog_out.f90  done.
-
-././src/test_simple_prog_out.f90:1:2:
-
-    1 | /home/ert/.cache/fortran/test_simple_prog_fpm_A1660FF0737DB74C/build/gfortran_E34ED9D522D08DD2/test_simple_prog/app_main.f90.o
-      |  1
-Error: Invalid character in name at (1)
-compilation terminated due to -fmax-errors=1.
-<ERROR> Compilation failed for object " src_test_simple_prog_out.f90.o "
-<ERROR> stopping due to failed compilation
+ Warning: Module test_passthrough_mod_xyz in ././src/test_module.f90 is a duplicate
+<ERROR> *build_model*:Error: One or more duplicate module names found.
 STOP 1
    FAIL: Custom config directory failed with exit code            1
  Test 9: Parallel jobs flag
@@ -167,34 +113,16 @@ Cache miss: Setting up new build
 Module cache enabled for dependency optimization
 Note: Parallel builds requested (4 jobs) but current FPM version does not support --jobs flag
  + mkdir -p build/dependencies
-[  0%]       test_simple_prog_out.f90
-[ 16%]       test_simple_prog_out.f90  done.
-
-././src/test_simple_prog_out.f90:1:2:
-
-    1 | /home/ert/.cache/fortran/test_simple_prog_fpm_A1660FF0737DB74C/build/gfortran_E34ED9D522D08DD2/test_simple_prog/app_main.f90.o
-      |  1
-Error: Invalid character in name at (1)
-compilation terminated due to -fmax-errors=1.
-<ERROR> Compilation failed for object " src_test_simple_prog_out.f90.o "
-<ERROR> stopping due to failed compilation
+ Warning: Module test_passthrough_mod_xyz in ././src/test_module.f90 is a duplicate
+<ERROR> *build_model*:Error: One or more duplicate module names found.
 STOP 1
    FAIL: Parallel jobs failed with exit code            1
  Test 10: No-wait locking
 Cache miss: Setting up new build
 Module cache enabled for dependency optimization
  + mkdir -p build/dependencies
-[  0%]       test_simple_prog_out.f90
-[ 16%]       test_simple_prog_out.f90  done.
-
-././src/test_simple_prog_out.f90:1:2:
-
-    1 | /home/ert/.cache/fortran/test_simple_prog_fpm_A1660FF0737DB74C/build/gfortran_E34ED9D522D08DD2/test_simple_prog/app_main.f90.o
-      |  1
-Error: Invalid character in name at (1)
-compilation terminated due to -fmax-errors=1.
-<ERROR> Compilation failed for object " src_test_simple_prog_out.f90.o "
-<ERROR> stopping due to failed compilation
+ Warning: Module test_passthrough_mod_xyz in ././src/test_module.f90 is a duplicate
+<ERROR> *build_model*:Error: One or more duplicate module names found.
 STOP 1
    FAIL: No-wait locking failed with exit code            1
  Test 11: Local modules
@@ -221,22 +149,11 @@ Module caching completed
  Hello from module
    PASS: Local modules handling successful
  Test 12: Error handling paths
-<ERROR> Compilation failed for object " src_test_simple_prog_out.f90.o "
-Error: Invalid character in name at (1)
-<ERROR> stopping due to failed compilation
+<ERROR> *build_model*:Error: One or more duplicate module names found.
    PASS: Error handling in quiet mode successful
 Cache hit: Using existing build
-[  0%]       test_simple_prog_out.f90
-[ 16%]       test_simple_prog_out.f90  done.
-
-././src/test_simple_prog_out.f90:1:2:
-
-    1 | /home/ert/.cache/fortran/test_simple_prog_fpm_A1660FF0737DB74C/build/gfortran_E34ED9D522D08DD2/test_simple_prog/app_main.f90.o
-      |  1
-Error: Invalid character in name at (1)
-compilation terminated due to -fmax-errors=1.
-<ERROR> Compilation failed for object " src_test_simple_prog_out.f90.o "
-<ERROR> stopping due to failed compilation
+ Warning: Module test_passthrough_mod_xyz in ././src/test_module.f90 is a duplicate
+<ERROR> *build_model*:Error: One or more duplicate module names found.
 STOP 1
    PASS: Error handling paths successful
  
@@ -253,7 +170,7 @@ Error: Input file must have .f90, .F90, .f, or .F extension
 Error: Input file must have .f90, .F90, .f, or .F extension
    PASS: Invalid extensions
  Test 3: Empty file handling
-Project structure hash: fpm_F8A95CDDB6B53828
+Project structure hash: fpm_BA2634166D3A8B4
 Cache miss: Setting up new build
 Module cache enabled for dependency optimization
 Note: Parallel builds requested (1 jobs) but current FPM version does not support --jobs flag
@@ -267,28 +184,8 @@ Note: Parallel builds requested (1 jobs) but current FPM version does not suppor
  <INFO> CXX COMPILER OPTIONS: 
  <INFO> LINKER OPTIONS:  
  <INFO> INCLUDE DIRECTORIES:  []
- + mkdir -p build/gfortran_8E5F19168834AE28
- + mkdir -p build/gfortran_E34ED9D522D08DD2
- + mkdir -p build/gfortran_2E1845944E00BB22
-[  0%]       test_simple_prog_out.f90
- + mkdir -p build/gfortran_E34ED9D522D08DD2/test_runner_empty/
- + gfortran -c ././src/test_simple_prog_out.f90   -Wall -Wextra -Wno-external-argument-mismatch -fPIC -fmax-errors=1 -g -fcheck=bounds -fcheck=array-temps -fbacktrace -fcoarray=single -fPIC -fimplicit-none -Werror=implicit-interface -ffree-form -J build/gfortran_E34ED9D522D08DD2 -Ibuild/gfortran_E34ED9D522D08DD2 -o build/gfortran_E34ED9D522D08DD2/test_runner_empty/src_test_simple_prog_out.f90.o
-././src/test_simple_prog_out.f90:1:2:
-
-    1 | /home/ert/.cache/fortran/test_simple_prog_fpm_A1660FF0737DB74C/build/gfortran_E34ED9D522D08DD2/test_simple_prog/app_main.f90.o
-      |  1
-Error: Invalid character in name at (1)
-compilation terminated due to -fmax-errors=1.
-[ 16%]       test_simple_prog_out.f90  done.
-
-././src/test_simple_prog_out.f90:1:2:
-
-    1 | /home/ert/.cache/fortran/test_simple_prog_fpm_A1660FF0737DB74C/build/gfortran_E34ED9D522D08DD2/test_simple_prog/app_main.f90.o
-      |  1
-Error: Invalid character in name at (1)
-compilation terminated due to -fmax-errors=1.
-<ERROR> Compilation failed for object " src_test_simple_prog_out.f90.o "
-<ERROR> stopping due to failed compilation
+ Warning: Module test_passthrough_mod_xyz in ././src/test_module.f90 is a duplicate
+<ERROR> *build_model*:Error: One or more duplicate module names found.
 STOP 1
    PASS: Empty file handling
  Test 4: Custom directory handling
@@ -297,17 +194,8 @@ Cache miss: Setting up new build
 Module cache enabled for dependency optimization
 Note: Parallel builds requested (1 jobs) but current FPM version does not support --jobs flag
  + mkdir -p build/dependencies
-[  0%]       test_simple_prog_out.f90
-[ 16%]       test_simple_prog_out.f90  done.
-
-././src/test_simple_prog_out.f90:1:2:
-
-    1 | /home/ert/.cache/fortran/test_simple_prog_fpm_A1660FF0737DB74C/build/gfortran_E34ED9D522D08DD2/test_simple_prog/app_main.f90.o
-      |  1
-Error: Invalid character in name at (1)
-compilation terminated due to -fmax-errors=1.
-<ERROR> Compilation failed for object " src_test_simple_prog_out.f90.o "
-<ERROR> stopping due to failed compilation
+ Warning: Module test_passthrough_mod_xyz in ././src/test_module_out.f90 is a duplicate
+<ERROR> *build_model*:Error: One or more duplicate module names found.
 STOP 1
    PASS: Custom directories
  Test 5: Preprocessing error handling
@@ -315,7 +203,7 @@ Processing Simple Fortran file with frontend...
 Creating preprocessed file: /home/ert/.cache/fortran/preprocessed_fpm_CD2D7311DDF047E5.f90
 Using AST-based preprocessor
 Preprocessed file ready: /home/ert/.cache/fortran/preprocessed_fpm_CD2D7311DDF047E5.f90
-Project structure hash: fpm_F8A95CDDB6B53828
+Project structure hash: fpm_BA2634166D3A8B4
 Cache miss: Setting up new build
 Module cache enabled for dependency optimization
 Note: Parallel builds requested (1 jobs) but current FPM version does not support --jobs flag
@@ -351,16 +239,10 @@ Error: Unclassifiable statement at (1)
 STOP 1
    PASS: Preprocessing errors
  Test 6: Parallel execution options
-<ERROR> Compilation failed for object " src_test_simple_prog_out.f90.o "
-Error: Invalid character in name at (1)
-<ERROR> stopping due to failed compilation
+<ERROR> *build_model*:Error: One or more duplicate module names found.
    WARNING: Parallel build failed
-<ERROR> Compilation failed for object " src_test_simple_prog_out.f90.o "
-Error: Invalid character in name at (1)
-<ERROR> stopping due to failed compilation
-<ERROR> Compilation failed for object " src_test_simple_prog_out.f90.o "
-Error: Invalid character in name at (1)
-<ERROR> stopping due to failed compilation
+<ERROR> *build_model*:Error: One or more duplicate module names found.
+<ERROR> *build_model*:Error: One or more duplicate module names found.
    PASS: Parallel execution
 
  All runner edge case tests passed!
@@ -584,22 +466,24 @@ PASS: Function signature enhancement (real → real(8))
 PASS: Parameter type enhancement with intent(in)
 PASS: Forward type propagation (variable gets function return type)
 PASS: Multiple functions in single file
-PASS: Mixed explicit and implicit types
+FAIL: Mixed explicit and implicit types
 PASS: Nested function calls
-Tests: 6/6 passed
+Tests: 5/6 passed
+FAILED: 1 tests failed
+STOP 1
 Files before test:
 -rw-r--r-- 1 ert ert  29 Jul 14 20:16 debug_print.f
 -rw-r--r-- 1 ert ert   6 Jul 14 20:16 simple_test.f
--rw-r--r-- 1 ert ert  70 Jul 15 09:11 test_simple_func.f
--rw-r--r-- 1 ert ert 181 Jul 15 09:11 test_simple_func.f90
+-rw-r--r-- 1 ert ert  70 Jul 15 10:04 test_simple_func.f
+-rw-r--r-- 1 ert ert 181 Jul 15 10:04 test_simple_func.f90
 
 Running preprocessor test...
 
 Files after test:
 -rw-r--r-- 1 ert ert  29 Jul 14 20:16 debug_print.f
 -rw-r--r-- 1 ert ert   6 Jul 14 20:16 simple_test.f
--rw-r--r-- 1 ert ert  70 Jul 15 09:11 test_simple_func.f
--rw-r--r-- 1 ert ert 181 Jul 15 09:11 test_simple_func.f90
+-rw-r--r-- 1 ert ert  70 Jul 15 10:04 test_simple_func.f
+-rw-r--r-- 1 ert ert 181 Jul 15 10:04 test_simple_func.f90
 file1.txt:
 Content from test 1
 file2.txt:
@@ -617,11 +501,9 @@ Content from test 3
  
  All verbose tests passed!
 PASS: Explicit function with parameters gets intent(in)
-FAIL: Parameters get intent(in) by default
+PASS: Parameters get intent(in) by default
 PASS: real converts to real(8) for explicitness
-Tests: 2/3 passed
-FAILED: 1 tests failed
-STOP 1
+Tests: 3/3 passed
  === Error Handling Tests ===
 
  Test 1: Unknown module error message
@@ -745,16 +627,16 @@ STOP 0
 STOP 0
  === FPM Cache Integration Tests ===\
  Test 1: FPM source discovery
- Creating test directory: /tmp/fpm_test_sources_20250715091633
- Creating file: /tmp/fpm_test_sources_20250715091633/app/test.f90
- Test file exists: /tmp/fpm_test_sources_20250715091633/app/test.f90
+ Creating test directory: /tmp/fpm_test_sources_20250715100610
+ Creating file: /tmp/fpm_test_sources_20250715100610/app/test.f90
+ Test file exists: /tmp/fpm_test_sources_20250715100610/app/test.f90
  Testing Fortran CLI tool with long path...
  Test 1 passed: Fortran CLI tool works with long paths
- PASS: FPM source discovery works, found -1880498176 sources
+ PASS: FPM source discovery works, found    18006016 sources
 
  Test 2: Source file information access
  PASS: Can access source file path length:          43
- PASS: Can access source file path:/tmp/fpm_test_info_20250715091633/hello.f90
+ PASS: Can access source file path:/tmp/fpm_test_info_20250715100611/hello.f90
  PASS: Fortran CLI tool works with long paths
  PASS: Test file exists and is accessible
 
@@ -783,7 +665,7 @@ Test 2: Cache with module dependencies
     Without deps: 000000000000D903
     With deps: 000000000000749F
 Test 3: Cache invalidation on source change
- + mkdir -p /tmp/fortran_inval_test_20250715091634  
+ + mkdir -p /tmp/fortran_inval_test_20250715100611  
   ✓ Cache key changes when source is modified
 Test 4: Cross-project module sharing
  + mkdir -p /home/ert/.cache/fortran/modules/gfortran/13.0.0/0000000000015B38
@@ -795,9 +677,9 @@ STOP 0
 Testing cache lock functionality...
 
 Test 1: Basic lock acquisition and release
-Using cache dir: /tmp/fortran_cache_lock_test_20250715091634
+Using cache dir: /tmp/fortran_cache_lock_test_20250715100612
   ✓ Lock acquired successfully
--rw-r--r-- 1 ert ert 22 Jul 15 09:16 /tmp/fortran_cache_lock_test_20250715091634/test_project.lock
+-rw-r--r-- 1 ert ert 22 Jul 15 10:06 /tmp/fortran_cache_lock_test_20250715100612/test_project.lock
   ✓ Lock is detected as locked
   ✓ Lock released successfully
 
@@ -825,17 +707,17 @@ Test 2: Cache key generation
     Key2: 0000000000010932
   ✓ Same source generates consistent cache key
 Test 3: Module storage and retrieval
- + mkdir -p /tmp/fortran_test_build_20250715091634
- + mkdir -p /tmp/fortran_test_target_20250715091634
+ + mkdir -p /tmp/fortran_test_build_20250715100612
+ + mkdir -p /tmp/fortran_test_target_20250715100612
  + mkdir -p /home/ert/.cache/fortran/modules/gfortran/13.0.0/000000000001869F
   ✓ Module stored in cache successfully
   ✓ Module retrieved from cache successfully
   ✓ Module file (.mod) retrieved correctly
 Test 4: Cache hit detection
- + mkdir -p /tmp/fortran_cache_hit_20250715091634
- + mkdir -p /tmp/fortran_test_hit_20250715091634
+ + mkdir -p /tmp/fortran_cache_hit_20250715100612
+ + mkdir -p /tmp/fortran_test_hit_20250715100612
   ✓ Cache miss detected correctly before storing
- + mkdir -p /tmp/fortran_cache_hit_20250715091634/gfortran/13.0.0/0000000000002B67
+ + mkdir -p /tmp/fortran_cache_hit_20250715100612/gfortran/13.0.0/0000000000002B67
   ✓ Cache hit detected correctly after storing
 Test 5: Disabled cache behavior
   ✓ Cache disabled via environment variable
@@ -890,25 +772,90 @@ STOP 0
  === Frontend Test Cases ===
  Found          15 test cases inexample/frontend_test_cases
  
- PASS: example
+ FAIL: example - output mismatch
+--- example/frontend_test_cases/example/example.f90	2025-07-15 08:40:22.877114814 +0200
++++ /tmp/test_example_actual.f90	2025-07-15 10:06:12.210549318 +0200
+@@ -1,7 +1,7 @@
+ program main
+     implicit none
+-    integer(4) :: x
++    integer :: x
+ 
+     x = 42
+     print *, x
+-end program main
+\ No newline at end of file
++end program main
  PASS: function_call_inference
  PASS: function_def
- PASS: function_with_param
- PASS: json_workflow
+ FAIL: function_with_param - output mismatch
+--- example/frontend_test_cases/function_with_param/function_with_param.f90	2025-07-15 08:41:52.123118142 +0200
++++ /tmp/test_function_with_param_actual.f90	2025-07-15 10:06:12.215169211 +0200
+@@ -7,8 +7,7 @@
+ contains
+     real(8) function add_numbers(a, b)
+     implicit none
+-    real(8), intent(in) :: a
+-    real(8), intent(in) :: b
++    real(8), intent(in) :: a, b
+     add_numbers = a + b
+ end function add_numbers
+-end program main
+\ No newline at end of file
++end program main
+ FAIL: json_workflow - output mismatch
+--- example/frontend_test_cases/json_workflow/json_workflow.f90	2025-07-15 08:42:09.714118798 +0200
++++ /tmp/test_json_workflow_actual.f90	2025-07-15 10:06:12.219460717 +0200
+@@ -1,6 +1,6 @@
+ program main
+     implicit none
+-    integer(4) :: x
++    integer :: x
+ 
+     x = 42
+-end program main
+\ No newline at end of file
++end program main
  PASS: multi_statement
  PASS: multiple_functions
- PASS: multiple_statements
+ FAIL: multiple_statements - output mismatch
+--- example/frontend_test_cases/multiple_statements/multiple_statements.f90	2025-07-15 08:39:39.874113211 +0200
++++ /tmp/test_multiple_statements_actual.f90	2025-07-15 10:06:12.223983628 +0200
+@@ -1,7 +1,7 @@
+ program main
+     implicit none
+-    integer(4) :: x
++    integer :: x
+ 
+     x = 42
+     print *, x
+-end program main
+\ No newline at end of file
++end program main
  PASS: nested_function_calls
  PASS: print_statement
  PASS: simple_assignment
- PASS: single_assignment
+ FAIL: single_assignment - output mismatch
+--- example/frontend_test_cases/single_assignment/single_assignment.f90	2025-07-15 08:40:03.232114082 +0200
++++ /tmp/test_single_assignment_actual.f90	2025-07-15 10:06:12.228617527 +0200
+@@ -1,6 +1,6 @@
+ program main
+     implicit none
+-    integer(4) :: x
++    integer :: x
+ 
+     x = 1
+-end program main
+\ No newline at end of file
++end program main
  PASS: single_function_in_program
  PASS: single_real_declaration
  PASS: use_statement
  
  === Summary ===
-Tests: 15/15 passed
- All tests passed!
+Tests: 10/15 passed
+FAILED: 5 tests failed
+STOP 1
  Testing Simple Fortran file detection...
    ✓ File detection works correctly
  Testing basic compilation...
@@ -962,7 +909,7 @@ Test 1: Basic type inference integration
     DEBUG: Generated file contents:
       program main
           implicit none
-          integer(4) :: count
+          integer :: count
           real(8) :: pi
           character(len=*) :: name
           character(len=*) :: ready
@@ -974,13 +921,13 @@ Test 1: Basic type inference integration
           print *, count, pi, name, ready
       end program main
   ✗ FAIL: Basic type inference failed
-    Error: Missing expected declarations, missing: character(len=7) :: name, missing: logical :: ready
+    Error: Missing expected declarations, missing: integer(4) :: count, missing: character(len=7) :: name, missing: logical :: ready
 Test 2: Arithmetic expressions integration
     DEBUG: Generated file contents:
       program main
           implicit none
-          integer(4) :: a
-          integer(4) :: b
+          integer :: a
+          integer :: b
           real(8) :: sum
           real(8) :: diff
           real(8) :: prod
@@ -995,15 +942,28 @@ Test 2: Arithmetic expressions integration
           print *, sum, diff, prod, quot
       end program main
   ✗ FAIL: Arithmetic expression inference failed
-    Error: Missing expected declarations, missing: integer(4) :: sum, missing: integer(4) :: diff, missing: integer(4) :: prod
+    Error: Missing expected declarations, missing: integer(4) :: a, missing: integer(4) :: b, missing: integer(4) :: sum, missing: integer(4) :: diff, missing: integer(4) :: prod
 Test 3: Mixed type expressions integration
-  ✓ PASS: Mixed type promotion works correctly
+    DEBUG: Generated file contents:
+      program main
+          implicit none
+          integer :: x
+          real(8) :: y
+          real(8) :: result
+      
+          x = 2
+          y = 3.5d0
+          result = x + y
+          print *, result
+      end program main
+  ✗ FAIL: Mixed type promotion failed
+    Error: Missing expected declarations, missing: integer(4) :: x
 Test 4: Intrinsic functions integration
   ✓ PASS: Intrinsic function return types correctly inferred
 Test 5: Print statement filtering
   ✓ PASS: Print statements correctly filtered
 
-Type inference integration tests: 3/5 passed
+Type inference integration tests: 2/5 passed
 ERROR STOP Some integration tests failed!
 
 Error termination. Backtrace:
@@ -1177,7 +1137,7 @@ STOP 0
  Testing: AST from JSON - simple assignment
  Generated code: 'program main
     implicit none
-    integer(4) :: x
+    integer :: x
 
     x = 42
 end program main'
@@ -1227,7 +1187,7 @@ STOP 0
      Generated:print *, result
  Testing program code generation...
    PASS: Program code generation
-     Generated length:         105 characters
+     Generated length:         102 characters
  Testing identifier code generation...
    PASS: Identifier code generation
      Generated:variable_name
@@ -1276,19 +1236,18 @@ mkdir: cannot create directory ‘’: No such file or directory
 STOP 0
 Testing --clear-cache option...
 (Would test with 2 arguments)
-
-Program received signal SIGSEGV: Segmentation fault - invalid memory reference.
-
-Backtrace for this error:
-#0  0x7f0cc6f55eef in ???
-#1  0x7f0cc7084a09 in ???
-#2  0x402a5e in __cli_MOD_parse_arguments
-	at ././src/cli/cli.f90:42
-#3  0x4022b7 in test_clear_cache_option
-	at test/cli/test_cli_cache.f90:62
+FAIL: --clear-cache flag not recognized
+Testing --cache-info option...
+(Would test with 2 arguments)
+FAIL: --cache-info flag not recognized
+Testing --clear-cache with file...
+(Would test with 3 arguments)
+FAIL: --clear-cache flag not recognized
+Some CLI cache tests failed
+STOP 1
  === System CLI Tests ===
 
- Created test file: /tmp/test_cli_sys_091634.f90
+ Created test file: /tmp/test_cli_sys_100612.f90
  Test 1: No arguments (should show help)
  PASS: No arguments shows help
 
@@ -1375,27 +1334,13 @@ STOP 0
 === Standard Fortran 95 Passthrough Tests ===
 
 Test 1: Simple program passthrough
-  ✗ FAIL: Simple program modified
-    First 3 lines of input:
-      program test
-          implicit none
-          integer :: i
-    First 3 lines of output:
-      /home/ert/.cache/fortran/test_simple_prog_fpm_A1660FF0737DB74C/build/gfortran_E34ED9D522D08DD2/test_simple_prog/app_main.f90.o
-       i =          42
+  ✓ PASS: Simple program preserved
 Test 2: Module passthrough
-  ✗ FAIL: Compilation failed
+  ✓ PASS: Module preserved
 Test 3: Complex program with arrays and loops
-  ✗ FAIL: Compilation failed
+  ✓ PASS: Complex program preserved
 
-Fortran 95 passthrough tests: 0/3 passed
-ERROR STOP Some Fortran 95 passthrough tests failed!
-
-Error termination. Backtrace:
-#0  0x4018a6 in test_fortran95_passthrough
-	at test/standard_fortran/test_fortran95_passthrough.f90:21
-#1  0x404151 in main
-	at test/standard_fortran/test_fortran95_passthrough.f90:20
+Fortran 95 passthrough tests: 3/3 passed
  === Comprehensive Registry Resolver Tests ===
  
  Test 1: Registry creation
@@ -1629,7 +1574,7 @@ Running: example/plotting/plot_demo.f90...
 Testing Incremental Compilation (Caching)
 =============================================================
 
-Using temporary cache: /tmp/fortran_test_cache_20250715_091657
+Using temporary cache: /tmp/fortran_test_cache_20250715_100635
 First run (should compile)...
   ✓ First run compiled files as expected
   ✓ Cache miss detected on first run
@@ -1644,8 +1589,8 @@ Cleaned up temporary cache directory
 Testing Source Modification with Cached Dependencies
 =============================================================
 
-Using temporary cache: /tmp/fortran_test_cache_20250715_091658
-Using temporary source: /tmp/fortran_test_source_20250715_091658/main.f90
+Using temporary cache: /tmp/fortran_test_cache_20250715_100635
+Using temporary source: /tmp/fortran_test_source_20250715_100635/main.f90
 First run (should compile everything)...
   ✓ First run compiled files as expected
 Second run (should use cache completely)...
@@ -1663,8 +1608,8 @@ Cleaned up temporary files and cache directory
 Testing Complex Dependency Changes
 =============================================================
 
-Using temporary cache: /tmp/fortran_complex_dep_cache_20250715_091659
-Using temporary source: /tmp/fortran_complex_dep_source_20250715_091659
+Using temporary cache: /tmp/fortran_complex_dep_cache_20250715_100637
+Using temporary source: /tmp/fortran_complex_dep_source_20250715_100637
 Test 1: Initial compilation with dependencies...
   ✓ Initial compilation successful
 Test 2: Modifying dependency module...
@@ -1678,7 +1623,7 @@ Cleaned up temporary directories
 Testing .f to .f90 Preprocessor Output Correctness
 =============================================================
 
-Using temporary cache: /tmp/fortran_preproc_test_20250715_091701
+Using temporary cache: /tmp/fortran_preproc_test_20250715_100638
 Testing: example/hello/hello.f vs example/hello/hello.f90
   ✓ PASS: Outputs match
 Testing: example/calculator/calculator.f vs example/calculator/calculator.f90
@@ -1699,14 +1644,13 @@ Expected failures: 4
 
 OVERALL: FAILED (unexpected failures)
 STOP 1
-<ERROR> Execution for object " test_frontend_statements " returned exit code  1
 <ERROR> Execution for object " test_runner_comprehensive " returned exit code  1
-<ERROR> Execution for object " test_step1_integration " returned exit code  1
+<ERROR> Execution for object " test_step1_single_file " returned exit code  1
+<ERROR> Execution for object " test_frontend_test_cases " returned exit code  1
 <ERROR> Execution for object " test_frontend_semantic_inference_integration " returned exit code  1
 <ERROR> Execution for object " test_frontend_parser_declaration " returned exit code  1
-<ERROR> Execution for object " test_cli_cache " returned exit code  139
+<ERROR> Execution for object " test_cli_cache " returned exit code  1
 <ERROR> Execution for object " test_cli_system " returned exit code  1
-<ERROR> Execution for object " test_fortran95_passthrough " returned exit code  1
 <ERROR> Execution for object " test_examples " returned exit code  1
 <ERROR> *cmd_run*:stopping due to failed executions
 STOP 1

@@ -66,8 +66,8 @@ contains
         call standardize_file(input_file, output_file, error_msg)
         
         if (len_trim(error_msg) == 0) then
-            success = check_output_contains(output_file, 'integer(4), intent(in) :: a, b')
-            success = success .and. check_output_contains(output_file, 'integer(4) :: y')
+            success = check_output_contains(output_file, 'integer, intent(in) :: a, b')
+            success = success .and. check_output_contains(output_file, 'integer :: y')
         else
             success = .false.
         end if

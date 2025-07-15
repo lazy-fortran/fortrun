@@ -167,35 +167,40 @@ contains
     character(len=*), intent(in) :: source_files(:)
     character(len=*), intent(in) :: dependencies(:)
     character(len=64) :: cache_key
-    character(len=512) :: combined_string
-    integer :: i
+    character(len=32) :: content_hash, deps_hash
+    character(len=256), allocatable :: all_files(:)
+    integer :: i, total_size
     
-    ! Simple cache key generation based on file names and dependencies
-    ! In a real implementation, this would use file content hashes
-    combined_string = ''
+    ! Use content-based hashing for proper cache key generation
+    ! This ensures modules with same name but different content get different cache keys
     
-    do i = 1, size(source_files)
-      if (len_trim(source_files(i)) > 0) then
-        combined_string = trim(combined_string) // trim(source_files(i)) // ';'
-      end if
-    end do
+    ! Get content hash of source files
+    content_hash = get_content_hash(source_files)
     
-    do i = 1, size(dependencies)
-      if (len_trim(dependencies(i)) > 0) then
-        combined_string = trim(combined_string) // trim(dependencies(i)) // ';'
-      end if
-    end do
+    ! Include dependencies in the hash if any
+    if (size(dependencies) > 0) then
+      ! Combine source files and dependencies for hashing
+      total_size = size(source_files) + size(dependencies)
+      allocate(all_files(total_size))
+      
+      ! Copy source files
+      do i = 1, size(source_files)
+        all_files(i) = source_files(i)
+      end do
+      
+      ! Copy dependencies
+      do i = 1, size(dependencies)
+        all_files(size(source_files) + i) = dependencies(i)
+      end do
+      
+      deps_hash = get_content_hash(all_files)
+      deallocate(all_files)
+    else
+      deps_hash = content_hash
+    end if
     
-    ! Generate a simple hash-like key (placeholder)
-    cache_key = 'cache_' // adjustl(trim(combined_string(1:min(50, len_trim(combined_string)))))
-    
-    ! Replace problematic characters
-    do i = 1, len_trim(cache_key)
-      if (cache_key(i:i) == '/' .or. cache_key(i:i) == '\' .or. &
-          cache_key(i:i) == ' ' .or. cache_key(i:i) == ';') then
-        cache_key(i:i) = '_'
-      end if
-    end do
+    ! Use the content hash as the cache key
+    cache_key = trim(deps_hash)
     
   end function get_cache_key
   

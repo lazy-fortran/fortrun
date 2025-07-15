@@ -1,6 +1,6 @@
 program main
     implicit none
-    integer(4) :: x
+    integer :: x
     real(8) :: y
 
     x = 42

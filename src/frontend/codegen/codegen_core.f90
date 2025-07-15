@@ -251,14 +251,28 @@ contains
             
             ! STAGE 2 ENHANCEMENT: Enhanced parameter declarations with intent(in)
             if (allocated(node%params)) then
-                do i = 1, size(node%params)
-                    select type (param => node%params(i)%node)
-                    type is (identifier_node)
-                        code = code // "    " // return_type_str // ", intent(in) :: " // param%name // new_line('a')
-                    class default
-                        code = code // "    " // return_type_str // ", intent(in) :: param" // char(i + ichar('0')) // new_line('a')
-                    end select
-                end do
+                ! Combine parameters of the same type onto one line
+                block
+                    character(len=:), allocatable :: param_names
+                    integer :: param_count
+                    param_count = 0
+                    param_names = ""
+                    
+                    do i = 1, size(node%params)
+                        select type (param => node%params(i)%node)
+                        type is (identifier_node)
+                            param_count = param_count + 1
+                            if (param_count > 1) then
+                                param_names = param_names // ", "
+                            end if
+                            param_names = param_names // param%name
+                        end select
+                    end do
+                    
+                    if (param_count > 0) then
+                        code = code // "    " // return_type_str // ", intent(in) :: " // param_names // new_line('a')
+                    end if
+                end block
             end if
             
             ! STAGE 2 FIX: Don't redeclare function name when already in signature
