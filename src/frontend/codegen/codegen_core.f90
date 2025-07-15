@@ -1,6 +1,5 @@
 module codegen_core
     use ast_core
-    use ast_lazy_fortran
     implicit none
     private
     
@@ -19,9 +18,6 @@ module codegen_core
         module procedure generate_code_function_call
         module procedure generate_code_use_statement
         module procedure generate_code_print_statement
-        ! Postmodern Fortran specific
-        module procedure generate_code_lf_program
-        module procedure generate_code_inferred_var
     end interface generate_code
 
 contains
@@ -158,6 +154,15 @@ contains
         end if
         
         code = code // "    implicit none" // new_line('a')
+        
+        ! Add variable declarations based on type inference (now in core assignment_node)
+        block
+            character(len=:), allocatable :: var_declarations
+            var_declarations = analyze_for_variable_declarations(node)
+            if (len_trim(var_declarations) > 0) then
+                code = code // var_declarations // new_line('a')
+            end if
+        end block
         
         ! Analyze for function calls and generate interface blocks
         function_interfaces = ""
@@ -379,102 +384,10 @@ contains
         end if
     end function generate_code_print_statement
 
-    ! Generate code for Simple Fortran program node
-    function generate_code_lf_program(node) result(code)
-        type(lf_program_node), intent(in) :: node
-        character(len=:), allocatable :: code
-        integer :: i
-        character(len=:), allocatable :: function_interfaces
-        logical :: has_functions, has_contains
-        
-        ! Start with program declaration
-        code = "program " // node%name // new_line('a')
-        
-        ! Generate use statements first (must come before implicit none)
-        if (allocated(node%body)) then
-            do i = 1, size(node%body)
-                select type (stmt => node%body(i)%node)
-                type is (use_statement_node)
-                    code = code // "    " // generate_code(stmt) // new_line('a')
-                end select
-            end do
-        end if
-        
-        code = code // "    implicit none" // new_line('a')
-        
-        ! Add variable declarations based on inferred types
-        block
-            character(len=:), allocatable :: var_declarations
-            var_declarations = analyze_for_variable_declarations(node)
-            if (len_trim(var_declarations) > 0) then
-                code = code // var_declarations // new_line('a')
-            end if
-        end block
-        
-        ! Analyze for function calls and generate interface blocks
-        function_interfaces = ""
-        has_functions = .false.
-        has_contains = .false.
-        
-        if (allocated(node%body)) then
-            do i = 1, size(node%body)
-                select type (stmt => node%body(i)%node)
-                type is (assignment_node)
-                    ! Check if assignment contains function calls
-                    block
-                        character(len=:), allocatable :: interface_code
-                        interface_code = analyze_for_function_calls(stmt)
-                        if (len_trim(interface_code) > 0) then
-                            function_interfaces = function_interfaces // interface_code // new_line('a')
-                            has_functions = .true.
-                        end if
-                    end block
-                end select
-            end do
-        end if
-        
-        ! Add interface blocks if needed
-        if (has_functions) then
-            code = code // new_line('a') // "    interface" // new_line('a')
-            code = code // function_interfaces
-            code = code // "    end interface" // new_line('a') // new_line('a')
-        end if
-        
-        ! Generate code for each statement in the body
-        if (allocated(node%body)) then
-            do i = 1, size(node%body)
-                select type (stmt => node%body(i)%node)
-                type is (use_statement_node)
-                    ! Skip - already generated before implicit none
-                type is (assignment_node)
-                    code = code // "    " // generate_code(stmt) // new_line('a')
-                type is (function_def_node)
-                    if (.not. has_contains) then
-                        code = code // new_line('a') // "contains" // new_line('a')
-                        has_contains = .true.
-                    end if
-                    code = code // new_line('a') // generate_code(stmt) // new_line('a')
-                class default
-                    ! Use polymorphic dispatcher for other types
-                    code = code // "    " // generate_code_polymorphic(stmt) // new_line('a')
-                end select
-            end do
-        end if
-        
-        ! End program
-        code = code // "end program " // node%name
-    end function generate_code_lf_program
+    ! generate_code_lf_program removed - core program_node handler now includes type inference
 
     ! generate_code_lf_assignment removed - core assignment_node now has type inference
 
-    ! Generate code for inferred variable
-    function generate_code_inferred_var(node) result(code)
-        type(inferred_var_node), intent(in) :: node
-        character(len=:), allocatable :: code
-        
-        ! Just return the variable name
-        code = node%name
-    end function generate_code_inferred_var
 
     ! Polymorphic dispatcher for class(ast_node)
     function generate_code_polymorphic(node) result(code)
@@ -498,14 +411,11 @@ contains
             code = generate_code_function_def(node)
         type is (subroutine_def_node)
             code = generate_code_subroutine_def(node)
-        type is (lf_program_node)
-            code = generate_code_lf_program(node)
+        ! lf_program_node now handled by program_node case through inheritance
         type is (print_statement_node)
             code = generate_code_print_statement(node)
         type is (use_statement_node)
             code = generate_code_use_statement(node)
-        type is (inferred_var_node)
-            code = generate_code_inferred_var(node)
         class default
             ! NEVER generate "0" - always generate a comment for debugging
             code = "! Unimplemented AST node"
@@ -587,7 +497,7 @@ contains
 
     ! Analyze program for variable declarations needed
     function analyze_for_variable_declarations(prog) result(declarations)
-        type(lf_program_node), intent(in) :: prog
+        class(program_node), intent(in) :: prog
         character(len=:), allocatable :: declarations
         character(len=:), allocatable :: var_list
         integer :: i

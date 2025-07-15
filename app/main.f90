@@ -2,6 +2,7 @@ program main
   use cli, only: parse_arguments
   use runner, only: run_fortran_file
   use frontend_integration, only: compile_with_frontend, compile_with_frontend_debug, is_simple_fortran_file
+  use frontend, only: compile_from_tokens_json, compile_from_ast_json, compile_from_semantic_json, compilation_options_t
   use cache, only: clear_cache, get_cache_info
   use debug_state, only: set_debug_flags
   use notebook_parser
@@ -12,13 +13,15 @@ program main
   character(len=256) :: filename, custom_cache_dir, custom_config_dir, notebook_output, custom_flags
   logical :: show_help, no_wait, notebook_mode, preprocess_only, clear_cache_flag, cache_info_flag
   logical :: debug_tokens, debug_ast, debug_semantic, debug_codegen
+  logical :: from_tokens, from_ast, from_semantic
   integer :: exit_code, verbose_level, parallel_jobs
   type(notebook_t) :: notebook
   type(execution_result_t) :: results
   
   call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, custom_config_dir, &
                       parallel_jobs, no_wait, notebook_mode, notebook_output, preprocess_only, custom_flags, &
-                      clear_cache_flag, cache_info_flag, debug_tokens, debug_ast, debug_semantic, debug_codegen)
+                      clear_cache_flag, cache_info_flag, debug_tokens, debug_ast, debug_semantic, debug_codegen, &
+                      from_tokens, from_ast, from_semantic)
   
   if (show_help) then
     call print_help()
@@ -37,6 +40,12 @@ program main
   
   if (preprocess_only) then
     call handle_preprocess_only(filename)
+    stop 0
+  end if
+  
+  if (from_tokens .or. from_ast .or. from_semantic) then
+    call handle_json_input(filename, from_tokens, from_ast, from_semantic, &
+                           debug_tokens, debug_ast, debug_semantic, debug_codegen)
     stop 0
   end if
   
@@ -101,6 +110,17 @@ contains
     print '(a)', '  --notebook        Run as notebook with cells and output capture'
     print '(a)', '  -o, --output FILE Output markdown file (default: <input>.md)'
     print '(a)', ''
+    print '(a)', 'JSON Pipeline Input:'
+    print '(a)', '  --from-tokens     Read tokens from JSON file (skip lexing)'
+    print '(a)', '  --from-ast        Read AST from JSON file (skip lexing + parsing)'
+    print '(a)', '  --from-semantic   Read semantic AST from JSON file (skip to codegen)'
+    print '(a)', ''
+    print '(a)', 'Debug Output (JSON):'
+    print '(a)', '  --debug-tokens    Output tokens as JSON'
+    print '(a)', '  --debug-ast       Output AST as JSON'
+    print '(a)', '  --debug-semantic  Output semantic analysis as JSON'
+    print '(a)', '  --debug-codegen   Output generated code as JSON'
+    print '(a)', ''
     print '(a)', 'Environment:'
     print '(a)', '  OMP_NUM_THREADS   Number of parallel build threads (FPM uses OpenMP)'
   end subroutine print_help
@@ -162,6 +182,51 @@ contains
     end if
     
   end subroutine handle_preprocess_only
+  
+  subroutine handle_json_input(json_file, from_tokens, from_ast, from_semantic, &
+                               debug_tokens, debug_ast, debug_semantic, debug_codegen)
+    character(len=*), intent(in) :: json_file
+    logical, intent(in) :: from_tokens, from_ast, from_semantic
+    logical, intent(in) :: debug_tokens, debug_ast, debug_semantic, debug_codegen
+    
+    type(compilation_options_t) :: options
+    character(len=256) :: error_msg
+    character(len=256) :: output_file
+    
+    ! Set up compilation options
+    options%debug_tokens = debug_tokens
+    options%debug_ast = debug_ast
+    options%debug_semantic = debug_semantic
+    options%debug_codegen = debug_codegen
+    
+    ! Generate output filename based on input JSON
+    output_file = json_file
+    if (index(output_file, '.') > 0) then
+      output_file = output_file(1:index(output_file, '.', back=.true.)-1)
+    end if
+    output_file = trim(output_file) // '.f90'
+    allocate(character(len=len_trim(output_file)) :: options%output_file)
+    options%output_file = output_file
+    
+    ! Call appropriate compilation function
+    if (from_tokens) then
+      call compile_from_tokens_json(json_file, options, error_msg)
+    else if (from_ast) then
+      call compile_from_ast_json(json_file, options, error_msg)
+    else if (from_semantic) then
+      call compile_from_semantic_json(json_file, options, error_msg)
+    else
+      error_msg = "No JSON input type specified"
+    end if
+    
+    if (len_trim(error_msg) > 0) then
+      write(*, '(a,a)') 'Error: ', trim(error_msg)
+      stop 1
+    end if
+    
+    print '(a,a)', 'Generated Fortran code written to: ', trim(output_file)
+    
+  end subroutine handle_json_input
   
   subroutine handle_clear_cache(custom_cache_dir, filename, verbose_level)
     character(len=*), intent(in) :: custom_cache_dir
