@@ -115,10 +115,15 @@ contains
         integer, intent(in), optional :: line, column
         type(fstring_node) :: node
         integer :: i
+        type(ast_node_wrapper) :: temp_wrapper
         
         node%template = template
         if (size(expressions) > 0) then
-            allocate(node%expressions, source=expressions)
+            allocate(node%expressions(0))
+            do i = 1, size(expressions)
+                allocate(temp_wrapper%node, source=expressions(i))
+                node%expressions = [node%expressions, temp_wrapper]
+            end do
         end if
         if (present(line)) node%line = line
         if (present(column)) node%column = column

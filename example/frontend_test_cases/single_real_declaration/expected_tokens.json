@@ -1,0 +1,8 @@
+{
+  "tokens": [
+    {"type": "keyword", "text": "real", "line": 1, "column": 1},
+    {"type": "operator", "text": "::", "line": 1, "column": 6},
+    {"type": "identifier", "text": "x", "line": 1, "column": 9},
+    {"type": "eof", "text": "", "line": 1, "column": 10}
+  ]
+}

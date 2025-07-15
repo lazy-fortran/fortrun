@@ -275,8 +275,7 @@ contains
                 end do
             end if
             
-            ! Add return type declaration
-            code = code // "    " // return_type_str // " :: " // node%name // new_line('a')
+            ! Don't declare the function name as a variable - it's implicit from the function declaration
         end block
         
         ! Add function body
@@ -502,12 +501,16 @@ contains
             code = generate_code_assignment(node)
         type is (binary_op_node)
             code = generate_code_binary_op(node)
+        type is (program_node)
+            code = generate_code_program(node)
         type is (function_call_node)
             code = generate_code_function_call(node)
         type is (function_def_node)
             code = generate_code_function_def(node)
         type is (subroutine_def_node)
             code = generate_code_subroutine_def(node)
+        type is (lf_program_node)
+            code = generate_code_lf_program(node)
         type is (lf_assignment_node)
             code = generate_code_lf_assignment(node)
         type is (print_statement_node)

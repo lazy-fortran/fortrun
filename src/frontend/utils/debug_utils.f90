@@ -29,6 +29,7 @@ contains
         end if
         json_file = json_file // "_tokens.json"
         
+        print *, "DEBUG: Writing tokens to: ", trim(json_file)
         call json_write_tokens_to_file(tokens, json_file)
     end subroutine debug_output_tokens
     
@@ -37,27 +38,14 @@ contains
         class(ast_node), intent(in) :: ast_tree
         character(len=:), allocatable :: json_file
         
-        ! Extract basename and create AST filename safely
-        block
-            integer :: dot_pos, slash_pos
-            character(len=:), allocatable :: basename
-            
-            ! Find the last slash to get basename
-            slash_pos = index(input_file, '/', back=.true.)
-            if (slash_pos > 0) then
-                basename = input_file(slash_pos+1:)
-            else
-                basename = input_file
-            end if
-            
-            ! Remove extension if present
-            dot_pos = index(basename, '.', back=.true.)
-            if (dot_pos > 0) then
-                basename = basename(1:dot_pos-1)
-            end if
-            
-            json_file = trim(basename) // "_ast.json"
-        end block
+        ! Create AST filename in same directory as input file
+        json_file = input_file
+        if (index(json_file, '.') > 0) then
+            json_file = json_file(1:index(json_file, '.', back=.true.)-1)
+        end if
+        json_file = json_file // "_ast.json"
+        
+        print *, "DEBUG: Writing AST to: ", trim(json_file)
         
         ! Temporarily use simple manual JSON output due to json-fortran library issues
         block
@@ -85,6 +73,10 @@ contains
                             write(unit, '(a)') '"type": "assignment"}'
                         type is (literal_node)
                             write(unit, '(a)') '"type": "literal"}'
+                        type is (function_def_node)
+                            write(unit, '(a)') '"type": "function_def"}'
+                        type is (use_statement_node)
+                            write(unit, '(a)') '"type": "use_statement"}'
                         class default
                             write(unit, '(a)') '"type": "unknown"}'
                         end select
@@ -110,27 +102,12 @@ contains
         character(len=:), allocatable :: json_file
         integer :: unit
         
-        ! Extract basename and create semantic filename
-        block
-            integer :: dot_pos, slash_pos
-            character(len=256) :: basename
-            
-            basename = input_file
-            
-            ! Remove directory path
-            slash_pos = index(basename, '/', back=.true.)
-            if (slash_pos > 0) then
-                basename = basename(slash_pos+1:)
-            end if
-            
-            ! Remove extension
-            dot_pos = index(basename, '.', back=.true.)
-            if (dot_pos > 0) then
-                basename = basename(1:dot_pos-1)
-            end if
-            
-            json_file = trim(basename) // "_semantic.json"
-        end block
+        ! Create semantic filename in same directory as input file
+        json_file = input_file
+        if (index(json_file, '.') > 0) then
+            json_file = json_file(1:index(json_file, '.', back=.true.)-1)
+        end if
+        json_file = json_file // "_semantic.json"
         
         ! Write annotated AST with type information to JSON file
         open(newunit=unit, file=json_file, status='replace', action='write')
@@ -154,27 +131,12 @@ contains
         character(len=:), allocatable :: json_file
         integer :: unit, i, line_start, line_end
         
-        ! Extract basename and create codegen filename
-        block
-            integer :: dot_pos, slash_pos
-            character(len=:), allocatable :: basename
-            
-            ! Find the last slash to get basename
-            slash_pos = index(input_file, '/', back=.true.)
-            if (slash_pos > 0) then
-                basename = input_file(slash_pos+1:)
-            else
-                basename = input_file
-            end if
-            
-            ! Remove extension if present
-            dot_pos = index(basename, '.', back=.true.)
-            if (dot_pos > 0) then
-                basename = basename(1:dot_pos-1)
-            end if
-            
-            json_file = trim(basename) // "_codegen.json"
-        end block
+        ! Create codegen filename in same directory as input file
+        json_file = input_file
+        if (index(json_file, '.') > 0) then
+            json_file = json_file(1:index(json_file, '.', back=.true.)-1)
+        end if
+        json_file = json_file // "_codegen.json"
         
         ! Write JSON with generated code
         open(newunit=unit, file=json_file, status='replace', action='write')

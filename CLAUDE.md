@@ -32,16 +32,23 @@ fpm run fortran -- example.f90 --debug-tokens --debug-ast --debug-semantic --deb
 Clean organized directory structure:
 - `src/` - Library modules
   - `frontend/` - Complete compilation pipeline
-    - `lexer/` - Tokenization (lexer_core.f90)
-    - `parser/` - Parsing (parser_core.f90)  
-    - `semantic/` - Type inference and analysis
-    - `codegen/` - Code generation (codegen_core.f90)
-    - `standard/` - Standard implementations
-      - `lazy_fortran/` - Lazy fortran extensions
-      - `fortran90/`, `fortran2018/` - Other standards
-    - `ast_core.f90` - Core AST definitions
+    - `lexer/` - Tokenization (lexer_core.f90 - DIALECT-AGNOSTIC)
+    - `parser/` - Parsing (parser_core.f90 - DIALECT-AGNOSTIC)  
+    - `semantic/` - Type inference and analysis (DIALECT-AGNOSTIC)
+    - `codegen/` - Code generation (codegen_core.f90 - DIALECT-AGNOSTIC, generates F90)
+    - `standard/` - Standard-specific implementations
+      - `lazy_fortran/` - Lazy fortran dialect extensions ONLY
+      - `fortran90/`, `fortran2018/` - Other standard-specific features
+    - `ast_core.f90` - Core AST definitions (DIALECT-AGNOSTIC)
     - `frontend.f90` - Main coordinator (TO REFACTOR)
   - `[utilities]/` - cli/, cache/, config/, runner/, notebook/, etc.
+
+### CRITICAL ARCHITECTURE RULE ⚠️
+**Core modules (lexer_core, parser_core, semantic_analyzer, codegen_core, ast_core) must be DIALECT-AGNOSTIC**
+- NO "lf_" prefixes in core modules
+- Common Fortran features go in core modules
+- Dialect-specific features go in standard/ subdirectories ONLY
+- Code generator always produces standard Fortran 90
 - `app/` - Executable programs
 - `test/` - Test programs organized to match src/ structure
   - `frontend/` - Frontend tests with wildcard naming
@@ -182,16 +189,49 @@ array = [array, create_something()]  ! Fails with polymorphic types
 ## Critical Development Notes
 
 - **ALWAYS write tests first!** (TDD: red-green-refactor)
+- **WRITE MINIMAL UNIT TESTS!** One feature at a time, starting with ONE LINE tests
+- **TEST COMPONENTS INDIVIDUALLY!** Don't run full compiler for unit tests!
 - **Clear cache before testing frontend**: `rm -rf ~/.cache/fortran/*`
 - **Compiler frontend is used** for .f files (*lazy fortran* with type inference)
 - Debug apps go in `app/`, then move to `test/` when ready
 - Test data goes in `example/frontend_test_cases/`
+
+### PROPER UNIT TESTING APPROACH:
+1. **Test lexer directly**: `tokenize_core("x = 1")` → check tokens
+2. **Test parser directly**: Feed tokens/JSON → check AST
+3. **Test semantic analyzer**: Feed AST/JSON → check annotated AST
+4. **Test codegen directly**: Feed AST/JSON → check generated code
+5. **Use JSON intermediate representations** for each stage!
+6. **ATOMIC TESTS**: One line snippets, not full programs!
+
+### JSON INPUT/OUTPUT FOR EACH STAGE:
+Each frontend stage MUST support JSON input AND output:
+- **Lexer**: Can output tokens.json, MUST accept tokens.json as input
+- **Parser**: Can output ast.json, MUST accept tokens.json as input
+- **Semantic**: Can output semantic.json, MUST accept ast.json as input
+- **Codegen**: Can output codegen.json, MUST accept ast.json as input
+
+CLI options needed:
+- `--from-tokens <file.json>` - Start from tokens stage
+- `--from-ast <file.json>` - Start from AST stage
+- `--from-semantic <file.json>` - Start from annotated AST
+
+Example test structure:
+```
+example/frontend_test_cases/single_assignment/
+├── input.txt                    # Just "x = 1"
+├── expected_tokens.json         # Expected tokenizer output
+├── expected_ast.json           # Expected parser output
+├── expected_semantic.json      # Expected semantic analysis output
+└── expected_code.txt           # Expected generated code snippet
+```
+
 - **IMPORTANT: When debugging parser/frontend issues, ALWAYS create test cases in example/frontend_test_cases/ with:**
   - One subdirectory per test case (e.g., `example/frontend_test_cases/use_statement/`)
-  - Input file: `<case_name>.f` (e.g., `use_statement.f`)
-  - Expected output: `<case_name>.f90` (e.g., `use_statement.f90`)
-  - Intermediate representations: `<case_name>_tokens.json`, `<case_name>_ast.json`
-  - Add these to automated test coverage immediately via `test_example_test_cases.f90`
+  - Input snippet: `input.txt` (NOT a full program!)
+  - Expected outputs for EACH stage
+  - Add these to automated test coverage immediately
+  - **START WITH MINIMAL TESTS**: One line tests first! (e.g., just `x = 1`, then `real :: x`, then combine)
 - Polymorphic arrays: use `allocate(array, source=input)`
 - Avoid polymorphic assignment with allocatable components
 - Reference: Fortran 95 standard at https://wg5-fortran.org/N1151-N1200/N1191.pdf
