@@ -474,6 +474,8 @@ contains
             code = generate_code_declaration(node)
         type is (do_loop_node)
             code = generate_code_do_loop(node)
+        type is (do_while_node)
+            code = generate_code_do_while(node)
         type is (select_case_node)
             code = generate_code_select_case(node)
         class default
@@ -805,6 +807,32 @@ contains
                    "end do"
         end if
     end function generate_code_do_loop
+
+    ! Generate code for do while loop
+    function generate_code_do_while(node) result(code)
+        type(do_while_node), intent(in) :: node
+        character(len=:), allocatable :: code
+        character(len=:), allocatable :: condition_code, body_code
+        integer :: i
+        
+        ! Generate condition code
+        condition_code = generate_code_polymorphic(node%condition)
+        
+        ! Generate body code
+        body_code = ""
+        if (allocated(node%body)) then
+            do i = 1, size(node%body)
+                if (allocated(node%body(i)%node)) then
+                    body_code = body_code // "    " // generate_code_polymorphic(node%body(i)%node) // new_line('a')
+                end if
+            end do
+        end if
+        
+        ! Construct do while loop
+        code = "do while (" // condition_code // ")" // new_line('a') // &
+               body_code // &
+               "end do"
+    end function generate_code_do_while
 
     ! Generate code for select case node
     function generate_code_select_case(node) result(code)

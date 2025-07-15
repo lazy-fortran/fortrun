@@ -1,0 +1,42 @@
+
+Running: example/advanced_inference/arrays.f...
+
+Running: example/advanced_inference/derived_types.f90...
+  ✓ PASS: example/advanced_inference/derived_types.f90 (exit code 0)
+
+Running: example/advanced_inference/derived_types.f...
+
+Running: example/notebook/simple_math.f90...
+  ✓ PASS: example/notebook/simple_math.f90 (exit code 0)
+    ✓ Notebook math example working correctly
+
+--
+
+Running: example/notebook/arrays_loops_simple.f...
+
+Running: example/notebook/control_flow.f90...
+  ✓ PASS: example/notebook/control_flow.f90 (exit code 0)
+
+Running: example/notebook/control_flow_simple.f...
+  ✗ FAIL: example/notebook/control_flow_simple.f (exit code 139)
+    Error output:
+    Project is up to date | | Program received signal SIGSEGV: Segmentation fault - invalid memory reference. | | Backtrace for this error: | #0  0x7faadaa4deef in ??? | #1  0x0 in ??? | <ERROR> Execution for object " fortran " returned exit code  139 | <ERROR> *cmd_run*:stopping due to failed executions | STOP 139
+
+Running: example/step1_explicit_types/step1_demo.f90...
+  ✓ PASS: example/step1_explicit_types/step1_demo.f90 (exit code 0)
+--
+
+Running: example/advanced_inference/function_returns.f...
+
+Running: example/advanced_inference/intrinsic_functions.f90...
+  ✓ PASS: example/advanced_inference/intrinsic_functions.f90 (exit code 0)
+    ✓ Intrinsic functions example working
+
+--
+  ✓ PASS: Outputs match
+Testing: example/calculator/calculator.f vs example/calculator/calculator.f90
+Testing: example/type_inference/calculate.f vs example/type_inference/calculate.f90
+  ✓ PASS: Outputs match
+Testing: example/type_inference/all_types.f vs example/type_inference/all_types.f90
+  ✓ PASS: Outputs match
+Cleaned up temporary cache directory

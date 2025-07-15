@@ -153,6 +153,15 @@ module ast_core
         procedure :: to_json => do_loop_to_json
     end type do_loop_node
 
+    ! Do while loop node
+    type, extends(ast_node), public :: do_while_node
+        class(ast_node), allocatable :: condition     ! While condition
+        type(ast_node_wrapper), allocatable :: body(:) ! Loop body
+    contains
+        procedure :: accept => do_while_accept
+        procedure :: to_json => do_while_to_json
+    end type do_while_node
+
     ! Select case node
     type, extends(ast_node), public :: select_case_node
         class(ast_node), allocatable :: expr          ! Expression to match
@@ -184,7 +193,7 @@ module ast_core
     public :: create_program, create_assignment, create_binary_op
     public :: create_function_def, create_subroutine_def, create_function_call
     public :: create_identifier, create_literal, create_use_statement, create_print_statement
-    public :: create_declaration, create_do_loop, create_select_case
+    public :: create_declaration, create_do_loop, create_do_while, create_select_case
 
 contains
 
@@ -765,6 +774,29 @@ contains
         if (present(column)) node%column = column
     end function create_do_loop
 
+    ! Factory function for do while loop
+    function create_do_while(condition, body, line, column) result(node)
+        class(ast_node), intent(in) :: condition
+        class(ast_node), intent(in), optional :: body(:)
+        integer, intent(in), optional :: line, column
+        type(do_while_node) :: node
+        integer :: i
+        
+        allocate(node%condition, source=condition)
+        
+        if (present(body)) then
+            if (size(body) > 0) then
+                allocate(node%body(size(body)))
+                do i = 1, size(body)
+                    allocate(node%body(i)%node, source=body(i))
+                end do
+            end if
+        end if
+        
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_do_while
+
     ! Factory function for select case
     function create_select_case(expr, cases, line, column) result(node)
         class(ast_node), intent(in) :: expr
@@ -804,6 +836,25 @@ contains
         call json%add(obj, 'var_name', this%var_name)
         call json%add(parent, obj)
     end subroutine do_loop_to_json
+
+    subroutine do_while_accept(this, visitor)
+        class(do_while_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! TODO: Implement visitor pattern for do_while
+    end subroutine do_while_accept
+
+    subroutine do_while_to_json(this, json, parent)
+        class(do_while_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj
+        
+        call json%create_object(obj, '')
+        call json%add(obj, 'type', 'do_while')
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+        call json%add(parent, obj)
+    end subroutine do_while_to_json
 
     subroutine select_case_accept(this, visitor)
         class(select_case_node), intent(in) :: this
