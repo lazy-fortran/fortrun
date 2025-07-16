@@ -80,7 +80,7 @@ Key insights:
 - [x] Test: Interface blocks ✅
 - [x] Test: Module/contains structure ✅ - COMPLETE
 - [x] Test: Use statements with renaming/only ✅ - COMPLETE
-- [ ] Test: Include statements
+- [x] Test: Include statements ✅ - COMPLETE
 
 ### 3.2 Expression Parsing
 - [ ] Test: Arithmetic expressions (all operators, precedence)
@@ -332,4 +332,14 @@ Key insights:
 - Enhanced factory function create_use_statement with new parameters
 - Comprehensive test coverage for all use statement forms
 
-**Ready to proceed with remaining Phase 3 tasks**
+**Include Statements Complete ✅**:
+- Added include_statement_node to AST with filename field
+- Implemented parse_include_statement function for parsing include statements
+- Support for basic include statements: `include 'filename.f90'`
+- Added "include" keyword to lexer (now 32 keywords total)
+- JSON serialization support for include statements
+- Factory function create_include_statement for AST node creation
+- JSON deserialization support in json_reader
+- Comprehensive test coverage for include statement parsing
+
+**Phase 3.1 Statement Parsing Complete ✅**

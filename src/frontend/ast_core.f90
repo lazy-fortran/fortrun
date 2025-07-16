@@ -122,6 +122,14 @@ module ast_core
         procedure :: to_json => use_statement_to_json
     end type use_statement_node
 
+    ! Include statement node
+    type, extends(ast_node), public :: include_statement_node
+        character(len=:), allocatable :: filename
+    contains
+        procedure :: accept => include_statement_accept
+        procedure :: to_json => include_statement_to_json
+    end type include_statement_node
+
     ! Print statement node
     type, extends(ast_node), public :: print_statement_node
         character(len=:), allocatable :: format_spec  ! Optional format
@@ -231,7 +239,7 @@ module ast_core
     ! Public interface for creating nodes
     public :: create_program, create_assignment, create_binary_op
     public :: create_function_def, create_subroutine_def, create_function_call
-    public :: create_identifier, create_literal, create_use_statement, create_print_statement
+    public :: create_identifier, create_literal, create_use_statement, create_include_statement, create_print_statement
     public :: create_declaration, create_do_loop, create_do_while, create_select_case
     public :: create_derived_type, create_interface_block, create_module
 
@@ -431,6 +439,16 @@ function create_function_def(name, params, return_type, body, line, column) resu
         if (present(column)) node%column = column
     end function create_use_statement
 
+    function create_include_statement(filename, line, column) result(node)
+        character(len=*), intent(in) :: filename
+        integer, intent(in), optional :: line, column
+        type(include_statement_node) :: node
+
+        node%filename = filename
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_include_statement
+
     function create_print_statement(args, format_spec, line, column) result(node)
         type(ast_node_wrapper), intent(in) :: args(:)
         character(len=*), intent(in), optional :: format_spec
@@ -504,6 +522,12 @@ function create_function_def(name, params, return_type, body, line, column) resu
         class(*), intent(inout) :: visitor
         ! Implementation depends on specific visitor
     end subroutine use_statement_accept
+
+    subroutine include_statement_accept(this, visitor)
+        class(include_statement_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Implementation depends on specific visitor
+    end subroutine include_statement_accept
 
     subroutine print_statement_accept(this, visitor)
         class(print_statement_node), intent(in) :: this
@@ -761,6 +785,21 @@ function create_function_def(name, params, return_type, body, line, column) resu
 
         call json%add(parent, obj)
     end subroutine use_statement_to_json
+
+    subroutine include_statement_to_json(this, json, parent)
+        class(include_statement_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj
+
+        call json%create_object(obj, '')
+        call json%add(obj, 'type', 'include_statement')
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+        call json%add(obj, 'filename', this%filename)
+
+        call json%add(parent, obj)
+    end subroutine include_statement_to_json
 
     subroutine print_statement_to_json(this, json, parent)
         class(print_statement_node), intent(in) :: this

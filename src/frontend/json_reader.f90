@@ -203,6 +203,8 @@ contains
             node = json_to_function_call_node(core, json_obj)
         case ('use_statement')
             node = json_to_use_statement_node(core, json_obj)
+        case ('include_statement')
+            node = json_to_include_statement_node(core, json_obj)
         case ('print_statement')
             node = json_to_print_statement_node(core, json_obj)
         case default
@@ -522,6 +524,28 @@ node = create_assignment(target, value, line, column, inferred_type, inferred_ty
  node = create_use_statement(module_name, only_list=only_list, line=line, column=column)
 
     end function json_to_use_statement_node
+
+    ! Convert JSON to include statement node
+    function json_to_include_statement_node(core, json_obj) result(node)
+        type(json_core), intent(inout) :: core
+        type(json_value), pointer, intent(in) :: json_obj
+        type(include_statement_node) :: node
+        character(len=:), allocatable :: filename
+        integer :: line, column
+        logical :: found
+
+        ! Get properties
+        call core%get(json_obj, 'filename', filename, found)
+        if (.not. found) filename = 'unknown'
+        call core%get(json_obj, 'line', line, found)
+        if (.not. found) line = 1
+        call core%get(json_obj, 'column', column, found)
+        if (.not. found) column = 1
+
+        ! Create node
+        node = create_include_statement(filename, line, column)
+
+    end function json_to_include_statement_node
 
     ! Convert JSON to print statement node
     function json_to_print_statement_node(core, json_obj) result(node)
