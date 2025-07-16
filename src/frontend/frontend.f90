@@ -11,11 +11,6 @@ module frontend
     use codegen_core, only: generate_code, generate_code_polymorphic
     use logger, only: log_debug, log_verbose, set_verbose_level
 
-    ! FALLBACK modules (temporary until full AST)
-    use token_fallback, only: set_current_tokens, generate_use_statements_from_tokens, &
-                              generate_executable_statements_from_tokens, &
-                              generate_function_definitions_from_tokens
-    use declaration_generator, only: generate_declarations
     use debug_utils, only: debug_output_tokens, debug_output_ast, debug_output_semantic, debug_output_codegen
     use json_reader, only: json_read_tokens_from_file, json_read_ast_from_file, json_read_semantic_from_file
 
@@ -216,9 +211,6 @@ contains
 
         error_msg = ""
         call tokenize_core(source, tokens)
-
-        ! Store tokens for FALLBACK functions
-        call set_current_tokens(tokens)
     end subroutine lex_file
 
     ! Phase 2: Parsing
@@ -611,12 +603,11 @@ contains
         end select
     end subroutine generate_fortran_code
 
-    ! Generate Fortran program (FALLBACK approach until full AST)
+    ! Generate Fortran program (AST-based approach)
     function generate_fortran_program(prog, sem_ctx) result(code)
         type(program_node), intent(in) :: prog
         type(semantic_context_t), intent(in) :: sem_ctx
         character(len=:), allocatable :: code
-    character(len=:), allocatable :: use_statements, declarations, statements, functions
 
         ! ARCHITECTURE: AST-based code generation ONLY - NO FALLBACK
         code = generate_code(prog)
