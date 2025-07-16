@@ -186,6 +186,28 @@ module ast_core
         procedure :: to_json => select_case_to_json
     end type select_case_node
 
+    ! Interface block node
+    type, extends(ast_node), public :: interface_block_node
+        character(len=:), allocatable :: name         ! Interface name (optional)
+        character(len=:), allocatable :: kind         ! "interface", "generic", "operator", "assignment"
+        character(len=:), allocatable :: operator     ! Operator symbol (for operator interfaces)
+        type(ast_node_wrapper), allocatable :: procedures(:) ! Procedure declarations
+    contains
+        procedure :: accept => interface_block_accept
+        procedure :: to_json => interface_block_to_json
+    end type interface_block_node
+
+    ! Module node
+    type, extends(ast_node), public :: module_node
+        character(len=:), allocatable :: name         ! Module name
+        type(ast_node_wrapper), allocatable :: declarations(:) ! Module declarations
+        type(ast_node_wrapper), allocatable :: procedures(:)   ! Module procedures (after contains)
+        logical :: has_contains = .false.             ! Whether module has a contains section
+    contains
+        procedure :: accept => module_accept
+        procedure :: to_json => module_to_json
+    end type module_node
+
     ! Case statement wrapper
     type, public :: case_wrapper
         character(len=:), allocatable :: case_type    ! "case", "case_default"
@@ -209,7 +231,7 @@ module ast_core
     public :: create_function_def, create_subroutine_def, create_function_call
     public :: create_identifier, create_literal, create_use_statement, create_print_statement
     public :: create_declaration, create_do_loop, create_do_while, create_select_case
-    public :: create_derived_type
+    public :: create_derived_type, create_interface_block, create_module
 
 contains
 
@@ -895,6 +917,64 @@ function create_function_def(name, params, return_type, body, line, column) resu
         if (present(column)) node%column = column
     end function create_derived_type
 
+    ! Factory function for interface block
+    function create_interface_block(name, kind, operator, procedures, line, column) result(node)
+        character(len=*), intent(in), optional :: name
+        character(len=*), intent(in) :: kind
+        character(len=*), intent(in), optional :: operator
+        type(ast_node_wrapper), intent(in), optional :: procedures(:)
+        integer, intent(in), optional :: line, column
+        type(interface_block_node) :: node
+
+        if (present(name)) then
+            node%name = name
+        end if
+
+        node%kind = kind
+
+        if (present(operator)) then
+            node%operator = operator
+        end if
+
+        if (present(procedures)) then
+            if (size(procedures) > 0) then
+                allocate (node%procedures, source=procedures)
+            end if
+        end if
+
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_interface_block
+
+    ! Factory function for module
+    function create_module(name, declarations, procedures, has_contains, line, column) result(node)
+        character(len=*), intent(in) :: name
+        type(ast_node_wrapper), intent(in), optional :: declarations(:)
+        type(ast_node_wrapper), intent(in), optional :: procedures(:)
+        logical, intent(in), optional :: has_contains
+        integer, intent(in), optional :: line, column
+        type(module_node) :: node
+
+        node%name = name
+
+        if (present(declarations)) then
+            allocate (node%declarations(size(declarations)))
+            node%declarations = declarations
+        end if
+
+        if (present(procedures)) then
+            allocate (node%procedures(size(procedures)))
+            node%procedures = procedures
+        end if
+
+        if (present(has_contains)) then
+            node%has_contains = has_contains
+        end if
+
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_module
+
     ! Visitor methods for new nodes
     subroutine do_loop_accept(this, visitor)
         class(do_loop_node), intent(in) :: this
@@ -959,6 +1039,99 @@ function create_function_def(name, params, return_type, body, line, column) resu
         class(*), intent(inout) :: visitor
         ! TODO: Implement visitor pattern for derived_type
     end subroutine derived_type_accept
+
+    subroutine interface_block_accept(this, visitor)
+        class(interface_block_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! TODO: Implement visitor pattern for interface_block
+    end subroutine interface_block_accept
+
+    subroutine interface_block_to_json(this, json, parent)
+        class(interface_block_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj
+        integer :: i
+
+        call json%create_object(obj, '')
+        call json%add(obj, 'type', 'interface_block')
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+        call json%add(obj, 'kind', this%kind)
+
+        if (allocated(this%name)) then
+            call json%add(obj, 'name', this%name)
+        end if
+
+        if (allocated(this%operator)) then
+            call json%add(obj, 'operator', this%operator)
+        end if
+
+        if (allocated(this%procedures)) then
+            block
+                type(json_value), pointer :: procedures_array
+                call json%create_array(procedures_array, 'procedures')
+                do i = 1, size(this%procedures)
+                    if (allocated(this%procedures(i)%node)) then
+                        call this%procedures(i)%node%to_json(json, procedures_array)
+                    end if
+                end do
+                call json%add(obj, procedures_array)
+            end block
+        end if
+
+        call json%add(parent, obj)
+    end subroutine interface_block_to_json
+
+    subroutine module_accept(this, visitor)
+        class(module_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! TODO: Implement visitor pattern for module
+    end subroutine module_accept
+
+    subroutine module_to_json(this, json, parent)
+        class(module_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj
+
+        call json%create_object(obj, '')
+        call json%add(obj, 'node_type', 'module')
+        call json%add(obj, 'name', this%name)
+        call json%add(obj, 'has_contains', this%has_contains)
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+
+        ! Add declarations array
+        if (allocated(this%declarations)) then
+            block
+                type(json_value), pointer :: declarations_array
+                type(json_value), pointer :: child_obj
+                integer :: i
+                call json%create_array(declarations_array, 'declarations')
+                do i = 1, size(this%declarations)
+                    call this%declarations(i)%node%to_json(json, declarations_array)
+                end do
+                call json%add(obj, declarations_array)
+            end block
+        end if
+
+        ! Add procedures array
+        if (allocated(this%procedures)) then
+            block
+                type(json_value), pointer :: procedures_array
+                type(json_value), pointer :: child_obj
+                integer :: i
+                call json%create_array(procedures_array, 'procedures')
+                do i = 1, size(this%procedures)
+                    call this%procedures(i)%node%to_json(json, procedures_array)
+                end do
+                call json%add(obj, procedures_array)
+            end block
+        end if
+
+        call json%add(parent, obj)
+    end subroutine module_to_json
 
     subroutine derived_type_to_json(this, json, parent)
         class(derived_type_node), intent(in) :: this

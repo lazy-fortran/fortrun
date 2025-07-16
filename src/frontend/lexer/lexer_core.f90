@@ -26,14 +26,15 @@ module lexer_core
     public :: token_type_name
 
     ! Keywords list
-    character(len=20), dimension(26) :: keywords = [ &
+    character(len=20), dimension(30) :: keywords = [ &
                        "program     ", "end         ", "function    ", "subroutine  ", &
                        "if          ", "then        ", "else        ", "endif       ", &
                        "do          ", "while       ", "implicit    ", "none        ", &
                        "integer     ", "real        ", "logical     ", "character   ", &
                        "complex     ", "print       ", "read        ", "write       ", &
                        "call        ", "use         ", "select      ", "case        ", &
-                                        "default     ", "type        " &
+                                       "default     ", "type        ", "interface   ", &
+                                        "operator    ", "module      ", "contains    " &
                                         ]
 
 contains

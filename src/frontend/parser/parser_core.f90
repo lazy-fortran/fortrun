@@ -3,10 +3,10 @@ module parser_core
     use ast_core, only: ast_node, ast_node_wrapper, assignment_node, binary_op_node, identifier_node, &
             literal_node, function_call_node, function_def_node, print_statement_node, &
                          use_statement_node, declaration_node, do_loop_node, do_while_node, select_case_node, case_wrapper, &
-            derived_type_node, create_assignment, create_binary_op, create_identifier, &
+            derived_type_node, interface_block_node, module_node, create_assignment, create_binary_op, create_identifier, &
     create_literal, create_function_call, create_function_def, create_print_statement, &
                          create_use_statement, create_declaration, create_do_loop, create_do_while, create_select_case, &
-     create_derived_type, LITERAL_INTEGER, LITERAL_REAL, LITERAL_STRING, LITERAL_LOGICAL
+     create_derived_type, create_interface_block, create_module, LITERAL_INTEGER, LITERAL_REAL, LITERAL_STRING, LITERAL_LOGICAL
     implicit none
     private
 
@@ -479,6 +479,14 @@ contains
             ! Check for select case
         else if (first_token%kind == TK_KEYWORD .and. first_token%text == "select") then
             stmt = parse_select_case(parser)
+            return
+            ! Check for interface block
+     else if (first_token%kind == TK_KEYWORD .and. first_token%text == "interface") then
+            stmt = parse_interface_block(parser)
+            return
+            ! Check for module
+        else if (first_token%kind == TK_KEYWORD .and. first_token%text == "module") then
+            stmt = parse_module(parser)
             return
         end if
 
@@ -1824,5 +1832,194 @@ contains
         end block
 
     end function parse_do_while_from_do
+
+    ! Parse interface block: interface [name|operator(op)] ... end interface
+    function parse_interface_block(parser) result(interface_node)
+        type(parser_state_t), intent(inout) :: parser
+        class(ast_node), allocatable :: interface_node
+
+        type(token_t) :: interface_token, token
+        character(len=:), allocatable :: name, operator_symbol, kind
+        integer :: line, column
+        type(ast_node_wrapper), allocatable :: procedures(:)
+
+        ! Consume 'interface' keyword
+        interface_token = parser%consume()
+        line = interface_token%line
+        column = interface_token%column
+        kind = "interface"
+
+        ! Check what follows the interface keyword
+        token = parser%peek()
+
+        if (token%kind == TK_IDENTIFIER) then
+            ! Named interface: interface name
+            token = parser%consume()
+            name = token%text
+            kind = "generic"
+        else if (token%kind == TK_KEYWORD .and. token%text == "operator") then
+            ! Operator interface: interface operator(+)
+            token = parser%consume()  ! consume 'operator'
+            kind = "operator"
+
+            ! Expect '('
+            token = parser%peek()
+            if (token%kind == TK_OPERATOR .and. token%text == "(") then
+                token = parser%consume()  ! consume '('
+
+                ! Get operator symbol
+                token = parser%peek()
+                if (token%kind == TK_OPERATOR) then
+                    operator_symbol = token%text
+                    token = parser%consume()
+                end if
+
+                ! Expect ')'
+                token = parser%peek()
+                if (token%kind == TK_OPERATOR .and. token%text == ")") then
+                    token = parser%consume()  ! consume ')'
+                end if
+            end if
+        else if (token%kind == TK_KEYWORD .and. token%text == "assignment") then
+            ! Assignment interface: interface assignment(=)
+            token = parser%consume()  ! consume 'assignment'
+            kind = "assignment"
+
+            ! Expect '(=)'
+            token = parser%peek()
+            if (token%kind == TK_OPERATOR .and. token%text == "(") then
+                token = parser%consume()  ! consume '('
+                token = parser%peek()
+                if (token%kind == TK_OPERATOR .and. token%text == "=") then
+                    token = parser%consume()  ! consume '='
+                    operator_symbol = "="
+                end if
+                token = parser%peek()
+                if (token%kind == TK_OPERATOR .and. token%text == ")") then
+                    token = parser%consume()  ! consume ')'
+                end if
+            end if
+        end if
+
+        ! TODO: Parse interface body (procedure declarations)
+        ! For now, just skip until "end interface"
+        do
+            token = parser%peek()
+            if (token%kind == TK_EOF) exit
+            if (token%kind == TK_KEYWORD .and. token%text == "end") then
+                token = parser%consume()  ! consume 'end'
+                token = parser%peek()
+                if (token%kind == TK_KEYWORD .and. token%text == "interface") then
+                    token = parser%consume()  ! consume 'interface'
+                    exit
+                end if
+            else
+                token = parser%consume()  ! skip token
+            end if
+        end do
+
+        ! Create interface block node
+        block
+            type(interface_block_node), allocatable :: node
+            allocate (node)
+            if (allocated(name)) then
+                node = create_interface_block(name=name, kind=kind, procedures=procedures, line=line, column=column)
+            else if (allocated(operator_symbol)) then
+                node = create_interface_block(kind=kind, operator=operator_symbol, procedures=procedures, line=line, column=column)
+            else
+                node = create_interface_block(kind=kind, procedures=procedures, line=line, column=column)
+            end if
+            allocate (interface_node, source=node)
+        end block
+
+    end function parse_interface_block
+
+    ! Parse module: module name ... [contains ...] end module [name]
+    function parse_module(parser) result(module_ast)
+        type(parser_state_t), intent(inout) :: parser
+        class(ast_node), allocatable :: module_ast
+
+        type(token_t) :: module_token, token
+        character(len=:), allocatable :: name
+        integer :: line, column
+        type(ast_node_wrapper), allocatable :: declarations(:)
+        type(ast_node_wrapper), allocatable :: procedures(:)
+        logical :: has_contains
+
+        ! Consume 'module' keyword
+        module_token = parser%consume()
+        line = module_token%line
+        column = module_token%column
+        has_contains = .false.
+
+        ! Get module name
+        token = parser%peek()
+        if (token%kind == TK_IDENTIFIER) then
+            token = parser%consume()
+            name = token%text
+        else
+            ! Error: expected module name
+            name = "unknown"
+        end if
+
+        ! TODO: Parse module body (declarations)
+        ! For now, just skip until "contains" or "end module"
+        do
+            token = parser%peek()
+            if (token%kind == TK_EOF) exit
+            if (token%kind == TK_KEYWORD .and. token%text == "contains") then
+                token = parser%consume()  ! consume 'contains'
+                has_contains = .true.
+                exit
+            else if (token%kind == TK_KEYWORD .and. token%text == "end") then
+                token = parser%consume()  ! consume 'end'
+                token = parser%peek()
+                if (token%kind == TK_KEYWORD .and. token%text == "module") then
+                    token = parser%consume()  ! consume 'module'
+                    ! Optional module name after 'end module'
+                    token = parser%peek()
+                    if (token%kind == TK_IDENTIFIER) then
+                        token = parser%consume()  ! consume module name
+                    end if
+                    exit
+                end if
+            else
+                token = parser%consume()  ! skip token
+            end if
+        end do
+
+        ! TODO: Parse procedures after contains
+        ! For now, just skip until "end module"
+        if (has_contains) then
+            do
+                token = parser%peek()
+                if (token%kind == TK_EOF) exit
+                if (token%kind == TK_KEYWORD .and. token%text == "end") then
+                    token = parser%consume()  ! consume 'end'
+                    token = parser%peek()
+                    if (token%kind == TK_KEYWORD .and. token%text == "module") then
+                        token = parser%consume()  ! consume 'module'
+                        ! Optional module name after 'end module'
+                        token = parser%peek()
+                        if (token%kind == TK_IDENTIFIER) then
+                            token = parser%consume()  ! consume module name
+                        end if
+                        exit
+                    end if
+                else
+                    token = parser%consume()  ! skip token
+                end if
+            end do
+        end if
+
+        ! Create module node
+        block
+            type(module_node), allocatable :: node
+            allocate (node)
+    node = create_module(name=name, has_contains=has_contains, line=line, column=column)
+            allocate (module_ast, source=node)
+        end block
+
+    end function parse_module
 
 end module parser_core

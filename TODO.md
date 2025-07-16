@@ -77,8 +77,8 @@ Key insights:
   - [x] Array bounds notation: `real :: arr(1:10)` ✅
   - [x] Character arrays with length: `character(len=20) :: names(5)` ✅
 - [x] Test: Derived type definitions ✅
-- [ ] Test: Interface blocks
-- [ ] Test: Module/contains structure
+- [x] Test: Interface blocks ✅
+- [x] Test: Module/contains structure ✅ - COMPLETE
 - [ ] Test: Use statements with renaming/only
 - [ ] Test: Include statements
 
@@ -297,5 +297,27 @@ Key insights:
 - Enhanced parse_statement logic to distinguish derived type definitions from declarations
 - Fixed declaration parser to handle derived types alongside traditional types
 - All derived type parser tests passing
+
+**Interface Blocks Complete ✅**:
+- Added interface_block_node to AST with support for all interface types
+- Implemented parse_interface_block function with proper keyword recognition
+- Support for simple interfaces: `interface ... end interface`
+- Support for generic interfaces: `interface name ... end interface`
+- Support for operator interfaces: `interface operator(+) ... end interface`
+- Support for assignment interfaces: `interface assignment(=) ... end interface`
+- Added "interface" and "operator" keywords to lexer
+- JSON serialization support for interface blocks
+- Comprehensive test coverage for all interface block types
+
+**Module/Contains Structure Complete ✅**:
+- Added module_node to AST with name, declarations, procedures, and has_contains fields
+- Implemented parse_module function recognizing module/contains/end module structure
+- Support for simple modules: `module name ... end module`
+- Support for modules with contains: `module name ... contains ... end module`
+- Added "module" and "contains" keywords to lexer (now 30 keywords total)
+- JSON serialization support for module structure
+- Factory function create_module for consistent AST node creation
+- Module name parsing and storage with proper line/column information
+- Detection and flagging of contains section presence
 
 **Ready to proceed with remaining Phase 3 tasks**
