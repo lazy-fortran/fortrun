@@ -40,10 +40,10 @@ Key insights:
 - [x] Unified JSON modules already exist: json_writer.f90 and json_reader.f90
 - [x] AST nodes have to_json method for serialization
 - [x] json_reader supports deserialization of all AST node types
-- [ ] Verify parser uses json_writer for AST output
-- [ ] Verify semantic analyzer uses json_writer for AST output
-- [ ] Test: AST can round-trip through JSON (AST → JSON → AST)
-- [ ] Test: Semantic analyzer preserves all AST structure when adding type annotations
+- [x] Verify parser uses json_writer for AST output
+- [x] Verify semantic analyzer uses json_writer for AST output
+- [x] Test: AST can round-trip through JSON (AST → JSON → AST)
+- [x] Test: Semantic analyzer preserves all AST structure when adding type annotations
 
 ### 1.3 Remove Legacy Code
 - [ ] Remove basic type inference code from frontend.f90
