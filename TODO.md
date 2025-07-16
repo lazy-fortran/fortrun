@@ -91,7 +91,7 @@ Key insights:
 - [x] Test: Structure member access ✅
 
 ### 3.3 Control Flow
-- [ ] Test: If/then/else/elseif
+- [x] Test: If/then/else/elseif ✅
 - [ ] Test: Select case
 - [ ] Test: Do loops (all forms)
 - [ ] Test: Where constructs
@@ -408,3 +408,17 @@ Key insights:
 - All member access tests passing
 
 **Phase 3.2 Expression Parsing Complete! ✅**
+
+**If/Then/Else/Elseif Complete ✅**:
+- Added `if_node` to AST with condition, then_body, elseif_blocks, and else_body fields
+- Added `elseif_wrapper` type for storing elseif condition and body pairs
+- Implemented comprehensive parse_if function handling:
+  - Standard if/then/endif blocks
+  - If/then/else/endif blocks
+  - If/then/elseif/else/endif with multiple elseif blocks
+  - One-line if statements (no then keyword)
+- Added helper functions: parse_if_condition, parse_if_body, parse_elseif_block
+- Added "elseif" keyword to lexer (now 33 keywords total)
+- JSON serialization support for if statements
+- Comprehensive test coverage for all if statement forms
+- All if statement parser tests passing

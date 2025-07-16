@@ -2,10 +2,10 @@ module parser_core
     use lexer_core
     use ast_core, only: ast_node, ast_node_wrapper, assignment_node, binary_op_node, identifier_node, &
         literal_node, call_or_subscript_node, function_def_node, print_statement_node, &
-                         use_statement_node, include_statement_node, declaration_node, do_loop_node, do_while_node, select_case_node, case_wrapper, &
+                         use_statement_node, include_statement_node, declaration_node, do_loop_node, do_while_node, if_node, elseif_wrapper, select_case_node, case_wrapper, &
             derived_type_node, interface_block_node, module_node, create_assignment, create_binary_op, create_identifier, &
 create_literal, create_call_or_subscript, create_function_def, create_print_statement, &
-                         create_use_statement, create_include_statement, create_declaration, create_do_loop, create_do_while, create_select_case, &
+                         create_use_statement, create_include_statement, create_declaration, create_do_loop, create_do_while, create_if, create_select_case, &
      create_derived_type, create_interface_block, create_module, LITERAL_INTEGER, LITERAL_REAL, LITERAL_STRING, LITERAL_LOGICAL
     implicit none
     private
@@ -24,7 +24,7 @@ create_literal, create_call_or_subscript, create_function_def, create_print_stat
     ! Public parsing interface
     public :: parse_expression, parse_statement
     public :: create_parser_state, parse_primary, parse_function_definition
-    public :: parse_do_loop, parse_do_while, parse_select_case
+    public :: parse_do_loop, parse_do_while, parse_if, parse_select_case
 
 contains
 
@@ -576,6 +576,10 @@ contains
                     end if
                 end block
             end if
+            ! Check for if statement
+        else if (first_token%kind == TK_KEYWORD .and. first_token%text == "if") then
+            stmt = parse_if(parser)
+            return
             ! Check for do loop
         else if (first_token%kind == TK_KEYWORD .and. first_token%text == "do") then
             stmt = parse_do_loop(parser)
@@ -2312,5 +2316,173 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
         end block
 
     end subroutine parse_only_list
+
+    ! Parse if statement
+    function parse_if(parser) result(if_stmt)
+        type(parser_state_t), intent(inout) :: parser
+        class(ast_node), allocatable :: if_stmt
+
+        type(token_t) :: if_token, then_token
+        class(ast_node), allocatable :: condition
+        type(ast_node_wrapper), allocatable :: then_body(:), else_body(:)
+        type(elseif_wrapper), allocatable :: elseif_blocks(:)
+        integer :: elseif_count
+
+        ! Consume 'if' keyword
+        if_token = parser%consume()
+
+        ! Parse condition (should be in parentheses for standard if/then/endif)
+        condition = parse_if_condition(parser)
+
+        ! Look for 'then' keyword
+        then_token = parser%peek()
+        if (then_token%kind == TK_KEYWORD .and. then_token%text == "then") then
+            ! Standard if/then/endif block
+            then_token = parser%consume()
+
+            ! Parse then body statements
+            then_body = parse_if_body(parser)
+
+            ! Check for elseif/else blocks
+            elseif_count = 0
+            allocate (elseif_blocks(0))
+
+            do while (.not. parser%is_at_end())
+                then_token = parser%peek()
+
+                if (then_token%kind == TK_KEYWORD) then
+                 if (then_token%text == "elseif" .or. then_token%text == "else if") then
+                        ! Parse elseif block
+                        elseif_count = elseif_count + 1
+                        elseif_blocks = [elseif_blocks, parse_elseif_block(parser)]
+                    else if (then_token%text == "else") then
+                        ! Parse else block
+                        then_token = parser%consume()  ! consume 'else'
+                        else_body = parse_if_body(parser)
+                        exit
+              else if (then_token%text == "endif" .or. then_token%text == "end if") then
+                        ! End of if statement
+                        then_token = parser%consume()
+                        exit
+                    else
+                        ! Other statement, stop parsing if block
+                        exit
+                    end if
+                else
+                    ! Not a keyword, continue parsing body
+                    exit
+                end if
+            end do
+
+            ! Create if node
+            if_stmt = create_if(condition, then_body, elseif_blocks, else_body, &
+                                if_token%line, if_token%column)
+        else
+            ! One-line if statement (no then keyword)
+            allocate (then_body(1))
+
+            ! Parse the single statement
+            block
+                class(ast_node), allocatable :: stmt
+                stmt = parse_statement(parser%tokens(parser%current_token:))
+                if (allocated(stmt)) then
+                    allocate (then_body(1)%node, source=stmt)
+                end if
+            end block
+
+            ! Create if node with no elseif/else blocks
+            allocate (elseif_blocks(0))
+            allocate (else_body(0))
+            if_stmt = create_if(condition, then_body, elseif_blocks, else_body, &
+                                if_token%line, if_token%column)
+        end if
+
+    end function parse_if
+
+    ! Parse if condition (handles parentheses if present)
+    function parse_if_condition(parser) result(condition)
+        type(parser_state_t), intent(inout) :: parser
+        class(ast_node), allocatable :: condition
+        type(token_t) :: paren_token
+
+        ! Check for opening parenthesis
+        paren_token = parser%peek()
+        if (paren_token%kind == TK_OPERATOR .and. paren_token%text == "(") then
+            paren_token = parser%consume()  ! consume '('
+
+            ! Parse the condition expression
+            condition = parse_expression(parser%tokens(parser%current_token:))
+
+            ! Consume closing parenthesis
+            paren_token = parser%peek()
+            if (paren_token%kind == TK_OPERATOR .and. paren_token%text == ")") then
+                paren_token = parser%consume()
+            end if
+        else
+            ! No parentheses, just parse the expression
+            condition = parse_expression(parser%tokens(parser%current_token:))
+        end if
+
+    end function parse_if_condition
+
+    ! Parse if/elseif/else body statements
+    function parse_if_body(parser) result(body)
+        type(parser_state_t), intent(inout) :: parser
+        type(ast_node_wrapper), allocatable :: body(:)
+        type(token_t) :: token
+        integer :: stmt_count
+        class(ast_node), allocatable :: stmt
+
+        allocate (body(0))
+        stmt_count = 0
+
+        do while (.not. parser%is_at_end())
+            token = parser%peek()
+
+            ! Check for end of body
+            if (token%kind == TK_KEYWORD) then
+                if (token%text == "elseif" .or. token%text == "else if" .or. &
+                    token%text == "else" .or. token%text == "endif" .or. &
+                    token%text == "end if") then
+                    exit
+                end if
+            end if
+
+            ! Parse statement
+            stmt = parse_statement(parser%tokens(parser%current_token:))
+            if (allocated(stmt)) then
+                stmt_count = stmt_count + 1
+                block
+                    type(ast_node_wrapper) :: wrapper
+                    allocate (wrapper%node, source=stmt)
+                    body = [body, wrapper]
+                end block
+            end if
+        end do
+
+    end function parse_if_body
+
+    ! Parse elseif block
+    function parse_elseif_block(parser) result(elseif_block)
+        type(parser_state_t), intent(inout) :: parser
+        type(elseif_wrapper) :: elseif_block
+        type(token_t) :: elseif_token
+
+        ! Consume 'elseif' or 'else if'
+        elseif_token = parser%consume()
+
+        ! Parse condition
+        elseif_block%condition = parse_if_condition(parser)
+
+        ! Look for 'then' keyword
+        elseif_token = parser%peek()
+        if (elseif_token%kind == TK_KEYWORD .and. elseif_token%text == "then") then
+            elseif_token = parser%consume()
+        end if
+
+        ! Parse body
+        elseif_block%body = parse_if_body(parser)
+
+    end function parse_elseif_block
 
 end module parser_core

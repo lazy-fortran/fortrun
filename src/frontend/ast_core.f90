@@ -186,6 +186,23 @@ module ast_core
         procedure :: to_json => do_while_to_json
     end type do_while_node
 
+    ! If statement node
+    type, extends(ast_node), public :: if_node
+        class(ast_node), allocatable :: condition      ! If condition
+        type(ast_node_wrapper), allocatable :: then_body(:)  ! Then body
+        type(elseif_wrapper), allocatable :: elseif_blocks(:) ! Elseif blocks (optional)
+        type(ast_node_wrapper), allocatable :: else_body(:)  ! Else body (optional)
+    contains
+        procedure :: accept => if_accept
+        procedure :: to_json => if_to_json
+    end type if_node
+
+    ! Elseif wrapper (not an AST node itself)
+    type, public :: elseif_wrapper
+        class(ast_node), allocatable :: condition     ! Elseif condition
+        type(ast_node_wrapper), allocatable :: body(:) ! Elseif body
+    end type elseif_wrapper
+
     ! Derived type definition node
     type, extends(ast_node), public :: derived_type_node
         character(len=:), allocatable :: name          ! Type name
@@ -250,7 +267,7 @@ module ast_core
     public :: create_program, create_assignment, create_binary_op
     public :: create_function_def, create_subroutine_def, create_function_call, create_call_or_subscript
     public :: create_identifier, create_literal, create_use_statement, create_include_statement, create_print_statement
-    public :: create_declaration, create_do_loop, create_do_while, create_select_case
+    public :: create_declaration, create_do_loop, create_do_while, create_if, create_select_case
     public :: create_derived_type, create_interface_block, create_module
 
 contains
@@ -985,6 +1002,33 @@ function create_function_def(name, params, return_type, body, line, column) resu
         if (present(column)) node%column = column
     end function create_do_while
 
+    ! Factory function for if statement
+    function create_if(condition, then_body, elseif_blocks, else_body, line, column) result(node)
+        class(ast_node), intent(in) :: condition
+        type(ast_node_wrapper), intent(in), optional :: then_body(:)
+        type(elseif_wrapper), intent(in), optional :: elseif_blocks(:)
+        type(ast_node_wrapper), intent(in), optional :: else_body(:)
+        integer, intent(in), optional :: line, column
+        type(if_node) :: node
+
+        allocate (node%condition, source=condition)
+
+        if (present(then_body) .and. size(then_body) > 0) then
+            allocate (node%then_body, source=then_body)
+        end if
+
+        if (present(elseif_blocks) .and. size(elseif_blocks) > 0) then
+            allocate (node%elseif_blocks, source=elseif_blocks)
+        end if
+
+        if (present(else_body) .and. size(else_body) > 0) then
+            allocate (node%else_body, source=else_body)
+        end if
+
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_if
+
     ! Factory function for select case
     function create_select_case(expr, cases, line, column) result(node)
         class(ast_node), intent(in) :: expr
@@ -1128,6 +1172,92 @@ function create_function_def(name, params, return_type, body, line, column) resu
         call json%add(obj, 'column', this%column)
         call json%add(parent, obj)
     end subroutine do_while_to_json
+
+    subroutine if_accept(this, visitor)
+        class(if_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Implementation depends on specific visitor
+    end subroutine if_accept
+
+    subroutine if_to_json(this, json, parent)
+        class(if_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+      type(json_value), pointer :: obj, then_array, else_array, elseif_array, elseif_obj
+        integer :: i
+
+        call json%create_object(obj, '')
+        call json%add(obj, 'type', 'if_statement')
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+
+        ! Add condition
+        if (allocated(this%condition)) then
+            block
+                type(json_value), pointer :: cond_obj
+                call json%create_object(cond_obj, 'condition')
+                call this%condition%to_json(json, cond_obj)
+                call json%add(obj, cond_obj)
+            end block
+        end if
+
+        ! Add then body
+        if (allocated(this%then_body)) then
+            call json%create_array(then_array, 'then_body')
+            call json%add(obj, then_array)
+            do i = 1, size(this%then_body)
+                if (allocated(this%then_body(i)%node)) then
+                    call this%then_body(i)%node%to_json(json, then_array)
+                end if
+            end do
+        end if
+
+        ! Add elseif blocks
+        if (allocated(this%elseif_blocks)) then
+            call json%create_array(elseif_array, 'elseif_blocks')
+            call json%add(obj, elseif_array)
+            do i = 1, size(this%elseif_blocks)
+                call json%create_object(elseif_obj, '')
+                ! Add elseif condition
+                if (allocated(this%elseif_blocks(i)%condition)) then
+                    block
+                        type(json_value), pointer :: cond_obj
+                        call json%create_object(cond_obj, 'condition')
+                        call this%elseif_blocks(i)%condition%to_json(json, cond_obj)
+                        call json%add(elseif_obj, cond_obj)
+                    end block
+                end if
+                ! Add elseif body
+                if (allocated(this%elseif_blocks(i)%body)) then
+                    block
+                        type(json_value), pointer :: body_array
+                        integer :: j
+                        call json%create_array(body_array, 'body')
+                        call json%add(elseif_obj, body_array)
+                        do j = 1, size(this%elseif_blocks(i)%body)
+                            if (allocated(this%elseif_blocks(i)%body(j)%node)) then
+                       call this%elseif_blocks(i)%body(j)%node%to_json(json, body_array)
+                            end if
+                        end do
+                    end block
+                end if
+                call json%add(elseif_array, elseif_obj)
+            end do
+        end if
+
+        ! Add else body
+        if (allocated(this%else_body)) then
+            call json%create_array(else_array, 'else_body')
+            call json%add(obj, else_array)
+            do i = 1, size(this%else_body)
+                if (allocated(this%else_body(i)%node)) then
+                    call this%else_body(i)%node%to_json(json, else_array)
+                end if
+            end do
+        end if
+
+        call json%add(parent, obj)
+    end subroutine if_to_json
 
     subroutine select_case_accept(this, visitor)
         class(select_case_node), intent(in) :: this
