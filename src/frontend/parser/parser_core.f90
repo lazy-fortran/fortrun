@@ -440,7 +440,7 @@ contains
                 logical :: has_double_colon
                 has_double_colon = .false.
 
-     do i = parser%current_token + 1, min(parser%current_token + 5, size(parser%tokens))
+    do i = parser%current_token + 1, min(parser%current_token + 10, size(parser%tokens))
       if (parser%tokens(i)%kind == TK_OPERATOR .and. parser%tokens(i)%text == "::") then
                         has_double_colon = .true.
                         exit
@@ -524,7 +524,7 @@ contains
         type(token_t) :: type_token, var_token
         character(len=:), allocatable :: type_name, var_name
         integer :: line, column, kind_value
-        logical :: has_kind, is_array
+        logical :: has_kind, is_array, is_allocatable
         type(ast_node_wrapper), allocatable :: dimensions(:)
 
         ! Get type name (real, integer, etc.)
@@ -534,6 +534,7 @@ contains
         column = type_token%column
         has_kind = .false.
         kind_value = 0
+        is_allocatable = .false.
 
         ! Check for kind specification (e.g., real(8)) or derived type (e.g., type(point))
         var_token = parser%peek()
@@ -564,9 +565,28 @@ contains
                     return
                 end if
             else if (var_token%kind == TK_IDENTIFIER) then
-                ! This is a derived type like type(point)
-                var_token = parser%consume()
-                type_name = type_name//"("//var_token%text//")"
+                ! This could be a derived type like type(point) or character(len=20)
+                block
+                    character(len=:), allocatable :: type_spec
+                    type_spec = var_token%text
+                    var_token = parser%consume()
+
+                    ! Check for more complex type specifications like len=20
+                    var_token = parser%peek()
+                    if (var_token%kind == TK_OPERATOR .and. var_token%text == "=") then
+                        ! Handle len=20 syntax
+                        var_token = parser%consume()  ! consume '='
+                        type_spec = type_spec//"="
+
+                        var_token = parser%peek()
+                        if (var_token%kind == TK_NUMBER) then
+                            var_token = parser%consume()
+                            type_spec = type_spec//var_token%text
+                        end if
+                    end if
+
+                    type_name = type_name//"("//type_spec//")"
+                end block
 
                 ! Consume ')'
                 var_token = parser%peek()
@@ -591,6 +611,23 @@ contains
                     allocate (decl_node, source=error_node)
                 end block
                 return
+            end if
+        end if
+
+        ! Check for attributes like allocatable (e.g., "real, allocatable :: arr")
+        var_token = parser%peek()
+        if (var_token%kind == TK_OPERATOR .and. var_token%text == ",") then
+            ! Consume ','
+            var_token = parser%consume()
+
+            ! Parse attribute (for now, just handle allocatable)
+            var_token = parser%peek()
+         if (var_token%kind == TK_IDENTIFIER .and. var_token%text == "allocatable") then
+                is_allocatable = .true.
+                var_token = parser%consume()
+            else
+                ! Unknown attribute - for now, just consume it
+                var_token = parser%consume()
             end if
         end if
 
@@ -670,13 +707,13 @@ contains
                         type(declaration_node), allocatable :: node
                         allocate (node)
                         if (has_kind .and. is_array) then
-                            node = create_declaration(type_name, var_name, kind_value=kind_value, initializer=initializer, dimensions=dimensions, line=line, column=column)
+                            node = create_declaration(type_name, var_name, kind_value=kind_value, initializer=initializer, dimensions=dimensions, is_allocatable=is_allocatable, line=line, column=column)
                         else if (has_kind) then
-                            node = create_declaration(type_name, var_name, kind_value=kind_value, initializer=initializer, line=line, column=column)
+                            node = create_declaration(type_name, var_name, kind_value=kind_value, initializer=initializer, is_allocatable=is_allocatable, line=line, column=column)
                         else if (is_array) then
-                            node = create_declaration(type_name, var_name, initializer=initializer, dimensions=dimensions, line=line, column=column)
+                            node = create_declaration(type_name, var_name, initializer=initializer, dimensions=dimensions, is_allocatable=is_allocatable, line=line, column=column)
                         else
-                            node = create_declaration(type_name, var_name, initializer=initializer, line=line, column=column)
+                            node = create_declaration(type_name, var_name, initializer=initializer, is_allocatable=is_allocatable, line=line, column=column)
                         end if
                         allocate (decl_node, source=node)
                     end block
@@ -697,13 +734,13 @@ contains
             type(declaration_node), allocatable :: node
             allocate (node)
             if (has_kind .and. is_array) then
-                node = create_declaration(type_name, var_name, kind_value=kind_value, dimensions=dimensions, line=line, column=column)
+                node = create_declaration(type_name, var_name, kind_value=kind_value, dimensions=dimensions, is_allocatable=is_allocatable, line=line, column=column)
             else if (has_kind) then
-                node = create_declaration(type_name, var_name, kind_value=kind_value, line=line, column=column)
+                node = create_declaration(type_name, var_name, kind_value=kind_value, is_allocatable=is_allocatable, line=line, column=column)
             else if (is_array) then
-                node = create_declaration(type_name, var_name, dimensions=dimensions, line=line, column=column)
+                node = create_declaration(type_name, var_name, dimensions=dimensions, is_allocatable=is_allocatable, line=line, column=column)
             else
-                node = create_declaration(type_name, var_name, line=line, column=column)
+                node = create_declaration(type_name, var_name, is_allocatable=is_allocatable, line=line, column=column)
             end if
             allocate (decl_node, source=node)
         end block
@@ -748,9 +785,33 @@ contains
                 token = parser%consume()
         allocate (temp_dims(dim_count)%node, source=create_literal(":", LITERAL_STRING))
             else if (token%kind == TK_NUMBER) then
-                ! Fixed size dimension (10)
-                token = parser%consume()
-allocate (temp_dims(dim_count)%node, source=create_literal(token%text, LITERAL_INTEGER))
+                ! Could be fixed size dimension (10) or bounds notation (1:10)
+                block
+                    character(len=:), allocatable :: first_number
+                    type(token_t) :: next_token
+
+                    first_number = token%text
+                    token = parser%consume()
+
+                    ! Check if followed by colon for bounds notation
+                    next_token = parser%peek()
+                   if (next_token%kind == TK_OPERATOR .and. next_token%text == ":") then
+                        ! Bounds notation like 1:10
+                        token = parser%consume()  ! consume ':'
+                        next_token = parser%peek()
+                        if (next_token%kind == TK_NUMBER) then
+                            ! Complete bounds notation
+                            token = parser%consume()
+                            allocate (temp_dims(dim_count)%node, source=create_literal(first_number//":"//token%text, LITERAL_STRING))
+                        else
+                            ! Just first_number:
+                            allocate (temp_dims(dim_count)%node, source=create_literal(first_number//":", LITERAL_STRING))
+                        end if
+                    else
+                        ! Just a fixed size dimension
+                        allocate (temp_dims(dim_count)%node, source=create_literal(first_number, LITERAL_INTEGER))
+                    end if
+                end block
             else
                 ! More complex dimension expressions - for now, just consume as identifier
                 token = parser%consume()
