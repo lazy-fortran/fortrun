@@ -263,4 +263,11 @@ Key insights:
 - Updated .gitignore to prevent test artifact commits
 - `temp_utils` linking issue resolved - test suite runs successfully
 
+**CLI STDIN Support Complete ✅**:
+- Implemented automatic STDIN detection (no args + piped input)
+- Added handle_stdin_input() for temporary file creation from STDIN
+- Modified parse_arguments to detect STDIN vs help display
+- Full test coverage for STDIN functionality
+- The fortran tool now supports Unix-style piping: `echo "x = 42" | fortran`
+
 **Ready to proceed with Phase 3: Parser Enhancements**
