@@ -92,7 +92,7 @@ Key insights:
 
 ### 3.3 Control Flow
 - [x] Test: If/then/else/elseif ✅
-- [ ] Test: Select case
+- [x] Test: Select case ✅
 - [ ] Test: Do loops (all forms)
 - [ ] Test: Where constructs
 - [ ] Test: Forall constructs
@@ -422,3 +422,17 @@ Key insights:
 - JSON serialization support for if statements
 - Comprehensive test coverage for all if statement forms
 - All if statement parser tests passing
+
+**Select Case Complete ✅**:
+- Existing `select_case_node` AST infrastructure already implemented
+- Existing comprehensive `parse_select_case` function handling:
+  - Simple select case: `select case (x) case (1) end select`
+  - Multiple case values: `select case (ch) case ('a') case ('b') end select`
+  - Default cases: `select case (grade) case (90) case default end select`
+  - Range cases: `select case (temp) case (10:20) end select`
+  - Nested select case statements
+- `case_wrapper` type for storing case types and values
+- "select" and "case" keywords already in lexer
+- JSON serialization support for select case statements
+- Comprehensive test coverage for all select case forms
+- All select case parser tests passing
