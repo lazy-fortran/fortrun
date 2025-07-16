@@ -507,7 +507,7 @@ contains
         call execute_command_line(trim(copy_command))
 
         ! Copy the entire interdependent directory to temp location
-        copy_command = 'cp -r example/interdependent/* "'//trim(temp_source_dir)//'/"'
+  copy_command = 'cp -r example/modules/interdependent/* "'//trim(temp_source_dir)//'/"'
         call execute_command_line(trim(copy_command))
 
         ! First run - should compile everything
