@@ -33,12 +33,18 @@ Currently implementing complete type inference for all Fortran 95 features:
 - ✅ **Debug Flags**: --debug-tokens, --debug-ast, --debug-semantic, --debug-codegen
 - ✅ **Pipeline Flags**: --from-tokens, --from-ast, --from-semantic
 
-#### **Key Architectural Decision** 📐
-The semantic analyzer **augments** the existing AST with type information rather than creating a new structure. This allows the code generator to work with both:
-- **Typed AST**: From semantic analysis (lazy fortran with inferred types)
-- **Untyped AST**: From parser (standard Fortran with explicit types)
+#### **Key Architectural Decisions** 📐
 
-Both use `--from-ast` for input, maintaining a unified AST structure throughout the pipeline.
+1. **Unified AST Structure**: The semantic analyzer augments the existing AST with type information rather than creating a new structure. This allows the code generator to work with both:
+   - **Typed AST**: From semantic analysis (lazy fortran with inferred types)
+   - **Untyped AST**: From parser (standard Fortran with explicit types)
+
+2. **Unified JSON Serialization**: Both parser and semantic analyzer use the same json_writer/json_reader modules:
+   - All AST nodes implement `to_json` method
+   - json_reader can deserialize any AST structure
+   - Single `--from-ast` flag works for both semantic analyzer and code generator inputs
+
+This architecture eliminates duplication and ensures consistency across the pipeline.
 
 #### **Phase 9 Goals** 🚧
 - [ ] **Complete Fortran 95 Coverage**: All language features

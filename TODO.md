@@ -12,9 +12,12 @@ The 4-phase compiler pipeline with JSON intermediate representations:
 3. **Semantic Analyzer**: AST → Annotated AST (inputs/outputs AST via --from-ast, adds type info with --debug-semantic)
 4. **Code Generator**: AST → Fortran 95 code (inputs any AST via --from-ast)
 
-Key insight: The semantic analyzer augments the AST with type information but maintains the same structure, so the code generator can work with either:
-- **Standard Fortran**: Parser → AST → Codegen (types already explicit)
-- **Lazy Fortran**: Parser → AST → Semantic Analysis → Annotated AST → Codegen (types inferred)
+Key insights:
+1. The semantic analyzer augments the AST with type information but maintains the same structure
+2. Both parser and semantic analyzer use the same JSON serialization (json_writer/json_reader modules)
+3. The code generator accepts any AST via --from-ast, whether typed or untyped:
+   - **Standard Fortran**: Parser → AST → Codegen (types already explicit)
+   - **Lazy Fortran**: Parser → AST → Semantic Analysis → Annotated AST → Codegen (types inferred)
 
 ## Success Criteria
 - [ ] All lazy fortran features compile to valid Fortran 95
@@ -25,15 +28,24 @@ Key insight: The semantic analyzer augments the AST with type information but ma
 
 ## Phase 1: Clean Up and Organize
 
-### 1.1 Example Directory Cleanup
-- [ ] Move all test snippets from example/ to example/frontend_test_cases/
-- [ ] Organize remaining examples into clean user-facing directories:
-  - [ ] example/basic/ - Simple getting started examples
-  - [ ] example/scientific/ - Scientific computing examples
-  - [ ] example/modules/ - Module usage examples
-  - [ ] example/lazy_fortran/ - Lazy fortran showcase examples
+### 1.1 Example Directory Cleanup ✅
+- [x] Move all test snippets from example/ to example/frontend_test_cases/
+- [x] Organize remaining examples into clean user-facing directories:
+  - [x] example/basic/ - Simple getting started examples
+  - [x] example/scientific/ - Scientific computing examples
+  - [x] example/modules/ - Module usage examples
+  - [x] example/lazy_fortran/ - Lazy fortran showcase examples
 
-### 1.2 Remove Legacy Code
+### 1.2 Verify Unified AST JSON Serialization ✅
+- [x] Unified JSON modules already exist: json_writer.f90 and json_reader.f90
+- [x] AST nodes have to_json method for serialization
+- [x] json_reader supports deserialization of all AST node types
+- [ ] Verify parser uses json_writer for AST output
+- [ ] Verify semantic analyzer uses json_writer for AST output
+- [ ] Test: AST can round-trip through JSON (AST → JSON → AST)
+- [ ] Test: Semantic analyzer preserves all AST structure when adding type annotations
+
+### 1.3 Remove Legacy Code
 - [ ] Remove basic type inference code from frontend.f90
 - [ ] Remove any direct token-to-code shortcuts
 - [ ] Clean up temporary workarounds in codegen
@@ -89,9 +101,9 @@ Key insight: The semantic analyzer augments the AST with type information but ma
 
 ### 3.5 Parser JSON Support
 - [ ] Verify parser accepts tokens.json with --from-tokens flag
-- [ ] Verify parser outputs ast.json with --debug-ast flag
+- [ ] Parser uses unified ast_json_io module for output
 - [ ] Test: Parser correctly deserializes tokens and produces AST
-- [ ] Test: Parser correctly serializes AST to JSON
+- [ ] Test: AST serialization is consistent with semantic analyzer output
 
 ## Phase 4: Semantic Analysis (Type Inference)
 
@@ -119,10 +131,11 @@ Key insight: The semantic analyzer augments the AST with type information but ma
 
 ### 4.4 Semantic AST Augmentation
 - [ ] Verify semantic analyzer accepts ast.json with --from-ast flag
-- [ ] Verify semantic analyzer outputs augmented ast.json with --debug-semantic flag
+- [ ] Semantic analyzer uses unified ast_json_io module for input/output
 - [ ] Test: Semantic analyzer adds type annotations to existing AST nodes
-- [ ] Test: Augmented AST maintains compatibility with code generator
+- [ ] Test: Augmented AST maintains same structure as parser output
 - [ ] Test: Code generator works with both typed and untyped AST
+- [ ] Test: AST with type annotations can be deserialized by codegen
 
 ## Phase 5: Code Generation
 
