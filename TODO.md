@@ -83,7 +83,7 @@ Key insights:
 - [x] Test: Include statements ✅ - COMPLETE
 
 ### 3.2 Expression Parsing
-- [ ] Test: Arithmetic expressions (all operators, precedence)
+- [x] Test: Arithmetic expressions (all operators, precedence) ✅
 - [ ] Test: Logical expressions
 - [ ] Test: Relational expressions
 - [ ] Test: Array expressions and sections
@@ -343,3 +343,14 @@ Key insights:
 - Comprehensive test coverage for include statement parsing
 
 **Phase 3.1 Statement Parsing Complete ✅**
+
+**Arithmetic Expressions Complete ✅**:
+- Added comprehensive test coverage for arithmetic expressions
+- All basic arithmetic operators working: +, -, *, /
+- Operator precedence correctly implemented (multiplication before addition)
+- Parentheses for expression grouping working
+- Unary operators (+, -) supported
+- Power operator (**) with correct precedence
+- Existing expression parsing infrastructure is robust and complete
+
+**Ready to proceed with Phase 3.2 Expression Parsing**
