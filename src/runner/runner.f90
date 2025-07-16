@@ -839,14 +839,23 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
     ! Handle STDIN input by creating a temporary file
     subroutine handle_stdin_input(filename, success)
         use temp_utils, only: create_temp_dir, get_temp_file_path
+        use cli, only: check_stdin_available
         character(len=*), intent(inout) :: filename
         logical, intent(out) :: success
 
         character(len=:), allocatable :: temp_dir, temp_file
         integer :: ios, unit
         character(len=1024) :: line
+        logical :: has_stdin
 
         success = .false.
+
+        ! Check if stdin is actually available
+        call check_stdin_available(has_stdin)
+        if (.not. has_stdin) then
+            ! No stdin available, return early
+            return
+        end if
 
         ! Create temporary directory
         temp_dir = create_temp_dir('fortran_stdin')
