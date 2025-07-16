@@ -128,7 +128,7 @@ module ast_core
         procedure :: accept => print_statement_accept
         procedure :: to_json => print_statement_to_json
     end type print_statement_node
-    
+
     ! Declaration node
     type, extends(ast_node), public :: declaration_node
         character(len=:), allocatable :: type_name     ! real, integer, etc.
@@ -136,6 +136,10 @@ module ast_core
         integer :: kind_value                          ! Kind parameter (e.g., 8 for real(8))
         logical :: has_kind                            ! Whether kind was specified
         class(ast_node), allocatable :: initializer    ! Optional initialization value
+        ! Array dimension support
+        logical :: is_array = .false.                  ! Whether this is an array declaration
+        type(ast_node_wrapper), allocatable :: dimensions(:) ! Array dimensions
+        logical :: is_allocatable = .false.           ! Whether allocatable attribute is present
     contains
         procedure :: accept => declaration_accept
         procedure :: to_json => declaration_to_json
@@ -205,12 +209,12 @@ contains
         integer, intent(in), optional :: line, column
         type(program_node) :: node
         integer :: i
-        
+
         node%name = name
         if (size(body) > 0) then
-            allocate(node%body(size(body)))
+            allocate (node%body(size(body)))
             do i = 1, size(body)
-                allocate(node%body(i)%node, source=body(i))
+                allocate (node%body(i)%node, source=body(i))
             end do
         end if
         if (present(line)) node%line = line
@@ -224,9 +228,9 @@ contains
         logical, intent(in), optional :: inferred_type
         character(len=*), intent(in), optional :: inferred_type_name
         type(assignment_node) :: node
-        
-        allocate(node%target, source=target)
-        allocate(node%value, source=value)
+
+        allocate (node%target, source=target)
+        allocate (node%value, source=value)
         if (present(line)) node%line = line
         if (present(column)) node%column = column
         if (present(inferred_type)) node%inferred_type = inferred_type
@@ -239,15 +243,15 @@ contains
         character(len=*), intent(in) :: operator
         integer, intent(in), optional :: line, column
         type(binary_op_node) :: node
-        
-        allocate(node%left, source=left)
-        allocate(node%right, source=right)
+
+        allocate (node%left, source=left)
+        allocate (node%right, source=right)
         node%operator = operator
         if (present(line)) node%line = line
         if (present(column)) node%column = column
     end function create_binary_op
 
-    function create_function_def(name, params, return_type, body, line, column) result(node)
+function create_function_def(name, params, return_type, body, line, column) result(node)
         character(len=*), intent(in) :: name
         type(ast_node_wrapper), intent(in) :: params(:)
         class(ast_node), intent(in) :: return_type
@@ -255,14 +259,14 @@ contains
         integer, intent(in), optional :: line, column
         type(function_def_node) :: node
         integer :: i
-        
+
         node%name = name
         if (size(params) > 0) then
-            allocate(node%params, source=params)
+            allocate (node%params, source=params)
         end if
-        allocate(node%return_type, source=return_type)
+        allocate (node%return_type, source=return_type)
         if (size(body) > 0) then
-            allocate(node%body, source=body)
+            allocate (node%body, source=body)
         end if
         if (present(line)) node%line = line
         if (present(column)) node%column = column
@@ -275,13 +279,13 @@ contains
         integer, intent(in), optional :: line, column
         type(subroutine_def_node) :: node
         integer :: i
-        
+
         node%name = name
         if (size(params) > 0) then
-            allocate(node%params, source=params)
+            allocate (node%params, source=params)
         end if
         if (size(body) > 0) then
-            allocate(node%body, source=body)
+            allocate (node%body, source=body)
         end if
         if (present(line)) node%line = line
         if (present(column)) node%column = column
@@ -293,12 +297,12 @@ contains
         integer, intent(in), optional :: line, column
         type(function_call_node) :: node
         integer :: i
-        
+
         node%name = name
         if (size(args) > 0) then
-            allocate(node%args(size(args)))
+            allocate (node%args(size(args)))
             do i = 1, size(args)
-                allocate(node%args(i)%node, source=args(i)%node)
+                allocate (node%args(i)%node, source=args(i)%node)
             end do
         end if
         if (present(line)) node%line = line
@@ -309,7 +313,7 @@ contains
         character(len=*), intent(in) :: name
         integer, intent(in), optional :: line, column
         type(identifier_node) :: node
-        
+
         node%name = name
         if (present(line)) node%line = line
         if (present(column)) node%column = column
@@ -320,24 +324,26 @@ contains
         integer, intent(in) :: kind
         integer, intent(in), optional :: line, column
         type(literal_node) :: node
-        
+
         node%value = value
         node%literal_kind = kind
         if (present(line)) node%line = line
         if (present(column)) node%column = column
     end function create_literal
-    
-    function create_declaration(type_name, var_name, kind_value, initializer, line, column) result(node)
+
+    function create_declaration(type_name, var_name, kind_value, initializer, dimensions, is_allocatable, line, column) result(node)
         character(len=*), intent(in) :: type_name
         character(len=*), intent(in) :: var_name
         integer, intent(in), optional :: kind_value
         class(ast_node), allocatable, intent(in), optional :: initializer
+        type(ast_node_wrapper), intent(in), optional :: dimensions(:)
+        logical, intent(in), optional :: is_allocatable
         integer, intent(in), optional :: line, column
         type(declaration_node) :: node
-        
+
         node%type_name = type_name
         node%var_name = var_name
-        
+
         if (present(kind_value)) then
             node%kind_value = kind_value
             node%has_kind = .true.
@@ -345,11 +351,24 @@ contains
             node%kind_value = 0
             node%has_kind = .false.
         end if
-        
+
         if (present(initializer)) then
-            allocate(node%initializer, source=initializer)
+            allocate (node%initializer, source=initializer)
         end if
-        
+
+        if (present(dimensions)) then
+            node%is_array = .true.
+            allocate (node%dimensions, source=dimensions)
+        else
+            node%is_array = .false.
+        end if
+
+        if (present(is_allocatable)) then
+            node%is_allocatable = is_allocatable
+        else
+            node%is_allocatable = .false.
+        end if
+
         if (present(line)) node%line = line
         if (present(column)) node%column = column
     end function create_declaration
@@ -359,7 +378,7 @@ contains
         character(len=*), intent(in), optional :: only_list(:)
         integer, intent(in), optional :: line, column
         type(use_statement_node) :: node
-        
+
         node%module_name = module_name
         if (present(only_list)) then
             node%only_list = only_list
@@ -374,11 +393,11 @@ contains
         integer, intent(in), optional :: line, column
         type(print_statement_node) :: node
         integer :: i
-        
+
         if (size(args) > 0) then
-            allocate(node%args(size(args)))
+            allocate (node%args(size(args)))
             do i = 1, size(args)
-                allocate(node%args(i)%node, source=args(i)%node)
+                allocate (node%args(i)%node, source=args(i)%node)
             end do
         end if
         if (present(format_spec)) node%format_spec = format_spec
@@ -447,7 +466,7 @@ contains
         class(*), intent(inout) :: visitor
         ! Implementation depends on specific visitor
     end subroutine print_statement_accept
-    
+
     subroutine declaration_accept(this, visitor)
         class(declaration_node), intent(in) :: this
         class(*), intent(inout) :: visitor
@@ -462,22 +481,22 @@ contains
         type(json_value), pointer, intent(in) :: parent
         type(json_value), pointer :: obj, body_array
         integer :: i
-        
+
         call json%create_object(obj, '')
         call json%add(obj, 'type', 'program')
         call json%add(obj, 'name', this%name)
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
-        
+
         call json%create_array(body_array, 'body')
         call json%add(obj, body_array)
-        
+
         if (allocated(this%body)) then
             do i = 1, size(this%body)
                 call this%body(i)%node%to_json(json, body_array)
             end do
         end if
-        
+
         call json%add(parent, obj)
     end subroutine program_to_json
 
@@ -486,7 +505,7 @@ contains
         type(json_core), intent(inout) :: json
         type(json_value), pointer, intent(in) :: parent
         type(json_value), pointer :: obj
-        
+
         call json%create_object(obj, '')
         call json%add(obj, 'type', 'assignment')
         call json%add(obj, 'line', this%line)
@@ -495,18 +514,18 @@ contains
         if (allocated(this%inferred_type_name)) then
             call json%add(obj, 'inferred_type_name', this%inferred_type_name)
         end if
-        
+
         block
             type(json_value), pointer :: target_obj, value_obj
             call json%create_object(target_obj, 'target')
             call this%target%to_json(json, target_obj)
             call json%add(obj, target_obj)
-            
+
             call json%create_object(value_obj, 'value')
             call this%value%to_json(json, value_obj)
             call json%add(obj, value_obj)
         end block
-        
+
         call json%add(parent, obj)
     end subroutine assignment_to_json
 
@@ -515,24 +534,24 @@ contains
         type(json_core), intent(inout) :: json
         type(json_value), pointer, intent(in) :: parent
         type(json_value), pointer :: obj
-        
+
         call json%create_object(obj, '')
         call json%add(obj, 'type', 'binary_op')
         call json%add(obj, 'operator', this%operator)
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
-        
+
         block
             type(json_value), pointer :: left_obj, right_obj
             call json%create_object(left_obj, 'left')
             call this%left%to_json(json, left_obj)
             call json%add(obj, left_obj)
-            
+
             call json%create_object(right_obj, 'right')
             call this%right%to_json(json, right_obj)
             call json%add(obj, right_obj)
         end block
-        
+
         call json%add(parent, obj)
     end subroutine binary_op_to_json
 
@@ -542,32 +561,32 @@ contains
         type(json_value), pointer, intent(in) :: parent
         type(json_value), pointer :: obj, params_array, body_array
         integer :: i
-        
+
         call json%create_object(obj, '')
         call json%add(obj, 'type', 'function_def')
         call json%add(obj, 'name', this%name)
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
-        
+
         call json%create_array(params_array, 'params')
         call json%add(obj, params_array)
         do i = 1, size(this%params)
             call this%params(i)%node%to_json(json, params_array)
         end do
-        
+
         block
             type(json_value), pointer :: return_type_obj
             call json%create_object(return_type_obj, 'return_type')
             call this%return_type%to_json(json, return_type_obj)
             call json%add(obj, return_type_obj)
         end block
-        
+
         call json%create_array(body_array, 'body')
         call json%add(obj, body_array)
         do i = 1, size(this%body)
             call this%body(i)%node%to_json(json, body_array)
         end do
-        
+
         call json%add(parent, obj)
     end subroutine function_def_to_json
 
@@ -577,25 +596,25 @@ contains
         type(json_value), pointer, intent(in) :: parent
         type(json_value), pointer :: obj, params_array, body_array
         integer :: i
-        
+
         call json%create_object(obj, '')
         call json%add(obj, 'type', 'subroutine_def')
         call json%add(obj, 'name', this%name)
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
-        
+
         call json%create_array(params_array, 'params')
         call json%add(obj, params_array)
         do i = 1, size(this%params)
             call this%params(i)%node%to_json(json, params_array)
         end do
-        
+
         call json%create_array(body_array, 'body')
         call json%add(obj, body_array)
         do i = 1, size(this%body)
             call this%body(i)%node%to_json(json, body_array)
         end do
-        
+
         call json%add(parent, obj)
     end subroutine subroutine_def_to_json
 
@@ -605,19 +624,19 @@ contains
         type(json_value), pointer, intent(in) :: parent
         type(json_value), pointer :: obj, args_array
         integer :: i
-        
+
         call json%create_object(obj, '')
         call json%add(obj, 'type', 'function_call')
         call json%add(obj, 'name', this%name)
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
-        
+
         call json%create_array(args_array, 'args')
         call json%add(obj, args_array)
         do i = 1, size(this%args)
             call this%args(i)%node%to_json(json, args_array)
         end do
-        
+
         call json%add(parent, obj)
     end subroutine function_call_to_json
 
@@ -626,13 +645,13 @@ contains
         type(json_core), intent(inout) :: json
         type(json_value), pointer, intent(in) :: parent
         type(json_value), pointer :: obj
-        
+
         call json%create_object(obj, '')
         call json%add(obj, 'type', 'identifier')
         call json%add(obj, 'name', this%name)
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
-        
+
         call json%add(parent, obj)
     end subroutine identifier_to_json
 
@@ -642,13 +661,13 @@ contains
         type(json_value), pointer, intent(in) :: parent
         type(json_value), pointer :: obj
         character(len=:), allocatable :: kind_name
-        
+
         call json%create_object(obj, '')
         call json%add(obj, 'type', 'literal')
         call json%add(obj, 'value', this%value)
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
-        
+
         select case (this%literal_kind)
         case (LITERAL_INTEGER)
             kind_name = 'integer'
@@ -662,7 +681,7 @@ contains
             kind_name = 'unknown'
         end select
         call json%add(obj, 'kind', kind_name)
-        
+
         call json%add(parent, obj)
     end subroutine literal_to_json
 
@@ -672,13 +691,13 @@ contains
         type(json_value), pointer, intent(in) :: parent
         type(json_value), pointer :: obj, only_array
         integer :: i
-        
+
         call json%create_object(obj, '')
         call json%add(obj, 'type', 'use_statement')
         call json%add(obj, 'module_name', this%module_name)
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
-        
+
         if (allocated(this%only_list)) then
             call json%create_array(only_array, 'only_list')
             call json%add(obj, only_array)
@@ -686,7 +705,7 @@ contains
                 call json%add(only_array, '', this%only_list(i))
             end do
         end if
-        
+
         call json%add(parent, obj)
     end subroutine use_statement_to_json
 
@@ -696,16 +715,16 @@ contains
         type(json_value), pointer, intent(in) :: parent
         type(json_value), pointer :: obj, args_array
         integer :: i
-        
+
         call json%create_object(obj, '')
         call json%add(obj, 'type', 'print_statement')
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
-        
+
         if (allocated(this%format_spec)) then
             call json%add(obj, 'format_spec', this%format_spec)
         end if
-        
+
         call json%create_array(args_array, 'args')
         call json%add(obj, args_array)
         if (allocated(this%args)) then
@@ -713,27 +732,48 @@ contains
                 call this%args(i)%node%to_json(json, args_array)
             end do
         end if
-        
+
         call json%add(parent, obj)
     end subroutine print_statement_to_json
-    
+
     subroutine declaration_to_json(this, json, parent)
         class(declaration_node), intent(in) :: this
         type(json_core), intent(inout) :: json
         type(json_value), pointer, intent(in) :: parent
         type(json_value), pointer :: obj
-        
+        integer :: i
+
         call json%create_object(obj, '')
         call json%add(obj, 'type', 'declaration')
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
         call json%add(obj, 'type_name', this%type_name)
         call json%add(obj, 'var_name', this%var_name)
-        
+
         if (this%has_kind) then
             call json%add(obj, 'kind_value', this%kind_value)
         end if
-        
+
+        if (this%is_array) then
+            call json%add(obj, 'is_array', .true.)
+            if (this%is_allocatable) then
+                call json%add(obj, 'is_allocatable', .true.)
+            end if
+
+            if (allocated(this%dimensions)) then
+                block
+                    type(json_value), pointer :: dims_array
+                    call json%create_array(dims_array, 'dimensions')
+                    do i = 1, size(this%dimensions)
+                        if (allocated(this%dimensions(i)%node)) then
+                            call this%dimensions(i)%node%to_json(json, dims_array)
+                        end if
+                    end do
+                    call json%add(obj, dims_array)
+                end block
+            end if
+        end if
+
         if (allocated(this%initializer)) then
             block
                 type(json_value), pointer :: init_obj
@@ -742,7 +782,7 @@ contains
                 call json%add(obj, init_obj)
             end block
         end if
-        
+
         call json%add(parent, obj)
     end subroutine declaration_to_json
 
@@ -755,21 +795,21 @@ contains
         integer, intent(in), optional :: line, column
         type(do_loop_node) :: node
         integer :: i
-        
+
         node%var_name = var_name
-        allocate(node%start_expr, source=start_expr)
-        allocate(node%end_expr, source=end_expr)
-        if (present(step_expr)) allocate(node%step_expr, source=step_expr)
-        
+        allocate (node%start_expr, source=start_expr)
+        allocate (node%end_expr, source=end_expr)
+        if (present(step_expr)) allocate (node%step_expr, source=step_expr)
+
         if (present(body)) then
             if (size(body) > 0) then
-                allocate(node%body(size(body)))
+                allocate (node%body(size(body)))
                 do i = 1, size(body)
-                    allocate(node%body(i)%node, source=body(i))
+                    allocate (node%body(i)%node, source=body(i))
                 end do
             end if
         end if
-        
+
         if (present(line)) node%line = line
         if (present(column)) node%column = column
     end function create_do_loop
@@ -781,18 +821,18 @@ contains
         integer, intent(in), optional :: line, column
         type(do_while_node) :: node
         integer :: i
-        
-        allocate(node%condition, source=condition)
-        
+
+        allocate (node%condition, source=condition)
+
         if (present(body)) then
             if (size(body) > 0) then
-                allocate(node%body(size(body)))
+                allocate (node%body(size(body)))
                 do i = 1, size(body)
-                    allocate(node%body(i)%node, source=body(i))
+                    allocate (node%body(i)%node, source=body(i))
                 end do
             end if
         end if
-        
+
         if (present(line)) node%line = line
         if (present(column)) node%column = column
     end function create_do_while
@@ -804,14 +844,14 @@ contains
         integer, intent(in), optional :: line, column
         type(select_case_node) :: node
         integer :: i
-        
-        allocate(node%expr, source=expr)
-        
+
+        allocate (node%expr, source=expr)
+
         if (present(cases) .and. size(cases) > 0) then
-            allocate(node%cases(size(cases)))
+            allocate (node%cases(size(cases)))
             node%cases = cases
         end if
-        
+
         if (present(line)) node%line = line
         if (present(column)) node%column = column
     end function create_select_case
@@ -828,7 +868,7 @@ contains
         type(json_core), intent(inout) :: json
         type(json_value), pointer, intent(in) :: parent
         type(json_value), pointer :: obj
-        
+
         call json%create_object(obj, '')
         call json%add(obj, 'type', 'do_loop')
         call json%add(obj, 'line', this%line)
@@ -848,7 +888,7 @@ contains
         type(json_core), intent(inout) :: json
         type(json_value), pointer, intent(in) :: parent
         type(json_value), pointer :: obj
-        
+
         call json%create_object(obj, '')
         call json%add(obj, 'type', 'do_while')
         call json%add(obj, 'line', this%line)
@@ -867,7 +907,7 @@ contains
         type(json_core), intent(inout) :: json
         type(json_value), pointer, intent(in) :: parent
         type(json_value), pointer :: obj
-        
+
         call json%create_object(obj, '')
         call json%add(obj, 'type', 'select_case')
         call json%add(obj, 'line', this%line)

@@ -475,7 +475,8 @@ contains
         type(token_t) :: type_token, var_token
         character(len=:), allocatable :: type_name, var_name
         integer :: line, column, kind_value
-        logical :: has_kind
+        logical :: has_kind, is_array
+        type(ast_node_wrapper), allocatable :: dimensions(:)
 
         ! Get type name (real, integer, etc.)
         type_token = parser%consume()
@@ -555,6 +556,33 @@ contains
             return
         end if
 
+        ! Check for array dimensions (e.g., (10), (:), (1:10))
+        is_array = .false.
+        var_token = parser%peek()
+        if (var_token%kind == TK_OPERATOR .and. var_token%text == "(") then
+            is_array = .true.
+            ! Consume '('
+            var_token = parser%consume()
+
+            ! Parse dimensions - for now, just handle simple cases
+            call parse_array_dimensions(parser, dimensions)
+
+            ! Consume ')'
+            var_token = parser%peek()
+            if (var_token%kind == TK_OPERATOR .and. var_token%text == ")") then
+                var_token = parser%consume()
+            else
+                ! Error: expected )
+                block
+                    type(literal_node), allocatable :: error_node
+                    allocate (error_node)
+    error_node = create_literal("ERROR: Expected ) after array dimensions", LITERAL_STRING, line, column)
+                    allocate (decl_node, source=error_node)
+                end block
+                return
+            end if
+        end if
+
         ! Check for initialization (= expression)
         block
             class(ast_node), allocatable :: initializer
@@ -572,8 +600,12 @@ contains
                     block
                         type(declaration_node), allocatable :: node
                         allocate (node)
-                        if (has_kind) then
+                        if (has_kind .and. is_array) then
+                            node = create_declaration(type_name, var_name, kind_value=kind_value, initializer=initializer, dimensions=dimensions, line=line, column=column)
+                        else if (has_kind) then
                             node = create_declaration(type_name, var_name, kind_value=kind_value, initializer=initializer, line=line, column=column)
+                        else if (is_array) then
+                            node = create_declaration(type_name, var_name, initializer=initializer, dimensions=dimensions, line=line, column=column)
                         else
                             node = create_declaration(type_name, var_name, initializer=initializer, line=line, column=column)
                         end if
@@ -595,8 +627,12 @@ contains
         block
             type(declaration_node), allocatable :: node
             allocate (node)
-            if (has_kind) then
+            if (has_kind .and. is_array) then
+                node = create_declaration(type_name, var_name, kind_value=kind_value, dimensions=dimensions, line=line, column=column)
+            else if (has_kind) then
                 node = create_declaration(type_name, var_name, kind_value=kind_value, line=line, column=column)
+            else if (is_array) then
+                node = create_declaration(type_name, var_name, dimensions=dimensions, line=line, column=column)
             else
                 node = create_declaration(type_name, var_name, line=line, column=column)
             end if
@@ -604,6 +640,71 @@ contains
         end block
 
     end function parse_declaration
+
+    ! Parse array dimensions inside parentheses
+    subroutine parse_array_dimensions(parser, dimensions)
+        type(parser_state_t), intent(inout) :: parser
+        type(ast_node_wrapper), allocatable, intent(out) :: dimensions(:)
+
+        type(token_t) :: token
+        type(ast_node_wrapper), allocatable :: temp_dims(:)
+        integer :: dim_count
+
+        ! Initialize
+        dim_count = 0
+        allocate (temp_dims(10))  ! Initial allocation
+
+        ! Parse dimensions separated by commas
+        do
+            token = parser%peek()
+            if (token%kind == TK_OPERATOR .and. token%text == ")") then
+                ! End of dimensions
+                exit
+            end if
+
+            dim_count = dim_count + 1
+            if (dim_count > size(temp_dims)) then
+                ! Need to resize
+                block
+                    type(ast_node_wrapper), allocatable :: new_dims(:)
+                    allocate (new_dims(size(temp_dims)*2))
+                    new_dims(1:size(temp_dims)) = temp_dims
+                    call move_alloc(new_dims, temp_dims)
+                end block
+            end if
+
+            ! Parse a single dimension
+            if (token%kind == TK_OPERATOR .and. token%text == ":") then
+                ! Assumed shape dimension (:)
+                token = parser%consume()
+        allocate (temp_dims(dim_count)%node, source=create_literal(":", LITERAL_STRING))
+            else if (token%kind == TK_NUMBER) then
+                ! Fixed size dimension (10)
+                token = parser%consume()
+allocate (temp_dims(dim_count)%node, source=create_literal(token%text, LITERAL_INTEGER))
+            else
+                ! More complex dimension expressions - for now, just consume as identifier
+                token = parser%consume()
+ allocate (temp_dims(dim_count)%node, source=create_literal(token%text, LITERAL_STRING))
+            end if
+
+            ! Check for comma (multiple dimensions)
+            token = parser%peek()
+            if (token%kind == TK_OPERATOR .and. token%text == ",") then
+                token = parser%consume()  ! Consume comma
+                cycle
+            else
+                exit
+            end if
+        end do
+
+        ! Copy to result
+        if (dim_count > 0) then
+            allocate (dimensions(dim_count))
+            dimensions(1:dim_count) = temp_dims(1:dim_count)
+        end if
+
+    end subroutine parse_array_dimensions
 
     ! Parse print statement: print format_spec, arg1, arg2, ...
     function parse_print_statement(parser) result(print_node)
