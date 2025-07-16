@@ -166,6 +166,17 @@ module ast_core
         procedure :: to_json => do_while_to_json
     end type do_while_node
 
+    ! Derived type definition node
+    type, extends(ast_node), public :: derived_type_node
+        character(len=:), allocatable :: name          ! Type name
+        type(ast_node_wrapper), allocatable :: components(:) ! Type components
+        logical :: has_parameters = .false.            ! Whether it has parameters
+        type(ast_node_wrapper), allocatable :: parameters(:) ! Type parameters
+    contains
+        procedure :: accept => derived_type_accept
+        procedure :: to_json => derived_type_to_json
+    end type derived_type_node
+
     ! Select case node
     type, extends(ast_node), public :: select_case_node
         class(ast_node), allocatable :: expr          ! Expression to match
@@ -198,6 +209,7 @@ module ast_core
     public :: create_function_def, create_subroutine_def, create_function_call
     public :: create_identifier, create_literal, create_use_statement, create_print_statement
     public :: create_declaration, create_do_loop, create_do_while, create_select_case
+    public :: create_derived_type
 
 contains
 
@@ -856,6 +868,33 @@ function create_function_def(name, params, return_type, body, line, column) resu
         if (present(column)) node%column = column
     end function create_select_case
 
+    ! Factory function for derived type
+   function create_derived_type(name, components, parameters, line, column) result(node)
+        character(len=*), intent(in) :: name
+        type(ast_node_wrapper), intent(in), optional :: components(:)
+        type(ast_node_wrapper), intent(in), optional :: parameters(:)
+        integer, intent(in), optional :: line, column
+        type(derived_type_node) :: node
+
+        node%name = name
+
+        if (present(components)) then
+            if (size(components) > 0) then
+                allocate (node%components, source=components)
+            end if
+        end if
+
+        if (present(parameters)) then
+            if (size(parameters) > 0) then
+                node%has_parameters = .true.
+                allocate (node%parameters, source=parameters)
+            end if
+        end if
+
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_derived_type
+
     ! Visitor methods for new nodes
     subroutine do_loop_accept(this, visitor)
         class(do_loop_node), intent(in) :: this
@@ -914,5 +953,56 @@ function create_function_def(name, params, return_type, body, line, column) resu
         call json%add(obj, 'column', this%column)
         call json%add(parent, obj)
     end subroutine select_case_to_json
+
+    subroutine derived_type_accept(this, visitor)
+        class(derived_type_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! TODO: Implement visitor pattern for derived_type
+    end subroutine derived_type_accept
+
+    subroutine derived_type_to_json(this, json, parent)
+        class(derived_type_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj
+        integer :: i
+
+        call json%create_object(obj, '')
+        call json%add(obj, 'type', 'derived_type')
+        call json%add(obj, 'name', this%name)
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+
+        if (this%has_parameters) then
+            call json%add(obj, 'has_parameters', .true.)
+            if (allocated(this%parameters)) then
+                block
+                    type(json_value), pointer :: params_array
+                    call json%create_array(params_array, 'parameters')
+                    do i = 1, size(this%parameters)
+                        if (allocated(this%parameters(i)%node)) then
+                            call this%parameters(i)%node%to_json(json, params_array)
+                        end if
+                    end do
+                    call json%add(obj, params_array)
+                end block
+            end if
+        end if
+
+        if (allocated(this%components)) then
+            block
+                type(json_value), pointer :: components_array
+                call json%create_array(components_array, 'components')
+                do i = 1, size(this%components)
+                    if (allocated(this%components(i)%node)) then
+                        call this%components(i)%node%to_json(json, components_array)
+                    end if
+                end do
+                call json%add(obj, components_array)
+            end block
+        end if
+
+        call json%add(parent, obj)
+    end subroutine derived_type_to_json
 
 end module ast_core

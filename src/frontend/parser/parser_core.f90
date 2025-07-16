@@ -3,10 +3,10 @@ module parser_core
     use ast_core, only: ast_node, ast_node_wrapper, assignment_node, binary_op_node, identifier_node, &
             literal_node, function_call_node, function_def_node, print_statement_node, &
                          use_statement_node, declaration_node, do_loop_node, do_while_node, select_case_node, case_wrapper, &
-                        create_assignment, create_binary_op, create_identifier, &
+            derived_type_node, create_assignment, create_binary_op, create_identifier, &
     create_literal, create_function_call, create_function_def, create_print_statement, &
                          create_use_statement, create_declaration, create_do_loop, create_do_while, create_select_case, &
-                        LITERAL_INTEGER, LITERAL_REAL, LITERAL_STRING, LITERAL_LOGICAL
+     create_derived_type, LITERAL_INTEGER, LITERAL_REAL, LITERAL_STRING, LITERAL_LOGICAL
     implicit none
     private
 
@@ -379,7 +379,56 @@ contains
         else if (first_token%kind == TK_KEYWORD .and. first_token%text == "print") then
             stmt = parse_print_statement(parser)
             return
-            ! Skip variable declarations for now (real :: x, integer :: i, etc.)
+            ! Check for derived type definition vs variable declaration with derived type
+        else if (first_token%kind == TK_KEYWORD .and. first_token%text == "type") then
+            ! Check if this is a derived type definition or variable declaration
+            block
+                type(token_t) :: second_token
+                logical :: is_derived_type_def
+
+                is_derived_type_def = .false.
+
+                ! Look at second token to determine
+                if (parser%current_token + 1 <= size(parser%tokens)) then
+                    second_token = parser%tokens(parser%current_token + 1)
+
+                    ! If second token is :: or identifier, it's a derived type definition
+              if (second_token%kind == TK_OPERATOR .and. second_token%text == "::") then
+                        is_derived_type_def = .true.
+                    else if (second_token%kind == TK_IDENTIFIER) then
+                        is_derived_type_def = .true.
+                    end if
+                end if
+
+                if (is_derived_type_def) then
+                    stmt = parse_derived_type(parser)
+                    return
+                else
+                    ! This is a variable declaration like type(point) :: p
+                    ! Check if it has ::
+                    block
+                        integer :: i
+                        logical :: has_double_colon
+                        has_double_colon = .false.
+
+    do i = parser%current_token + 1, min(parser%current_token + 10, size(parser%tokens))
+      if (parser%tokens(i)%kind == TK_OPERATOR .and. parser%tokens(i)%text == "::") then
+                                has_double_colon = .true.
+                                exit
+ else if (parser%tokens(i)%kind == TK_KEYWORD .or. parser%tokens(i)%kind == TK_EOF) then
+                                exit
+                            end if
+                        end do
+
+                        if (has_double_colon) then
+                            stmt = parse_declaration(parser)
+                            return
+                        end if
+                    end block
+                end if
+            end block
+
+            ! Variable declarations for other types (real :: x, integer :: i, etc.)
         else if (first_token%kind == TK_KEYWORD .and. &
                  (first_token%text == "real" .or. first_token%text == "integer" .or. &
                first_token%text == "logical" .or. first_token%text == "character" .or. &
@@ -486,15 +535,16 @@ contains
         has_kind = .false.
         kind_value = 0
 
-        ! Check for kind specification (e.g., real(8))
+        ! Check for kind specification (e.g., real(8)) or derived type (e.g., type(point))
         var_token = parser%peek()
         if (var_token%kind == TK_OPERATOR .and. var_token%text == "(") then
             ! Consume '('
             type_token = parser%consume()
 
-            ! Get kind value
+            ! Get what's inside the parentheses
             var_token = parser%peek()
             if (var_token%kind == TK_NUMBER) then
+                ! This is a kind specification like real(8)
                 var_token = parser%consume()
                 read (var_token%text, *) kind_value
                 has_kind = .true.
@@ -513,12 +563,31 @@ contains
                     end block
                     return
                 end if
+            else if (var_token%kind == TK_IDENTIFIER) then
+                ! This is a derived type like type(point)
+                var_token = parser%consume()
+                type_name = type_name//"("//var_token%text//")"
+
+                ! Consume ')'
+                var_token = parser%peek()
+                if (var_token%kind == TK_OPERATOR .and. var_token%text == ")") then
+                    type_token = parser%consume()
+                else
+                    ! Error: expected )
+                    block
+                        type(literal_node), allocatable :: error_node
+                        allocate (error_node)
+          error_node = create_literal("ERROR: Expected )", LITERAL_STRING, line, column)
+                        allocate (decl_node, source=error_node)
+                    end block
+                    return
+                end if
             else
-                ! Error: expected number
+                ! Error: expected number or identifier
                 block
                     type(literal_node), allocatable :: error_node
                     allocate (error_node)
- error_node = create_literal("ERROR: Expected kind value", LITERAL_STRING, line, column)
+ error_node = create_literal("ERROR: Expected kind value or type name", LITERAL_STRING, line, column)
                     allocate (decl_node, source=error_node)
                 end block
                 return
@@ -705,6 +774,152 @@ allocate (temp_dims(dim_count)%node, source=create_literal(token%text, LITERAL_I
         end if
 
     end subroutine parse_array_dimensions
+
+    ! Parse derived type definition: type :: type_name or type(params) :: type_name
+    function parse_derived_type(parser) result(type_node)
+        type(parser_state_t), intent(inout) :: parser
+        class(ast_node), allocatable :: type_node
+
+        type(token_t) :: token
+        character(len=:), allocatable :: type_name
+        integer :: line, column
+        logical :: has_parameters
+        type(ast_node_wrapper), allocatable :: parameters(:)
+
+        ! Consume 'type' keyword
+        token = parser%consume()
+        line = token%line
+        column = token%column
+        has_parameters = .false.
+
+        ! Check for :: or just get type name
+        token = parser%peek()
+        if (token%kind == TK_OPERATOR .and. token%text == "::") then
+            ! Consume ::
+            token = parser%consume()
+
+            ! Get type name
+            token = parser%peek()
+            if (token%kind == TK_IDENTIFIER) then
+                token = parser%consume()
+                type_name = token%text
+
+                ! Check for parameters after type name: type :: matrix(n, m)
+                token = parser%peek()
+                if (token%kind == TK_OPERATOR .and. token%text == "(") then
+                    ! Parse parameters
+                    has_parameters = .true.
+                    token = parser%consume()  ! consume '('
+                    call parse_derived_type_parameters(parser, parameters)
+
+                    ! Consume ')'
+                    token = parser%peek()
+                    if (token%kind == TK_OPERATOR .and. token%text == ")") then
+                        token = parser%consume()
+                    end if
+                end if
+            else
+                type_name = "unnamed_type"
+            end if
+        else if (token%kind == TK_IDENTIFIER) then
+            ! Direct type name (like "type point")
+            token = parser%consume()
+            type_name = token%text
+
+            ! Check for parameters after type name: type matrix(n, m)
+            token = parser%peek()
+            if (token%kind == TK_OPERATOR .and. token%text == "(") then
+                ! Parse parameters
+                has_parameters = .true.
+                token = parser%consume()  ! consume '('
+                call parse_derived_type_parameters(parser, parameters)
+
+                ! Consume ')'
+                token = parser%peek()
+                if (token%kind == TK_OPERATOR .and. token%text == ")") then
+                    token = parser%consume()
+                end if
+            end if
+        else
+            type_name = "unnamed_type"
+        end if
+
+        ! Create derived type node
+        block
+            type(derived_type_node), allocatable :: node
+            allocate (node)
+            if (has_parameters) then
+  node = create_derived_type(type_name, parameters=parameters, line=line, column=column)
+            else
+                node = create_derived_type(type_name, line=line, column=column)
+            end if
+            allocate (type_node, source=node)
+        end block
+
+    end function parse_derived_type
+
+    ! Parse derived type parameters inside parentheses
+    subroutine parse_derived_type_parameters(parser, parameters)
+        type(parser_state_t), intent(inout) :: parser
+        type(ast_node_wrapper), allocatable, intent(out) :: parameters(:)
+
+        type(token_t) :: token
+        type(ast_node_wrapper), allocatable :: temp_params(:)
+        integer :: param_count
+
+        ! Initialize
+        param_count = 0
+        allocate (temp_params(10))  ! Initial allocation
+
+        ! Parse parameters separated by commas
+        do
+            token = parser%peek()
+            if (token%kind == TK_OPERATOR .and. token%text == ")") then
+                ! End of parameters
+                exit
+            end if
+
+            param_count = param_count + 1
+            if (param_count > size(temp_params)) then
+                ! Need to resize
+                block
+                    type(ast_node_wrapper), allocatable :: new_params(:)
+                    allocate (new_params(size(temp_params)*2))
+                    new_params(1:size(temp_params)) = temp_params
+                    call move_alloc(new_params, temp_params)
+                end block
+            end if
+
+            ! Parse a single parameter
+            if (token%kind == TK_IDENTIFIER) then
+                token = parser%consume()
+          allocate (temp_params(param_count)%node, source=create_identifier(token%text))
+            else if (token%kind == TK_NUMBER) then
+                token = parser%consume()
+                allocate(temp_params(param_count)%node, source=create_literal(token%text, LITERAL_INTEGER))
+            else
+                ! Unknown parameter type - consume it as identifier
+                token = parser%consume()
+          allocate (temp_params(param_count)%node, source=create_identifier(token%text))
+            end if
+
+            ! Check for comma
+            token = parser%peek()
+            if (token%kind == TK_OPERATOR .and. token%text == ",") then
+                token = parser%consume()  ! Consume comma
+                cycle
+            else
+                exit
+            end if
+        end do
+
+        ! Copy to result
+        if (param_count > 0) then
+            allocate (parameters(param_count))
+            parameters(1:param_count) = temp_params(1:param_count)
+        end if
+
+    end subroutine parse_derived_type_parameters
 
     ! Parse print statement: print format_spec, arg1, arg2, ...
     function parse_print_statement(parser) result(print_node)
