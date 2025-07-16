@@ -153,7 +153,11 @@ contains
         end block
         allocate (body(1)%node, source=stmt)
 
-        ast1 = create_function_def("square", params, body, 1, 1)
+        block
+            type(identifier_node) :: return_type
+            return_type = create_identifier("real", 1, 1)
+            ast1 = create_function_def("square", params, return_type, body, 1, 1)
+        end block
 
         ! Serialize to JSON
         json1 = json_write_ast_to_string(ast1)
