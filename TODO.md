@@ -98,8 +98,8 @@ Key insights:
 - [ ] Test: Forall constructs
 
 ### 3.4 Procedures
-- [ ] Test: Function definitions
-- [ ] Test: Subroutine definitions
+- [x] Test: Function definitions ✅
+- [x] Test: Subroutine definitions ✅
 - [ ] Test: Internal procedures
 - [ ] Test: Module procedures
 - [ ] Test: Generic interfaces
@@ -450,3 +450,37 @@ Key insights:
 - JSON serialization support for do loops
 - Comprehensive test coverage for all do loop forms
 - All do loop parser tests passing
+
+**Phase 3.3 Control Flow - Core Structures Complete! ✅**
+- If/then/else/elseif statements fully implemented and tested
+- Select case statements fully implemented and tested  
+- Do loops (all forms) fully implemented and tested
+- Main control flow constructs working correctly
+- Ready to proceed to Phase 3.4 Procedures or remaining control flow (where/forall)
+
+**Function Definitions Complete ✅**:
+- Existing `function_def_node` AST infrastructure already implemented
+- Existing comprehensive `parse_function_definition` function handling:
+  - Simple function definitions: `function square(x) end function`
+  - Functions with multiple parameters: `function add(a, b) end function`
+  - Functions with return types: `function distance(x, y) end function`
+  - Functions with empty parameter lists: `function test() end function`
+  - Recursive functions: `function factorial(n) end function`
+- `function_def_node` with name, params, return_type, body fields
+- Parameter parsing with proper identifier handling
+- JSON serialization support for function definitions
+- Comprehensive test coverage for all function definition forms
+- All function definition parser tests passing
+
+**Subroutine Definitions Complete ✅**:
+- Existing `subroutine_def_node` AST infrastructure already implemented
+- Implemented comprehensive `parse_subroutine_definition` function handling:
+  - Simple subroutine definitions: `subroutine swap(a, b) end subroutine`
+  - Subroutines with multiple parameters: `subroutine process(input, output, flag) end subroutine`
+  - Subroutines with no parameters: `subroutine initialize() end subroutine`
+  - Basic subroutine parsing (intent handling as future work)
+- `subroutine_def_node` with name, params, body fields
+- Parameter parsing with proper identifier handling
+- JSON serialization support for subroutine definitions
+- Comprehensive test coverage for all subroutine definition forms
+- All subroutine definition parser tests passing

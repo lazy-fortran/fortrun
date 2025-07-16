@@ -1,10 +1,10 @@
 module parser_core
     use lexer_core
     use ast_core, only: ast_node, ast_node_wrapper, assignment_node, binary_op_node, identifier_node, &
-        literal_node, call_or_subscript_node, function_def_node, print_statement_node, &
+        literal_node, call_or_subscript_node, function_def_node, subroutine_def_node, print_statement_node, &
                          use_statement_node, include_statement_node, declaration_node, do_loop_node, do_while_node, if_node, elseif_wrapper, select_case_node, case_wrapper, &
             derived_type_node, interface_block_node, module_node, create_assignment, create_binary_op, create_identifier, &
-create_literal, create_call_or_subscript, create_function_def, create_print_statement, &
+create_literal, create_call_or_subscript, create_function_def, create_subroutine_def, create_print_statement, &
                          create_use_statement, create_include_statement, create_declaration, create_do_loop, create_do_while, create_if, create_select_case, &
      create_derived_type, create_interface_block, create_module, LITERAL_INTEGER, LITERAL_REAL, LITERAL_STRING, LITERAL_LOGICAL
     implicit none
@@ -24,7 +24,7 @@ create_literal, create_call_or_subscript, create_function_def, create_print_stat
     ! Public parsing interface
     public :: parse_expression, parse_statement
     public :: create_parser_state, parse_primary, parse_function_definition
-    public :: parse_do_loop, parse_do_while, parse_if, parse_select_case
+    public :: parse_do_loop, parse_do_while, parse_if, parse_select_case, parse_subroutine_definition
 
 contains
 
@@ -587,6 +587,10 @@ contains
             ! Check for select case
         else if (first_token%kind == TK_KEYWORD .and. first_token%text == "select") then
             stmt = parse_select_case(parser)
+            return
+            ! Check for subroutine definition
+    else if (first_token%kind == TK_KEYWORD .and. first_token%text == "subroutine") then
+            stmt = parse_subroutine_definition(parser)
             return
             ! Check for interface block
      else if (first_token%kind == TK_KEYWORD .and. first_token%text == "interface") then
@@ -1399,6 +1403,125 @@ contains
      func_node = create_function_def(func_name, params, return_type, body, line, column)
 
     end function parse_function_definition
+
+    ! Parse subroutine definition: subroutine name(params) ... end subroutine
+    function parse_subroutine_definition(parser) result(sub_node)
+        type(parser_state_t), intent(inout) :: parser
+        class(ast_node), allocatable :: sub_node
+
+        character(len=:), allocatable :: sub_name
+        type(token_t) :: token
+        type(ast_node_wrapper), allocatable :: params(:), body(:)
+        integer :: line, column
+
+        ! Expect "subroutine" keyword
+        token = parser%peek()
+        if (token%kind == TK_KEYWORD .and. token%text == "subroutine") then
+            line = token%line
+            column = token%column
+            token = parser%consume()
+        else
+            ! Error: expected subroutine
+            return
+        end if
+
+        ! Get subroutine name
+        token = parser%peek()
+        if (token%kind == TK_IDENTIFIER) then
+            sub_name = token%text
+            token = parser%consume()
+        else
+            ! Error: expected subroutine name
+            return
+        end if
+
+        ! Parse parameters
+        token = parser%peek()
+        if (token%kind == TK_OPERATOR .and. token%text == "(") then
+            token = parser%consume()  ! consume '('
+
+            ! Parse parameter list inline
+            block
+                type(ast_node_wrapper), allocatable :: temp_params(:)
+                integer :: param_count
+
+                param_count = 0
+
+                do while (.not. parser%is_at_end())
+                    token = parser%peek()
+
+                    ! Check for closing parenthesis
+                    if (token%kind == TK_OPERATOR .and. token%text == ")") then
+                        token = parser%consume()
+                        exit
+                    end if
+
+                    ! Check for comma (parameter separator)
+                    if (token%kind == TK_OPERATOR .and. token%text == ",") then
+                        token = parser%consume()
+                        cycle
+                    end if
+
+                    ! Parse parameter identifier
+                    if (token%kind == TK_IDENTIFIER) then
+                        block
+                            type(ast_node_wrapper) :: param_wrapper
+                            allocate(param_wrapper%node, source=create_identifier(token%text, token%line, token%column))
+
+                            if (param_count == 0) then
+                                temp_params = [param_wrapper]
+                            else
+                                temp_params = [temp_params, param_wrapper]
+                            end if
+                            param_count = param_count + 1
+                        end block
+                        token = parser%consume()
+                    else
+                        ! Skip unexpected token
+                        token = parser%consume()
+                    end if
+                end do
+
+                ! Allocate final parameters array
+                if (param_count > 0) then
+                    allocate (params(param_count))
+                    params = temp_params(1:param_count)
+                else
+                    allocate (params(0))
+                end if
+            end block
+        else
+            ! No parameters
+            allocate (params(0))
+        end if
+
+        ! Parse body (simplified for now - just consume tokens until end subroutine)
+        allocate (body(0))
+
+        ! Look for end subroutine
+        do while (.not. parser%is_at_end())
+            token = parser%peek()
+            if (token%kind == TK_KEYWORD .and. token%text == "end") then
+                token = parser%consume()  ! consume 'end'
+                token = parser%peek()
+                if (token%kind == TK_KEYWORD .and. token%text == "subroutine") then
+                    token = parser%consume()  ! consume 'subroutine'
+                    exit
+                end if
+            else
+                token = parser%consume()  ! skip other tokens
+            end if
+        end do
+
+        ! Create subroutine node
+        block
+            type(subroutine_def_node), allocatable :: snode
+            allocate (snode)
+            snode = create_subroutine_def(sub_name, params, body, line, column)
+            allocate (sub_node, source=snode)
+        end block
+
+    end function parse_subroutine_definition
 
     ! Parse use statement: use module_name [, only: item1, item2, new_name => old_name]
     function parse_use_statement(parser) result(stmt)
