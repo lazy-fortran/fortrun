@@ -45,25 +45,25 @@ Key insights:
 - [x] Test: AST can round-trip through JSON (AST → JSON → AST)
 - [x] Test: Semantic analyzer preserves all AST structure when adding type annotations
 
-### 1.3 Remove Legacy Code
-- [ ] Remove basic type inference code from frontend.f90
-- [ ] Remove any direct token-to-code shortcuts
-- [ ] Clean up temporary workarounds in codegen
+### 1.3 Remove Legacy Code ✅
+- [x] Remove basic type inference code from frontend.f90
+- [x] Remove any direct token-to-code shortcuts
+- [x] Clean up temporary workarounds in codegen
 
 ## Phase 2: Lexer Enhancements
 
-### 2.1 Complete Token Coverage
-- [ ] Test: Integer literals (all forms)
-- [ ] Test: Real literals (all forms including scientific notation)
-- [ ] Test: Complex literals
-- [ ] Test: Character literals (single/double quotes)
-- [ ] Test: Logical literals (.true./.false.)
-- [ ] Test: All Fortran 95 operators
-- [ ] Test: All Fortran 95 keywords
+### 2.1 Complete Token Coverage ✅
+- [x] Test: Integer literals (all forms) - Already implemented in test_frontend_lexer_numbers.f90
+- [x] Test: Real literals (all forms including scientific notation) - Already implemented in test_frontend_lexer_numbers.f90  
+- [x] Test: Complex literals - Already implemented in test_frontend_lexer_numbers.f90
+- [x] Test: Character literals (single/double quotes) - Already implemented in test_frontend_lexer_api.f90
+- [x] Test: Logical literals (.true./.false.) - Already implemented in test_frontend_lexer_api.f90
+- [x] Test: All Fortran 95 operators - Already implemented in test_frontend_lexer_operators.f90
+- [x] Test: All Fortran 95 keywords - Already implemented in test_frontend_lexer_keywords.f90
 
-### 2.2 Lexer JSON Output Support  
-- [ ] Verify lexer outputs tokens.json with --debug-tokens flag
-- [ ] Test: Lexer correctly serializes all token types to JSON
+### 2.2 Lexer JSON Output Support ✅
+- [x] Verify lexer outputs tokens.json with --debug-tokens flag - Already implemented and working
+- [x] Test: Lexer correctly serializes all token types to JSON - Already implemented in test_frontend_lexer_serialization_comprehensive.f90
 
 ## Phase 3: Parser Enhancements
 
@@ -254,4 +254,7 @@ Key insights:
 
 ## Current Status
 
-Starting implementation with example directory cleanup and setting up test infrastructure.
+**Phase 1 Complete ✅** - Example directory cleanup and legacy code removal finished.
+**Phase 2 Complete ✅** - Lexer enhancements already implemented with comprehensive test coverage.
+
+Starting Phase 3: Parser Enhancements.
