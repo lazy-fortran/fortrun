@@ -93,7 +93,7 @@ Key insights:
 ### 3.3 Control Flow
 - [x] Test: If/then/else/elseif ✅
 - [x] Test: Select case ✅
-- [ ] Test: Do loops (all forms)
+- [x] Test: Do loops (all forms) ✅
 - [ ] Test: Where constructs
 - [ ] Test: Forall constructs
 
@@ -436,3 +436,17 @@ Key insights:
 - JSON serialization support for select case statements
 - Comprehensive test coverage for all select case forms
 - All select case parser tests passing
+
+**Do Loops Complete ✅**:
+- Existing `do_loop_node` and `do_while_node` AST infrastructure already implemented
+- Existing comprehensive `parse_do_loop` and `parse_do_while` functions handling:
+  - Simple do loops: `do i = 1, 10 end do`
+  - Do loops with step: `do i = 1, 10, 2 end do`
+  - Do while loops: `do while (x < 10) end do`
+  - Nested do loops
+- `do_loop_node` with var_name, start_expr, end_expr, step_expr (optional), body fields
+- `do_while_node` with condition and body fields
+- "do" and "while" keywords already in lexer
+- JSON serialization support for do loops
+- Comprehensive test coverage for all do loop forms
+- All do loop parser tests passing
