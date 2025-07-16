@@ -1,0 +1,11 @@
+{
+  "": {
+    "type": "lf_program",
+    "name": "main",
+    "implicit": true,
+    "auto_contains": false,
+    "line": 1,
+    "column": 1,
+    "body": []
+  }
+}

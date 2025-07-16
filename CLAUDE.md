@@ -1,252 +1,333 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working with this repository.
 
 ## Project Purpose
 
-This project develops a command-line tool called `fortran` that **Makes Python Fortran again**. The tool enables running Fortran programs directly without manual compilation, automatically resolving and building module dependencies using FPM, with opinionated modern defaults and zero configuration.
+This project develops a command-line tool called `fortran` that **Makes Python Fortran again**. The tool enables running Fortran programs directly without manual compilation, automatically resolving and building module dependencies using FPM, with opinionated modern defaults and zero configuration. Our *lazy fortran* dialect pushes beyond all alternative scientific computing languages to combine Fortran's performance with modern expressiveness.
 
 ## Build System
 
-This project uses FPM (Fortran Package Manager) as its build system.
+This project uses FPM (Fortran Package Manager).
 
-### Common Commands
+### Essential Commands
 
 ```bash
-# Build the project
-fpm build
+fpm build                         # Build project
+fpm run fortran -- example.f90    # Run main app (IMPORTANT: Use -- separator)
+fpm test                          # Run all tests
+fpm test test_name                # Run specific test
+rm -rf ~/.cache/fortran/*         # Clear cache (CRITICAL before testing frontend!)
 
-# Run the main application (IMPORTANT: Use -- separator)
-fpm run fortran -- example.f90
-
-# Run tests
-fpm test
-
-# Run specific test
-fpm test test_name
-
-# Build with release optimizations
-fpm build --profile release
-
-# Clean build artifacts
-fpm clean
+# Debug 4-Phase Compilation Pipeline (JSON output)
+fpm run fortran -- example.f90 --debug-tokens    # Phase 1: Tokenization
+fpm run fortran -- example.f90 --debug-ast       # Phase 2: AST parsing
+fpm run fortran -- example.f90 --debug-semantic  # Phase 3: Type inference (annotated AST)
+fpm run fortran -- example.f90 --debug-codegen   # Phase 4: Fortran code generation
+fpm run fortran -- example.f90 --debug-tokens --debug-ast --debug-semantic --debug-codegen  # All phases
 ```
 
 ## Project Architecture
 
-This is a Fortran project following standard FPM directory structure:
+Clean organized directory structure:
+- `src/` - Library modules
+  - `frontend/` - Complete compilation pipeline
+    - `lexer/` - Tokenization (lexer_core.f90 - DIALECT-AGNOSTIC)
+    - `parser/` - Parsing (parser_core.f90 - DIALECT-AGNOSTIC)  
+    - `semantic/` - Type inference and analysis (DIALECT-AGNOSTIC)
+    - `codegen/` - Code generation (codegen_core.f90 - DIALECT-AGNOSTIC, generates F90)
+    - `standard/` - Standard-specific implementations
+      - `lazy_fortran/` - Lazy fortran dialect extensions ONLY
+      - `fortran90/`, `fortran2018/` - Other standard-specific features
+    - `ast_core.f90` - Core AST definitions (DIALECT-AGNOSTIC)
+    - `frontend.f90` - Main coordinator (TO REFACTOR)
+  - `[utilities]/` - cli/, cache/, config/, runner/, notebook/, etc.
 
-- `src/` - Library modules that provide reusable functionality
-- `app/` - Executable programs that use the library modules  
-- `test/` - Test programs with comprehensive coverage
-- `example/` - Example programs organized by feature
+### CRITICAL ARCHITECTURE RULE ⚠️
+**Core modules (lexer_core, parser_core, semantic_analyzer, codegen_core, ast_core) must be DIALECT-AGNOSTIC**
+- NO "lf_" prefixes in core modules
+- Common Fortran features go in core modules
+- Dialect-specific features go in standard/ subdirectories ONLY
+- Code generator always produces standard Fortran 90
+- `app/` - Executable programs
+- `test/` - Test programs organized to match src/ structure
+  - `frontend/` - Frontend tests with wildcard naming
+    - `lexer/test_frontend_lexer_*.f90`
+    - `parser/test_frontend_parser_*.f90`
+    - `semantic/test_frontend_semantic_*.f90`
+    - `codegen/test_frontend_codegen_*.f90`
+- `example/` - Example programs
+  - `frontend_test_cases/` - Frontend test cases with input/output pairs
 
-### Key Architectural Patterns
+### Key Patterns
+- **Explicit Typing**: `implicit none` everywhere
+- **Private-by-Default**: Modules use private visibility by default
+- **Test-Driven Development**: Write tests first
 
-1. **Module-based Organization**: Core functionality is organized into modules in `src/`:
-   - `cli.f90` - Command-line argument parsing
-   - `runner.f90` - Main execution logic
-   - `module_scanner.f90` - Module dependency detection
-   - `registry_resolver.f90` - Package registry resolution
-   - `fpm_generator.f90` - Dynamic fpm.toml generation
-   - `cache.f90` - OS-specific caching
-   - `config.f90` - Configuration directory management
+## CRITICAL ARCHITECTURE REQUIREMENT ⚠️
 
-2. **Explicit Typing**: The codebase enforces `implicit none` throughout, requiring all variables to be explicitly declared.
+**ABSOLUTELY FORBIDDEN**: Direct token-to-code generation shortcuts in frontend
+**MANDATORY**: All code generation MUST go through the complete AST pipeline
 
-3. **Private-by-Default**: Modules use private visibility by default, explicitly marking public interfaces.
+### Lexer → Parser → AST → Semantic Analysis → Code Generation
 
-4. **Test-Driven Development**: Every feature has comprehensive test coverage.
+Any shortcuts that bypass AST processing violate our fundamental architecture:
+- ❌ NO direct token reconstruction
+- ❌ NO string manipulation from tokens
+- ❌ NO bypassing semantic analysis
+- ✅ ALL processing through proper AST nodes
+- ✅ ALL type information from semantic analysis  
+- ✅ ALL code generation from AST traversal
+
+**For unimplemented features**: Fall back to direct print of input lines, but mark clearly as temporary fallback.
 
 ## Development Configuration
 
-The `fpm.toml` configuration enforces:
-- No implicit typing (`implicit-typing = false`)
-- No implicit externals (`implicit-external = false`)
-- Free-form source code (`source-form = "free"`)
-- Automatic discovery of executables and tests
-- Auto-examples disabled (`auto-examples = false`) due to external dependencies
+The `fpm.toml` enforces: no implicit typing, free-form source, JSON support via json-fortran.
 
-## Testing Strategy
+## Current Status
 
-Comprehensive test coverage includes:
+### ✅ **Production AST Frontend Complete**
+- ✅ Complete 4-phase compiler architecture (lexer → parser → semantic → codegen)
+- ✅ Hindley-Milner type inference system with Algorithm W implementation
+- ✅ Wrapper pattern for polymorphic arrays (gfortran 15 compatible)
+- ✅ Multiple argument parsing for function calls and print statements
+- ✅ JSON workflow for all phases with debug flags (--debug-tokens, --debug-ast, --debug-semantic, --debug-codegen)
+- ✅ Comprehensive test suite (30+ frontend tests) with wildcard discovery pattern
+- ✅ Array extension syntax with `[array, new_element]` pattern
 
-### Unit Tests
-- `test_module_scanner.f90` - Module dependency detection
-- `test_registry_resolver.f90` - Package registry resolution
-- `test_fpm_generator.f90` - fpm.toml generation
-- `test_cache.f90` - Caching functionality
-- `test_cli.f90` - Command-line argument parsing
+## *Lazy Fortran* Dialect
 
-### Integration Tests
-- `test_examples.f90` - Runs all examples and validates output
-- `test_verbose.f90` - Verbose mode functionality
+**Experimental dialect** - *lazy fortran* is our experimental dialect that pushes the boundaries beyond all alternative languages for scientific computing. It explores how far we can evolve Fortran to surpass Python, Julia, MATLAB, and others in both performance and expressiveness while maintaining full backward compatibility.
 
-### System Tests
-- `test_cli_system.f90` - End-to-end CLI testing with real commands
+1. **Implicit program wrapping** - No need for `program`/`end program`
+2. **Automatic type inference** - Variables declared through assignment
+3. **Modern defaults** - `implicit none`, `real(8)`, `intent(in)`
+4. **Automatic contains insertion** - For functions/subroutines
+5. **Future experimental features** - List comprehensions, f-strings, enhanced arrays, pattern matching
 
-To run specific tests:
-```bash
-fpm test test_name
-```
-
-## Implementation Status
-
-### ✅ **Phase 1 Complete**: Foundation
-- ✅ Basic CLI with comprehensive argument parsing (`--help`, `-v`, `-vv`, `--verbose`, `--cache-dir`, `--config-dir`)
-- ✅ Local module dependency resolution with interdependent module support
-- ✅ FPM integration with modern defaults (implicit none, double precision)
-- ✅ OS-specific caching and configuration management
-- ✅ Package registry with smart module resolution (prefix matching, underscore inference)
-- ✅ Comprehensive test coverage (unit, integration, system tests)
-
-### ✅ **Phase 2 Complete**: Enhanced Features
-- ✅ Interdependent local modules example
-- ✅ Custom cache/config directories
-- ✅ Organized example structure with documentation
-- ✅ Registry enhancements (version constraints, validation)
-- ✅ Error handling improvements
-- ✅ Multiple modules from same package support
-- ✅ Conflicting dependencies resolution
-- ✅ System tests for CLI functionality
-
-### ✅ **Phase 3 Complete**: Smart Caching
-- ✅ Cache directory structure and management
-- ✅ FPM API integration for content-based hashing
-- ✅ Cache key generation using FPM's digest system
-- ✅ Cache locking mechanism for parallel builds
-- ✅ Performance benchmarks and safety tests
-- ⚠️ **Limitation**: Currently caches complete projects; FPM package sharing across different programs not yet implemented
-
-### ✅ **Phase 4 Complete**: Simplified Fortran Preprocessor
-- ✅ Preprocessor for .f files
-  - ✅ Automatic program wrapping
-  - ✅ Automatic contains insertion
-  - ✅ Implicit none by default
-  - ✅ Support for functions and subroutines
-  - ✅ Comprehensive test coverage
-  - ✅ Integration with cache system
-
-### 🚧 **Phase 5 In Progress**: Basic Type Inference
-- ⚠️ Type inference infrastructure
-- ⚠️ Literal type detection
-- ⚠️ Expression type propagation
-- ⚠️ Variable declaration generation
-
-## Modern Defaults (Opinionated Design)
-
-The tool enforces modern Fortran practices by default:
-
-1. **`implicit none`** - Enforced automatically via `fpm.toml`
-2. **Double precision** - `real` defaults to `real(8)` via compiler flags
-3. **Free form** - Modern source format
-4. **Standard compliance** - Generates Fortran 2018 code
-5. **Safe parameter intent** - Function parameters default to `intent(in)` instead of standard Fortran's `intent(inout)`
-
-### Compiler Flags Applied
+### Compiler Flags
 ```bash
 --flag "-fdefault-real-8 -fdefault-double-8"
 ```
 
 ## Module Registry System
 
-The tool includes a registry that maps Fortran module names to their respective packages, designed to be compatible with the [FPM Registry](https://github.com/fortran-lang/fpm-registry) format.
-
-### Registry Format
+Maps Fortran modules to packages, FPM Registry compatible.
 
 ```toml
 # ~/.config/fortran/registry.toml
-[packages]
-
 [packages.fortplotlib]
 git = "https://github.com/krystophny/fortplotlib"
-prefix = "fortplot"  # Any module starting with "fortplot"
-
-[packages.pyplot-fortran]
-git = "https://github.com/jacobwilliams/pyplot-fortran"
-# pyplot_module -> pyplot-fortran (underscore inference)
+prefix = "fortplot"  # Modules starting with "fortplot"
 ```
 
-### Module Resolution Strategy
+### Resolution Strategy
+1. Explicit mappings
+2. Custom prefixes
+3. Automatic inference (`module_name` → `package-name`)
 
-1. **Explicit mappings**: Check direct module-to-package mappings
-2. **Custom prefixes**: Check if module starts with a registered prefix
-3. **Automatic inference**: 
-   - If module contains underscore: `module_name` → `package-name` (part before first `_`)
-   - If no underscore: `module_name` → `package-name` (the module name itself)
-
-### Configuration Directories
-
-The tool uses standard OS directories:
-- **Config**: `~/.config/fortran/` (Linux/macOS) or `%LOCALAPPDATA%/fortran/config/` (Windows)
-- **Cache**: `~/.cache/fortran/` (Linux/macOS) or `%LOCALAPPDATA%/fortran/cache/` (Windows)
+### Directories
+- **Config**: `~/.config/fortran/`
+- **Cache**: `~/.cache/fortran/`
 - **Registry**: `~/.config/fortran/registry.toml`
-
-## Example Structure
-
-Examples are organized into subdirectories:
-- `example/hello/` - Basic hello world
-- `example/calculator/` - Local module usage
-- `example/precision/` - Modern precision defaults
-- `example/interdependent/` - Complex interdependent modules
-- `example/plotting/` - External dependencies (disabled)
-
-Each example includes:
-- Source files
-- README.md with documentation
-- Test validation in `test_examples.f90`
 
 ## Development Principles
 
-1. **Opinionated for Good**: Make choices that help users adopt modern Fortran practices
-2. **Python-like Experience**: `fortran mycode.f90` should be as easy as `python mycode.py`
-3. **Test-Driven Development**: Write tests first, comprehensive coverage
-4. **Zero Configuration**: Just write code and run it
-5. **Gradual Adoption**: Works with existing FPM packages and build systems
+- **Opinionated for Good** - Enforce modern Fortran practices
+- **Python-like Experience** - Just run without compilation worries
+- **Test-Driven Development** - Tests before code
+- **Zero Configuration** - Works out of the box
 
-## Key Implementation Decisions
+## Testing Strategy
 
-1. **FPM Integration**: Uses FPM CLI for building, generates dynamic `fpm.toml` files
-2. **Caching Strategy**: OS-specific cache directories with timestamp-based invalidation
-3. **Registry Design**: TOML-based, FPM-compatible with smart resolution rules
-4. **Modern Defaults**: Compiler flags and fpm.toml settings enforce best practices
+1. **Unit Tests First** - Write small unit tests that test modules directly without file I/O
+2. **Frontend API Tests** - Test frontend compilation through API (test_frontend_test_cases.f90)
+3. **System Tests Last** - Only after unit tests pass, test the full fortran command-line tool
+4. **No File Output in Unit Tests** - Keep unit tests fast and isolated
 
-## Development Notes
+## ⚠️ CRITICAL FORTRAN PATTERNS ⚠️
 
-- **FPM Fork**: We use the standard FPM, keeping changes minimal or separate
-- **Caching**: Part of `fortran` tool, not FPM itself
-- **Testing**: Every feature must have tests before merging
-- **Documentation**: Examples serve as both documentation and tests
-- **Debug Apps**: Create debug applications in the `app/` directory and run them with `fpm run --target <app_name>` for testing internal functionality. Once a debug app is ready to become a proper test, move it to `test/`, ensure it runs with `fpm test <test_name>`, then delete the debug app from `app/`
+### Polymorphic Arrays - ALWAYS Use Wrapper Pattern
+
+**NEVER** use `class(ast_node), allocatable :: array(:)` - this causes allocation errors.
+
+**ALWAYS** use wrapper pattern:
+```fortran
+! Define wrapper type
+type :: ast_node_wrapper
+    class(ast_node), allocatable :: node
+end type ast_node_wrapper
+
+! Use wrapper arrays
+type(ast_node_wrapper), allocatable :: array(:)
+
+! Allocate elements
+allocate(array(i)%node, source=some_node)
+```
+
+### Array Extension Syntax
+
+When extending arrays, use temporary variables (not expressions):
+```fortran
+! CORRECT: Use temporary variable
+block
+    type(ast_node_wrapper) :: new_wrapper
+    allocate(new_wrapper%node, source=new_element)
+    array = [array, new_wrapper]  ! new_wrapper is a variable
+end block
+
+! WRONG: Direct expression
+array = [array, create_something()]  ! Fails with polymorphic types
+```
+
+**Key Rule**: In `[array, new_element]`, `new_element` must be a variable, not an expression.
 
 ## Future Roadmap
 
-- **Phase 5**: Basic type inference for .f files
-- **Phase 6**: Advanced type inference (arrays, derived types)
-- **Phase 7**: Python-like features (comprehensions, f-strings)  
-- **Phase 8**: Enhanced caching with FPM package sharing and cross-package support
-  - **Goal**: Enable scenario where `fortran calc.f90` and `fortran plot.f90` share compiled FPM packages
-  - **Implementation**: Include FPM dependencies in cache keys, separate package-level caching
-  - **Benefits**: Dramatically faster builds when multiple programs use same external packages
-- **Phase 9**: Integration with official FPM registry
-- **Phase 10**: Interactive REPL mode
+- Phase 9: Official FPM Registry Integration
+- Phase 10: Advanced *lazy fortran* syntax features
+- Phase 11: Fortran 2003+ support (OOP, parameterized types)
+- Phase 12: LLVM IR generation & Compiler integration
+- Phase 13: Multiple dispatch & Advanced language features
+- Phase 14: Interactive REPL & Enhanced development tools
+- Phase 15: Full Python/Julia-like developer experience
 
-**Goal**: **Make Python Fortran again** - making Fortran development as seamless as Python, where you can just run a file without worrying about compilation, linking, or dependency management.
+**Goal**: Make Fortran development as seamless as Python.
 
-*"Fortran is the Python of scientific computing - it just doesn't know it yet."*
+## Critical Development Notes
 
-## Development Memories
+- **ALWAYS write tests first!** (TDD: red-green-refactor)
+- **WRITE MINIMAL UNIT TESTS!** One feature at a time, starting with ONE LINE tests
+- **TEST COMPONENTS INDIVIDUALLY!** Don't run full compiler for unit tests!
+- **Clear cache before testing frontend**: `rm -rf ~/.cache/fortran/*`
+- **Compiler frontend is used** for .f files (*lazy fortran* with type inference)
+- Debug apps go in `app/`, then move to `test/` when ready
+- Test data goes in `example/frontend_test_cases/`
 
-- Check FPM API before implementing on our own
-- Unit, integration, and system tests are to be put in test/ and run with `fpm test` with optional target attribute --target
-- You must always write tests first!
-- You can do ad-hoc debugging by placing f90 files in app/ and run them with fpm run --target <app_name>
-- Once a debug app is working and ready to be a proper test:
-  1. Move the file from app/ to test/ directory
-  2. Ensure it works with `fpm test <test_name>`
-  3. Delete the original debug app from app/
-  4. Commit the new test to git
-- Always convert debug apps to automated tests if a similar test doesn't exist yet
-- To clean the build, run echo "y" | fpm clean in project root
-- To clear the fortran cache, remove fortran/* in $XDG_CACHE_HOME or in $HOME/.cache
-- You put test input data in subdirectories of test/test_data in an organized way. in particlular, this includes snippets of our simplified fortran dialect .f and their standard Fortran f90 equivalent for the ast and code generator tests. this is when they are too small or too specialized to become actual examples.
+### PROPER UNIT TESTING APPROACH:
+1. **Test lexer directly**: `tokenize_core("x = 1")` → check tokens
+2. **Test parser directly**: Feed tokens/JSON → check AST
+3. **Test semantic analyzer**: Feed AST/JSON → check annotated AST
+4. **Test codegen directly**: Feed AST/JSON → check generated code
+5. **Use JSON intermediate representations** for each stage!
+6. **ATOMIC TESTS**: One line snippets, not full programs!
+
+### JSON INPUT/OUTPUT FOR EACH STAGE:
+Each frontend stage MUST support JSON input AND output:
+- **Lexer**: Can output tokens.json, MUST accept tokens.json as input
+- **Parser**: Can output ast.json, MUST accept tokens.json as input
+- **Semantic**: Can output semantic.json, MUST accept ast.json as input
+- **Codegen**: Can output codegen.json, MUST accept ast.json as input
+
+CLI options needed:
+- `--from-tokens <file.json>` - Start from tokens stage
+- `--from-ast <file.json>` - Start from AST stage
+- `--from-semantic <file.json>` - Start from annotated AST
+
+Example test structure:
+```
+example/frontend_test_cases/single_assignment/
+├── input.txt                    # Just "x = 1"
+├── expected_tokens.json         # Expected tokenizer output
+├── expected_ast.json           # Expected parser output
+├── expected_semantic.json      # Expected semantic analysis output
+└── expected_code.txt           # Expected generated code snippet
+```
+
+- **IMPORTANT: When debugging parser/frontend issues, ALWAYS create test cases in example/frontend_test_cases/ with:**
+  - One subdirectory per test case (e.g., `example/frontend_test_cases/use_statement/`)
+  - Input snippet: `input.txt` (NOT a full program!)
+  - Expected outputs for EACH stage
+  - Add these to automated test coverage immediately
+  - **START WITH MINIMAL TESTS**: One line tests first! (e.g., just `x = 1`, then `real :: x`, then combine)
+- Polymorphic arrays: use `allocate(array, source=input)`
+- Avoid polymorphic assignment with allocatable components
+- Reference: Fortran 95 standard at https://wg5-fortran.org/N1151-N1200/N1191.pdf
+- **To run the currently developed version of fortran, run fpm run fortran -- <arguments>. Always clear cache if you change frontend features.**
+- **For debugging AST pipeline issues, use --debug-tokens, --debug-ast, --debug-codegen flags for JSON intermediate output**
+- In order not to fill your context uselessly, run full test suite only with "fpm test > /dev/null" to suppress verbose output. Prefer using tests for one subsystem only for development.
+- **Command line options are documented in doc/index.md** - this includes all flags, debug options, and usage examples
+
+## Test Categories for Targeted Testing
+
+Run specific test categories during development to avoid context overload:
+
+### Frontend Components (NEW ORGANIZED STRUCTURE)
+Tests now match src/frontend/ organization with wildcard-discoverable names:
+
+```bash
+# Lexer tests (src/frontend/lexer/)
+fpm test test_frontend_lexer_keywords
+fpm test test_frontend_lexer_numbers
+fpm test test_frontend_lexer_operators
+
+# Parser tests (src/frontend/parser/)  
+fpm test test_frontend_parser_basic
+fpm test test_frontend_parser_binary_ops
+
+# Semantic analysis tests (src/frontend/semantic/)
+fpm test test_frontend_semantic_inference_arrays
+fpm test test_frontend_semantic_inference_expressions
+fpm test test_frontend_semantic_inference_functions
+
+# Code generation tests (src/frontend/codegen/)
+fpm test test_frontend_codegen_basic
+fpm test test_frontend_codegen_expressions
+fpm test test_frontend_codegen_program
+
+# Integration tests (src/frontend/)
+fpm test test_frontend_integration
+fpm test test_frontend_statements
+```
+
+**Wildcard Pattern for FPM Discovery:**
+- `test_frontend_lexer_*` - All lexer tests
+- `test_frontend_parser_*` - All parser tests  
+- `test_frontend_semantic_*` - All semantic tests
+- `test_frontend_codegen_*` - All codegen tests
+
+### CLI and Runner
+```bash
+fpm test test_cli_comprehensive    # CLI argument parsing (unit)
+fpm test test_cli_system          # CLI system integration
+fpm test test_runner_comprehensive # Full execution pipeline
+```
+
+### Caching System
+```bash
+fpm test test_cache               # Core caching
+fpm test test_module_cache_unit   # Module cache unit tests
+fpm test test_fpm_cache_integration # FPM integration
+```
+
+### Notebook System
+```bash
+fpm test test_notebook_parser     # Notebook parsing
+fpm test test_notebook_executor   # Notebook execution
+fpm test test_figure_capture      # Figure capture
+```
+
+### Registry and Config
+```bash
+fpm test test_registry_resolver   # Module resolution
+fpm test test_config_extended     # Configuration system
+```
+
+### Integration and Examples
+```bash
+fpm test test_examples            # Example programs
+fpm test test_parse_and_codegen   # Full AST pipeline
+```
+
+## Reference Documentation
+
+- You can find Fortran and fortran standards for implementation reference in doc/standard
+- You can find current status and tasks in TODO.md
+- You can find architecture and design documentation in doc/design directory
+- You can find roadmap in ROADMAP.md
+
+## Debugging Techniques
+
+- **Intermediate Representation Debugging**
+  - remember to use json intermediate representation for debugging compiler frontend

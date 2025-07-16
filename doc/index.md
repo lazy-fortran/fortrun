@@ -24,6 +24,18 @@ fortran --cache-dir /tmp calc.f90    # Custom cache
 -vv                 Very verbose (debug output)
 ```
 
+### Build Options
+```bash
+-j, --jobs N        Number of parallel build jobs (default: auto)
+--flag FLAGS        Additional compiler flags
+```
+
+### Notebook Mode
+```bash
+--notebook          Enable Jupyter notebook mode
+--notebook-output F Save notebook execution to file
+```
+
 ### Cache Control
 ```bash
 --cache-dir DIR     Use custom cache directory
@@ -38,10 +50,21 @@ fortran --cache-dir /tmp calc.f90    # Custom cache
                              %LOCALAPPDATA%/fortran/config (Windows)
 ```
 
-### Help
+### Debug Options
+```bash
+--debug-tokens      Output token JSON to SOURCE_tokens.json
+--debug-ast         Output AST JSON to SOURCE_ast.json
+--debug-codegen     Output codegen JSON to SOURCE_codegen.json
+```
+
+### Other Options
 ```bash
 -h, --help          Show help message
 --version           Show version information
+--clear-cache       Clear the cache directory
+--cache-info        Display cache directory information
+--preprocess-only   Only compile .f files to Fortran IR, don't run
+--no-wait          Don't wait for parallel job completion
 ```
 
 # Caching System
@@ -164,7 +187,7 @@ source-form = "free"         # Modern free-form source
 # No special compiler flags
 ```
 
-**For .f files (Opinionated Preprocessing):**
+**For .f files (Simple Fortran with Frontend):**
 ```toml
 # Generated fpm.toml (same base + additional flags)
 [build]
@@ -291,6 +314,40 @@ $ fortran -vv hello.f90
 [DEBUG] Cache key: abc123def456
 [DEBUG] FPM command: fpm run --flag "-fdefault-real-8 -fdefault-double-8"
 [DEBUG] Build output: [compiler messages]
+```
+
+**JSON Debug Output:**
+
+The tool can output JSON representations of compilation stages for debugging:
+
+```bash
+# Output all stages
+$ fortran example.f --debug-tokens --debug-ast --debug-codegen
+
+# Creates:
+# - example_tokens.json   (lexical tokens)
+# - example_ast.json      (abstract syntax tree)
+# - example_codegen.json  (generated code)
+```
+
+Example token JSON:
+```json
+{
+  "tokens": [
+    {"type": "identifier", "text": "x", "line": 1, "column": 1},
+    {"type": "operator", "text": "=", "line": 1, "column": 3},
+    {"type": "number", "text": "42", "line": 1, "column": 5}
+  ]
+}
+```
+
+Example AST JSON:
+```json
+{
+  "type": "assignment",
+  "target": {"type": "identifier", "name": "x"},
+  "value": {"type": "literal", "value": "42", "kind": "integer"}
+}
 ```
 
 ## Error Messages Guide

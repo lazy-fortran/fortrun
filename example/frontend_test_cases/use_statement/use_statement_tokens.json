@@ -1,0 +1,46 @@
+{
+  "tokens": [
+    {
+      "type": "keyword",
+      "text": "use",
+      "line": 1,
+      "column": 1
+    },
+    {
+      "type": "identifier",
+      "text": "iso_fortran_env",
+      "line": 1,
+      "column": 5
+    },
+    {
+      "type": "keyword",
+      "text": "print",
+      "line": 2,
+      "column": 1
+    },
+    {
+      "type": "operator",
+      "text": "*",
+      "line": 2,
+      "column": 7
+    },
+    {
+      "type": "operator",
+      "text": ",",
+      "line": 2,
+      "column": 8
+    },
+    {
+      "type": "string",
+      "text": "\"Hello from Fortran\"",
+      "line": 2,
+      "column": 10
+    },
+    {
+      "type": "eof",
+      "text": "",
+      "line": 3,
+      "column": 1
+    }
+  ]
+}

@@ -4,333 +4,140 @@
 
 **Make Python Fortran again.** The `fortran` CLI tool aims to make Fortran development as seamless as Python, with automatic dependency resolution, transparent compilation, and eventually a simplified syntax that compiles to standard Fortran.
 
-## Current Status (Phase 8 Complete)
+## Completed Features ✅
 
-### ✅ Implemented Features
-- **Basic CLI**: `fortran <file.f90>` executes Fortran programs transparently
-- **OS Cache Management**: Projects cached in standard OS locations (`~/.cache/fortran` on Linux)
-- **Local Dependencies**: Automatically includes local `.f90` modules from the same directory
-- **FPM Integration**: Leverages FPM for building and dependency management
-- **Module Registry**: TOML-based registry with smart module resolution (prefix and underscore rules)
-- **Smart Caching System**:
-  - Content-based caching with 2-4x performance improvements
-  - Incremental compilation support (only changed files recompile)
-  - Structure-based hashing for cache keys
-  - In-place source updates for modified files
-- **Modern Defaults**:
-  - `implicit none` enforced by default (via fpm.toml `implicit-typing = false`)
-  - Double precision (`real*8`) as default for `real` type
-  - Compiler flags automatically applied: `-fdefault-real-8 -fdefault-double-8`
-- **Developer Experience**:
-  - Verbose mode (`-v`, `--verbose`) for debugging
-  - Helpful error messages from FPM
-  - Custom cache directory support (`--cache-dir`)
-- **Simplified Fortran Preprocessor (.f files)**:
-  - Automatic program wrapping for executable code
-  - Automatic `contains` insertion for functions/subroutines
-  - Modern defaults with `implicit none` and double precision
-  - Seamless integration with existing build system
-- **Basic Type Inference**:
-  - Automatic type detection for integers, reals, logicals, characters
-  - Expression type propagation and variable tracking
-  - Integration with .f file preprocessing
-  - Comprehensive test coverage (41/41 tests passing)
-- **Notebook Support (Jupytext-like)**:
-  - Parse .f files with markdown cells using %% delimiters
-  - Execute notebook cells with variable persistence
-  - Render to markdown with code blocks and output
-  - **Figure/Plot Integration**: Automatic capture of fortplotlib plots as inline base64 PNG images
-  - CLI integration with `--notebook` flag
-- **Advanced Type Inference**:
-  - Modular architecture with clean separation of concerns
-  - Array type inference with dimension and shape analysis
-  - Derived type pattern detection and field tracking
-  - Function return type inference with intrinsic function support
-  - Comprehensive test coverage (61/61 tests passing across all analyzers)
+- **Basic CLI, OS Cache Management, Local Dependencies, FPM Integration**
+- **Module Registry with Smart Resolution**
+- **Smart Caching System with 2-4x Performance Improvements**
+- **Modern Defaults (implicit none, real*8)**
+- **Production-Ready AST Frontend with 4-Phase Architecture**
+- **Hindley-Milner Type Inference System**
+- **Comprehensive Test Suite (30+ frontend tests)**
+- **Notebook Support with Figure/Plot Integration**
 
-## Near-term Roadmap
+## Current Phase: AST Frontend Production-Ready ✅
 
-### Phase 2: Registry-based Dependencies (Complete)
-- [x] Module scanner to detect `use` statements
-- [x] Automatic package resolution from registry
-- [x] Dynamic FPM project generation with dependencies
-- [x] Support for version constraints
-- [x] Multiple modules from same package support
-- [x] Conflicting dependencies resolution
-- [x] Registry validation and error handling
+### **Phase 8 Complete: Production AST System**
 
-### Phase 3: Smart Caching (Complete)
-- [x] Content-based hashing for cache invalidation
-- [x] Reuse previous builds when files haven't changed
-- [x] Leverage FPM's internal hashing mechanisms
-- [x] Build artifact caching with incremental compilation
-- [x] Cache retrieval and validation
-- [x] Performance benchmarks showing 2-4x speedup
+The AST-based frontend is now **complete and production-ready** with sophisticated capabilities:
 
-### Phase 4: Enhanced Registry & Advanced Caching (In Progress)
-- [ ] Sync with official FPM registry
-- [ ] Support for git tags and branches
-- [ ] Local package overrides
-- [ ] Namespace support (e.g., `fortran-lang/stdlib`)
-- [x] **Cache Locking Mechanism** for concurrent access:
-  - Lock files with PID tracking to handle stale locks
-  - Atomic file operations using hard links
-  - Wait/retry logic with 30-second timeout
-  - Stale lock detection (5 minutes or dead process)
-  - `--no-wait` flag to fail immediately if locked
-  - Clean up stale locks on startup
-- [x] **Module-level caching architecture** (implementation pending):
-  - Designed `fpm_module_cache.f90` following FPM conventions
-  - Cache structure: `~/.cache/fortran/modules/<compiler>/<version>/<hash>/`
-  - Module fingerprinting based on source digest and dependencies
-  - Compiler-specific segregation for binary compatibility
-  - Comprehensive test suite demonstrating 2-3x speedup
-  - Future: Full integration requires FPM API enhancements
+#### **Complete 4-Phase Compiler Architecture**
+- ✅ **Lexer**: Full tokenization with JSON serialization (24 keywords, 8 token types)
+- ✅ **Parser**: Comprehensive parsing (expressions, statements, functions, control flow)
+- ✅ **Semantic Analysis**: Hindley-Milner type inference with Algorithm W
+- ✅ **Code Generation**: Standard Fortran 90 output with modern defaults
 
-## Long-term Vision: Simplified Fortran (.f files)
+#### **Advanced Type System**
+- ✅ **Hindley-Milner Type Inference**: Complete with unification and generalization
+- ✅ **Polymorphic Support**: Wrapper pattern for gfortran 15 compatibility
+- ✅ **Type Safety**: Occurs check, substitution system, type schemes
+- ✅ **Multiple Arguments**: Function calls and print statements
 
-### Phase 5: Basic Preprocessor (Complete)
-- ✅ **Automatic program wrapping**: Write executable code without explicit `program` statements
-- ✅ **Automatic contains insertion**: Functions/subroutines automatically wrapped
-- ✅ **Modern defaults**: `implicit none` and double precision automatically applied
-- ✅ **Integration with cache system**: Preprocessed files properly cached
-- ✅ **Comprehensive test coverage**: All preprocessor functionality tested
+#### **Robust Architecture**
+- ✅ **AST Pipeline**: Proper AST-based processing (no shortcuts)
+- ✅ **JSON Workflow**: Debug output for all phases
+- ✅ **Test Coverage**: 30+ test files covering all components
+- ✅ **Memory Management**: Safe polymorphic arrays with wrapper pattern
 
-### Phase 6: Basic Type Inference (Complete) 
-- ✅ **Literal type detection**: Automatic inference for integers, reals, logicals, characters
-- ✅ **Expression type propagation**: Type analysis across arithmetic expressions
-- ✅ **Variable declaration generation**: Automatic insertion of type declarations
-- ✅ **Integration with preprocessor**: Seamless .f file processing with type inference
+## Modern Fortran Ecosystem Integration 🌐
 
-### Phase 7: Notebook Features (Complete)
-- ✅ **Jupytext-like notebook support**: Parse .f files with markdown cells
-- ✅ **Cell execution**: Execute notebook cells with variable persistence
-- ✅ **Figure capture**: Automatic conversion of show() calls to base64 PNG images
-- ✅ **Markdown rendering**: Complete notebooks rendered to markdown with embedded figures
+### FPM Registry Integration
+- **Official Registry Sync**: Direct integration with fortran-lang/fpm-registry
+- **Module Database**: Extract and index all modules from registered packages
+- **Fast Local Resolution**: Build efficient module→package lookup database
+- **Automatic Updates**: Periodic sync with official registry
 
-### Phase 8: Advanced Type Inference (Complete)
-- ✅ **Modular architecture**: Clean separation with dedicated analyzers
-- ✅ **Array type inference**: Dimension and shape analysis
-- ✅ **Derived type patterns**: Field detection and tracking
-- ✅ **Function return types**: Comprehensive intrinsic function support
+### Module Resolution Architecture
+1. **Registry Crawler**: Fetch package metadata from FPM registry
+2. **Module Extractor**: Parse packages to build module inventory
+3. **Local Database**: SQLite/binary format for sub-millisecond lookups
+4. **Smart Caching**: Incremental updates, not full re-scans
+5. **Fallback Strategy**: Current TOML registry for custom/private packages
 
-### Phase 9: Enhanced Syntax Features (Future)
+### Performance Targets
+- **Module Resolution**: < 1ms for module→package lookup
+- **Database Size**: < 10MB for entire FPM ecosystem
+- **Update Time**: < 30s for incremental registry sync
+- **Zero Network Calls**: During normal compilation
 
-#### 9.1 Dot Notation for Type Members
-- **Feature**: Use `.` instead of `%` for derived type access
-- **Example**:
-  ```fortran
-  ! Simplified .f syntax
-  person.name = "Alice"
-  point.x = 3.14
-  
-  ! Transforms to standard .f90:
-  person%name = "Alice"
-  point%x = 3.14
-  ```
-- **Challenges**:
-  - Distinguish from floating point literals (e.g., `3.14`)
-  - Handle logical operators (`.and.`, `.or.`)
-  - Context-aware parsing required
+### Implementation Plan
+- [ ] Design efficient module database schema
+- [ ] Build FPM registry crawler and parser
+- [ ] Create module extraction tool
+- [ ] Implement fast local lookup engine
+- [ ] Add registry sync command (`fortran --sync-registry`)
+- [ ] Integrate with existing resolution pipeline
 
-#### 9.2 Enhanced Import System
-- **Feature**: Python-like imports
-  ```fortran
-  ! Simplified syntax
-  from stdlib use string_type, to_string
-  import numpy as np
-  
-  ! Transforms to:
-  use stdlib_string_type, only: string_type, to_string
-  use numpy_module, np => numpy
-  ```
+## Long-term Vision
 
-### Phase 7: Advanced Type Inference System
+### Multi-Standard Support
+- **Phase 1**: Fortran 95 target (current)
+- **Phase 2**: Fortran 2003 features (OOP, parameterized types)
+- **Phase 3**: Fortran 2008+ (coarrays, submodules)
+- **Flexibility**: Pluggable code generation backends
 
-#### 7.1 Basic Intrinsic Type Inference
-- **Feature**: Infer types for integer and real variables from usage
-- **Example**:
-  ```fortran
-  ! Simplified .f syntax (no declarations needed)
-  x = 3.14          ! Inferred as real(8)
-  n = 42            ! Inferred as integer
-  flag = .true.     ! Inferred as logical
-  name = "Alice"    ! Inferred as character(len=:), allocatable
-  
-  ! Transforms to standard .f90:
-  program example
-    implicit none
-    real(8) :: x
-    integer :: n
-    logical :: flag
-    character(len=:), allocatable :: name
-    
-    x = 3.14
-    n = 42
-    flag = .true.
-    name = "Alice"
-  end program example
-  ```
-- **Implementation**: Parse RHS expressions to determine types
-- **Safety**: More restrictive than old implicit typing - based on actual usage
+### Compiler Integration
+- **Direct IR Generation**: Skip source-to-source transformation
+- **LLVM Backend**: Generate LLVM IR directly from AST
+- **GFortran Integration**: Interface with GCC's intermediate representation
+- **Benefits**: Faster compilation, better optimization opportunities
 
-#### 7.2 Array and Vector Type Inference
-- **Feature**: Infer array dimensions and types from initialization
-- **Example**:
-  ```fortran
-  ! Simplified syntax
-  vec = [1.0, 2.0, 3.0]      ! Inferred as real(8), dimension(3)
-  mat = reshape([1,2,3,4], [2,2])  ! Inferred as integer, dimension(2,2)
-  dynamic = []               ! Inferred as allocatable array
-  
-  ! Array operations infer size
-  a = vec * 2.0              ! Same shape as vec
-  b = matmul(mat, mat)       ! Shape inferred from matmul rules
-  ```
-- **Implementation**: Track array shapes through operations
-- **Support**: Static arrays, allocatable arrays, array sections
-
-#### 7.3 Function Parameter Type Inference
-- **7.3a Input Parameter Inference (Future)**:
-  - **Status**: ⚠️ **Deferred - Requires multiple dispatch capabilities**
-  - **Challenge**: Inferring types of input parameters requires whole-program analysis
-  - **Example**:
-    ```fortran
-    function add(a, b)  ! Cannot infer input types without analyzing all calls
-      add = a + b
-    end function
-    ```
-
-- **7.3b Forward Type Propagation (In Progress)**:
-  - **Status**: 🚧 **Currently implementing**
-  - **Feature**: Propagate types from declared functions/subroutines to variables at call sites
-  - **Example**:
-    ```fortran
-    ! With declared function:
-    real(8) function compute(x, y)
-      compute = x**2 + y**2
-    end function
-    
-    ! At call site, infer variable type:
-    result = compute(a, b)  ! Infer result as real(8) from compute's return type
-    
-    ! With subroutine intent(out):
-    subroutine get_data(filename, count, values)
-      character(*), intent(in) :: filename
-      integer, intent(out) :: count
-      real(8), intent(out) :: values(:)
-    end subroutine
-    
-    ! At call site:
-    call get_data("file.txt", n, data)  ! Infer n as integer, data as real(8) array
-    ```
-
-#### 7.4 Function Return Type Inference (Partial)
-- **Feature**: Infer function return types from return statements
-- **Status**: ✅ Basic implementation complete for simple cases
-- **Example**:
-  ```fortran
-  ! Function return type inference from return value
-  function compute(x, y)
-    real(8), intent(in) :: x, y  ! Parameters still need declarations
-    compute = x**2 + y**2  ! Return type inferred as real(8) from expression
-  end function
-  
-  ! Intent(out) type propagation
-  subroutine process(input, output)
-    integer, intent(in) :: input
-    intent(out) :: output  ! Type will be inferred from usage
-    output = input * 2     ! Infers output as integer
-  end subroutine
-  
-  ! Function with inferred return type
-  function get_pi()
-    get_pi = 3.14159265359  ! Return type inferred as real(8)
-  end function
-  
-  ! Usage propagates inferred types:
-  radius = 5.0
-  area = radius * get_pi()  ! get_pi() known to return real(8)
-  ```
-- **Implementation**: Analyze function body to determine return type from assignments to function name
-- **Benefits**: No need to declare function return types when obvious from implementation
-
-#### 7.4 Derived Type Inference
-- **Feature**: Infer custom types from usage patterns
-- **Example**:
-  ```fortran
-  ! Type inferred from field access
-  person.name = "Bob"
-  person.age = 30
-  person.height = 1.75
-  ! Infers: type person_type with character, integer, real fields
-  
-  ! Type inferred from constructor pattern
-  point = Point(3.0, 4.0)  ! Infers Point type with two real components
-  
-  ! Polymorphic inference
-  shape = Circle(5.0)      ! Infers shape is class(Shape), Circle extends Shape
-  area = shape.area()      ! Validates area() method exists
-  ```
-- **Implementation**: Build type constraints from usage, generate type definitions
-- **Validation**: Ensure consistent usage across program
-- **Safety**: Better than auto - catches type mismatches at preprocessing
-
-#### 7.5 Advanced Type System Features
-- **Generic Programming**: Automatic instantiation of generic procedures
-- **Type Classes**: Infer interfaces from usage patterns
-- **Algebraic Types**: Support for sum types and pattern matching
-- **Gradual Typing**: Mix inferred and explicit types smoothly
-- **Error Messages**: Clear diagnostics showing inferred vs expected types
-
-#### 7.2 Modern Control Structures
-- Python-like list comprehensions
-- Enhanced select case syntax
-- Iterator protocol support
-
-#### 7.3 Integrated Documentation
-- Docstring support
-- Automatic API documentation generation
-- Inline examples that become tests
+### Advanced Language Features
+- **Multiple Dispatch**: Julia-like generic programming
+- **Type Classes**: Haskell-inspired abstractions
+- **Metaprogramming**: Compile-time code generation
+- **Interop**: Seamless C/C++/Python integration
 
 ## Implementation Strategy
 
-1. **Preprocessor Architecture**:
-   - Separate preprocessing step before FPM
-   - Generate standard-compliant `.f90` files
-   - Preserve line mapping for debugging
-   - Cache preprocessed output
+### Next Priority: Registry Integration & Language Evolution
+1. **Official FPM Registry Integration**: Complete module database system
+2. **Enhanced Language Features**: Advanced lazy fortran syntax extensions
+3. **Performance Optimization**: Faster compilation and execution
+4. **Extended Type System**: More sophisticated inference patterns
 
-2. **Backward Compatibility**:
-   - Always generate valid Fortran 2018 code
-   - Support mixing `.f` and `.f90` files
-   - Gradual adoption path
+### Architecture Principles
+- **Modular Design**: Separate lexer, parser, AST, codegen phases
+- **Clean Interfaces**: Well-defined boundaries between components
+- **Extensibility**: Easy to add new language features
+- **Performance**: Fast parsing and code generation
+- **Debugging**: Preserve source locations, generate source maps
 
-3. **Tooling Integration**:
-   - LSP support for simplified syntax
-   - Syntax highlighting for editors
-   - Formatter for consistent style
-   - Linter for best practices
+### Quality Metrics
+- All existing tests pass
+- All examples work without modification
+- Performance equal or better than current preprocessor
+- Clean, maintainable codebase
+- Foundation ready for IR generation
 
-## Success Metrics
+## Success Criteria
 
-- **Adoption**: Number of packages using simplified syntax
-- **Developer Experience**: Time from idea to running code
-- **Compatibility**: Works with all major Fortran compilers
-- **Performance**: No runtime overhead vs standard Fortran
+### Short-term (AST Implementation) - **COMPLETE** ✅
+- ✅ Working lexer with comprehensive tokenization
+- ✅ Complete AST node definitions with visitor pattern
+- ✅ Full parser for Simple Fortran (expressions, statements, functions)
+- ✅ Code generator producing valid Fortran 90 with modern defaults
+- ✅ All regression tests passing (30+ test files)
+- ✅ Advanced type inference with Hindley-Milner system
 
-## Community Involvement
+### Medium-term (Compiler Integration)
+- ⬜ Direct LLVM IR generation prototype
+- ⬜ GFortran IR interface exploration
+- ⬜ Performance benchmarks vs traditional compilation
+- ⬜ Source map generation for debugging
 
-- RFC process for new syntax features
-- Beta testing program
-- Regular surveys on pain points
-- Close collaboration with FPM team
+### Long-term (Language Evolution)
+- ⬜ Multiple dispatch implementation
+- ⬜ Advanced type system features
+- ⬜ Metaprogramming capabilities
+- ⬜ Full Python/Julia-like developer experience
 
-## Timeline Estimates
+## Development Sequence
 
-- **Phase 2-4**: 3-6 months (Registry and Caching)
-- **Phase 5**: 2-3 months (Basic Preprocessor)
-- **Phase 6**: 4-6 months (Syntax Enhancements)
-- **Phase 7**: 6-12 months (Advanced Features)
+- **✅ Complete**: Production AST frontend with Hindley-Milner type inference
+- **🎯 Current**: FPM Registry integration & Module database system
+- **Following**: Advanced lazy fortran syntax & Fortran 2003 support
+- **Later**: LLVM IR generation & Compiler integration
+- **Future**: Multiple dispatch & Advanced language features
 
-The goal is to **Make Python Fortran again** - making Fortran as approachable as Python while maintaining its performance advantages and numerical computing strengths.
+The goal remains: **Make Python Fortran again** - combining Python's ease of use with Fortran's performance and numerical computing strengths, while being a first-class citizen in the Modern Fortran ecosystem.

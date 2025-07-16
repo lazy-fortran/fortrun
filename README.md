@@ -5,13 +5,15 @@
 
 **Make Python Fortran again.** - A command-line tool that enables running Fortran programs without manual compilation, automatically resolving dependencies and applying modern defaults.
 
+Our experimental *lazy fortran* dialect pushes beyond all alternative scientific computing languages. We're so lazy, we can't even be bothered with uppercase letters in the language name!
+
 ## Quick Start
 
 ```bash
 # Run any Fortran program instantly
 fortran hello.f90
 
-# Simplified .f files (no boilerplate needed!)
+# *lazy fortran* .f files (no boilerplate needed!)
 fortran script.f
 
 # Notebook mode with figure capture
@@ -19,20 +21,23 @@ fortran --notebook analysis.f
 
 # Verbose mode for debugging
 fortran -v myprogram.f90
+
+# Cache management
+fortran --clear-cache               # Clear all cached files
+fortran --clear-cache example.f90   # Clear cache and run
+fortran --cache-info                # Show cache statistics
 ```
 
-## Simplified .f Syntax Showcase
+## *lazy fortran* Showcase
 
-Write Fortran code with **zero boilerplate** - just the logic you need:
+Write fortran code with **zero boilerplate** - just the logic you need:
 
 ```fortran
-! calculate.f - No program/end program needed!
-x = 5.0        ! Automatic type inference: real(8) :: x
-y = 3.0        ! Automatic type inference: real(8) :: y  
+x = 5.0
+y = 3.0
 z = sqrt(x**2 + y**2)
 print *, "Distance:", z
 
-! Functions work too - automatic contains insertion
 result = distance(3.0, 4.0)
 print *, "Function result:", result
 
@@ -61,7 +66,7 @@ end function distance
 
 🎯 **Two Execution Modes**  
 - **Standard Fortran** (`.f90` files): Modern Fortran with no opinionated changes
-- **Opinionated Preprocessing** (`.f` files): Automatic type inference, no boilerplate, `real(8)` defaults
+- ***lazy fortran*** (`.f` files): Compiler frontend with automatic type inference, no boilerplate, `real(8)` defaults
 - **Notebook Mode**: Interactive analysis with figure capture (`.f` files only)
 
 📦 **Smart Dependencies**
@@ -73,6 +78,7 @@ end function distance
 - **Type Inference**: Automatic variable declarations in `.f` files
 - **Notebook Mode**: Jupytext-style notebooks with figure capture
 - **Incremental Compilation**: Only rebuilds changed files
+- **Cache Management**: CLI commands to clear cache and view statistics
 
 ## Examples
 
@@ -80,7 +86,7 @@ end function distance
 |---------|---------|------|
 | **Hello World** | Simple program | [hello.f90](example/hello/) |
 | **Local Modules** | Calculator with math module | [calculator.f90](example/calculator/) |
-| **Simplified Syntax** | Type inference showcase | [all_types.f](example/type_inference/) |
+| ***lazy fortran* Syntax** | Type inference showcase | [all_types.f](example/type_inference/) |
 | **Interdependent Modules** | Complex dependency chain | [main.f90](example/interdependent/) |
 | **Notebook Mode** | Interactive analysis | [simple_math.f](example/notebook/) |
 | **Plotting** | Figure generation | [plotting_demo.f](example/notebook/) |
@@ -103,10 +109,10 @@ cd fortran
 
 ```bash
 # Two execution modes
-fortran program.f90           # Standard Fortran mode (no preprocessing)
-fortran script.f              # Opinionated preprocessing mode
+fortran program.f90           # Standard Fortran mode
+fortran script.f              # lazy fortran mode (compiler frontend)
 
-# Notebook mode (preprocessed .f files only)
+# Notebook mode (lazy fortran .f files only)
 fortran --notebook analysis.f # Interactive analysis with figure capture
 
 # Options
@@ -118,16 +124,42 @@ fortran --flag "-O3" file.f90 # Pass custom flags to FPM compiler
 fortran --help                # Show all options
 ```
 
+## Cache Management
+
+The `fortran` tool uses an intelligent caching system to speed up repeated builds. When developing or testing, you may need to manage the cache:
+
+```bash
+# View cache information
+fortran --cache-info
+# Output:
+# Fortran Cache Information:
+#   Cache directory: /home/user/.cache/fortran
+#   Number of files: 487 files
+#   Total size: 3.9M
+
+# Clear entire cache
+fortran --clear-cache
+
+# Clear cache and run a file (useful for testing)
+fortran --clear-cache example.f90
+
+# Use custom cache directory
+fortran --cache-dir /tmp/fortran-cache example.f90
+```
+
+**Important for Development**: Always clear the cache when testing new frontend features or compiler flags to ensure you're not using outdated cached files.
+
 ## Project Status
 
-**Current**: Phase 8 Complete ✅
-- ✅ Basic CLI and dependency resolution
+**Current**: Production AST Frontend Complete ✅
+- ✅ Complete 4-phase compiler architecture (lexer → parser → semantic → codegen)
+- ✅ Hindley-Milner type inference system with Algorithm W
 - ✅ Smart caching system (2-4x speedup)
-- ✅ Simplified .f syntax with type inference
+- ✅ *lazy fortran* .f syntax with automatic type inference
 - ✅ Notebook mode with figure capture
-- ✅ Advanced type inference (arrays, functions, derived types)
+- ✅ Comprehensive test suite (30+ frontend tests)
 
-**Next**: Enhanced syntax features and ecosystem integration
+**Next**: FPM Registry integration and advanced language features
 
 ---
 

@@ -1,7 +1,8 @@
 ! Test Step 1: Single-file type inference and enhancements
 program test_step1_single_file
     use, intrinsic :: iso_fortran_env, only: error_unit
-    use preprocessor, only: preprocess_file
+    use standardizer, only: standardize_file
+    use temp_utils, only: temp_dir_manager
     implicit none
     
     integer :: test_count = 0
@@ -20,11 +21,14 @@ contains
 
     subroutine test_function_signature_enhancement()
         character(len=*), parameter :: test_name = "Function signature enhancement (real → real(8))"
-        character(len=256) :: input_file, output_file, error_msg
+        character(len=:), allocatable :: input_file, output_file
+        character(len=256) :: error_msg
         logical :: success
+        type(temp_dir_manager) :: temp_mgr
         
-        input_file = 'test_func_sig.f'
-        output_file = 'test_func_sig.f90'
+        call temp_mgr%create('test_func_sig')
+        input_file = temp_mgr%get_file_path('test_func_sig.f')
+        output_file = temp_mgr%get_file_path('test_func_sig.f90')
         
         call create_test_file(input_file, &
             'result = compute(5.0)' // new_line('a') // &
@@ -34,7 +38,7 @@ contains
             '  compute = x * x' // new_line('a') // &
             'end function')
         
-        call preprocess_file(input_file, output_file, error_msg)
+        call standardize_file(input_file, output_file, error_msg)
         
         if (len_trim(error_msg) == 0) then
             ! Check for function signature enhancement
@@ -65,7 +69,7 @@ contains
             '  rectangle_area = width * height' // new_line('a') // &
             'end function')
         
-        call preprocess_file(input_file, output_file, error_msg)
+        call standardize_file(input_file, output_file, error_msg)
         
         if (len_trim(error_msg) == 0) then
             ! Check for parameter enhancement (parameters can be on same line)
@@ -97,7 +101,7 @@ contains
             '  get_pi = 3.14159265' // new_line('a') // &
             'end function')
         
-        call preprocess_file(input_file, output_file, error_msg)
+        call standardize_file(input_file, output_file, error_msg)
         
         if (len_trim(error_msg) == 0) then
             ! Check that pi_value gets the right type from function return
@@ -135,7 +139,7 @@ contains
             '  cube = val * val * val' // new_line('a') // &
             'end function')
         
-        call preprocess_file(input_file, output_file, error_msg)
+        call standardize_file(input_file, output_file, error_msg)
         
         if (len_trim(error_msg) == 0) then
             ! Check both functions are enhanced and variables get correct types
@@ -169,11 +173,11 @@ contains
             '  get_rate = 1.25' // new_line('a') // &
             'end function')
         
-        call preprocess_file(input_file, output_file, error_msg)
+        call standardize_file(input_file, output_file, error_msg)
         
         if (len_trim(error_msg) == 0) then
             ! Check that integer and real types are properly inferred
-            success = check_output_contains(output_file, 'integer(4) :: count')
+            success = check_output_contains(output_file, 'integer :: count')
             success = success .and. check_output_contains(output_file, 'real(8) :: rate')
             success = success .and. check_output_contains(output_file, 'real(8) :: total')
             success = success .and. check_output_contains(output_file, 'real(8) function get_rate')
@@ -207,7 +211,7 @@ contains
             '  double_it = x * 2.0' // new_line('a') // &
             'end function')
         
-        call preprocess_file(input_file, output_file, error_msg)
+        call standardize_file(input_file, output_file, error_msg)
         
         if (len_trim(error_msg) == 0) then
             ! Check nested calls work correctly

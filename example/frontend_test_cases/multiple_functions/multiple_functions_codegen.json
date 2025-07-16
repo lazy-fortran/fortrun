@@ -1,0 +1,33 @@
+{
+  "input_file": "/home/ert/code/fortran/example/frontend_test_cases/multiple_functions/multiple_functions.f",
+  "generated_code": [
+    "program main",
+    "    implicit none",
+    "    real(8) :: x",
+    "    real(8) :: y",
+    "    real(8) :: z",
+    "",
+    "    x = 5.0d0",
+    "    y = square(x)",
+    "    z = cube(x)",
+    "    print *, x, y, z",
+    "contains",
+    "    real(8) function square(val)",
+    "    implicit none",
+    "    real(8), intent(in) :: val",
+    "    square = val * val",
+    "end function square",
+    "    real(8) function unnamed_function()",
+    "    implicit none",
+    "end function unnamed_function",
+    "    real(8) function cube(val)",
+    "    implicit none",
+    "    real(8), intent(in) :: val",
+    "    cube = val * val * val",
+    "end function cube",
+    "    real(8) function unnamed_function()",
+    "    implicit none",
+    "end function unnamed_function",
+    "end program main"
+  ]
+}

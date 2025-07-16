@@ -1,0 +1,15 @@
+{
+  "input_file": "/home/ert/code/fortran/example/frontend_test_cases/do_while_test.f",
+  "generated_code": [
+    "program main",
+    "    implicit none",
+    "    integer :: i",
+    "",
+    "    i = 0",
+    "    do while (i < 3)",
+    "    print *, \"i =\", i",
+    "    i = i + 1",
+    "end do",
+    "end program main"
+  ]
+}

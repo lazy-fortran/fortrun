@@ -1,12 +1,14 @@
 program test_cli_system
   use, intrinsic :: iso_fortran_env, only: error_unit
   use cache, only: get_cache_dir
+  use temp_utils, only: temp_dir_manager
   implicit none
   
   character(len=512) :: command, test_file
   character(len=1024) :: output_file, expected_output
   integer :: exit_code, unit, iostat
   logical :: test_passed
+  type(temp_dir_manager) :: main_temp_mgr
   
   print *, '=== System CLI Tests ==='
   print *
@@ -69,11 +71,10 @@ contains
 
   subroutine create_test_file()
     integer :: unit
-    character(len=8) :: timestamp
     
-    ! Create unique filename to avoid cache conflicts 
-    call get_timestamp_suffix(timestamp)
-    test_file = '/tmp/test_cli_sys_' // trim(timestamp) // '.f90'
+    ! Create unique filename in temp directory
+    call main_temp_mgr%create('test_cli_sys')
+    test_file = main_temp_mgr%get_file_path('test_cli_system.f90')
     
     open(newunit=unit, file=test_file, status='replace')
     write(unit, '(a)') 'program test_cli_system'
@@ -86,13 +87,20 @@ contains
   end subroutine create_test_file
 
   subroutine test_no_arguments()
+    type(temp_dir_manager) :: temp_mgr
+    character(len=:), allocatable :: output_file, exit_file
+    
     print *, 'Test 1: No arguments (should show help)'
     
-    command = 'fpm run fortran -- > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
+    call temp_mgr%create('test_no_args')
+    output_file = temp_mgr%get_file_path('cli_test_output.txt')
+    exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
+    
+    command = 'fpm run fortran -- > "' // output_file // '" 2>&1; echo $? > "' // exit_file // '"'
     call execute_command_line(command)
     
-    call check_help_output('/tmp/cli_test_output.txt', test_passed)
-    call check_exit_code('/tmp/cli_test_exit.txt', 0, test_passed)
+    call check_help_output(output_file, test_passed)
+    call check_exit_code(exit_file, 0, test_passed)
     
     if (.not. test_passed) then
       write(error_unit, *) 'FAIL: No arguments test failed'
@@ -140,14 +148,25 @@ contains
   end subroutine test_h_flag
 
   subroutine test_basic_execution()
+    type(temp_dir_manager) :: temp_mgr
+    character(len=:), allocatable :: output_file, exit_file
+    
     print *, 'Test 4: Basic execution'
     
-    command = 'fpm run fortran -- ' // trim(test_file) // &
-              ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
+    call temp_mgr%create('test_basic_exec')
+    output_file = temp_mgr%get_file_path('cli_test_output.txt')
+    exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
+    
+    command = 'fpm run fortran -- "' // trim(test_file) // '" > "' // output_file // &
+              '" 2>&1; echo $? > "' // exit_file // '"'
+    print *, 'Executing command: ', trim(command)
     call execute_command_line(command)
     
-    call check_program_output('/tmp/cli_test_output.txt', 'CLI System Test Output', test_passed)
-    call check_exit_code('/tmp/cli_test_exit.txt', 0, test_passed)
+    ! Debug: Show what was actually captured
+    call debug_output_file(output_file)
+    
+    call check_program_output(output_file, 'CLI System Test Output', test_passed)
+    call check_exit_code(exit_file, 0, test_passed)
     
     if (.not. test_passed) then
       write(error_unit, *) 'FAIL: Basic execution test failed'
@@ -627,72 +646,90 @@ contains
     character(len=512) :: test_f_file
     logical :: success, exit_ok
     integer :: unit
+    type(temp_dir_manager) :: temp_mgr
+    character(len=:), allocatable :: output_file, exit_file
     
     print *, 'Test 13: .f file execution'
     
+    call temp_mgr%create('test_f_file_exec')
+    output_file = temp_mgr%get_file_path('cli_test_output.txt')
+    exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
+    
     ! Create a simple .f test file
-    test_f_file = '/tmp/test_simple.f'
+    test_f_file = temp_mgr%get_file_path('test_simple.f')
     open(newunit=unit, file=test_f_file, status='replace')
     write(unit, '(a)') "print *, 'Hello from .f file'"
     close(unit)
     
-    command = 'fpm run fortran -- ' // trim(test_f_file) // &
-              ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
+    command = 'fpm run fortran -- "' // trim(test_f_file) // '" > "' // &
+              output_file // '" 2>&1; echo $? > "' // exit_file // '"'
     call execute_command_line(command, exitstat=exit_code)
     
-    call check_exit_code('/tmp/cli_test_exit.txt', 0, exit_ok)
-    call check_program_output('/tmp/cli_test_output.txt', 'Hello from .f file', success)
+    call check_exit_code(exit_file, 0, exit_ok)
+    call check_program_output(output_file, 'Hello from .f file', success)
     
     if (exit_ok .and. success) then
       print *, 'PASS: .f file executed successfully'
     else
-      print *, 'FAIL: .f file execution failed'
+      write(error_unit, *) 'FAIL: .f file execution failed'
+      stop 1
     end if
     
-    ! Cleanup
-    call execute_command_line('rm -f ' // trim(test_f_file))
+    ! Cleanup is automatic via temp_mgr finalizer
   end subroutine test_f_file_execution
   
   subroutine test_invalid_extension()
     logical :: exit_ok, has_error
     integer :: unit
     character(len=256) :: test_txt_file
+    type(temp_dir_manager) :: temp_mgr
+    character(len=:), allocatable :: output_file, exit_file
     
     print *, 'Test 14: Invalid file extension'
     
+    call temp_mgr%create('test_invalid_ext')
+    output_file = temp_mgr%get_file_path('cli_test_output.txt')
+    exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
+    
     ! Create a temporary .txt file
-    test_txt_file = '/tmp/test_invalid.txt'
+    test_txt_file = temp_mgr%get_file_path('test_invalid.txt')
     open(newunit=unit, file=test_txt_file, status='replace')
     write(unit, '(a)') "This is not a Fortran file"
     close(unit)
     
-    command = 'fpm run fortran -- ' // trim(test_txt_file) // &
-              ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
+    command = 'fpm run fortran -- "' // trim(test_txt_file) // '" > "' // &
+              output_file // '" 2>&1; echo $? > "' // exit_file // '"'
     call execute_command_line(command, exitstat=exit_code)
     
-    call check_exit_code('/tmp/cli_test_exit.txt', 1, exit_ok)
-    call check_program_output('/tmp/cli_test_output.txt', &
+    call check_exit_code(exit_file, 1, exit_ok)
+    call check_program_output(output_file, &
                               'must have .f90, .F90, .f, or .F extension', has_error)
     
     if (exit_ok .and. has_error) then
       print *, 'PASS: Invalid extension rejected'
     else
-      print *, 'FAIL: Should reject invalid extensions'
+      write(error_unit, *) 'FAIL: Should reject invalid extensions'
+      stop 1
     end if
     
-    ! Cleanup
-    call execute_command_line('rm -f ' // trim(test_txt_file))
+    ! Cleanup is automatic via temp_mgr finalizer
   end subroutine test_invalid_extension
 
   subroutine test_flag_option()
     logical :: exit_ok, has_output
     integer :: unit
     character(len=256) :: test_flag_file
+    type(temp_dir_manager) :: temp_mgr
+    character(len=:), allocatable :: output_file, exit_file
     
     print *, 'Test 15: --flag option functionality'
     
+    call temp_mgr%create('test_flag_option')
+    output_file = temp_mgr%get_file_path('cli_test_output.txt')
+    exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
+    
     ! Create a test .f90 file to test with custom flags
-    test_flag_file = '/tmp/test_flag_option.f90'
+    test_flag_file = temp_mgr%get_file_path('test_flag_option.f90')
     open(newunit=unit, file=test_flag_file, status='replace')
     write(unit, '(a)') 'program test_flags'
     write(unit, '(a)') '  implicit none'
@@ -701,52 +738,73 @@ contains
     close(unit)
     
     ! Test with custom optimization flags
-    command = 'fpm run fortran -- --flag "-O2" ' // trim(test_flag_file) // &
-              ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
+    command = 'fpm run fortran -- --flag "-O2" "' // trim(test_flag_file) // '" > "' // &
+              output_file // '" 2>&1; echo $? > "' // exit_file // '"'
     call execute_command_line(command, exitstat=exit_code)
     
-    call check_exit_code('/tmp/cli_test_exit.txt', 0, exit_ok)
-    call check_program_output('/tmp/cli_test_output.txt', 'Flag test output', has_output)
+    call check_exit_code(exit_file, 0, exit_ok)
+    call check_program_output(output_file, 'Flag test output', has_output)
     
     if (exit_ok .and. has_output) then
       print *, 'PASS: --flag option works with .f90 files'
     else
-      print *, 'FAIL: --flag option failed with .f90 files'
+      write(error_unit, *) 'FAIL: --flag option failed with .f90 files'
+      stop 1
     end if
     
     ! Test with .f file (should combine with opinionated flags)
     print *, '  Testing .f file with --flag option'
     
     ! Create a test .f file
-    test_flag_file = '/tmp/test_flag_option.f'
+    test_flag_file = temp_mgr%get_file_path('test_flag_option.f')
     open(newunit=unit, file=test_flag_file, status='replace')
     write(unit, '(a)') 'print *, "Flag test output with .f file"'
     close(unit)
     
-    command = 'fpm run fortran -- --flag "-Wall" ' // trim(test_flag_file) // &
-              ' > /tmp/cli_test_output.txt 2>&1; echo $? > /tmp/cli_test_exit.txt'
+    command = 'fpm run fortran -- --flag "-Wall" "' // trim(test_flag_file) // '" > "' // &
+              output_file // '" 2>&1; echo $? > "' // exit_file // '"'
     call execute_command_line(command, exitstat=exit_code)
     
-    call check_exit_code('/tmp/cli_test_exit.txt', 0, exit_ok)
-    call check_program_output('/tmp/cli_test_output.txt', 'Flag test output with .f file', has_output)
+    call check_exit_code(exit_file, 0, exit_ok)
+    call check_program_output(output_file, 'Flag test output with .f file', has_output)
     
     if (exit_ok .and. has_output) then
       print *, 'PASS: --flag option works with .f files'
     else
-      print *, 'FAIL: --flag option failed with .f files'
+      write(error_unit, *) 'FAIL: --flag option failed with .f files'
+      stop 1
     end if
     
-    ! Cleanup
-    call execute_command_line('rm -f /tmp/test_flag_option.f90 /tmp/test_flag_option.f')
+    ! Cleanup is automatic via temp_mgr finalizer
   end subroutine test_flag_option
 
   subroutine cleanup_test_files()
-    call execute_command_line('rm -f /tmp/test_system_cli.f90')
-    call execute_command_line('rm -f /tmp/cli_test_output.txt')
-    call execute_command_line('rm -f /tmp/cli_test_exit.txt')
+    ! Cleanup is now automatic via temp_dir_manager finalizers
+    ! The main test file will be cleaned up when main_temp_mgr is finalized
     call execute_command_line('rm -rf /tmp/custom_cache')
     call execute_command_line('rm -rf /tmp/custom_config')
     print *, 'Cleaned up test files'
   end subroutine cleanup_test_files
+
+  subroutine debug_output_file(output_file)
+    character(len=*), intent(in) :: output_file
+    character(len=1024) :: line
+    integer :: unit, iostat
+    
+    print *, 'DEBUG: Contents of output file: ', trim(output_file)
+    open(newunit=unit, file=output_file, status='old', iostat=iostat)
+    if (iostat /= 0) then
+      print *, 'DEBUG: Could not open output file'
+      return
+    end if
+    
+    do
+      read(unit, '(a)', iostat=iostat) line
+      if (iostat /= 0) exit
+      print *, 'DEBUG: ', trim(line)
+    end do
+    close(unit)
+    print *, 'DEBUG: End of output file'
+  end subroutine debug_output_file
 
 end program test_cli_system
