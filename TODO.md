@@ -68,7 +68,7 @@ Key insights:
 ## Phase 3: Parser Enhancements
 
 ### 3.1 Statement Parsing
-- [ ] Test: Variable declarations (all types, attributes)
+- [x] Test: Variable declarations (all types, attributes) ✅
 - [ ] Test: Array declarations (static, dynamic, assumed shape)
 - [ ] Test: Derived type definitions
 - [ ] Test: Interface blocks
