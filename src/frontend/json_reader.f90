@@ -519,7 +519,7 @@ node = create_assignment(target, value, line, column, inferred_type, inferred_ty
         end if
 
         ! Create node
-        node = create_use_statement(module_name, only_list, line, column)
+ node = create_use_statement(module_name, only_list=only_list, line=line, column=column)
 
     end function json_to_use_statement_node
 

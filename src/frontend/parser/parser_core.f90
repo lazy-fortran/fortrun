@@ -1292,15 +1292,21 @@ contains
 
     end function parse_function_definition
 
-    ! Parse use statement: use module_name [, only: ...]
+    ! Parse use statement: use module_name [, only: item1, item2, new_name => old_name]
     function parse_use_statement(parser) result(stmt)
         type(parser_state_t), intent(inout) :: parser
         class(ast_node), allocatable :: stmt
         type(token_t) :: token
         character(len=:), allocatable :: module_name
+        character(len=:), allocatable :: only_list(:)
+        character(len=:), allocatable :: rename_list(:)
+        logical :: has_only
+        integer :: line, column
 
         ! Consume 'use' keyword
         token = parser%consume()
+        line = token%line
+        column = token%column
 
         ! Get module name
         token = parser%peek()
@@ -1313,11 +1319,33 @@ contains
             return
         end if
 
-        ! For now, ignore 'only' clause
-        ! TODO: Parse 'only' clause when needed
+        has_only = .false.
 
-        ! Create use statement node (without only list for now)
-        stmt = create_use_statement(module_name, line=token%line, column=token%column)
+        ! Check for optional only clause
+        token = parser%peek()
+        if (token%kind == TK_OPERATOR .and. token%text == ",") then
+            token = parser%consume()  ! consume ','
+
+            ! Check for 'only' keyword
+            token = parser%peek()
+            if (token%kind == TK_KEYWORD .and. token%text == "only") then
+                token = parser%consume()  ! consume 'only'
+                has_only = .true.
+
+                ! Expect ':'
+                token = parser%peek()
+                if (token%kind == TK_OPERATOR .and. token%text == ":") then
+                    token = parser%consume()  ! consume ':'
+
+                    ! Parse only list items
+                    call parse_only_list(parser, only_list, rename_list)
+                end if
+            end if
+        end if
+
+        ! Create use statement node
+stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename_list, &
+                                    has_only=has_only, line=line, column=column)
 
     end function parse_use_statement
 
@@ -2021,5 +2049,137 @@ contains
         end block
 
     end function parse_module
+
+    ! Parse only list: item1, item2, new_name => old_name
+    subroutine parse_only_list(parser, only_list, rename_list)
+        type(parser_state_t), intent(inout) :: parser
+        character(len=:), allocatable, intent(out) :: only_list(:)
+        character(len=:), allocatable, intent(out) :: rename_list(:)
+
+        character(len=100) :: temp_only(50)
+        character(len=100) :: temp_rename(50)
+        type(token_t) :: token
+        integer :: count
+        character(len=:), allocatable :: item_name, old_name
+
+        count = 0
+        temp_only = ""
+        temp_rename = ""
+
+        ! Parse first item
+        token = parser%peek()
+        if (token%kind == TK_IDENTIFIER) then
+            token = parser%consume()
+            item_name = token%text
+
+            ! Check if this is a rename (new_name => old_name)
+            token = parser%peek()
+            if (token%kind == TK_OPERATOR .and. token%text == "=") then
+                token = parser%consume()  ! consume '='
+                token = parser%peek()
+                if (token%kind == TK_OPERATOR .and. token%text == ">") then
+                    token = parser%consume()  ! consume '>'
+
+                    ! Get old name
+                    token = parser%peek()
+                    if (token%kind == TK_IDENTIFIER) then
+                        token = parser%consume()
+                        old_name = token%text
+
+                        ! Store rename: "new_name => old_name"
+                        count = count + 1
+                        temp_rename(count) = item_name//" => "//old_name
+                    end if
+                end if
+            else
+                ! Regular only item
+                count = count + 1
+                temp_only(count) = item_name
+            end if
+        end if
+
+        ! Parse remaining items
+        do
+            token = parser%peek()
+            if (token%kind == TK_OPERATOR .and. token%text == ",") then
+                token = parser%consume()  ! consume ','
+
+                ! Get next item
+                token = parser%peek()
+                if (token%kind == TK_IDENTIFIER) then
+                    token = parser%consume()
+                    item_name = token%text
+
+                    ! Check if this is a rename
+                    token = parser%peek()
+                    if (token%kind == TK_OPERATOR .and. token%text == "=") then
+                        token = parser%consume()  ! consume '='
+                        token = parser%peek()
+                        if (token%kind == TK_OPERATOR .and. token%text == ">") then
+                            token = parser%consume()  ! consume '>'
+
+                            ! Get old name
+                            token = parser%peek()
+                            if (token%kind == TK_IDENTIFIER) then
+                                token = parser%consume()
+                                old_name = token%text
+
+                                ! Store rename: "new_name => old_name"
+                                count = count + 1
+                                temp_rename(count) = item_name//" => "//old_name
+                            end if
+                        end if
+                    else
+                        ! Regular only item
+                        count = count + 1
+                        temp_only(count) = item_name
+                    end if
+                else
+                    ! No more items
+                    exit
+                end if
+            else
+                ! No more items
+                exit
+            end if
+        end do
+
+        ! Copy to output arrays with proper size
+        block
+            integer :: only_count, rename_count, i
+
+            ! Count actual items
+            only_count = 0
+            rename_count = 0
+            do i = 1, count
+                if (len_trim(temp_only(i)) > 0) only_count = only_count + 1
+                if (len_trim(temp_rename(i)) > 0) rename_count = rename_count + 1
+            end do
+
+            ! Allocate output arrays
+            if (only_count > 0) then
+                allocate (character(len=100) :: only_list(only_count))
+                only_count = 0
+                do i = 1, count
+                    if (len_trim(temp_only(i)) > 0) then
+                        only_count = only_count + 1
+                        only_list(only_count) = trim(temp_only(i))
+                    end if
+                end do
+            end if
+
+            if (rename_count > 0) then
+                allocate (character(len=100) :: rename_list(rename_count))
+                rename_count = 0
+                do i = 1, count
+                    if (len_trim(temp_rename(i)) > 0) then
+                        rename_count = rename_count + 1
+                        rename_list(rename_count) = trim(temp_rename(i))
+                    end if
+                end do
+            end if
+        end block
+
+    end subroutine parse_only_list
 
 end module parser_core

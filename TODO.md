@@ -79,7 +79,7 @@ Key insights:
 - [x] Test: Derived type definitions ✅
 - [x] Test: Interface blocks ✅
 - [x] Test: Module/contains structure ✅ - COMPLETE
-- [ ] Test: Use statements with renaming/only
+- [x] Test: Use statements with renaming/only ✅ - COMPLETE
 - [ ] Test: Include statements
 
 ### 3.2 Expression Parsing
@@ -319,5 +319,17 @@ Key insights:
 - Factory function create_module for consistent AST node creation
 - Module name parsing and storage with proper line/column information
 - Detection and flagging of contains section presence
+
+**Use Statements with Renaming/Only Complete ✅**:
+- Enhanced use_statement_node to support only clause and renaming
+- Added only_list, rename_list, and has_only fields to AST
+- Implemented parse_only_list function for parsing only clause items
+- Support for basic use statements: `use module_name`
+- Support for only clause: `use module_name, only: item1, item2`
+- Support for renaming: `use module_name, only: new_name => old_name`
+- Added "only" keyword to lexer (now 31 keywords total)
+- JSON serialization support for only and rename lists
+- Enhanced factory function create_use_statement with new parameters
+- Comprehensive test coverage for all use statement forms
 
 **Ready to proceed with remaining Phase 3 tasks**

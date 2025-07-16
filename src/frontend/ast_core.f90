@@ -114,7 +114,9 @@ module ast_core
     ! Use statement node
     type, extends(ast_node), public :: use_statement_node
         character(len=:), allocatable :: module_name
-        character(len=:), allocatable :: only_list(:)  ! Optional only clause
+        character(len=:), allocatable :: only_list(:)     ! Optional only clause items
+        character(len=:), allocatable :: rename_list(:)   ! Optional rename mappings (new_name => old_name)
+        logical :: has_only = .false.                     ! Whether the only clause is present
     contains
         procedure :: accept => use_statement_accept
         procedure :: to_json => use_statement_to_json
@@ -407,15 +409,23 @@ function create_function_def(name, params, return_type, body, line, column) resu
         if (present(column)) node%column = column
     end function create_declaration
 
-    function create_use_statement(module_name, only_list, line, column) result(node)
+    function create_use_statement(module_name, only_list, rename_list, has_only, line, column) result(node)
         character(len=*), intent(in) :: module_name
         character(len=*), intent(in), optional :: only_list(:)
+        character(len=*), intent(in), optional :: rename_list(:)
+        logical, intent(in), optional :: has_only
         integer, intent(in), optional :: line, column
         type(use_statement_node) :: node
 
         node%module_name = module_name
         if (present(only_list)) then
             node%only_list = only_list
+        end if
+        if (present(rename_list)) then
+            node%rename_list = rename_list
+        end if
+        if (present(has_only)) then
+            node%has_only = has_only
         end if
         if (present(line)) node%line = line
         if (present(column)) node%column = column
@@ -723,12 +733,13 @@ function create_function_def(name, params, return_type, body, line, column) resu
         class(use_statement_node), intent(in) :: this
         type(json_core), intent(inout) :: json
         type(json_value), pointer, intent(in) :: parent
-        type(json_value), pointer :: obj, only_array
+        type(json_value), pointer :: obj, only_array, rename_array
         integer :: i
 
         call json%create_object(obj, '')
         call json%add(obj, 'type', 'use_statement')
         call json%add(obj, 'module_name', this%module_name)
+        call json%add(obj, 'has_only', this%has_only)
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
 
@@ -737,6 +748,14 @@ function create_function_def(name, params, return_type, body, line, column) resu
             call json%add(obj, only_array)
             do i = 1, size(this%only_list)
                 call json%add(only_array, '', this%only_list(i))
+            end do
+        end if
+
+        if (allocated(this%rename_list)) then
+            call json%create_array(rename_array, 'rename_list')
+            call json%add(obj, rename_array)
+            do i = 1, size(this%rename_list)
+                call json%add(rename_array, '', this%rename_list(i))
             end do
         end if
 
