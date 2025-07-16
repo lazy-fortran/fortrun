@@ -145,6 +145,31 @@ example/frontend_test_cases/single_assignment/
 └── expected_code.f90           # Expected generated Fortran code
 ```
 
+## ⚠️ CRITICAL FILE CREATION DISCIPLINE ⚠️
+
+**NEVER create files randomly in the working directory!**
+
+### File Creation Rules:
+1. **Debug programs** → `app/` directory, run with `fpm run <name>`
+2. **Test programs** → `test/` directory, discoverable by `fpm test`
+3. **Frontend test data** → `example/frontend_test_cases/` (with input/output pairs)
+4. **User examples** → `example/` (organized by category)
+5. **Temporary/draft work** → `draft/` directory (gitignored)
+
+### Draft Directory Usage:
+- Use `draft/` for messy, experimental work
+- Convert to proper categories once established:
+  - `draft/` → `test/` (for test cases)
+  - `draft/` → `example/` (for examples)
+  - `draft/` → `app/` (for debug programs)
+- Never commit anything in `draft/` - it's for local work only
+
+### Forbidden Practices:
+- ❌ Creating test files in working directory
+- ❌ Leaving temporary files after testing
+- ❌ Creating random debug files outside proper structure
+- ❌ Committing anything from `draft/`
+
 ## Critical Notes
 
 - **Clear cache before testing frontend**: `fpm run fortran -- --clear-cache`

@@ -17,3 +17,7 @@ test_output*
 # Temporary files
 *.tmp
 *.temp
+
+# Draft directory - never commit draft work
+draft/
+!draft/.gitkeep
