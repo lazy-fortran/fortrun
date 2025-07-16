@@ -1,10 +1,10 @@
 module parser_core
     use lexer_core
     use ast_core, only: ast_node, ast_node_wrapper, assignment_node, binary_op_node, identifier_node, &
-            literal_node, function_call_node, function_def_node, print_statement_node, &
+        literal_node, call_or_subscript_node, function_def_node, print_statement_node, &
                          use_statement_node, include_statement_node, declaration_node, do_loop_node, do_while_node, select_case_node, case_wrapper, &
             derived_type_node, interface_block_node, module_node, create_assignment, create_binary_op, create_identifier, &
-    create_literal, create_function_call, create_function_def, create_print_statement, &
+create_literal, create_call_or_subscript, create_function_def, create_print_statement, &
                          create_use_statement, create_include_statement, create_declaration, create_do_loop, create_do_while, create_select_case, &
      create_derived_type, create_interface_block, create_module, LITERAL_INTEGER, LITERAL_REAL, LITERAL_STRING, LITERAL_LOGICAL
     implicit none
@@ -279,7 +279,7 @@ contains
                             arg_count = 0
 
                             ! Parse first argument
-                            arg = parse_primary(parser)
+                            arg = parse_comparison(parser)
                             if (allocated(arg)) then
                                 arg_count = 1
                                 allocate (args(1))
@@ -294,7 +294,7 @@ contains
                                     next_token = parser%consume()
 
                                     ! Parse next argument
-                                    arg = parse_primary(parser)
+                                    arg = parse_comparison(parser)
                                     if (allocated(arg)) then
                                         ! Extend wrapper array: args = [args, new_wrapper]
                                         block
@@ -319,13 +319,13 @@ contains
 
                     ! Create function call node
                     if (allocated(args)) then
-              expr = create_function_call(func_name, args, current%line, current%column)
+          expr = create_call_or_subscript(func_name, args, current%line, current%column)
                     else
                         ! For empty args, create empty function call
                         block
                             type(ast_node_wrapper), allocatable :: empty_args(:)
                             allocate (empty_args(0))  ! Empty wrapper array
-        expr = create_function_call(func_name, empty_args, current%line, current%column)
+    expr = create_call_or_subscript(func_name, empty_args, current%line, current%column)
                         end block
                     end if
                 else

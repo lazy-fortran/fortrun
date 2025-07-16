@@ -94,6 +94,16 @@ module ast_core
         procedure :: to_json => function_call_to_json
     end type function_call_node
 
+    ! Call or subscript node (represents both function calls and array indexing)
+    ! In Fortran, both use the same syntax: name(args)
+    type, extends(ast_node), public :: call_or_subscript_node
+        character(len=:), allocatable :: name
+        type(ast_node_wrapper), allocatable :: args(:)
+    contains
+        procedure :: accept => call_or_subscript_accept
+        procedure :: to_json => call_or_subscript_to_json
+    end type call_or_subscript_node
+
     ! Identifier node
     type, extends(ast_node), public :: identifier_node
         character(len=:), allocatable :: name
@@ -238,7 +248,7 @@ module ast_core
 
     ! Public interface for creating nodes
     public :: create_program, create_assignment, create_binary_op
-    public :: create_function_def, create_subroutine_def, create_function_call
+    public :: create_function_def, create_subroutine_def, create_function_call, create_call_or_subscript
     public :: create_identifier, create_literal, create_use_statement, create_include_statement, create_print_statement
     public :: create_declaration, create_do_loop, create_do_while, create_select_case
     public :: create_derived_type, create_interface_block, create_module
@@ -352,6 +362,24 @@ function create_function_def(name, params, return_type, body, line, column) resu
         if (present(line)) node%line = line
         if (present(column)) node%column = column
     end function create_function_call
+
+    function create_call_or_subscript(name, args, line, column) result(node)
+        character(len=*), intent(in) :: name
+        type(ast_node_wrapper), intent(in) :: args(:)
+        integer, intent(in), optional :: line, column
+        type(call_or_subscript_node) :: node
+        integer :: i
+
+        node%name = name
+        if (size(args) > 0) then
+            allocate (node%args(size(args)))
+            do i = 1, size(args)
+                allocate (node%args(i)%node, source=args(i)%node)
+            end do
+        end if
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_call_or_subscript
 
     function create_identifier(name, line, column) result(node)
         character(len=*), intent(in) :: name
@@ -504,6 +532,12 @@ function create_function_def(name, params, return_type, body, line, column) resu
         class(*), intent(inout) :: visitor
         ! Implementation depends on specific visitor
     end subroutine function_call_accept
+
+    subroutine call_or_subscript_accept(this, visitor)
+        class(call_or_subscript_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Implementation depends on specific visitor
+    end subroutine call_or_subscript_accept
 
     subroutine identifier_accept(this, visitor)
         class(identifier_node), intent(in) :: this
@@ -707,6 +741,28 @@ function create_function_def(name, params, return_type, body, line, column) resu
 
         call json%add(parent, obj)
     end subroutine function_call_to_json
+
+    subroutine call_or_subscript_to_json(this, json, parent)
+        class(call_or_subscript_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj, args_array
+        integer :: i
+
+        call json%create_object(obj, '')
+        call json%add(obj, 'type', 'call_or_subscript')
+        call json%add(obj, 'name', this%name)
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+
+        call json%create_array(args_array, 'args')
+        call json%add(obj, args_array)
+        do i = 1, size(this%args)
+            call this%args(i)%node%to_json(json, args_array)
+        end do
+
+        call json%add(parent, obj)
+    end subroutine call_or_subscript_to_json
 
     subroutine identifier_to_json(this, json, parent)
         class(identifier_node), intent(in) :: this

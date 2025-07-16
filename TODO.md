@@ -86,7 +86,7 @@ Key insights:
 - [x] Test: Arithmetic expressions (all operators, precedence) ✅
 - [x] Test: Logical expressions ✅
 - [x] Test: Relational expressions ✅
-- [ ] Test: Array expressions and sections
+- [x] Test: Array expressions and sections ✅
 - [ ] Test: Function calls (intrinsic and user-defined)
 - [ ] Test: Structure member access
 
@@ -372,3 +372,16 @@ Key insights:
 - All relational expression tests passing
 
 **Ready to proceed with Phase 3.2 Expression Parsing**
+
+**Array Expressions and Sections Complete ✅**:
+- Created new unified AST node type `call_or_subscript_node` to represent both function calls and array indexing
+- This accurately reflects Fortran syntax where both use `name(args)` notation
+- Fixed parser to parse full expressions (not just primaries) inside parentheses for array indices
+- Comprehensive test coverage for array operations:
+  - Simple array indexing: `arr(i)`, `arr(1)`
+  - Array indexing with expressions: `arr(i+1)`
+  - Array sections: `arr(1:10)`, `arr(:)`, `arr(1:)`
+  - Array literals (placeholder for future implementation)
+  - Multidimensional arrays: `matrix(i, j)`
+  - Array operations: `a + b`, `arr * 2`
+- All array expression tests passing
