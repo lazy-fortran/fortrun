@@ -87,7 +87,7 @@ Key insights:
 - [x] Test: Logical expressions ✅
 - [x] Test: Relational expressions ✅
 - [x] Test: Array expressions and sections ✅
-- [ ] Test: Function calls (intrinsic and user-defined)
+- [x] Test: Function calls (intrinsic and user-defined) ✅
 - [ ] Test: Structure member access
 
 ### 3.3 Control Flow
@@ -385,3 +385,13 @@ Key insights:
   - Multidimensional arrays: `matrix(i, j)`
   - Array operations: `a + b`, `arr * 2`
 - All array expression tests passing
+
+**Function Calls Complete ✅**:
+- Using the unified `call_or_subscript_node` for function calls as well
+- Comprehensive test coverage for function call parsing:
+  - Intrinsic functions: `sin(x)`, `abs(y)`, `sqrt(z)`
+  - User-defined functions with varying argument counts: `myFunc()`, `calculate(a, b)`, `process_data(x, y, z)`
+  - Various argument types: literals `func(1)`, expressions `func(x+1)`, strings `func("hello")`, logicals `func(.true.)`
+  - Nested function calls: `sin(cos(x))`, `max(abs(a), abs(b))`
+- Parser correctly handles all argument expressions using `parse_comparison`
+- All function call tests passing
