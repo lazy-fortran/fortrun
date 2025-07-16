@@ -88,7 +88,7 @@ Key insights:
 - [x] Test: Relational expressions ✅
 - [x] Test: Array expressions and sections ✅
 - [x] Test: Function calls (intrinsic and user-defined) ✅
-- [ ] Test: Structure member access
+- [x] Test: Structure member access ✅
 
 ### 3.3 Control Flow
 - [ ] Test: If/then/else/elseif
@@ -395,3 +395,16 @@ Key insights:
   - Nested function calls: `sin(cos(x))`, `max(abs(a), abs(b))`
 - Parser correctly handles all argument expressions using `parse_comparison`
 - All function call tests passing
+
+**Structure Member Access Complete ✅**:
+- Added `%` operator to lexer as a valid operator character
+- Created new `parse_member_access` function with proper precedence (higher than comparison, lower than arithmetic)
+- Member access is parsed as binary_op_node with `%` operator
+- Comprehensive test coverage for member access:
+  - Simple member access: `point%x`, `person%name`
+  - Nested member access: `company%address%street`
+  - Array element member access: `points(i)%x`
+  - Member function calls: `obj%method()`
+- All member access tests passing
+
+**Phase 3.2 Expression Parsing Complete! ✅**

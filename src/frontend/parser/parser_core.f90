@@ -158,7 +158,7 @@ contains
         class(ast_node), allocatable :: right_expr, temp_expr
         type(token_t) :: op_token
 
-        expr = parse_term(parser)
+        expr = parse_member_access(parser)
 
         do while (.not. parser%is_at_end())
             op_token = parser%peek()
@@ -167,7 +167,7 @@ contains
                  op_token%text == "<=" .or. op_token%text == ">=" .or. &
                  op_token%text == "<" .or. op_token%text == ">")) then
                 op_token = parser%consume()
-                right_expr = parse_term(parser)
+                right_expr = parse_member_access(parser)
                 temp_expr = create_binary_op(expr, right_expr, op_token%text, op_token%line, op_token%column)
                 call move_alloc(temp_expr, expr)
             else
@@ -175,6 +175,28 @@ contains
             end if
         end do
     end function parse_comparison
+
+    ! Parse member access operator (%)
+    function parse_member_access(parser) result(expr)
+        type(parser_state_t), intent(inout) :: parser
+        class(ast_node), allocatable :: expr
+        class(ast_node), allocatable :: right_expr, temp_expr
+        type(token_t) :: op_token
+
+        expr = parse_term(parser)
+
+        do while (.not. parser%is_at_end())
+            op_token = parser%peek()
+            if (op_token%kind == TK_OPERATOR .and. op_token%text == "%") then
+                op_token = parser%consume()
+                right_expr = parse_term(parser)
+                temp_expr = create_binary_op(expr, right_expr, op_token%text, op_token%line, op_token%column)
+                call move_alloc(temp_expr, expr)
+            else
+                exit
+            end if
+        end do
+    end function parse_member_access
 
     ! Parse addition and subtraction
     function parse_term(parser) result(expr)

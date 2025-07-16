@@ -454,7 +454,7 @@ contains
 
     logical function is_operator(ch)
         character(len=1), intent(in) :: ch
-        is_operator = index("+-*/=<>()[]{},:;", ch) > 0
+        is_operator = index("+-*/=<>()[]{},:;%", ch) > 0
     end function is_operator
 
     logical function is_keyword(word)
