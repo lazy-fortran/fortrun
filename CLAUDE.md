@@ -25,6 +25,7 @@ This project uses FPM (Fortran Package Manager).
 fpm build                         # Build project
 fpm run fortran -- example.f90    # Run main app (IMPORTANT: Use -- separator)
 fpm run fortran -- --clear-cache  # Clear cache (CRITICAL before testing frontend!)
+fpm clean --all                   # Clean build directory without prompting
 
 # Testing
 fpm test                          # Run all tests
@@ -35,11 +36,15 @@ fpm test > /dev/null              # Run tests quietly (recommended during develo
 fpm run fortran -- --clear-cache  # Clear all cached files
 fpm run fortran -- --cache-info   # Show cache statistics
 
-# Debug 4-Phase Compilation Pipeline (JSON output)
-fpm run fortran -- example.f90 --debug-tokens    # Phase 1: Tokenization
-fpm run fortran -- example.f90 --debug-ast       # Phase 2: AST parsing
-fpm run fortran -- example.f90 --debug-semantic  # Phase 3: Type inference (annotated AST)
-fpm run fortran -- example.f90 --debug-codegen   # Phase 4: Fortran code generation
+# Debug 4-Phase Compilation Pipeline
+fpm run fortran -- example.f90 --debug-tokens    # Phase 1: Tokenization (outputs tokens.json)
+fpm run fortran -- example.f90 --debug-ast       # Phase 2: AST parsing (outputs ast.json)
+fpm run fortran -- example.f90 --debug-semantic  # Phase 3: Type inference (outputs annotated ast.json)
+fpm run fortran -- example.f90 --debug-codegen   # Phase 4: Code generation (debug info + Fortran code)
+
+# Start from intermediate JSON representations
+fpm run fortran -- --from-tokens tokens.json     # Start from Phase 2 (Parser)
+fpm run fortran -- --from-ast ast.json           # Start from Phase 3 (Semantic) or Phase 4 (Codegen)
 ```
 
 ## Project Architecture
@@ -60,11 +65,13 @@ Clean organized directory structure:
 
 ## CRITICAL: No Shortcuts in Frontend ⚠️
 
-**All code MUST go through**: Lexer → Parser → AST → Semantic Analysis → Code Generation
+**All code MUST go through the AST pipeline**:
+- **Lazy Fortran**: Lexer → Parser → AST → Semantic Analysis → Code Generation
+- **Standard Fortran**: Lexer → Parser → AST → Code Generation
 
 - ❌ NO direct token-to-code shortcuts
 - ✅ ALL processing through proper AST pipeline
-- ✅ ALL type inference via semantic analysis
+- ✅ Semantic analysis only for type inference (lazy fortran)
 
 ## Current Status
 
@@ -134,8 +141,8 @@ example/frontend_test_cases/single_assignment/
 ├── input.txt                    # Just "x = 1"
 ├── expected_tokens.json         # Expected tokenizer output
 ├── expected_ast.json           # Expected parser output
-├── expected_semantic.json      # Expected semantic analysis output
-└── expected_code.txt           # Expected generated code
+├── expected_ast_typed.json     # Expected AST with type annotations (from semantic analysis)
+└── expected_code.f90           # Expected generated Fortran code
 ```
 
 ## Critical Notes

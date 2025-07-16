@@ -3,6 +3,19 @@
 ## Goal
 Complete the lexer → parser → semantic analyzer → codegen pipeline for standardizing lazy fortran to Fortran 95, with full Hindley-Milner type inference using Algorithm W.
 
+## Pipeline Architecture
+
+The 4-phase compiler pipeline with JSON intermediate representations:
+
+1. **Lexer**: Source Code → Tokens (outputs tokens.json with --debug-tokens)
+2. **Parser**: Tokens → AST (inputs tokens via --from-tokens, outputs ast.json with --debug-ast)
+3. **Semantic Analyzer**: AST → Annotated AST (inputs/outputs AST via --from-ast, adds type info with --debug-semantic)
+4. **Code Generator**: AST → Fortran 95 code (inputs any AST via --from-ast)
+
+Key insight: The semantic analyzer augments the AST with type information but maintains the same structure, so the code generator can work with either:
+- **Standard Fortran**: Parser → AST → Codegen (types already explicit)
+- **Lazy Fortran**: Parser → AST → Semantic Analysis → Annotated AST → Codegen (types inferred)
+
 ## Success Criteria
 - [ ] All lazy fortran features compile to valid Fortran 95
 - [ ] Double standardization test: Running standardizer on its own output produces identical results
@@ -36,9 +49,9 @@ Complete the lexer → parser → semantic analyzer → codegen pipeline for sta
 - [ ] Test: All Fortran 95 operators
 - [ ] Test: All Fortran 95 keywords
 
-### 2.2 Lexer JSON Input Support
-- [ ] Implement --from-tokens flag
-- [ ] Test: Load tokens from JSON and continue pipeline
+### 2.2 Lexer JSON Output Support  
+- [ ] Verify lexer outputs tokens.json with --debug-tokens flag
+- [ ] Test: Lexer correctly serializes all token types to JSON
 
 ## Phase 3: Parser Enhancements
 
@@ -75,8 +88,10 @@ Complete the lexer → parser → semantic analyzer → codegen pipeline for sta
 - [ ] Test: Operator overloading
 
 ### 3.5 Parser JSON Support
-- [ ] Implement --from-ast flag
-- [ ] Test: Load AST from JSON and continue pipeline
+- [ ] Verify parser accepts tokens.json with --from-tokens flag
+- [ ] Verify parser outputs ast.json with --debug-ast flag
+- [ ] Test: Parser correctly deserializes tokens and produces AST
+- [ ] Test: Parser correctly serializes AST to JSON
 
 ## Phase 4: Semantic Analysis (Type Inference)
 
@@ -102,9 +117,12 @@ Complete the lexer → parser → semantic analyzer → codegen pipeline for sta
 - [ ] Test: Intrinsic function types
 - [ ] Test: User-defined operators
 
-### 4.4 Semantic JSON Support
-- [ ] Implement --from-semantic flag
-- [ ] Test: Load annotated AST from JSON
+### 4.4 Semantic AST Augmentation
+- [ ] Verify semantic analyzer accepts ast.json with --from-ast flag
+- [ ] Verify semantic analyzer outputs augmented ast.json with --debug-semantic flag
+- [ ] Test: Semantic analyzer adds type annotations to existing AST nodes
+- [ ] Test: Augmented AST maintains compatibility with code generator
+- [ ] Test: Code generator works with both typed and untyped AST
 
 ## Phase 5: Code Generation
 

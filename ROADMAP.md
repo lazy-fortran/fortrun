@@ -15,29 +15,37 @@
 - **Comprehensive Test Suite (30+ frontend tests)**
 - **Notebook Support with Figure/Plot Integration**
 
-## Current Phase: AST Frontend Production-Ready ✅
+## Current Phase: Full Type Inference Implementation 🚧
 
-### **Phase 8 Complete: Production AST System**
+### **Phase 8 Complete: Production AST System** ✅
 
-The AST-based frontend is now **complete and production-ready** with sophisticated capabilities:
+The AST-based frontend architecture is **complete and production-ready**:
 
-#### **Complete 4-Phase Compiler Architecture**
-- ✅ **Lexer**: Full tokenization with JSON serialization (24 keywords, 8 token types)
-- ✅ **Parser**: Comprehensive parsing (expressions, statements, functions, control flow)
-- ✅ **Semantic Analysis**: Hindley-Milner type inference with Algorithm W
-- ✅ **Code Generation**: Standard Fortran 90 output with modern defaults
+### **Phase 9 In Progress: Full Fortran 95 Type Inference**
 
-#### **Advanced Type System**
-- ✅ **Hindley-Milner Type Inference**: Complete with unification and generalization
-- ✅ **Polymorphic Support**: Wrapper pattern for gfortran 15 compatibility
-- ✅ **Type Safety**: Occurs check, substitution system, type schemes
-- ✅ **Multiple Arguments**: Function calls and print statements
+Currently implementing complete type inference for all Fortran 95 features:
 
-#### **Robust Architecture**
-- ✅ **AST Pipeline**: Proper AST-based processing (no shortcuts)
-- ✅ **JSON Workflow**: Debug output for all phases
-- ✅ **Test Coverage**: 30+ test files covering all components
-- ✅ **Memory Management**: Safe polymorphic arrays with wrapper pattern
+#### **Existing Infrastructure** ✅
+- ✅ **4-Phase Architecture**: Lexer → Parser → Semantic → Codegen
+- ✅ **JSON Pipeline**: All phases support JSON input/output
+- ✅ **Basic Type Inference**: Simple assignments and expressions
+- ✅ **Test Framework**: 30+ tests with wildcard discovery
+- ✅ **Debug Flags**: --debug-tokens, --debug-ast, --debug-semantic, --debug-codegen
+- ✅ **Pipeline Flags**: --from-tokens, --from-ast, --from-semantic
+
+#### **Key Architectural Decision** 📐
+The semantic analyzer **augments** the existing AST with type information rather than creating a new structure. This allows the code generator to work with both:
+- **Typed AST**: From semantic analysis (lazy fortran with inferred types)
+- **Untyped AST**: From parser (standard Fortran with explicit types)
+
+Both use `--from-ast` for input, maintaining a unified AST structure throughout the pipeline.
+
+#### **Phase 9 Goals** 🚧
+- [ ] **Complete Fortran 95 Coverage**: All language features
+- [ ] **Full Type Inference**: Arrays, derived types, procedures
+- [ ] **Double Standardization**: Output is idempotent
+- [ ] **Comprehensive Tests**: Every Fortran 95 construct
+- [ ] **Remove Legacy Code**: Clean up temporary fallbacks
 
 ## Modern Fortran Ecosystem Integration 🌐
 
