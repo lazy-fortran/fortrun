@@ -186,14 +186,16 @@ contains
         integer, intent(inout) :: num_tests, num_passed
         type(program_node) :: ast1
         class(ast_node), allocatable :: ast2
-        type(ast_node_wrapper), allocatable :: body(:)
         character(len=:), allocatable :: json1, json2
 
         num_tests = num_tests + 1
         print *, "Test: Program round-trip"
 
-        ! Create program with two statements
-        allocate (body(2))
+        ! Create program manually using wrapper pattern
+        ast1%name = "test"
+        ast1%line = 1
+        ast1%column = 1
+        allocate (ast1%body(2))
 
         ! x = 1
         block
@@ -203,7 +205,7 @@ contains
             target = create_identifier("x", 1, 1)
             value = create_literal("1", LITERAL_INTEGER, 1, 5)
             stmt = create_assignment(target, value, 1, 1)
-            allocate (body(1)%node, source=stmt)
+            allocate (ast1%body(1)%node, source=stmt)
         end block
 
         ! print *, x
@@ -215,10 +217,8 @@ contains
             x = create_identifier("x", 2, 10)
             allocate (args(1)%node, source=x)
             stmt = create_print_statement(args, "*", 2, 1)
-            allocate (body(2)%node, source=stmt)
+            allocate (ast1%body(2)%node, source=stmt)
         end block
-
-        ast1 = create_program("test", body, 1, 1)
 
         ! Serialize to JSON
         json1 = json_write_ast_to_string(ast1)
