@@ -13,7 +13,7 @@ Our experimental *lazy fortran* dialect pushes beyond all alternative scientific
 # Run any Fortran program instantly
 fortran hello.f90
 
-# Simplified .f files (no boilerplate needed!)
+# *lazy fortran* .f files (no boilerplate needed!)
 fortran script.f
 
 # Notebook mode with figure capture
@@ -33,13 +33,11 @@ fortran --cache-info                # Show cache statistics
 Write fortran code with **zero boilerplate** - just the logic you need:
 
 ```fortran
-! calculate.f - No program/end program needed!
-x = 5.0        ! Automatic type inference: real(8) :: x
-y = 3.0        ! Automatic type inference: real(8) :: y  
+x = 5.0
+y = 3.0
 z = sqrt(x**2 + y**2)
 print *, "Distance:", z
 
-! Functions work too - automatic contains insertion
 result = distance(3.0, 4.0)
 print *, "Function result:", result
 
@@ -88,7 +86,7 @@ end function distance
 |---------|---------|------|
 | **Hello World** | Simple program | [hello.f90](example/hello/) |
 | **Local Modules** | Calculator with math module | [calculator.f90](example/calculator/) |
-| **Simplified Syntax** | Type inference showcase | [all_types.f](example/type_inference/) |
+| ***lazy fortran* Syntax** | Type inference showcase | [all_types.f](example/type_inference/) |
 | **Interdependent Modules** | Complex dependency chain | [main.f90](example/interdependent/) |
 | **Notebook Mode** | Interactive analysis | [simple_math.f](example/notebook/) |
 | **Plotting** | Figure generation | [plotting_demo.f](example/notebook/) |
