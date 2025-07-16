@@ -85,7 +85,7 @@ Key insights:
 ### 3.2 Expression Parsing
 - [x] Test: Arithmetic expressions (all operators, precedence) ✅
 - [x] Test: Logical expressions ✅
-- [ ] Test: Relational expressions
+- [x] Test: Relational expressions ✅
 - [ ] Test: Array expressions and sections
 - [ ] Test: Function calls (intrinsic and user-defined)
 - [ ] Test: Structure member access
@@ -361,5 +361,14 @@ Key insights:
 - Implemented proper operator precedence: .or. (lowest) < .and. < .not. (highest)
 - Added support for .not. unary operator in parse_primary
 - All logical expression tests passing: constants, binary operators, unary operators, precedence
+
+**Relational Expressions Complete ✅**:
+- Comprehensive test coverage for all relational operators
+- Equality operators (==, /=) working correctly
+- Inequality operators (<, >) working correctly
+- Comparison operators (<=, >=) working correctly
+- Mixed expressions with arithmetic and relational operators
+- Correct operator precedence: logical < relational < arithmetic
+- All relational expression tests passing
 
 **Ready to proceed with Phase 3.2 Expression Parsing**
