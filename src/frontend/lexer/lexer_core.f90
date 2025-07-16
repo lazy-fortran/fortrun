@@ -95,6 +95,10 @@ contains
                 end do
                 ! Don't increment col_num here since we'll handle newline in next iteration
 
+                ! Logical constants and operators (starting with '.')
+            else if (ch == '.') then
+       call scan_logical_token(source, pos, line_num, col_num, temp_tokens, token_count)
+
                 ! Operators
             else if (is_operator(ch)) then
             call scan_operator(source, pos, line_num, col_num, temp_tokens, token_count)
@@ -323,6 +327,114 @@ contains
 
     end subroutine scan_operator
 
+    subroutine scan_logical_token(source, pos, line_num, col_num, tokens, token_count)
+        character(len=*), intent(in) :: source
+        integer, intent(inout) :: pos, line_num, col_num, token_count
+        type(token_t), allocatable, intent(inout) :: tokens(:)
+
+        integer :: start_pos, start_col
+        character(len=:), allocatable :: word
+
+        start_pos = pos
+        start_col = col_num
+
+        ! Check for logical constants and operators that start with '.'
+        if (pos <= len(source)) then
+            ! Look ahead to see if this forms a logical token
+            ! Debug: print "DEBUG: pos=" // pos // ", len=" // len(source) // ", substr=" // source(pos:min(pos+5, len(source)))
+            if (pos + 5 <= len(source) .and. source(pos:pos + 5) == ".true.") then
+                ! Found .true.
+                pos = pos + 6
+                col_num = col_num + 6
+                word = ".true."
+
+                token_count = token_count + 1
+                if (token_count > size(tokens)) then
+                    call resize_tokens(tokens)
+                end if
+                tokens(token_count)%kind = TK_KEYWORD
+                tokens(token_count)%text = word
+                tokens(token_count)%line = line_num
+                tokens(token_count)%column = start_col
+                return
+            else if (pos + 6 <= len(source) .and. source(pos:pos + 6) == ".false.") then
+                ! Found .false.
+                pos = pos + 7
+                col_num = col_num + 7
+                word = ".false."
+
+                token_count = token_count + 1
+                if (token_count > size(tokens)) then
+                    call resize_tokens(tokens)
+                end if
+                tokens(token_count)%kind = TK_KEYWORD
+                tokens(token_count)%text = word
+                tokens(token_count)%line = line_num
+                tokens(token_count)%column = start_col
+                return
+            else if (pos + 4 <= len(source) .and. source(pos:pos + 4) == ".and.") then
+                ! Found .and.
+                pos = pos + 5
+                col_num = col_num + 5
+                word = ".and."
+
+                token_count = token_count + 1
+                if (token_count > size(tokens)) then
+                    call resize_tokens(tokens)
+                end if
+                tokens(token_count)%kind = TK_OPERATOR
+                tokens(token_count)%text = word
+                tokens(token_count)%line = line_num
+                tokens(token_count)%column = start_col
+                return
+            else if (pos + 3 <= len(source) .and. source(pos:pos + 3) == ".or.") then
+                ! Found .or.
+                pos = pos + 4
+                col_num = col_num + 4
+                word = ".or."
+
+                token_count = token_count + 1
+                if (token_count > size(tokens)) then
+                    call resize_tokens(tokens)
+                end if
+                tokens(token_count)%kind = TK_OPERATOR
+                tokens(token_count)%text = word
+                tokens(token_count)%line = line_num
+                tokens(token_count)%column = start_col
+                return
+            else if (pos + 4 <= len(source) .and. source(pos:pos + 4) == ".not.") then
+                ! Found .not.
+                pos = pos + 5
+                col_num = col_num + 5
+                word = ".not."
+
+                token_count = token_count + 1
+                if (token_count > size(tokens)) then
+                    call resize_tokens(tokens)
+                end if
+                tokens(token_count)%kind = TK_OPERATOR
+                tokens(token_count)%text = word
+                tokens(token_count)%line = line_num
+                tokens(token_count)%column = start_col
+                return
+            end if
+        end if
+
+        ! If we get here, it's just a regular '.' operator
+        token_count = token_count + 1
+        if (token_count > size(tokens)) then
+            call resize_tokens(tokens)
+        end if
+        tokens(token_count)%kind = TK_OPERATOR
+        tokens(token_count)%text = "."
+        tokens(token_count)%line = line_num
+        tokens(token_count)%column = start_col
+
+        pos = pos + 1
+        col_num = col_num + 1
+
+    end subroutine scan_logical_token
+
     ! Helper functions
 
     logical function is_whitespace(ch)
@@ -342,7 +454,7 @@ contains
 
     logical function is_operator(ch)
         character(len=1), intent(in) :: ch
-        is_operator = index("+-*/=<>()[]{},:;.", ch) > 0
+        is_operator = index("+-*/=<>()[]{},:;", ch) > 0
     end function is_operator
 
     logical function is_keyword(word)

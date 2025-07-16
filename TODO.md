@@ -84,7 +84,7 @@ Key insights:
 
 ### 3.2 Expression Parsing
 - [x] Test: Arithmetic expressions (all operators, precedence) ✅
-- [ ] Test: Logical expressions
+- [x] Test: Logical expressions ✅
 - [ ] Test: Relational expressions
 - [ ] Test: Array expressions and sections
 - [ ] Test: Function calls (intrinsic and user-defined)
@@ -352,5 +352,14 @@ Key insights:
 - Unary operators (+, -) supported
 - Power operator (**) with correct precedence
 - Existing expression parsing infrastructure is robust and complete
+
+**Logical Expressions Complete ✅**:
+- Enhanced lexer to recognize logical constants and operators as single tokens
+- Added scan_logical_token function to handle .true., .false., .and., .or., .not.
+- Updated parser to handle TK_KEYWORD tokens for logical constants
+- Added logical expression parsing hierarchy: parse_logical_or → parse_logical_and → parse_comparison
+- Implemented proper operator precedence: .or. (lowest) < .and. < .not. (highest)
+- Added support for .not. unary operator in parse_primary
+- All logical expression tests passing: constants, binary operators, unary operators, precedence
 
 **Ready to proceed with Phase 3.2 Expression Parsing**

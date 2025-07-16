@@ -96,10 +96,62 @@ contains
         type(parser_state_t) :: parser
 
         parser = create_parser_state(tokens)
-        expr = parse_comparison(parser)
+        expr = parse_logical_or(parser)
     end function parse_expression
 
-    ! Parse comparison operators (lowest precedence)
+    ! Parse logical OR operators (lowest precedence)
+    function parse_logical_or(parser) result(expr)
+        type(parser_state_t), intent(inout) :: parser
+        class(ast_node), allocatable :: expr
+        class(ast_node), allocatable :: right_expr, temp_expr
+        type(token_t) :: op_token
+
+        expr = parse_logical_and(parser)
+
+        do while (.not. parser%is_at_end())
+            op_token = parser%peek()
+            if (op_token%kind == TK_OPERATOR .and. op_token%text == ".or.") then
+                op_token = parser%consume()  ! consume operator
+                right_expr = parse_logical_and(parser)
+                if (allocated(right_expr)) then
+                    allocate (temp_expr, source=expr)
+                    expr = create_binary_op(temp_expr, right_expr, op_token%text)
+                else
+                    exit
+                end if
+            else
+                exit
+            end if
+        end do
+    end function parse_logical_or
+
+    ! Parse logical AND operators
+    function parse_logical_and(parser) result(expr)
+        type(parser_state_t), intent(inout) :: parser
+        class(ast_node), allocatable :: expr
+        class(ast_node), allocatable :: right_expr, temp_expr
+        type(token_t) :: op_token
+
+        expr = parse_comparison(parser)
+
+        do while (.not. parser%is_at_end())
+            op_token = parser%peek()
+            if (op_token%kind == TK_OPERATOR .and. op_token%text == ".and.") then
+                op_token = parser%consume()  ! consume operator
+                right_expr = parse_comparison(parser)
+                if (allocated(right_expr)) then
+                    allocate (temp_expr, source=expr)
+                    expr = create_binary_op(temp_expr, right_expr, op_token%text)
+                else
+                    exit
+                end if
+            else
+                exit
+            end if
+        end do
+    end function parse_logical_and
+
+    ! Parse comparison operators
     function parse_comparison(parser) result(expr)
         type(parser_state_t), intent(inout) :: parser
         class(ast_node), allocatable :: expr
@@ -312,6 +364,22 @@ contains
                         end if
                     end if
                 end block
+            else if (current%text == ".not.") then
+                ! Logical NOT operator
+                block
+                    type(token_t) :: op_token
+                    class(ast_node), allocatable :: operand
+                    op_token = parser%consume()
+                    operand = parse_primary(parser)
+                    if (allocated(operand)) then
+                        ! Create unary NOT expression as binary op with false
+                        block
+                            class(ast_node), allocatable :: false_literal
+             false_literal = create_literal(".false.", LITERAL_LOGICAL, op_token%line, op_token%column)
+                            expr = create_binary_op(false_literal, operand, ".not.")
+                        end block
+                    end if
+                end block
             else if (current%text == ".") then
                 ! Check for logical literals (.true. or .false.)
                 block
@@ -349,6 +417,16 @@ contains
                 ! Unrecognized operator - create a placeholder
                 expr = create_literal("", LITERAL_STRING, current%line, current%column)
                 current = parser%consume()
+            end if
+
+        case (TK_KEYWORD)
+            ! Handle logical constants
+            current = parser%consume()
+            if (current%text == ".true." .or. current%text == ".false.") then
+      expr = create_literal(current%text, LITERAL_LOGICAL, current%line, current%column)
+            else
+                ! Other keywords - create placeholder for now
+                expr = create_literal("", LITERAL_STRING, current%line, current%column)
             end if
 
         case default
