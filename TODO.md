@@ -117,79 +117,64 @@ All code must follow **Safe Fortran** practices to prevent memory corruption. Th
    - [ ] Implement safe container patterns throughout
    - [ ] Add memory safety tests
 
-## IMMEDIATE GOAL: Scope Manager Refactoring (Phase 1.5)
+## IMMEDIATE GOAL: Complete Safe Fortran Refactoring
 
 ### Problem
-Current `scope_manager.f90` uses pointers extensively, causing segmentation faults:
-- `scope_t` has `pointer :: parent` (line 23)
-- `scope_stack_t` has `pointer :: current, global` (lines 32-33)
-- All scope creation/navigation uses pointer manipulation
-- Manual pointer cleanup in `stack_finalize` (line 263)
+Widespread unsafe Fortran practices throughout codebase causing memory corruption:
+- **17 files** contain `pointer` declarations
+- **12 files** contain manual `deallocate` calls
+- Segmentation faults in multiple components
+- Memory leaks and double-free errors
 
-### Solution: Stack-Based Scope Manager
-Replace pointer-based hierarchical tree with allocatable stack approach:
+### Solution: Systematic Safe Fortran Refactoring
+Eliminate ALL unsafe patterns following Safe Fortran principles:
 
-#### Step 1: Refactor Data Structures
-- [❌] Remove all `pointer` declarations from `scope_t` and `scope_stack_t`
-- [❌] Replace with `allocatable` stack array in `scope_stack_t`
-- [❌] Use integer indices instead of pointers for parent relationships
+#### Phase 1: Critical Frontend Components (CURRENT PRIORITY)
+- [✅] **scope_manager.f90** - Converted to stack-based allocatable approach
+- [❌] **ast_core.f90** - Convert pointer-based AST to allocatable wrapper pattern
+- [❌] **semantic_analyzer.f90** - Remove manual deallocate calls
+- [❌] **ast_types.f90** - Convert pointer types to allocatable
 
-#### Step 2: Implement Stack Operations
-- [❌] Rewrite `stack_push_scope` to use array extension with temp variables
-- [❌] Rewrite `stack_pop_scope` to shrink array safely
-- [❌] Implement `stack_lookup` to walk up the stack (O(depth) performance)
-- [❌] Update `stack_define` to add to current scope (top of stack)
+#### Phase 2: Parser and JSON Components
+- [❌] **parser_control_flow.f90** - Remove manual deallocate calls
+- [❌] **parser_statements.f90** - Remove manual deallocate calls
+- [❌] **json_writer.f90** - Convert pointers to allocatable
+- [❌] **json_reader.f90** - Convert pointers to allocatable
+- [❌] **ast_json.f90** - Convert pointers to allocatable
 
-#### Step 3: Update Scope Navigation
-- [❌] Rewrite `stack_enter_module/function/subroutine/block/interface` methods
-- [❌] Implement `stack_leave_scope` to pop from stack
-- [❌] Remove `stack_finalize` (automatic cleanup with allocatable)
+#### Phase 3: Supporting Systems
+- [❌] **frontend.f90** - Remove manual deallocate calls
+- [❌] **cache.f90** - Remove manual deallocate calls
+- [❌] **module_scanner.f90** - Remove manual deallocate calls
+- [❌] **temp_utils.f90** - Remove manual deallocate calls
 
-#### Step 4: Fix Scope Lookup Chain
-- [❌] Rewrite `scope_lookup_recursive` to use stack instead of parent pointers
-- [❌] Update `stack_lookup` to iterate through stack from top to bottom
-- [❌] Ensure proper symbol resolution with shadowing semantics
+#### Phase 4: Non-Critical Systems
+- [❌] **notebook_*.f90** - Remove manual deallocate calls
+- [❌] **registry_resolver.f90** - Remove manual deallocate calls
+- [❌] **token_fallback.f90** - Remove manual deallocate calls
 
-#### Step 5: Testing and Validation
-- [❌] Create unit tests for stack operations
-- [❌] Test nested scope scenarios (module → function → block)
-- [❌] Validate symbol lookup with shadowing
-- [❌] Run `test_minimal_semantic_analyzer` to verify fix
-
-### Data Structure Design
-```fortran
-type :: scope_t
-    integer :: scope_type = SCOPE_GLOBAL
-    character(len=:), allocatable :: name
-    type(type_env_t) :: env
-    ! No parent pointer - stack handles hierarchy
-end type scope_t
-
-type :: scope_stack_t
-    type(scope_t), allocatable :: scopes(:)  ! Stack of scopes
-    integer :: depth = 0                     ! Current depth (top of stack)
-    integer :: capacity = 0                  ! Array capacity
-    ! No current/global pointers - use indices
-end type scope_stack_t
-```
-
-### Performance Characteristics
-- **Push/Pop**: O(1) amortized with dynamic array growth
-- **Lookup**: O(d) where d = scope depth (typically 2-5)
-- **Define**: O(1) add to current scope
-- **Memory**: O(n) where n = total active scopes
-
-### Implementation Priority
-1. **CRITICAL**: Fix segmentation fault in `scope_lookup` at line 102
-2. **HIGH**: Eliminate all pointer usage in scope management
-3. **MEDIUM**: Optimize array growth strategy
-4. **LOW**: Add performance benchmarks
+### Safe Fortran Requirements
+1. **NO POINTERS**: Replace all `pointer` with `allocatable`
+2. **NO MANUAL DEALLOCATE**: Remove all `deallocate` calls (automatic cleanup)
+3. **WRAPPER PATTERN**: Use allocatable wrappers for polymorphic arrays
+4. **SAFE ARRAY EXTENSION**: Use temporary arrays for extension
+5. **DEEP COPY**: Implement proper deep copy for all types
 
 ### Success Criteria
-- [❌] `test_minimal_semantic_analyzer` passes without segfault
-- [❌] All scope-related tests pass
-- [❌] No pointer usage in `scope_manager.f90`
-- [❌] Memory safety with automatic cleanup
+- [❌] Zero pointer declarations in src/
+- [❌] Zero manual deallocate calls in src/
+- [❌] All tests pass without segmentation faults
+- [❌] No memory leaks detected
+- [❌] Full type inference pipeline working
+
+### Current Status
+- **Scope Manager**: ✅ COMPLETED - Stack-based allocatable approach
+- **Type System**: ✅ PARTIAL - Deep copy implemented for poly_type_t
+- **AST Core**: ❌ CRITICAL - Pointer-based structures causing segfaults
+- **Remaining**: 16 files requiring Safe Fortran refactoring
+
+### Reference
+See **REFACTOR.md** for complete analysis of all unsafe patterns
 
 ### Implementation Priority
 1. **CRITICAL**: Scope Manager Refactoring (Phase 1.5)
