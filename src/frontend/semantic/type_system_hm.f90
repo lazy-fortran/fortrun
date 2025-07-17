@@ -637,9 +637,14 @@ contains
             return
         end if
 
+        ! Early return for empty environment
+        if (this%count == 0) then
+            return
+        end if
+
         do i = 1, this%count
             if (this%names(i) == name) then
-                scheme = this%schemes(i)
+                scheme = this%schemes(i)%deep_copy()
                 return
             end if
         end do

@@ -15,23 +15,24 @@ module scope_manager
     integer, parameter, public :: SCOPE_BLOCK = 5     ! if/do/etc blocks
     integer, parameter, public :: SCOPE_INTERFACE = 6
 
-    ! Single scope with its own environment
+    ! Single scope with its own environment (no parent pointer - stack handles hierarchy)
     type :: scope_t
         integer :: scope_type = SCOPE_GLOBAL
         character(len=:), allocatable :: name  ! e.g., module name, function name
         type(type_env_t) :: env
-        type(scope_t), pointer :: parent => null()
+        ! No parent pointer - stack handles hierarchy
     contains
         procedure :: lookup => scope_lookup
         procedure :: define => scope_define
-        procedure :: lookup_recursive => scope_lookup_recursive
+        ! Remove lookup_recursive - stack handles traversal
     end type scope_t
 
-    ! Stack of scopes for managing nested scopes
+    ! Stack of scopes for managing nested scopes (cache-efficient design)
     type :: scope_stack_t
-        type(scope_t), pointer :: current => null()
-        type(scope_t), pointer :: global => null()
-        integer :: depth = 0
+        type(scope_t), allocatable :: scopes(:)  ! Stack of scopes (contiguous memory)
+        integer :: depth = 0                     ! Current depth (top of stack)
+        integer :: capacity = 0                  ! Array capacity
+        ! No current/global pointers - use array indices
     contains
         procedure :: push => stack_push_scope
         procedure :: pop => stack_pop_scope
@@ -44,19 +45,17 @@ module scope_manager
         procedure :: enter_interface => stack_enter_interface
         procedure :: leave_scope => stack_leave_scope
         procedure :: get_current_scope_type => stack_get_current_scope_type
-        procedure :: finalize => stack_finalize
+        ! Remove finalize - automatic cleanup with allocatable
     end type scope_stack_t
 
 contains
 
-    ! Create a new scope
-    function create_scope(scope_type, name, parent) result(scope)
+    ! Create a new scope (no parent pointer - stack handles hierarchy)
+    function create_scope(scope_type, name) result(scope)
         integer, intent(in) :: scope_type
         character(len=*), intent(in), optional :: name
-        type(scope_t), pointer, intent(in), optional :: parent
-        type(scope_t), pointer :: scope
+        type(scope_t) :: scope
 
-        allocate (scope)
         scope%scope_type = scope_type
 
         if (present(name)) then
@@ -65,9 +64,7 @@ contains
             scope%name = ""
         end if
 
-        if (present(parent)) then
-            scope%parent => parent
-        end if
+        ! No parent pointer - stack handles hierarchy
 
         ! Initialize empty environment
         scope%env%count = 0
@@ -77,14 +74,15 @@ contains
 
     end function create_scope
 
-    ! Create a new scope stack
+    ! Create a new scope stack with global scope
     function create_scope_stack() result(stack)
         type(scope_stack_t) :: stack
 
-        ! Create global scope
-        stack%global => create_scope(SCOPE_GLOBAL, "global")
-        stack%current => stack%global
+        ! Initialize capacity and create global scope
+        stack%capacity = 10
+        allocate (stack%scopes(stack%capacity))
         stack%depth = 1
+        stack%scopes(1) = create_scope(SCOPE_GLOBAL, "global")
 
     end function create_scope_stack
 
@@ -113,41 +111,38 @@ contains
 
     end subroutine scope_define
 
-    ! Recursive lookup through parent scopes
-    function scope_lookup_recursive(this, name) result(scheme)
-        class(scope_t), intent(in), target :: this
-        character(len=*), intent(in) :: name
-        type(poly_type_t), allocatable :: scheme
-        type(scope_t), pointer :: current
+    ! Recursive lookup removed - stack handles traversal in stack_lookup
 
-        current => this
-
-        do while (associated(current))
-            scheme = current%lookup(name)
-            if (allocated(scheme)) return
-
-            current => current%parent
-        end do
-
-    end function scope_lookup_recursive
-
-    ! Stack: push a new scope
+    ! Stack: push a new scope using safe array extension
     subroutine stack_push_scope(this, new_scope)
         class(scope_stack_t), intent(inout) :: this
-        type(scope_t), pointer, intent(in) :: new_scope
+        type(scope_t), intent(in) :: new_scope
+        type(scope_t), allocatable :: temp_scopes(:)
+        integer :: new_capacity
 
-        new_scope%parent => this%current
-        this%current => new_scope
+        ! Grow array if needed (following CLAUDE.md safe array extension)
+        if (this%depth >= this%capacity) then
+            new_capacity = this%capacity*2
+            if (new_capacity == 0) new_capacity = 10
+            allocate (temp_scopes(new_capacity))
+            if (this%depth > 0) then
+                temp_scopes(1:this%depth) = this%scopes(1:this%depth)
+            end if
+            this%scopes = temp_scopes
+            this%capacity = new_capacity
+        end if
+
+        ! Push new scope onto stack
         this%depth = this%depth + 1
+        this%scopes(this%depth) = new_scope
 
     end subroutine stack_push_scope
 
-    ! Stack: pop current scope
+    ! Stack: pop current scope (simple decrement)
     subroutine stack_pop_scope(this)
         class(scope_stack_t), intent(inout) :: this
 
-        if (associated(this%current%parent)) then
-            this%current => this%current%parent
+        if (this%depth > 1) then
             this%depth = this%depth - 1
         else
             error stop "Cannot pop global scope"
@@ -155,26 +150,29 @@ contains
 
     end subroutine stack_pop_scope
 
-    ! Stack: lookup with hierarchical search
+    ! Stack: lookup with hierarchical search (walk down the stack)
     function stack_lookup(this, name) result(scheme)
         class(scope_stack_t), intent(in) :: this
         character(len=*), intent(in) :: name
         type(poly_type_t), allocatable :: scheme
+        integer :: i
 
-        if (associated(this%current)) then
-            scheme = this%current%lookup_recursive(name)
-        end if
+        ! Walk down the stack from current scope to global scope
+        do i = this%depth, 1, -1
+            scheme = this%scopes(i)%lookup(name)
+            if (allocated(scheme)) return
+        end do
 
     end function stack_lookup
 
-    ! Stack: define in current scope
+    ! Stack: define in current scope (top of stack)
     subroutine stack_define(this, name, scheme)
         class(scope_stack_t), intent(inout) :: this
         character(len=*), intent(in) :: name
         type(poly_type_t), intent(in) :: scheme
 
-        if (associated(this%current)) then
-            call this%current%define(name, scheme)
+        if (this%depth > 0) then
+            call this%scopes(this%depth)%define(name, scheme)
         else
             error stop "No current scope"
         end if
@@ -185,9 +183,9 @@ contains
     subroutine stack_enter_module(this, module_name)
         class(scope_stack_t), intent(inout) :: this
         character(len=*), intent(in) :: module_name
-        type(scope_t), pointer :: new_scope
+        type(scope_t) :: new_scope
 
-        new_scope => create_scope(SCOPE_MODULE, module_name, this%current)
+        new_scope = create_scope(SCOPE_MODULE, module_name)
         call this%push(new_scope)
 
     end subroutine stack_enter_module
@@ -196,9 +194,9 @@ contains
     subroutine stack_enter_function(this, function_name)
         class(scope_stack_t), intent(inout) :: this
         character(len=*), intent(in) :: function_name
-        type(scope_t), pointer :: new_scope
+        type(scope_t) :: new_scope
 
-        new_scope => create_scope(SCOPE_FUNCTION, function_name, this%current)
+        new_scope = create_scope(SCOPE_FUNCTION, function_name)
         call this%push(new_scope)
 
     end subroutine stack_enter_function
@@ -207,9 +205,9 @@ contains
     subroutine stack_enter_subroutine(this, subroutine_name)
         class(scope_stack_t), intent(inout) :: this
         character(len=*), intent(in) :: subroutine_name
-        type(scope_t), pointer :: new_scope
+        type(scope_t) :: new_scope
 
-        new_scope => create_scope(SCOPE_SUBROUTINE, subroutine_name, this%current)
+        new_scope = create_scope(SCOPE_SUBROUTINE, subroutine_name)
         call this%push(new_scope)
 
     end subroutine stack_enter_subroutine
@@ -217,9 +215,9 @@ contains
     ! Enter block scope (if/do/etc)
     subroutine stack_enter_block(this)
         class(scope_stack_t), intent(inout) :: this
-        type(scope_t), pointer :: new_scope
+        type(scope_t) :: new_scope
 
-        new_scope => create_scope(SCOPE_BLOCK, "", this%current)
+        new_scope = create_scope(SCOPE_BLOCK, "")
         call this%push(new_scope)
 
     end subroutine stack_enter_block
@@ -228,12 +226,12 @@ contains
     subroutine stack_enter_interface(this, interface_name)
         class(scope_stack_t), intent(inout) :: this
         character(len=*), intent(in), optional :: interface_name
-        type(scope_t), pointer :: new_scope
+        type(scope_t) :: new_scope
 
         if (present(interface_name)) then
-            new_scope => create_scope(SCOPE_INTERFACE, interface_name, this%current)
+            new_scope = create_scope(SCOPE_INTERFACE, interface_name)
         else
-            new_scope => create_scope(SCOPE_INTERFACE, "", this%current)
+            new_scope = create_scope(SCOPE_INTERFACE, "")
         end if
         call this%push(new_scope)
 
@@ -252,31 +250,14 @@ contains
         class(scope_stack_t), intent(in) :: this
         integer :: scope_type
 
-        if (associated(this%current)) then
-            scope_type = this%current%scope_type
+        if (this%depth > 0) then
+            scope_type = this%scopes(this%depth)%scope_type
         else
             scope_type = SCOPE_GLOBAL
         end if
 
     end function stack_get_current_scope_type
 
-    ! Finalize scope stack (deallocate all scopes)
-    subroutine stack_finalize(this)
-        class(scope_stack_t), intent(inout) :: this
-        type(scope_t), pointer :: current, next
-
-        ! Start from global scope and deallocate all
-        current => this%global
-        do while (associated(current))
-            ! Find next scope (need to traverse tree)
-            ! For now, just nullify pointers
-            current => null()
-        end do
-
-        this%current => null()
-        this%global => null()
-        this%depth = 0
-
-    end subroutine stack_finalize
+    ! Finalization removed - automatic cleanup with allocatable arrays
 
 end module scope_manager
