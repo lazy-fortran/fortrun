@@ -69,9 +69,9 @@ Extract smaller, focused modules from large pipeline modules to improve maintain
 
 This approach would eliminate the massive switch statement and improve maintainability, testability, and extensibility. Implementation would further reduce parser_core.f90 size and improve code organization.
 
-### Current Phase: Extract Control Flow Functions (Phase 3)
+### Current Phase: Implement Clean Dispatcher (Phase 4)
 
-**Goal**: Continue refactoring `parser_core.f90` by extracting control flow parsing functions to specialized modules.
+**Goal**: Replace the large `parse_statement` function in `parser_core.f90` with a clean dispatcher pattern that delegates to specialized modules.
 
 #### Phase 1: Test Coverage & Baseline (Week 1) ✅
 - [x] **Establish baseline test coverage** for parser_core.f90 using gcovr ✅
@@ -109,15 +109,15 @@ This approach would eliminate the massive switch statement and improve maintaina
   - parser_statements.f90: 46% coverage (lower due to newly moved functions)
   - parser_state.f90: 71% coverage
 
-#### Phase 3: Extract Control Flow Functions (Week 3)  
-- [ ] **Move control flow implementations** from parser_core.f90 to `parser_control_flow.f90`:
-  - Move `parse_if` → `parser_control_flow.f90` (working implementation exists)
-  - Move `parse_do_loop` → `parser_control_flow.f90` (placeholder exists)
-  - Move `parse_do_while` → `parser_control_flow.f90` (placeholder exists)
-  - Move `parse_select_case` → `parser_control_flow.f90` (placeholder exists)
-- [ ] **Update all control flow imports** in dependent modules
-- [ ] **Run comprehensive frontend tests** after each move
-- [ ] **Verify test coverage maintained** for control flow constructs
+#### Phase 3: Extract Control Flow Functions (Week 3) ✅ COMPLETED
+- [x] **Move control flow implementations** from parser_core.f90 to `parser_control_flow.f90`: ✅
+  - Move `parse_if` → `parser_control_flow.f90` ✅ (already extracted)
+  - Move `parse_do_loop` → `parser_control_flow.f90` ✅ (already extracted)
+  - Move `parse_do_while` → `parser_control_flow.f90` ✅ (already extracted)
+  - Move `parse_select_case` → `parser_control_flow.f90` ✅ (implemented)
+- [x] **Update all control flow imports** in dependent modules ✅
+- [x] **Run comprehensive frontend tests** after each move ✅
+- [x] **Verify test coverage maintained** for control flow constructs ✅
 
 #### Phase 4: Implement Clean Dispatcher (Week 4)
 - [ ] **Replace massive parse_statement switch** with `parser_dispatcher.f90`:

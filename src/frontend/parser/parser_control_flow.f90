@@ -420,11 +420,139 @@ contains
     function parse_select_case(parser) result(select_node)
         type(parser_state_t), intent(inout) :: parser
         class(ast_node), allocatable :: select_node
-        ! Implementation to be moved from parser_core
-        type(token_t) :: token
 
-        token = parser%peek()
-        select_node = create_literal("! Select case placeholder", LITERAL_STRING, token%line, token%column)
+        type(token_t) :: select_token, case_token, lparen_token, rparen_token
+        class(ast_node), allocatable :: expr
+        type(case_wrapper), allocatable :: cases(:), temp_cases(:)
+        integer :: case_count, line, column
+
+        ! Consume 'select'
+        select_token = parser%consume()
+        line = select_token%line
+        column = select_token%column
+
+        ! Expect 'case'
+        case_token = parser%consume()
+        if (case_token%kind /= TK_KEYWORD .or. case_token%text /= "case") then
+            ! Error: expected 'case' after 'select'
+            return
+        end if
+
+        ! Expect '('
+        lparen_token = parser%consume()
+        if (lparen_token%kind /= TK_OPERATOR .or. lparen_token%text /= "(") then
+            ! Error: expected '(' after 'select case'
+            return
+        end if
+
+        ! Parse expression to match
+        expr = parse_expression(parser%tokens(parser%current_token:))
+        if (.not. allocated(expr)) then
+            ! Error: expected expression in select case
+            return
+        end if
+
+        ! Advance parser past the expression
+        ! For now, assume expression consumes tokens until ')'
+        do while (parser%current_token <= size(parser%tokens))
+            rparen_token = parser%peek()
+            if (rparen_token%kind == TK_OPERATOR .and. rparen_token%text == ")") then
+                rparen_token = parser%consume()
+                exit
+            end if
+            parser%current_token = parser%current_token + 1
+        end do
+
+        ! Parse case blocks
+        allocate (cases(0))
+        case_count = 0
+
+        do while (parser%current_token <= size(parser%tokens))
+            case_token = parser%peek()
+
+            if (case_token%kind == TK_KEYWORD) then
+                if (case_token%text == "case") then
+                    ! Parse case block
+                    block
+                        type(case_wrapper) :: new_case
+                        type(token_t) :: value_token
+                        class(ast_node), allocatable :: case_value
+
+                        case_token = parser%consume()  ! consume 'case'
+
+                        ! Check for default case
+                        value_token = parser%peek()
+            if (value_token%kind == TK_KEYWORD .and. value_token%text == "default") then
+                            value_token = parser%consume()  ! consume 'default'
+                            new_case%case_type = "case_default"
+                        else
+                            new_case%case_type = "case"
+
+                            ! Expect '('
+                 if (value_token%kind == TK_OPERATOR .and. value_token%text == "(") then
+                                value_token = parser%consume()  ! consume '('
+
+                                ! Parse case value
+                                case_value = parse_primary(parser)
+                                if (allocated(case_value)) then
+                                    allocate (new_case%value, source=case_value)
+                                end if
+
+                                ! Expect ')'
+                                value_token = parser%peek()
+                 if (value_token%kind == TK_OPERATOR .and. value_token%text == ")") then
+                                    value_token = parser%consume()  ! consume ')'
+                                end if
+                            end if
+                        end if
+
+                        ! Parse case body (for now, empty)
+                        allocate (new_case%body(0))
+
+                        ! Add to cases array
+                        case_count = case_count + 1
+                        if (case_count == 1) then
+                            deallocate (cases)
+                            allocate (cases(1))
+                        else
+                            allocate (temp_cases(case_count - 1))
+                            temp_cases = cases(1:case_count - 1)
+                            deallocate (cases)
+                            allocate (cases(case_count))
+                            cases(1:case_count - 1) = temp_cases
+                            deallocate (temp_cases)
+                        end if
+                        cases(case_count) = new_case
+                    end block
+                else if (case_token%text == "end") then
+                    ! Check for 'end select'
+                    if (parser%current_token + 1 <= size(parser%tokens)) then
+                  if (parser%tokens(parser%current_token + 1)%kind == TK_KEYWORD .and. &
+                          parser%tokens(parser%current_token + 1)%text == "select") then
+                            ! Found 'end select', consume both tokens and exit
+                            case_token = parser%consume()  ! consume 'end'
+                            case_token = parser%consume()  ! consume 'select'
+                            exit
+                        end if
+                    end if
+                else
+                    ! Other keyword, skip
+                    parser%current_token = parser%current_token + 1
+                end if
+            else
+                ! Not a keyword, skip
+                parser%current_token = parser%current_token + 1
+            end if
+        end do
+
+        ! Create select case node
+        if (case_count > 0) then
+            select_node = create_select_case(expr, cases(1:case_count), line, column)
+        else
+            select_node = create_select_case(expr, line=line, column=column)
+        end if
+
+        if (allocated(cases)) deallocate (cases)
     end function parse_select_case
 
     ! Helper function to parse basic statements (simplified version)
