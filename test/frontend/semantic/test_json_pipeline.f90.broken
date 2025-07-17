@@ -44,7 +44,7 @@ contains
 
         ! Create simple AST: x = 42
         var = create_identifier("x", 1, 1)
-        val = create_literal(LITERAL_INTEGER, "42", 1, 5)
+        val = create_literal("42", LITERAL_INTEGER, 1, 5)
         assign = create_assignment(var, val, 1, 1)
         allocate (body_wrapper%node, source=assign)
 
@@ -94,12 +94,12 @@ contains
 
         ! Create program with multiple assignments
         x_var = create_identifier("x", 1, 1)
-        int_val = create_literal(LITERAL_INTEGER, "42", 1, 5)
+        int_val = create_literal("42", LITERAL_INTEGER, 1, 5)
         assign1 = create_assignment(x_var, int_val, 1, 1)
         allocate (body_wrapper1%node, source=assign1)
 
         y_var = create_identifier("y", 2, 1)
-        real_val = create_literal(LITERAL_REAL, "3.14", 2, 5)
+        real_val = create_literal("3.14", LITERAL_REAL, 2, 5)
         assign2 = create_assignment(y_var, real_val, 2, 1)
         allocate (body_wrapper2%node, source=assign2)
 
@@ -135,7 +135,7 @@ contains
 
         ! Create assignment: pi = 3.14159
         var = create_identifier("pi", 1, 1)
-        val = create_literal(LITERAL_REAL, "3.14159", 1, 5)
+        val = create_literal("3.14159", LITERAL_REAL, 1, 5)
         assign = create_assignment(var, val, 1, 1)
 
         ! Run semantic analysis

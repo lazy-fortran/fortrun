@@ -136,7 +136,7 @@ contains
         allocate (param_wrapper2%node, source=param2)
 
         ! Dummy body
-        int_arg = create_literal(LITERAL_INTEGER, "0", 2, 5)
+        int_arg = create_literal("0", LITERAL_INTEGER, 2, 5)
         allocate (body_wrapper%node, source=int_arg)
 
         func = create_function_def("add", [param_wrapper1, param_wrapper2], &
@@ -146,9 +146,9 @@ contains
         typ = ctx%analyze_function_def(func)
 
         ! Call with correct types: add(1, 2)
-        int_arg = create_literal(LITERAL_INTEGER, "1", 3, 5)
+        int_arg = create_literal("1", LITERAL_INTEGER, 3, 5)
         allocate (arg_wrapper1%node, source=int_arg)
-        int_arg = create_literal(LITERAL_INTEGER, "2", 3, 8)
+        int_arg = create_literal("2", LITERAL_INTEGER, 3, 8)
         allocate (arg_wrapper2%node, source=int_arg)
 
         call1 = create_function_call("add", [arg_wrapper1, arg_wrapper2], 3, 1)

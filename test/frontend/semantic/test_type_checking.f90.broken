@@ -41,13 +41,13 @@ contains
 
         ! First assignment: x = 42 (integer)
         x_var = create_identifier("x", 1, 1)
-        int_val = create_literal(LITERAL_INTEGER, "42", 1, 5)
+        int_val = create_literal("42", LITERAL_INTEGER, 1, 5)
         assign1 = create_assignment(x_var, int_val, 1, 1)
         typ = ctx%infer_stmt(assign1)
 
         ! Second assignment: x = 3.14 (real) - should fail type check
         x_var = create_identifier("x", 2, 1)
-        real_val = create_literal(LITERAL_REAL, "3.14", 2, 5)
+        real_val = create_literal("3.14", LITERAL_REAL, 2, 5)
         assign2 = create_assignment(x_var, real_val, 2, 1)
         typ = ctx%infer_stmt(assign2)
 
@@ -78,8 +78,8 @@ contains
         ctx = create_semantic_context()
 
         ! Create expression: result = 42 + 3.14
-        int_val = create_literal(LITERAL_INTEGER, "42", 1, 10)
-        real_val = create_literal(LITERAL_REAL, "3.14", 1, 15)
+        int_val = create_literal("42", LITERAL_INTEGER, 1, 10)
+        real_val = create_literal("3.14", LITERAL_REAL, 1, 15)
         add_expr = create_binary_op(int_val, real_val, "+", 1, 13)
 
         result_var = create_identifier("result", 1, 1)
@@ -177,7 +177,7 @@ contains
         ctx = create_semantic_context()
 
         ! Test 1: sqrt(4.0) should return real
-        real_arg = create_literal(LITERAL_REAL, "4.0", 1, 10)
+        real_arg = create_literal("4.0", LITERAL_REAL, 1, 10)
         allocate (arg_wrapper%node, source=real_arg)
         sqrt_call = create_function_call("sqrt", [arg_wrapper], 1, 5)
 
@@ -190,7 +190,7 @@ contains
 
         if (typ%kind == TREAL) then
             ! Test 2: int(4.5) should return integer
-            real_arg = create_literal(LITERAL_REAL, "4.5", 3, 10)
+            real_arg = create_literal("4.5", LITERAL_REAL, 3, 10)
             deallocate (arg_wrapper%node)
             allocate (arg_wrapper%node, source=real_arg)
             int_call = create_function_call("int", [arg_wrapper], 3, 5)

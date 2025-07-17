@@ -41,7 +41,7 @@ contains
 
         ! Add variable to global scope
         target = create_identifier("global_var", 1, 1)
-        value = create_literal(LITERAL_INTEGER, "42", 1, 12)
+        value = create_literal("42", LITERAL_INTEGER, 1, 12)
         assign = create_assignment(target, value, 1, 1)
         typ = ctx%infer_stmt(assign)
 
@@ -78,7 +78,7 @@ contains
 
         ! Create function body with local variable
         local_ref = create_identifier("y", 2, 5)
-        value = create_literal(LITERAL_INTEGER, "10", 2, 9)
+        value = create_literal("10", LITERAL_INTEGER, 2, 9)
         local_assign = create_assignment(local_ref, value, 2, 5)
         allocate (body_wrapper%node, source=local_assign)
 
@@ -86,7 +86,7 @@ contains
                                create_identifier("integer", 1, 1), [body_wrapper], 1, 1)
 
         ! Analyze function
-        typ = ctx%analyze_function_def(func)
+        typ = ctx%infer_stmt(func)
 
         ! Try to access function parameter from global scope (should fail)
         local_ref = create_identifier("x", 3, 1)
@@ -118,32 +118,32 @@ contains
 
         ! Create outer variable
         outer_var = create_identifier("outer", 1, 1)
-        one = create_literal(LITERAL_INTEGER, "1", 1, 9)
+        one = create_literal("1", LITERAL_INTEGER, 1, 9)
         outer_assign = create_assignment(outer_var, one, 1, 1)
         typ = ctx%infer_stmt(outer_assign)
 
         ! Create if statement with variables in different blocks
         x_ref = create_identifier("x", 2, 5)
-        zero = create_literal(LITERAL_INTEGER, "0", 2, 9)
+        zero = create_literal("0", LITERAL_INTEGER, 2, 9)
         condition = create_binary_op(x_ref, zero, ">", 2, 7)
 
         ! Then block: y = 1
         y_ref = create_identifier("y", 3, 5)
-        one = create_literal(LITERAL_INTEGER, "1", 3, 9)
+        one = create_literal("1", LITERAL_INTEGER, 3, 9)
         then_assign = create_assignment(y_ref, one, 3, 5)
         allocate (then_wrapper%node, source=then_assign)
 
         ! Else block: y = 2 (different y)
         y_ref = create_identifier("y", 4, 5)
-        two = create_literal(LITERAL_INTEGER, "2", 4, 9)
+        two = create_literal("2", LITERAL_INTEGER, 4, 9)
         else_assign = create_assignment(y_ref, two, 4, 5)
         allocate (else_wrapper%node, source=else_assign)
 
         ! Create if statement
-        if_stmt = create_if(condition, [then_wrapper], [else_wrapper], 2, 1)
+        if_stmt = create_if(condition, then_body=[then_wrapper], else_body=[else_wrapper], line=2, column=1)
 
         ! Analyze if statement
-        typ = ctx%analyze_if_node(if_stmt)
+        typ = ctx%infer_stmt(if_stmt)
 
         ! Try to access y from outer scope (should fail)
         y_ref = create_identifier("y", 5, 1)
@@ -172,13 +172,13 @@ contains
         ctx = create_semantic_context()
 
         ! Create module with declaration
-        decl = create_declaration("real", "module_var", 1, 1)
+        decl = create_declaration("real", "module_var", line=1, column=1)
         allocate (decl_wrapper%node, source=decl)
 
-        mod = create_module("test_module", [decl_wrapper], 1, 1)
+        mod = create_module("test_module", declarations=[decl_wrapper], line=1, column=1)
 
         ! Analyze module
-        typ = ctx%analyze_module(mod)
+        typ = ctx%infer_stmt(mod)
 
         ! Module variables should not be visible in global scope
         var_ref = create_identifier("module_var", 2, 1)
@@ -209,7 +209,7 @@ contains
 
         ! Create global variable x = 42 (integer)
         local_var = create_identifier("x", 1, 1)
-        int_val = create_literal(LITERAL_INTEGER, "42", 1, 5)
+        int_val = create_literal("42", LITERAL_INTEGER, 1, 5)
         global_assign = create_assignment(local_var, int_val, 1, 1)
         typ = ctx%infer_stmt(global_assign)
 
@@ -219,7 +219,7 @@ contains
 
         ! Function body: use x (should refer to parameter, not global)
         ref = create_identifier("x", 3, 5)
-        real_val = create_literal(LITERAL_REAL, "3.14", 3, 9)
+        real_val = create_literal("3.14", LITERAL_REAL, 3, 9)
         local_assign = create_assignment(ref, real_val, 3, 5)
         allocate (body_wrapper%node, source=local_assign)
 
@@ -227,7 +227,7 @@ contains
                                   create_identifier("real", 2, 1), [body_wrapper], 2, 1)
 
         ! This should succeed - x in function refers to parameter
-        typ = ctx%analyze_function_def(func)
+        typ = ctx%infer_stmt(func)
 
         ! Verify global x still has integer type
         ref = create_identifier("x", 4, 1)
@@ -257,8 +257,8 @@ contains
         ctx = create_semantic_context()
 
         ! Create do loop
-        start_val = create_literal(LITERAL_INTEGER, "1", 1, 10)
-        end_val = create_literal(LITERAL_INTEGER, "10", 1, 15)
+        start_val = create_literal("1", LITERAL_INTEGER, 1, 10)
+        end_val = create_literal("10", LITERAL_INTEGER, 1, 15)
 
         ! Loop body uses loop variable
         loop_var = create_identifier("i", 2, 5)
@@ -266,10 +266,15 @@ contains
         body_assign = create_assignment(loop_var, ref, 2, 5)
         allocate (body_wrapper%node, source=body_assign)
 
-        loop = create_do_loop("i", start_val, end_val, [body_wrapper], 1, 1)
+        block
+            class(ast_node), allocatable :: body_array(:)
+            allocate(body_array(1))
+            allocate(body_array(1), source=body_wrapper%node)
+            loop = create_do_loop("i", start_val, end_val, body=body_array, line=1, column=1)
+        end block
 
         ! Analyze loop
-        typ = ctx%analyze_do_loop(loop)
+        typ = ctx%infer_stmt(loop)
 
         ! Try to access loop variable outside loop (should fail)
         ref = create_identifier("i", 3, 1)
