@@ -89,6 +89,25 @@ contains
         allocate (prog%body(1)%node, source=assign1)
         allocate (prog%body(2)%node, source=assign2)
 
+        ! Set inferred types manually for testing on the nodes in the program body
+        select type (stmt => prog%body(1)%node)
+        type is (assignment_node)
+            select type (target => stmt%target)
+            type is (identifier_node)
+                allocate (target%inferred_type)
+                target%inferred_type%kind = TINT
+            end select
+        end select
+
+        select type (stmt => prog%body(2)%node)
+        type is (assignment_node)
+            select type (target => stmt%target)
+            type is (identifier_node)
+                allocate (target%inferred_type)
+                target%inferred_type%kind = TREAL
+            end select
+        end select
+
         ! Generate code
         code = generate_code(prog)
 

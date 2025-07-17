@@ -369,17 +369,17 @@ This approach would eliminate the massive switch statement and improve maintaina
 - [ ] Test: Generate derived type declarations
 - [ ] Test: Generate interface blocks
 
-### 5.2 Statement Generation
-- [ ] Test: Assignment statements
-- [ ] Test: Control flow statements
-- [ ] Test: Procedure calls
-- [ ] Test: I/O statements
+### 5.2 Statement Generation ✅ COMPLETE
+- [x] Test: Assignment statements
+- [x] Test: Control flow statements
+- [x] Test: Procedure calls
+- [x] Test: I/O statements
 
-### 5.3 Program Structure
-- [ ] Test: Generate proper program/end program
-- [ ] Test: Generate contains section
-- [ ] Test: Generate use statements
-- [ ] Test: Generate implicit none
+### 5.3 Program Structure ✅ COMPLETE
+- [x] Test: Generate proper program/end program
+- [x] Test: Generate contains section
+- [x] Test: Generate use statements
+- [x] Test: Generate implicit none
 
 ### 5.4 Double Standardization Test
 - [ ] Test: For each frontend_test_case, standardize output again
@@ -476,7 +476,7 @@ This approach would eliminate the massive switch statement and improve maintaina
 4. **Double Standardization**: Output must be idempotent
 5. **No Shortcuts**: Everything through proper AST pipeline
 
-## Current Status - Phase 5.1 COMPLETE! ✅
+## Current Status - Phase 5.2 COMPLETE! ✅
 
 ### Code Generation with Type Inference Support 🎉
 
@@ -487,6 +487,14 @@ This approach would eliminate the massive switch statement and improve maintaina
 - Array declaration generation with proper dimension handling
 - Integration with type inference - can generate declarations from inferred types
 - Comprehensive test coverage with all tests passing
+
+**Phase 5.2 Statement Generation - COMPLETE! ✅**
+- Removed duplicate type inference from codegen_core.f90
+- Created clean codegen_declarations.f90 module that uses semantic analyzer's inferred types
+- Updated generate_variable_declarations to use mono_type_t from AST nodes
+- Eliminated complex fallback type inference logic
+- Full integration with Hindley-Milner type inference system
+- All tests passing including proper integer/real(8) type generation
 
 ### Semantic Analysis Fully Operational (Phase 4) ✅
 
