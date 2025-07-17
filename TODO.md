@@ -56,7 +56,7 @@ Extract smaller, focused modules from large pipeline modules to improve maintain
 - [ ] **ast_core.f90** (1425 lines) - Extract node factory functions, visitor pattern, node type definitions
   - [x] Phase 1: Created `ast_types.f90` - All AST node type definitions (550 lines)
   - [x] Phase 2: Created `ast_factory.f90` - All factory functions (428 lines)
-  - [ ] Phase 3: Extract `ast_visitor.f90` - Visitor pattern implementations
+  - [x] Phase 3: Created `ast_visitor.f90` - Visitor pattern implementations (140 lines)
   - [ ] Phase 4: Extract `ast_json.f90` - JSON serialization methods
   - [ ] Phase 5: Update ast_core.f90 to use new modules
 - [ ] **semantic_analyzer.f90** (1038 lines) - Extract type inference engine, constraint solver, environment management
