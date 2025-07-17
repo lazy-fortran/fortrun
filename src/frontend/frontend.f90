@@ -5,8 +5,8 @@ module frontend
 
     use lexer_core, only: token_t, tokenize_core, TK_EOF, TK_KEYWORD
     use parser_state_module, only: parser_state_t, create_parser_state
-    use parser_core, only: parse_expression, parse_statement, &
-             parse_function_definition, parse_do_loop, parse_do_while, parse_select_case
+    use parser_core, only: parse_expression, parse_statement, parse_function_definition
+  use parser_control_flow_module, only: parse_do_loop, parse_do_while, parse_select_case
     use ast_core
     use semantic_analyzer, only: semantic_context_t, create_semantic_context, analyze_program
     use codegen_core, only: generate_code, generate_code_polymorphic

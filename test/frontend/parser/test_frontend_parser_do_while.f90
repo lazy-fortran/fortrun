@@ -1,6 +1,7 @@
 ! Test do while loop parsing
 program test_frontend_parser_do_while
     use parser_core
+    use parser_control_flow_module, only: parse_do_while
     use parser_state_module, only: parser_state_t, create_parser_state
 use lexer_core, only: token_t, TK_KEYWORD, TK_OPERATOR, TK_IDENTIFIER, TK_NUMBER, TK_EOF
     use ast_core

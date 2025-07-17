@@ -2,6 +2,7 @@ program test_frontend_parser_if_statement
     use lexer_core
     use ast_core
     use parser_core
+    use parser_control_flow_module, only: parse_if
     implicit none
 
     logical :: all_passed

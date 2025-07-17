@@ -1,6 +1,7 @@
 program test_frontend_parser_do_loop
     use lexer_core
     use parser_core
+    use parser_control_flow_module, only: parse_do_loop
     use parser_state_module, only: parser_state_t, create_parser_state
     use ast_core
     use frontend, only: find_program_unit_boundary
