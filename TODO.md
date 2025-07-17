@@ -100,9 +100,9 @@ All code must follow **Safe Fortran** practices to prevent memory corruption. Th
 
 ### Safe Fortran Refactoring Tasks
 1. **Phase 1: Type System Memory Safety**
-   - [ ] Remove all manual `deallocate` calls in `type_system_hm.f90`
-   - [ ] Implement proper deep copy for `mono_type_t` and `poly_type_t`
-   - [ ] Fix `type_env_t` extend method to use deep copies
+   - [✅] Remove all manual `deallocate` calls in `type_system_hm.f90`
+   - [⚠️] Implement proper deep copy for `mono_type_t` and `poly_type_t` (partial - shallow copy for args)
+   - [✅] Fix `type_env_t` extend method to use deep copies
    - [ ] Eliminate shared ownership in semantic context
 
 2. **Phase 2: AST Memory Safety**
