@@ -266,121 +266,121 @@ module ast_types
     ! Forward declarations for procedures (will be implemented in other modules)
     interface
         subroutine program_accept(this, visitor)
-            import :: ast_node
+            import :: ast_node, program_node
             class(program_node), intent(in) :: this
             class(*), intent(inout) :: visitor
         end subroutine program_accept
 
         subroutine assignment_accept(this, visitor)
-            import :: ast_node
+            import :: ast_node, assignment_node
             class(assignment_node), intent(in) :: this
             class(*), intent(inout) :: visitor
         end subroutine assignment_accept
 
         subroutine binary_op_accept(this, visitor)
-            import :: ast_node
+            import :: ast_node, binary_op_node
             class(binary_op_node), intent(in) :: this
             class(*), intent(inout) :: visitor
         end subroutine binary_op_accept
 
         subroutine function_def_accept(this, visitor)
-            import :: ast_node
+            import :: ast_node, function_def_node
             class(function_def_node), intent(in) :: this
             class(*), intent(inout) :: visitor
         end subroutine function_def_accept
 
         subroutine subroutine_def_accept(this, visitor)
-            import :: ast_node
+            import :: ast_node, subroutine_def_node
             class(subroutine_def_node), intent(in) :: this
             class(*), intent(inout) :: visitor
         end subroutine subroutine_def_accept
 
         subroutine function_call_accept(this, visitor)
-            import :: ast_node
+            import :: ast_node, function_call_node
             class(function_call_node), intent(in) :: this
             class(*), intent(inout) :: visitor
         end subroutine function_call_accept
 
         subroutine call_or_subscript_accept(this, visitor)
-            import :: ast_node
+            import :: ast_node, call_or_subscript_node
             class(call_or_subscript_node), intent(in) :: this
             class(*), intent(inout) :: visitor
         end subroutine call_or_subscript_accept
 
         subroutine identifier_accept(this, visitor)
-            import :: ast_node
+            import :: ast_node, identifier_node
             class(identifier_node), intent(in) :: this
             class(*), intent(inout) :: visitor
         end subroutine identifier_accept
 
         subroutine literal_accept(this, visitor)
-            import :: ast_node
+            import :: ast_node, literal_node
             class(literal_node), intent(in) :: this
             class(*), intent(inout) :: visitor
         end subroutine literal_accept
 
         subroutine use_statement_accept(this, visitor)
-            import :: ast_node
+            import :: ast_node, use_statement_node
             class(use_statement_node), intent(in) :: this
             class(*), intent(inout) :: visitor
         end subroutine use_statement_accept
 
         subroutine include_statement_accept(this, visitor)
-            import :: ast_node
+            import :: ast_node, include_statement_node
             class(include_statement_node), intent(in) :: this
             class(*), intent(inout) :: visitor
         end subroutine include_statement_accept
 
         subroutine print_statement_accept(this, visitor)
-            import :: ast_node
+            import :: ast_node, print_statement_node
             class(print_statement_node), intent(in) :: this
             class(*), intent(inout) :: visitor
         end subroutine print_statement_accept
 
         subroutine declaration_accept(this, visitor)
-            import :: ast_node
+            import :: ast_node, declaration_node
             class(declaration_node), intent(in) :: this
             class(*), intent(inout) :: visitor
         end subroutine declaration_accept
 
         subroutine do_loop_accept(this, visitor)
-            import :: ast_node
+            import :: ast_node, do_loop_node
             class(do_loop_node), intent(in) :: this
             class(*), intent(inout) :: visitor
         end subroutine do_loop_accept
 
         subroutine do_while_accept(this, visitor)
-            import :: ast_node
+            import :: ast_node, do_while_node
             class(do_while_node), intent(in) :: this
             class(*), intent(inout) :: visitor
         end subroutine do_while_accept
 
         subroutine if_accept(this, visitor)
-            import :: ast_node
+            import :: ast_node, if_node
             class(if_node), intent(in) :: this
             class(*), intent(inout) :: visitor
         end subroutine if_accept
 
         subroutine select_case_accept(this, visitor)
-            import :: ast_node
+            import :: ast_node, select_case_node
             class(select_case_node), intent(in) :: this
             class(*), intent(inout) :: visitor
         end subroutine select_case_accept
 
         subroutine derived_type_accept(this, visitor)
-            import :: ast_node
+            import :: ast_node, derived_type_node
             class(derived_type_node), intent(in) :: this
             class(*), intent(inout) :: visitor
         end subroutine derived_type_accept
 
         subroutine interface_block_accept(this, visitor)
-            import :: ast_node
+            import :: ast_node, interface_block_node
             class(interface_block_node), intent(in) :: this
             class(*), intent(inout) :: visitor
         end subroutine interface_block_accept
 
         subroutine module_accept(this, visitor)
-            import :: ast_node
+            import :: ast_node, module_node
             class(module_node), intent(in) :: this
             class(*), intent(inout) :: visitor
         end subroutine module_accept
@@ -388,7 +388,7 @@ module ast_types
         ! JSON serialization interfaces
         subroutine program_to_json(this, json, parent)
             use json_module
-            import :: ast_node
+            import :: ast_node, program_node
             class(program_node), intent(in) :: this
             type(json_core), intent(inout) :: json
             type(json_value), pointer, intent(in) :: parent
@@ -396,7 +396,7 @@ module ast_types
 
         subroutine assignment_to_json(this, json, parent)
             use json_module
-            import :: ast_node
+            import :: ast_node, assignment_node
             class(assignment_node), intent(in) :: this
             type(json_core), intent(inout) :: json
             type(json_value), pointer, intent(in) :: parent
@@ -404,7 +404,7 @@ module ast_types
 
         subroutine binary_op_to_json(this, json, parent)
             use json_module
-            import :: ast_node
+            import :: ast_node, binary_op_node
             class(binary_op_node), intent(in) :: this
             type(json_core), intent(inout) :: json
             type(json_value), pointer, intent(in) :: parent
@@ -412,7 +412,7 @@ module ast_types
 
         subroutine function_def_to_json(this, json, parent)
             use json_module
-            import :: ast_node
+            import :: ast_node, function_def_node
             class(function_def_node), intent(in) :: this
             type(json_core), intent(inout) :: json
             type(json_value), pointer, intent(in) :: parent
@@ -420,7 +420,7 @@ module ast_types
 
         subroutine subroutine_def_to_json(this, json, parent)
             use json_module
-            import :: ast_node
+            import :: ast_node, subroutine_def_node
             class(subroutine_def_node), intent(in) :: this
             type(json_core), intent(inout) :: json
             type(json_value), pointer, intent(in) :: parent
@@ -428,7 +428,7 @@ module ast_types
 
         subroutine function_call_to_json(this, json, parent)
             use json_module
-            import :: ast_node
+            import :: ast_node, function_call_node
             class(function_call_node), intent(in) :: this
             type(json_core), intent(inout) :: json
             type(json_value), pointer, intent(in) :: parent
@@ -436,7 +436,7 @@ module ast_types
 
         subroutine call_or_subscript_to_json(this, json, parent)
             use json_module
-            import :: ast_node
+            import :: ast_node, call_or_subscript_node
             class(call_or_subscript_node), intent(in) :: this
             type(json_core), intent(inout) :: json
             type(json_value), pointer, intent(in) :: parent
@@ -444,7 +444,7 @@ module ast_types
 
         subroutine identifier_to_json(this, json, parent)
             use json_module
-            import :: ast_node
+            import :: ast_node, identifier_node
             class(identifier_node), intent(in) :: this
             type(json_core), intent(inout) :: json
             type(json_value), pointer, intent(in) :: parent
@@ -452,7 +452,7 @@ module ast_types
 
         subroutine literal_to_json(this, json, parent)
             use json_module
-            import :: ast_node
+            import :: ast_node, literal_node
             class(literal_node), intent(in) :: this
             type(json_core), intent(inout) :: json
             type(json_value), pointer, intent(in) :: parent
@@ -460,7 +460,7 @@ module ast_types
 
         subroutine use_statement_to_json(this, json, parent)
             use json_module
-            import :: ast_node
+            import :: ast_node, use_statement_node
             class(use_statement_node), intent(in) :: this
             type(json_core), intent(inout) :: json
             type(json_value), pointer, intent(in) :: parent
@@ -468,7 +468,7 @@ module ast_types
 
         subroutine include_statement_to_json(this, json, parent)
             use json_module
-            import :: ast_node
+            import :: ast_node, include_statement_node
             class(include_statement_node), intent(in) :: this
             type(json_core), intent(inout) :: json
             type(json_value), pointer, intent(in) :: parent
@@ -476,7 +476,7 @@ module ast_types
 
         subroutine print_statement_to_json(this, json, parent)
             use json_module
-            import :: ast_node
+            import :: ast_node, print_statement_node
             class(print_statement_node), intent(in) :: this
             type(json_core), intent(inout) :: json
             type(json_value), pointer, intent(in) :: parent
@@ -484,7 +484,7 @@ module ast_types
 
         subroutine declaration_to_json(this, json, parent)
             use json_module
-            import :: ast_node
+            import :: ast_node, declaration_node
             class(declaration_node), intent(in) :: this
             type(json_core), intent(inout) :: json
             type(json_value), pointer, intent(in) :: parent
@@ -492,7 +492,7 @@ module ast_types
 
         subroutine do_loop_to_json(this, json, parent)
             use json_module
-            import :: ast_node
+            import :: ast_node, do_loop_node
             class(do_loop_node), intent(in) :: this
             type(json_core), intent(inout) :: json
             type(json_value), pointer, intent(in) :: parent
@@ -500,7 +500,7 @@ module ast_types
 
         subroutine do_while_to_json(this, json, parent)
             use json_module
-            import :: ast_node
+            import :: ast_node, do_while_node
             class(do_while_node), intent(in) :: this
             type(json_core), intent(inout) :: json
             type(json_value), pointer, intent(in) :: parent
@@ -508,7 +508,7 @@ module ast_types
 
         subroutine if_to_json(this, json, parent)
             use json_module
-            import :: ast_node
+            import :: ast_node, if_node
             class(if_node), intent(in) :: this
             type(json_core), intent(inout) :: json
             type(json_value), pointer, intent(in) :: parent
@@ -516,7 +516,7 @@ module ast_types
 
         subroutine select_case_to_json(this, json, parent)
             use json_module
-            import :: ast_node
+            import :: ast_node, select_case_node
             class(select_case_node), intent(in) :: this
             type(json_core), intent(inout) :: json
             type(json_value), pointer, intent(in) :: parent
@@ -524,7 +524,7 @@ module ast_types
 
         subroutine derived_type_to_json(this, json, parent)
             use json_module
-            import :: ast_node
+            import :: ast_node, derived_type_node
             class(derived_type_node), intent(in) :: this
             type(json_core), intent(inout) :: json
             type(json_value), pointer, intent(in) :: parent
@@ -532,7 +532,7 @@ module ast_types
 
         subroutine interface_block_to_json(this, json, parent)
             use json_module
-            import :: ast_node
+            import :: ast_node, interface_block_node
             class(interface_block_node), intent(in) :: this
             type(json_core), intent(inout) :: json
             type(json_value), pointer, intent(in) :: parent
@@ -540,7 +540,7 @@ module ast_types
 
         subroutine module_to_json(this, json, parent)
             use json_module
-            import :: ast_node
+            import :: ast_node, module_node
             class(module_node), intent(in) :: this
             type(json_core), intent(inout) :: json
             type(json_value), pointer, intent(in) :: parent

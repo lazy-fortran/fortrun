@@ -1,5 +1,6 @@
 module codegen_core
     use ast_core
+    use type_system_hm
     implicit none
     private
 
@@ -7,7 +8,7 @@ module codegen_core
     logical :: context_has_executable_before_contains = .false.
 
     ! Public interface for code generation
-    public :: generate_code, generate_code_polymorphic
+    public :: generate_code, generate_code_polymorphic, generate_code_declaration
 
     ! Generic interface for all AST node types
     interface generate_code
@@ -454,30 +455,107 @@ contains
     function generate_code_declaration(node) result(code)
         type(declaration_node), intent(in) :: node
         character(len=:), allocatable :: code
+        character(len=:), allocatable :: type_str, dimensions_str
+        integer :: i
 
         ! Generate type declaration
-        code = node%type_name
+        if (len_trim(node%type_name) > 0) then
+            ! Use explicit type if provided
+            type_str = node%type_name
 
-        ! Add kind if specified
-        if (node%has_kind) then
-            block
-                character(len=10) :: kind_str
-                write (kind_str, '(I0)') node%kind_value
-                code = code//"("//trim(adjustl(kind_str))//")"
-            end block
-        else if (node%type_name == "real") then
-            ! Default to real(8) for lazy fortran
-            code = code//"(8)"
+            ! Add kind if specified
+            if (node%has_kind) then
+                if (node%type_name == "character") then
+                    ! For character, use len= syntax
+                    block
+                        character(len=10) :: kind_str
+                        write (kind_str, '(I0)') node%kind_value
+                        type_str = type_str//"(len="//trim(adjustl(kind_str))//")"
+                    end block
+                else
+                    ! For numeric types, use regular kind syntax
+                    block
+                        character(len=10) :: kind_str
+                        write (kind_str, '(I0)') node%kind_value
+                        type_str = type_str//"("//trim(adjustl(kind_str))//")"
+                    end block
+                end if
+            else if (node%type_name == "real") then
+                ! Default to real(8) for lazy fortran
+                type_str = type_str//"(8)"
+            end if
+        else if (allocated(node%inferred_type)) then
+            ! Use inferred type if no explicit type provided
+            type_str = generate_type_declaration_from_mono(node%inferred_type)
+        else
+            ! Fallback
+            type_str = "! ERROR: No type information"
         end if
 
-        ! Add variable name
-        code = code//" :: "//node%var_name
+        ! Start with allocatable attribute if present
+        if (node%is_allocatable) then
+            code = type_str//", allocatable :: "//node%var_name
+        else
+            code = type_str//" :: "//node%var_name
+        end if
+
+        ! Add array dimensions if present
+        if (node%is_array .and. allocated(node%dimensions)) then
+            dimensions_str = "("
+            do i = 1, size(node%dimensions)
+                if (i > 1) dimensions_str = dimensions_str//", "
+                ! Generate code for each dimension
+                if (allocated(node%dimensions(i)%node)) then
+     dimensions_str = dimensions_str//generate_code_polymorphic(node%dimensions(i)%node)
+                else
+                    dimensions_str = dimensions_str//":"  ! Assumed shape
+                end if
+            end do
+            dimensions_str = dimensions_str//")"
+            code = code//dimensions_str
+        end if
 
         ! Add initialization if present
         if (allocated(node%initializer)) then
             code = code//" = "//generate_code_polymorphic(node%initializer)
         end if
     end function generate_code_declaration
+
+    ! Generate type declaration string from mono_type_t
+    recursive function generate_type_declaration_from_mono(mono_type) result(type_str)
+        type(mono_type_t), intent(in) :: mono_type
+        character(len=:), allocatable :: type_str
+        character(len=10) :: size_str
+
+        select case (mono_type%kind)
+        case (TINT)
+            type_str = "integer"
+        case (TREAL)
+            type_str = "real(8)"  ! Default to real(8) for lazy fortran
+        case (TCHAR)
+            if (mono_type%size > 0) then
+                write (size_str, '(I0)') mono_type%size
+                type_str = "character(len="//trim(adjustl(size_str))//")"
+            else
+                type_str = "character(len=*)"  ! Assumed length
+            end if
+        case (TARRAY)
+            ! For arrays, get the element type
+            if (allocated(mono_type%args) .and. size(mono_type%args) > 0) then
+                type_str = generate_type_declaration_from_mono(mono_type%args(1))
+            else
+                type_str = "! ERROR: Array without element type"
+            end if
+        case (TVAR)
+            ! Type variable - should have been resolved by now
+            type_str = "! ERROR: Unresolved type variable "//mono_type%var%name
+        case (TFUN)
+            ! Function type - not directly declarable in Fortran
+            type_str = "! ERROR: Cannot declare function type directly"
+        case default
+            type_str = "! ERROR: Unknown type kind"
+        end select
+    end function generate_type_declaration_from_mono
 
     ! generate_code_lf_program removed - core program_node handler includes inference
 
