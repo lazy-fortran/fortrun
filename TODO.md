@@ -418,11 +418,14 @@ This allows testing of the core pipeline while the type inference memory issue i
 - Basic Fortran 95 compilation still works
 
 **Progress Summary**:
-- 6 test cases created for Phase 6.1 basic features
+- 9 test cases created across Phase 6.1, 6.3, and 6.4
 - 1 test case fully working (single_assignment)
 - 4 test cases with duplicate declarations issue (multiple_assignments, arithmetic_ops, string_assignment, logical_assignment)
 - 1 test case with array processing issue (array_literal)
-- 1 test case with segmentation fault (if_statement)
+- 3 test cases with memory corruption crashes (if_statement, do_loop, simple_function)
+
+**Critical Finding**: AST memory corruption is systemic and blocks all advanced features.
+Only simple single-statement assignments work reliably.
 
 ### 6.1 Basic Features ✅ PROGRESS
 - [x] single_assignment: integer :: x; x = 42 ✅ WORKING
@@ -452,9 +455,13 @@ This allows testing of the core pipeline while the type inference memory issue i
 2. **Array literal processing**: Array assignments incomplete (arr = [1, 2, 3] becomes arr =)
    - Affects: array_literal test case
    - Parser or codegen issue with array constructor syntax
-3. **Control flow crashes**: Segmentation fault in AST copy operation
-   - Affects: if_statement (crashes with SIGSEGV in __ast_core_MOD___copy_ast_core_Declaration_node)
-   - Memory management issue in AST handling
+3. **⚠️ CRITICAL: Widespread AST memory corruption**:
+   - **Pattern**: Any complex AST structures cause crashes in __ast_core_MOD___copy_* operations
+   - **Affected**: Control flow (if_statement, do_loop), procedures (simple_function), arrays
+   - **Errors**: Segmentation faults, malloc corruption, unaligned tcache chunks
+   - **Root cause**: Memory management issues in AST copy operations during parsing
+   - **Impact**: Blocks all advanced features beyond simple assignments
+   - **Only working**: Simple single-statement assignments with explicit types
 
 ### 6.2 Type Inference
 - [ ] mixed_arithmetic: x = 1; y = x + 2.5
@@ -467,11 +474,15 @@ This allows testing of the core pipeline while the type inference memory issue i
   - Created example/frontend_test_cases/if_statement/
   - Issue: Segmentation fault in AST copy operation (__ast_core_MOD___copy_ast_core_Declaration_node)
 - [ ] if_else: if (x > 0) then y = 1 else y = -1
-- [ ] do_loop: do i = 1, 10; sum = sum + i; end do
+- [❌] do_loop: do i = 1, 10; sum = sum + i; end do ❌ CRASH
+  - Created example/frontend_test_cases/do_loop/
+  - Issue: Memory corruption in AST copy (__ast_core_MOD___copy_ast_core_Assignment_node)
 - [ ] where_construct: where (arr > 0) arr = sqrt(arr)
 
 ### 6.4 Procedures
-- [ ] simple_function: f(x) = x**2
+- [❌] simple_function: function square(x); square = x * x; end function ❌ CRASH
+  - Created example/frontend_test_cases/simple_function/
+  - Issue: Segmentation fault in AST copy (__ast_core_MOD___copy_ast_core_Binary_op_node)
 - [ ] multi_arg_function: g(x, y) = x + y
 - [ ] subroutine: subroutine swap(a, b)
 - [ ] recursive_function: factorial(n)
