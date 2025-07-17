@@ -7,6 +7,7 @@ module parser_core
                                         parse_interface_block, parse_module
     use parser_control_flow_module, only: parse_do_loop, parse_do_while, parse_select_case, parse_if, &
                                           parse_if_condition, parse_if_body
+    use parser_dispatcher_module, only: parse_statement_dispatcher
     use ast_core, only: ast_node, ast_node_wrapper, assignment_node, binary_op_node, &
              identifier_node, literal_node, call_or_subscript_node, function_def_node, &
                         subroutine_def_node, print_statement_node, use_statement_node, &
@@ -30,181 +31,13 @@ module parser_core
 
 contains
 
-    ! Parse a simple statement (minimal implementation for TDD)
+    ! Parse a statement by delegating to the dispatcher
     function parse_statement(tokens) result(stmt)
         type(token_t), intent(in) :: tokens(:)
         class(ast_node), allocatable :: stmt
-        type(parser_state_t) :: parser
-        type(token_t) :: id_token, op_token, first_token
-        class(ast_node), allocatable :: target, value
 
-        parser = create_parser_state(tokens)
-
-        ! Check first token to determine statement type
-        first_token = parser%peek()
-
-        ! Check for use statement
-        if (first_token%kind == TK_KEYWORD .and. first_token%text == "use") then
-            stmt = parse_use_statement(parser)
-            return
-            ! Check for include statement
-       else if (first_token%kind == TK_KEYWORD .and. first_token%text == "include") then
-            stmt = parse_include_statement(parser)
-            return
-            ! Check for print statement
-        else if (first_token%kind == TK_KEYWORD .and. first_token%text == "print") then
-            stmt = parse_print_statement(parser)
-            return
-            ! Check for derived type definition vs variable declaration with derived type
-        else if (first_token%kind == TK_KEYWORD .and. first_token%text == "type") then
-            ! Check if this is a derived type definition or variable declaration
-            block
-                type(token_t) :: second_token
-                logical :: is_derived_type_def
-
-                is_derived_type_def = .false.
-
-                ! Look at second token to determine
-                if (parser%current_token + 1 <= size(parser%tokens)) then
-                    second_token = parser%tokens(parser%current_token + 1)
-
-                    ! If second token is :: or identifier, it's a derived type definition
-              if (second_token%kind == TK_OPERATOR .and. second_token%text == "::") then
-                        is_derived_type_def = .true.
-                    else if (second_token%kind == TK_IDENTIFIER) then
-                        is_derived_type_def = .true.
-                    end if
-                end if
-
-                if (is_derived_type_def) then
-                    stmt = parse_derived_type(parser)
-                    return
-                else
-                    ! This is a variable declaration like type(point) :: p
-                    ! Check if it has ::
-                    block
-                        integer :: i
-                        logical :: has_double_colon
-                        has_double_colon = .false.
-
-    do i = parser%current_token + 1, min(parser%current_token + 10, size(parser%tokens))
-      if (parser%tokens(i)%kind == TK_OPERATOR .and. parser%tokens(i)%text == "::") then
-                                has_double_colon = .true.
-                                exit
- else if (parser%tokens(i)%kind == TK_KEYWORD .or. parser%tokens(i)%kind == TK_EOF) then
-                                exit
-                            end if
-                        end do
-
-                        if (has_double_colon) then
-                            stmt = parse_declaration(parser)
-                            return
-                        end if
-                    end block
-                end if
-            end block
-
-            ! Variable declarations for other types (real :: x, integer :: i, etc.)
-        else if (first_token%kind == TK_KEYWORD .and. &
-                 (first_token%text == "real" .or. first_token%text == "integer" .or. &
-               first_token%text == "logical" .or. first_token%text == "character" .or. &
-                  first_token%text == "complex") .and. &
-                 parser%current_token + 1 <= size(parser%tokens)) then
-            ! Check if it's a declaration (has ::)
-            block
-                integer :: i
-                logical :: has_double_colon
-                has_double_colon = .false.
-
-    do i = parser%current_token + 1, min(parser%current_token + 10, size(parser%tokens))
-      if (parser%tokens(i)%kind == TK_OPERATOR .and. parser%tokens(i)%text == "::") then
-                        has_double_colon = .true.
-                        exit
- else if (parser%tokens(i)%kind == TK_KEYWORD .or. parser%tokens(i)%kind == TK_EOF) then
-                        exit
-                    end if
-                end do
-
-                if (has_double_colon) then
-                    stmt = parse_declaration(parser)
-                    return
-                end if
-            end block
-            ! Check for function definition: [type] function name(params)
-      else if (first_token%kind == TK_KEYWORD .and. first_token%text == "function") then
-            stmt = parse_function_definition(parser)
-            return
-        else if (first_token%kind == TK_KEYWORD .and. &
-                 (first_token%text == "real" .or. first_token%text == "integer" .or. &
-               first_token%text == "logical" .or. first_token%text == "character")) then
-            ! Look ahead to see if next token is "function"
-            if (parser%current_token + 1 <= size(parser%tokens)) then
-                block
-                    type(token_t) :: second_token
-                    second_token = parser%tokens(parser%current_token + 1)
-         if (second_token%kind == TK_KEYWORD .and. second_token%text == "function") then
-                        stmt = parse_function_definition(parser)
-                        return
-                    end if
-                end block
-            end if
-            ! Check for if statement
-        else if (first_token%kind == TK_KEYWORD .and. first_token%text == "if") then
-            stmt = parse_if(parser)
-            return
-            ! Check for do loop
-        else if (first_token%kind == TK_KEYWORD .and. first_token%text == "do") then
-            stmt = parse_do_loop(parser)
-            return
-            ! Check for select case
-        else if (first_token%kind == TK_KEYWORD .and. first_token%text == "select") then
-            stmt = parse_select_case(parser)
-            return
-            ! Check for subroutine definition
-    else if (first_token%kind == TK_KEYWORD .and. first_token%text == "subroutine") then
-            stmt = parse_subroutine_definition(parser)
-            return
-            ! Check for interface block
-     else if (first_token%kind == TK_KEYWORD .and. first_token%text == "interface") then
-            stmt = parse_interface_block(parser)
-            return
-            ! Check for module
-        else if (first_token%kind == TK_KEYWORD .and. first_token%text == "module") then
-            stmt = parse_module(parser)
-            return
-        end if
-
-        ! Look for pattern: IDENTIFIER = EXPRESSION or IDENTIFIER(params) = EXPRESSION
-        id_token = parser%peek()
-        if (id_token%kind == TK_IDENTIFIER) then
-            id_token = parser%consume()
-
-            op_token = parser%peek()
-
-            if (op_token%kind == TK_OPERATOR .and. op_token%text == "=") then
-                op_token = parser%consume()
-
-                ! Create target identifier
-               target = create_identifier(id_token%text, id_token%line, id_token%column)
-
-                ! Parse value expression
-                value = parse_expression(parser%tokens(parser%current_token:))
-
-                ! Create assignment
-                block
-                    type(assignment_node), allocatable :: assign_node
-                    allocate (assign_node)
-          assign_node = create_assignment(target, value, id_token%line, id_token%column)
-                    allocate (stmt, source=assign_node)
-                end block
-            else
-                ! Not an assignment, treat as expression statement
-                stmt = create_identifier(id_token%text, id_token%line, id_token%column)
-            end if
-        else
-            ! Parse as expression
-            stmt = parse_expression(tokens)
-        end if
+        ! Delegate to the dispatcher module
+        stmt = parse_statement_dispatcher(tokens)
 
     end function parse_statement
 

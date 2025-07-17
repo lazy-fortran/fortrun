@@ -4,8 +4,11 @@ module parser_dispatcher_module
     use lexer_core
     use parser_state_module
     use parser_expressions_module
-    use parser_declarations_module
-    use parser_statements_module
+    use parser_declarations_module, only: parse_declaration
+    use parser_statements_module, only: parse_use_statement, parse_include_statement, &
+                                     parse_print_statement, parse_function_definition, &
+                                   parse_subroutine_definition, parse_interface_block, &
+                                        parse_module, parse_derived_type
     use parser_control_flow_module
     use ast_core
     implicit none
