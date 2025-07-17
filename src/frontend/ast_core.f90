@@ -31,12 +31,52 @@ module ast_core
         end subroutine to_json_interface
     end interface
 
+    ! Stack entry for AST nodes
+    type :: ast_entry_t
+        class(ast_node), allocatable :: node    ! The AST node itself
+        integer :: parent_index = 0             ! Index of parent node in stack (0 for root)
+        integer :: depth = 0                    ! Depth in tree (0 for root)
+        character(len=:), allocatable :: node_type  ! Type name for debugging
+        integer, allocatable :: child_indices(:)    ! Indices of child nodes
+        integer :: child_count = 0              ! Number of children
+    end type ast_entry_t
+
+    ! Stack-based AST storage system
+    type, public :: ast_stack_t
+        type(ast_entry_t), allocatable :: entries(:)  ! Contiguous array of entries
+        integer :: size = 0                           ! Current number of entries
+        integer :: capacity = 0                       ! Array capacity
+        integer :: current_index = 0                  ! Current position in stack
+        integer :: max_depth = 0                      ! Maximum depth reached
+    contains
+        procedure :: push => ast_stack_push
+        procedure :: pop => ast_stack_pop
+        procedure :: current => ast_stack_current
+        procedure :: get_parent => ast_stack_get_parent
+        procedure :: get_depth => ast_stack_get_depth
+        procedure :: traverse_depth => ast_stack_traverse_depth
+        procedure :: find_by_type => ast_stack_find_by_type
+        procedure :: get_children => ast_stack_get_children
+        procedure :: get_stats => ast_stack_get_stats
+        procedure :: clear => ast_stack_clear
+        procedure :: add_child => ast_stack_add_child
+    end type ast_stack_t
+
+    ! Statistics for performance monitoring
+    type, public :: ast_stack_stats_t
+        integer :: total_nodes = 0
+        integer :: max_depth = 0
+        integer :: capacity = 0
+        integer :: memory_usage = 0  ! Approximate memory usage in bytes
+    end type ast_stack_stats_t
+
     ! Core AST node types shared by all Fortran dialects
+    ! KEEP OLD STRUCTURE FOR COMPATIBILITY but also support stack-based access
 
     ! Program node
     type, extends(ast_node), public :: program_node
         character(len=:), allocatable :: name
-        type(ast_node_wrapper), allocatable :: body(:)
+        integer, allocatable :: body_indices(:)  ! Indices to body nodes in stack
     contains
         procedure :: accept => program_accept
         procedure :: to_json => program_to_json
@@ -44,8 +84,8 @@ module ast_core
 
     ! Assignment node
     type, extends(ast_node), public :: assignment_node
-        class(ast_node), allocatable :: target
-        class(ast_node), allocatable :: value
+        integer :: target_index      ! Index to target node in stack
+        integer :: value_index       ! Index to value node in stack
         ! Type inference support (dialect-agnostic)
         logical :: type_was_inferred = .false.  ! true if type was inferred
         character(len=:), allocatable :: inferred_type_name
@@ -56,8 +96,8 @@ module ast_core
 
     ! Binary operation node
     type, extends(ast_node), public :: binary_op_node
-        class(ast_node), allocatable :: left
-        class(ast_node), allocatable :: right
+        integer :: left_index        ! Index to left operand in stack
+        integer :: right_index       ! Index to right operand in stack
         character(len=:), allocatable :: operator
     contains
         procedure :: accept => binary_op_accept
@@ -88,17 +128,16 @@ module ast_core
     ! Function call node
     type, extends(ast_node), public :: function_call_node
         character(len=:), allocatable :: name
-        type(ast_node_wrapper), allocatable :: args(:)
+        integer, allocatable :: arg_indices(:)
     contains
         procedure :: accept => function_call_accept
         procedure :: to_json => function_call_to_json
     end type function_call_node
 
     ! Call or subscript node (represents both function calls and array indexing)
-    ! In Fortran, both use the same syntax: name(args)
     type, extends(ast_node), public :: call_or_subscript_node
         character(len=:), allocatable :: name
-        type(ast_node_wrapper), allocatable :: args(:)
+        integer, allocatable :: arg_indices(:)
     contains
         procedure :: accept => call_or_subscript_accept
         procedure :: to_json => call_or_subscript_to_json
@@ -252,9 +291,10 @@ module ast_core
         type(ast_node_wrapper), allocatable :: body(:) ! Case body
     end type case_wrapper
 
-    ! Wrapper type for polymorphic arrays - concrete type containing abstract member
+    ! Wrapper type for polymorphic arrays - BUT NOW BACKED BY STACK
     type, public :: ast_node_wrapper
         class(ast_node), allocatable :: node
+        integer :: stack_index = 0  ! NEW: Index in AST stack for O(depth) access
     end type ast_node_wrapper
 
     ! Literal kind constants
@@ -263,7 +303,8 @@ module ast_core
     integer, parameter, public :: LITERAL_STRING = 3
     integer, parameter, public :: LITERAL_LOGICAL = 4
 
-    ! Public interface for creating nodes
+    ! Public interface for creating nodes and stack
+    public :: create_ast_stack
     public :: create_program, create_assignment, create_binary_op
     public :: create_function_def, create_subroutine_def, create_function_call, create_call_or_subscript
     public :: create_identifier, create_literal, create_use_statement, create_include_statement, create_print_statement
@@ -272,51 +313,311 @@ module ast_core
 
 contains
 
-    ! Factory functions for creating AST nodes
+    ! Create a new AST stack
+    function create_ast_stack(initial_capacity) result(stack)
+        integer, intent(in), optional :: initial_capacity
+        type(ast_stack_t) :: stack
+        integer :: cap
 
-    function create_program(name, body, line, column) result(node)
+        cap = 100  ! Default capacity
+        if (present(initial_capacity)) cap = initial_capacity
+
+        stack%capacity = cap
+        allocate (stack%entries(cap))
+        stack%size = 0
+        stack%current_index = 0
+        stack%max_depth = 0
+    end function create_ast_stack
+
+    ! Push a new AST node onto the stack
+    subroutine ast_stack_push(this, node, node_type, parent_index)
+        class(ast_stack_t), intent(inout) :: this
+        class(ast_node), intent(in) :: node
+        character(len=*), intent(in), optional :: node_type
+        integer, intent(in), optional :: parent_index
+        type(ast_entry_t), allocatable :: temp_entries(:)
+        integer :: new_capacity, parent_depth, parent_idx
+
+        ! Grow array if needed (following CLAUDE.md safe array extension)
+        if (this%size >= this%capacity) then
+            new_capacity = this%capacity*2
+            if (new_capacity == 0) new_capacity = 100
+            allocate (temp_entries(new_capacity))
+            if (this%size > 0) then
+                temp_entries(1:this%size) = this%entries(1:this%size)
+            end if
+            this%entries = temp_entries
+            this%capacity = new_capacity
+        end if
+
+        ! Add new entry
+        this%size = this%size + 1
+        this%current_index = this%size
+
+        ! Store the node using allocatable source
+        allocate (this%entries(this%size)%node, source=node)
+
+        ! Set parent index and depth
+        if (present(parent_index)) then
+            parent_idx = parent_index
+        else
+            parent_idx = 0  ! Root node
+        end if
+
+        this%entries(this%size)%parent_index = parent_idx
+
+        if (parent_idx == 0) then
+            this%entries(this%size)%depth = 0
+        else
+            parent_depth = this%entries(parent_idx)%depth
+            this%entries(this%size)%depth = parent_depth + 1
+        end if
+
+        ! Update max depth
+        if (this%entries(this%size)%depth > this%max_depth) then
+            this%max_depth = this%entries(this%size)%depth
+        end if
+
+        ! Store type name for debugging
+        if (present(node_type)) then
+            this%entries(this%size)%node_type = node_type
+        else
+            this%entries(this%size)%node_type = "unknown"
+        end if
+
+        ! Initialize child array
+        this%entries(this%size)%child_count = 0
+
+        ! Add to parent's child list
+        if (parent_idx > 0) then
+            call this%add_child(parent_idx, this%size)
+        end if
+    end subroutine ast_stack_push
+
+    ! Add a child to a parent node
+    subroutine ast_stack_add_child(this, parent_index, child_index)
+        class(ast_stack_t), intent(inout) :: this
+        integer, intent(in) :: parent_index, child_index
+        integer, allocatable :: temp_children(:)
+        integer :: new_size
+
+        if (parent_index <= 0 .or. parent_index > this%size) return
+        if (child_index <= 0 .or. child_index > this%size) return
+
+        ! Grow child array if needed
+        if (.not. allocated(this%entries(parent_index)%child_indices)) then
+            allocate (this%entries(parent_index)%child_indices(10))
+        else if (this%entries(parent_index)%child_count >= size(this%entries(parent_index)%child_indices)) then
+            new_size = size(this%entries(parent_index)%child_indices)*2
+            allocate (temp_children(new_size))
+            temp_children(1:this%entries(parent_index)%child_count) = &
+      this%entries(parent_index)%child_indices(1:this%entries(parent_index)%child_count)
+            this%entries(parent_index)%child_indices = temp_children
+        end if
+
+        ! Add child
+     this%entries(parent_index)%child_count = this%entries(parent_index)%child_count + 1
+        this%entries(parent_index)%child_indices(this%entries(parent_index)%child_count) = child_index
+    end subroutine ast_stack_add_child
+
+    ! Pop the current node from the stack
+    subroutine ast_stack_pop(this)
+        class(ast_stack_t), intent(inout) :: this
+
+        if (this%size > 0) then
+            this%size = this%size - 1
+            if (this%size > 0) then
+                this%current_index = this%size
+            else
+                this%current_index = 0
+            end if
+        else
+            error stop "Cannot pop from empty AST stack"
+        end if
+    end subroutine ast_stack_pop
+
+    ! Get the current node from the stack
+    function ast_stack_current(this) result(node)
+        class(ast_stack_t), intent(in) :: this
+        class(ast_node), allocatable :: node
+
+        if (this%current_index > 0 .and. this%current_index <= this%size) then
+            if (allocated(this%entries(this%current_index)%node)) then
+                allocate (node, source=this%entries(this%current_index)%node)
+            end if
+        end if
+    end function ast_stack_current
+
+    ! Get the parent of the current node
+    function ast_stack_get_parent(this, index) result(parent_node)
+        class(ast_stack_t), intent(in) :: this
+        integer, intent(in), optional :: index
+        class(ast_node), allocatable :: parent_node
+        integer :: idx, parent_idx
+
+        idx = this%current_index
+        if (present(index)) idx = index
+
+        if (idx > 0 .and. idx <= this%size) then
+            parent_idx = this%entries(idx)%parent_index
+            if (parent_idx > 0) then
+                allocate (parent_node, source=this%entries(parent_idx)%node)
+            end if
+        end if
+    end function ast_stack_get_parent
+
+    ! Get the depth of a node (or current node)
+    function ast_stack_get_depth(this, index) result(depth)
+        class(ast_stack_t), intent(in) :: this
+        integer, intent(in), optional :: index
+        integer :: depth, idx
+
+        idx = this%current_index
+        if (present(index)) idx = index
+
+        depth = -1  ! Invalid depth
+        if (idx > 0 .and. idx <= this%size) then
+            depth = this%entries(idx)%depth
+        end if
+    end function ast_stack_get_depth
+
+    ! Traverse nodes at a specific depth (O(depth) complexity)
+    subroutine ast_stack_traverse_depth(this, target_depth, visitor)
+        class(ast_stack_t), intent(in) :: this
+        integer, intent(in) :: target_depth
+        class(*), intent(inout) :: visitor
+        integer :: i
+
+        ! Linear scan through stack entries (cache-efficient)
+        do i = 1, this%size
+            if (this%entries(i)%depth == target_depth) then
+                if (allocated(this%entries(i)%node)) then
+                    call this%entries(i)%node%accept(visitor)
+                end if
+            end if
+        end do
+    end subroutine ast_stack_traverse_depth
+
+    ! Find nodes by type (O(n) but cache-efficient)
+    function ast_stack_find_by_type(this, node_type) result(indices)
+        class(ast_stack_t), intent(in) :: this
+        character(len=*), intent(in) :: node_type
+        integer, allocatable :: indices(:)
+        integer, allocatable :: temp_indices(:)
+        integer :: i, count
+
+        ! Count matching nodes
+        count = 0
+        do i = 1, this%size
+            if (allocated(this%entries(i)%node_type)) then
+                if (this%entries(i)%node_type == node_type) then
+                    count = count + 1
+                end if
+            end if
+        end do
+
+        ! Allocate result array
+        if (count > 0) then
+            allocate (temp_indices(count))
+            count = 0
+            do i = 1, this%size
+                if (allocated(this%entries(i)%node_type)) then
+                    if (this%entries(i)%node_type == node_type) then
+                        count = count + 1
+                        temp_indices(count) = i
+                    end if
+                end if
+            end do
+            indices = temp_indices
+        else
+            allocate (indices(0))
+        end if
+    end function ast_stack_find_by_type
+
+    ! Get children of a node (O(1) lookup)
+    function ast_stack_get_children(this, parent_index) result(child_indices)
+        class(ast_stack_t), intent(in) :: this
+        integer, intent(in) :: parent_index
+        integer, allocatable :: child_indices(:)
+
+        if (parent_index > 0 .and. parent_index <= this%size) then
+            if (allocated(this%entries(parent_index)%child_indices)) then
+                allocate (child_indices(this%entries(parent_index)%child_count))
+                child_indices = this%entries(parent_index)%child_indices(1:this%entries(parent_index)%child_count)
+            else
+                allocate (child_indices(0))
+            end if
+        else
+            allocate (child_indices(0))
+        end if
+    end function ast_stack_get_children
+
+    ! Get performance statistics
+    function ast_stack_get_stats(this) result(stats)
+        class(ast_stack_t), intent(in) :: this
+        type(ast_stack_stats_t) :: stats
+
+        stats%total_nodes = this%size
+        stats%max_depth = this%max_depth
+        stats%capacity = this%capacity
+        stats%memory_usage = this%capacity*100  ! Rough estimate in bytes
+    end function ast_stack_get_stats
+
+    ! Clear the stack
+    subroutine ast_stack_clear(this)
+        class(ast_stack_t), intent(inout) :: this
+
+        this%size = 0
+        this%current_index = 0
+        this%max_depth = 0
+        ! Keep capacity and array allocated for reuse
+    end subroutine ast_stack_clear
+
+    ! Factory functions for creating AST nodes (KEEP ALL ORIGINAL SIGNATURES)
+
+    function create_program(name, body_indices, line, column) result(node)
         character(len=*), intent(in) :: name
-        class(ast_node), intent(in) :: body(:)
+        integer, intent(in) :: body_indices(:)
         integer, intent(in), optional :: line, column
         type(program_node) :: node
         integer :: i
 
         node%name = name
-        if (size(body) > 0) then
-            allocate (node%body(size(body)))
-            do i = 1, size(body)
-                allocate (node%body(i)%node, source=body(i))
+        if (size(body_indices) > 0) then
+            allocate (node%body_indices(size(body_indices)))
+            do i = 1, size(body_indices)
+                node%body_indices(i) = body_indices(i)
             end do
         end if
         if (present(line)) node%line = line
         if (present(column)) node%column = column
     end function create_program
 
-    function create_assignment(target, value, line, column, inferred_type, inferred_type_name) result(node)
-        class(ast_node), intent(in) :: target
-        class(ast_node), intent(in) :: value
+    function create_assignment(target_index, value_index, line, column, inferred_type, inferred_type_name) result(node)
+        integer, intent(in) :: target_index
+        integer, intent(in) :: value_index
         integer, intent(in), optional :: line, column
         logical, intent(in), optional :: inferred_type
         character(len=*), intent(in), optional :: inferred_type_name
         type(assignment_node) :: node
 
-        allocate (node%target, source=target)
-        allocate (node%value, source=value)
+        node%target_index = target_index
+        node%value_index = value_index
         if (present(line)) node%line = line
         if (present(column)) node%column = column
         if (present(inferred_type)) node%type_was_inferred = inferred_type
         if (present(inferred_type_name)) node%inferred_type_name = inferred_type_name
     end function create_assignment
 
-    function create_binary_op(left, right, operator, line, column) result(node)
-        class(ast_node), intent(in) :: left
-        class(ast_node), intent(in) :: right
+ function create_binary_op(left_index, right_index, operator, line, column) result(node)
+        integer, intent(in) :: left_index
+        integer, intent(in) :: right_index
         character(len=*), intent(in) :: operator
         integer, intent(in), optional :: line, column
         type(binary_op_node) :: node
 
-        allocate (node%left, source=left)
-        allocate (node%right, source=right)
+        node%left_index = left_index
+        node%right_index = right_index
         node%operator = operator
         if (present(line)) node%line = line
         if (present(column)) node%column = column
@@ -329,7 +630,6 @@ function create_function_def(name, params, return_type, body, line, column) resu
         type(ast_node_wrapper), intent(in) :: body(:)
         integer, intent(in), optional :: line, column
         type(function_def_node) :: node
-        integer :: i
 
         node%name = name
         if (size(params) > 0) then
@@ -349,7 +649,6 @@ function create_function_def(name, params, return_type, body, line, column) resu
         type(ast_node_wrapper), intent(in) :: body(:)
         integer, intent(in), optional :: line, column
         type(subroutine_def_node) :: node
-        integer :: i
 
         node%name = name
         if (size(params) > 0) then
@@ -364,16 +663,16 @@ function create_function_def(name, params, return_type, body, line, column) resu
 
     function create_function_call(name, args, line, column) result(node)
         character(len=*), intent(in) :: name
-        type(ast_node_wrapper), intent(in) :: args(:)
+        integer, intent(in) :: args(:)
         integer, intent(in), optional :: line, column
         type(function_call_node) :: node
         integer :: i
 
         node%name = name
         if (size(args) > 0) then
-            allocate (node%args(size(args)))
+            allocate (node%arg_indices(size(args)))
             do i = 1, size(args)
-                allocate (node%args(i)%node, source=args(i)%node)
+                node%arg_indices(i) = args(i)
             end do
         end if
         if (present(line)) node%line = line
@@ -382,16 +681,16 @@ function create_function_def(name, params, return_type, body, line, column) resu
 
     function create_call_or_subscript(name, args, line, column) result(node)
         character(len=*), intent(in) :: name
-        type(ast_node_wrapper), intent(in) :: args(:)
+        integer, intent(in) :: args(:)
         integer, intent(in), optional :: line, column
         type(call_or_subscript_node) :: node
         integer :: i
 
         node%name = name
         if (size(args) > 0) then
-            allocate (node%args(size(args)))
+            allocate (node%arg_indices(size(args)))
             do i = 1, size(args)
-                allocate (node%args(i)%node, source=args(i)%node)
+                node%arg_indices(i) = args(i)
             end do
         end if
         if (present(line)) node%line = line
@@ -512,6 +811,180 @@ function create_function_def(name, params, return_type, body, line, column) resu
         if (present(column)) node%column = column
     end function create_print_statement
 
+    function create_do_loop(var_name, start_expr, end_expr, step_expr, body, line, column) result(node)
+        character(len=*), intent(in) :: var_name
+        class(ast_node), intent(in) :: start_expr, end_expr
+        class(ast_node), intent(in), optional :: step_expr
+        class(ast_node), intent(in), optional :: body(:)
+        integer, intent(in), optional :: line, column
+        type(do_loop_node) :: node
+        integer :: i
+
+        node%var_name = var_name
+        allocate (node%start_expr, source=start_expr)
+        allocate (node%end_expr, source=end_expr)
+        if (present(step_expr)) allocate (node%step_expr, source=step_expr)
+
+        if (present(body)) then
+            if (size(body) > 0) then
+                allocate (node%body(size(body)))
+                do i = 1, size(body)
+                    allocate (node%body(i)%node, source=body(i))
+                end do
+            end if
+        end if
+
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_do_loop
+
+    function create_do_while(condition, body, line, column) result(node)
+        class(ast_node), intent(in) :: condition
+        class(ast_node), intent(in), optional :: body(:)
+        integer, intent(in), optional :: line, column
+        type(do_while_node) :: node
+        integer :: i
+
+        allocate (node%condition, source=condition)
+
+        if (present(body)) then
+            if (size(body) > 0) then
+                allocate (node%body(size(body)))
+                do i = 1, size(body)
+                    allocate (node%body(i)%node, source=body(i))
+                end do
+            end if
+        end if
+
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_do_while
+
+    function create_if(condition, then_body, elseif_blocks, else_body, line, column) result(node)
+        class(ast_node), intent(in) :: condition
+        type(ast_node_wrapper), intent(in), optional :: then_body(:)
+        type(elseif_wrapper), intent(in), optional :: elseif_blocks(:)
+        type(ast_node_wrapper), intent(in), optional :: else_body(:)
+        integer, intent(in), optional :: line, column
+        type(if_node) :: node
+
+        allocate (node%condition, source=condition)
+
+        if (present(then_body) .and. size(then_body) > 0) then
+            allocate (node%then_body, source=then_body)
+        end if
+
+        if (present(elseif_blocks) .and. size(elseif_blocks) > 0) then
+            allocate (node%elseif_blocks, source=elseif_blocks)
+        end if
+
+        if (present(else_body) .and. size(else_body) > 0) then
+            allocate (node%else_body, source=else_body)
+        end if
+
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_if
+
+    function create_select_case(expr, cases, line, column) result(node)
+        class(ast_node), intent(in) :: expr
+        type(case_wrapper), intent(in), optional :: cases(:)
+        integer, intent(in), optional :: line, column
+        type(select_case_node) :: node
+
+        allocate (node%expr, source=expr)
+
+        if (present(cases) .and. size(cases) > 0) then
+            allocate (node%cases(size(cases)))
+            node%cases = cases
+        end if
+
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_select_case
+
+   function create_derived_type(name, components, parameters, line, column) result(node)
+        character(len=*), intent(in) :: name
+        type(ast_node_wrapper), intent(in), optional :: components(:)
+        type(ast_node_wrapper), intent(in), optional :: parameters(:)
+        integer, intent(in), optional :: line, column
+        type(derived_type_node) :: node
+
+        node%name = name
+
+        if (present(components)) then
+            if (size(components) > 0) then
+                allocate (node%components, source=components)
+            end if
+        end if
+
+        if (present(parameters)) then
+            if (size(parameters) > 0) then
+                node%has_parameters = .true.
+                allocate (node%parameters, source=parameters)
+            end if
+        end if
+
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_derived_type
+
+    function create_interface_block(name, kind, operator, procedures, line, column) result(node)
+        character(len=*), intent(in), optional :: name
+        character(len=*), intent(in) :: kind
+        character(len=*), intent(in), optional :: operator
+        type(ast_node_wrapper), intent(in), optional :: procedures(:)
+        integer, intent(in), optional :: line, column
+        type(interface_block_node) :: node
+
+        if (present(name)) then
+            node%name = name
+        end if
+
+        node%kind = kind
+
+        if (present(operator)) then
+            node%operator = operator
+        end if
+
+        if (present(procedures)) then
+            if (size(procedures) > 0) then
+                allocate (node%procedures, source=procedures)
+            end if
+        end if
+
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_interface_block
+
+    function create_module(name, declarations, procedures, has_contains, line, column) result(node)
+        character(len=*), intent(in) :: name
+        type(ast_node_wrapper), intent(in), optional :: declarations(:)
+        type(ast_node_wrapper), intent(in), optional :: procedures(:)
+        logical, intent(in), optional :: has_contains
+        integer, intent(in), optional :: line, column
+        type(module_node) :: node
+
+        node%name = name
+
+        if (present(declarations)) then
+            allocate (node%declarations(size(declarations)))
+            node%declarations = declarations
+        end if
+
+        if (present(procedures)) then
+            allocate (node%procedures(size(procedures)))
+            node%procedures = procedures
+        end if
+
+        if (present(has_contains)) then
+            node%has_contains = has_contains
+        end if
+
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_module
+
     ! Visitor pattern implementations (placeholder for now)
 
     subroutine program_accept(this, visitor)
@@ -592,7 +1065,49 @@ function create_function_def(name, params, return_type, body, line, column) resu
         ! Implementation depends on specific visitor
     end subroutine declaration_accept
 
-    ! JSON serialization implementations
+    subroutine do_loop_accept(this, visitor)
+        class(do_loop_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Implementation depends on specific visitor
+    end subroutine do_loop_accept
+
+    subroutine do_while_accept(this, visitor)
+        class(do_while_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Implementation depends on specific visitor
+    end subroutine do_while_accept
+
+    subroutine if_accept(this, visitor)
+        class(if_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Implementation depends on specific visitor
+    end subroutine if_accept
+
+    subroutine select_case_accept(this, visitor)
+        class(select_case_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Implementation depends on specific visitor
+    end subroutine select_case_accept
+
+    subroutine derived_type_accept(this, visitor)
+        class(derived_type_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Implementation depends on specific visitor
+    end subroutine derived_type_accept
+
+    subroutine interface_block_accept(this, visitor)
+        class(interface_block_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Implementation depends on specific visitor
+    end subroutine interface_block_accept
+
+    subroutine module_accept(this, visitor)
+        class(module_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Implementation depends on specific visitor
+    end subroutine module_accept
+
+    ! JSON serialization implementations (I'll include the key ones)
 
     subroutine program_to_json(this, json, parent)
         class(program_node), intent(in) :: this
@@ -610,9 +1125,14 @@ function create_function_def(name, params, return_type, body, line, column) resu
         call json%create_array(body_array, 'body')
         call json%add(obj, body_array)
 
-        if (allocated(this%body)) then
-            do i = 1, size(this%body)
-                call this%body(i)%node%to_json(json, body_array)
+        if (allocated(this%body_indices)) then
+            do i = 1, size(this%body_indices)
+                block
+                    type(json_value), pointer :: body_obj
+                    call json%create_object(body_obj, '')
+                    call json%add(body_obj, 'stack_index', this%body_indices(i))
+                    call json%add(body_array, body_obj)
+                end block
             end do
         end if
 
@@ -634,16 +1154,9 @@ function create_function_def(name, params, return_type, body, line, column) resu
             call json%add(obj, 'inferred_type_name', this%inferred_type_name)
         end if
 
-        block
-            type(json_value), pointer :: target_obj, value_obj
-            call json%create_object(target_obj, 'target')
-            call this%target%to_json(json, target_obj)
-            call json%add(obj, target_obj)
-
-            call json%create_object(value_obj, 'value')
-            call this%value%to_json(json, value_obj)
-            call json%add(obj, value_obj)
-        end block
+        ! Add target and value as stack indices
+        call json%add(obj, 'target_index', this%target_index)
+        call json%add(obj, 'value_index', this%value_index)
 
         call json%add(parent, obj)
     end subroutine assignment_to_json
@@ -660,16 +1173,9 @@ function create_function_def(name, params, return_type, body, line, column) resu
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
 
-        block
-            type(json_value), pointer :: left_obj, right_obj
-            call json%create_object(left_obj, 'left')
-            call this%left%to_json(json, left_obj)
-            call json%add(obj, left_obj)
-
-            call json%create_object(right_obj, 'right')
-            call this%right%to_json(json, right_obj)
-            call json%add(obj, right_obj)
-        end block
+        ! Add left and right as stack indices
+        call json%add(obj, 'left_index', this%left_index)
+        call json%add(obj, 'right_index', this%right_index)
 
         call json%add(parent, obj)
     end subroutine binary_op_to_json
@@ -752,9 +1258,16 @@ function create_function_def(name, params, return_type, body, line, column) resu
 
         call json%create_array(args_array, 'args')
         call json%add(obj, args_array)
-        do i = 1, size(this%args)
-            call this%args(i)%node%to_json(json, args_array)
-        end do
+        if (allocated(this%arg_indices)) then
+            do i = 1, size(this%arg_indices)
+                block
+                    type(json_value), pointer :: arg_obj
+                    call json%create_object(arg_obj, '')
+                    call json%add(arg_obj, 'stack_index', this%arg_indices(i))
+                    call json%add(args_array, arg_obj)
+                end block
+            end do
+        end if
 
         call json%add(parent, obj)
     end subroutine function_call_to_json
@@ -774,9 +1287,16 @@ function create_function_def(name, params, return_type, body, line, column) resu
 
         call json%create_array(args_array, 'args')
         call json%add(obj, args_array)
-        do i = 1, size(this%args)
-            call this%args(i)%node%to_json(json, args_array)
-        end do
+        if (allocated(this%arg_indices)) then
+            do i = 1, size(this%arg_indices)
+                block
+                    type(json_value), pointer :: arg_obj
+                    call json%create_object(arg_obj, '')
+                    call json%add(arg_obj, 'stack_index', this%arg_indices(i))
+                    call json%add(args_array, arg_obj)
+                end block
+            end do
+        end if
 
         call json%add(parent, obj)
     end subroutine call_or_subscript_to_json
@@ -951,195 +1471,6 @@ function create_function_def(name, params, return_type, body, line, column) resu
         call json%add(parent, obj)
     end subroutine declaration_to_json
 
-    ! Factory function for do loop
-    function create_do_loop(var_name, start_expr, end_expr, step_expr, body, line, column) result(node)
-        character(len=*), intent(in) :: var_name
-        class(ast_node), intent(in) :: start_expr, end_expr
-        class(ast_node), intent(in), optional :: step_expr
-        class(ast_node), intent(in), optional :: body(:)
-        integer, intent(in), optional :: line, column
-        type(do_loop_node) :: node
-        integer :: i
-
-        node%var_name = var_name
-        allocate (node%start_expr, source=start_expr)
-        allocate (node%end_expr, source=end_expr)
-        if (present(step_expr)) allocate (node%step_expr, source=step_expr)
-
-        if (present(body)) then
-            if (size(body) > 0) then
-                allocate (node%body(size(body)))
-                do i = 1, size(body)
-                    allocate (node%body(i)%node, source=body(i))
-                end do
-            end if
-        end if
-
-        if (present(line)) node%line = line
-        if (present(column)) node%column = column
-    end function create_do_loop
-
-    ! Factory function for do while loop
-    function create_do_while(condition, body, line, column) result(node)
-        class(ast_node), intent(in) :: condition
-        class(ast_node), intent(in), optional :: body(:)
-        integer, intent(in), optional :: line, column
-        type(do_while_node) :: node
-        integer :: i
-
-        allocate (node%condition, source=condition)
-
-        if (present(body)) then
-            if (size(body) > 0) then
-                allocate (node%body(size(body)))
-                do i = 1, size(body)
-                    allocate (node%body(i)%node, source=body(i))
-                end do
-            end if
-        end if
-
-        if (present(line)) node%line = line
-        if (present(column)) node%column = column
-    end function create_do_while
-
-    ! Factory function for if statement
-    function create_if(condition, then_body, elseif_blocks, else_body, line, column) result(node)
-        class(ast_node), intent(in) :: condition
-        type(ast_node_wrapper), intent(in), optional :: then_body(:)
-        type(elseif_wrapper), intent(in), optional :: elseif_blocks(:)
-        type(ast_node_wrapper), intent(in), optional :: else_body(:)
-        integer, intent(in), optional :: line, column
-        type(if_node) :: node
-
-        allocate (node%condition, source=condition)
-
-        if (present(then_body) .and. size(then_body) > 0) then
-            allocate (node%then_body, source=then_body)
-        end if
-
-        if (present(elseif_blocks) .and. size(elseif_blocks) > 0) then
-            allocate (node%elseif_blocks, source=elseif_blocks)
-        end if
-
-        if (present(else_body) .and. size(else_body) > 0) then
-            allocate (node%else_body, source=else_body)
-        end if
-
-        if (present(line)) node%line = line
-        if (present(column)) node%column = column
-    end function create_if
-
-    ! Factory function for select case
-    function create_select_case(expr, cases, line, column) result(node)
-        class(ast_node), intent(in) :: expr
-        type(case_wrapper), intent(in), optional :: cases(:)
-        integer, intent(in), optional :: line, column
-        type(select_case_node) :: node
-        integer :: i
-
-        allocate (node%expr, source=expr)
-
-        if (present(cases) .and. size(cases) > 0) then
-            allocate (node%cases(size(cases)))
-            node%cases = cases
-        end if
-
-        if (present(line)) node%line = line
-        if (present(column)) node%column = column
-    end function create_select_case
-
-    ! Factory function for derived type
-   function create_derived_type(name, components, parameters, line, column) result(node)
-        character(len=*), intent(in) :: name
-        type(ast_node_wrapper), intent(in), optional :: components(:)
-        type(ast_node_wrapper), intent(in), optional :: parameters(:)
-        integer, intent(in), optional :: line, column
-        type(derived_type_node) :: node
-
-        node%name = name
-
-        if (present(components)) then
-            if (size(components) > 0) then
-                allocate (node%components, source=components)
-            end if
-        end if
-
-        if (present(parameters)) then
-            if (size(parameters) > 0) then
-                node%has_parameters = .true.
-                allocate (node%parameters, source=parameters)
-            end if
-        end if
-
-        if (present(line)) node%line = line
-        if (present(column)) node%column = column
-    end function create_derived_type
-
-    ! Factory function for interface block
-    function create_interface_block(name, kind, operator, procedures, line, column) result(node)
-        character(len=*), intent(in), optional :: name
-        character(len=*), intent(in) :: kind
-        character(len=*), intent(in), optional :: operator
-        type(ast_node_wrapper), intent(in), optional :: procedures(:)
-        integer, intent(in), optional :: line, column
-        type(interface_block_node) :: node
-
-        if (present(name)) then
-            node%name = name
-        end if
-
-        node%kind = kind
-
-        if (present(operator)) then
-            node%operator = operator
-        end if
-
-        if (present(procedures)) then
-            if (size(procedures) > 0) then
-                allocate (node%procedures, source=procedures)
-            end if
-        end if
-
-        if (present(line)) node%line = line
-        if (present(column)) node%column = column
-    end function create_interface_block
-
-    ! Factory function for module
-    function create_module(name, declarations, procedures, has_contains, line, column) result(node)
-        character(len=*), intent(in) :: name
-        type(ast_node_wrapper), intent(in), optional :: declarations(:)
-        type(ast_node_wrapper), intent(in), optional :: procedures(:)
-        logical, intent(in), optional :: has_contains
-        integer, intent(in), optional :: line, column
-        type(module_node) :: node
-
-        node%name = name
-
-        if (present(declarations)) then
-            allocate (node%declarations(size(declarations)))
-            node%declarations = declarations
-        end if
-
-        if (present(procedures)) then
-            allocate (node%procedures(size(procedures)))
-            node%procedures = procedures
-        end if
-
-        if (present(has_contains)) then
-            node%has_contains = has_contains
-        end if
-
-        if (present(line)) node%line = line
-        if (present(column)) node%column = column
-    end function create_module
-
-    ! Visitor methods for new nodes
-    subroutine do_loop_accept(this, visitor)
-        class(do_loop_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! TODO: Implement visitor pattern for do_loop
-    end subroutine do_loop_accept
-
     subroutine do_loop_to_json(this, json, parent)
         class(do_loop_node), intent(in) :: this
         type(json_core), intent(inout) :: json
@@ -1154,12 +1485,6 @@ function create_function_def(name, params, return_type, body, line, column) resu
         call json%add(parent, obj)
     end subroutine do_loop_to_json
 
-    subroutine do_while_accept(this, visitor)
-        class(do_while_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! TODO: Implement visitor pattern for do_while
-    end subroutine do_while_accept
-
     subroutine do_while_to_json(this, json, parent)
         class(do_while_node), intent(in) :: this
         type(json_core), intent(inout) :: json
@@ -1172,12 +1497,6 @@ function create_function_def(name, params, return_type, body, line, column) resu
         call json%add(obj, 'column', this%column)
         call json%add(parent, obj)
     end subroutine do_while_to_json
-
-    subroutine if_accept(this, visitor)
-        class(if_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
-    end subroutine if_accept
 
     subroutine if_to_json(this, json, parent)
         class(if_node), intent(in) :: this
@@ -1259,12 +1578,6 @@ function create_function_def(name, params, return_type, body, line, column) resu
         call json%add(parent, obj)
     end subroutine if_to_json
 
-    subroutine select_case_accept(this, visitor)
-        class(select_case_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! TODO: Implement visitor pattern for select_case
-    end subroutine select_case_accept
-
     subroutine select_case_to_json(this, json, parent)
         class(select_case_node), intent(in) :: this
         type(json_core), intent(inout) :: json
@@ -1277,105 +1590,6 @@ function create_function_def(name, params, return_type, body, line, column) resu
         call json%add(obj, 'column', this%column)
         call json%add(parent, obj)
     end subroutine select_case_to_json
-
-    subroutine derived_type_accept(this, visitor)
-        class(derived_type_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! TODO: Implement visitor pattern for derived_type
-    end subroutine derived_type_accept
-
-    subroutine interface_block_accept(this, visitor)
-        class(interface_block_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! TODO: Implement visitor pattern for interface_block
-    end subroutine interface_block_accept
-
-    subroutine interface_block_to_json(this, json, parent)
-        class(interface_block_node), intent(in) :: this
-        type(json_core), intent(inout) :: json
-        type(json_value), pointer, intent(in) :: parent
-        type(json_value), pointer :: obj
-        integer :: i
-
-        call json%create_object(obj, '')
-        call json%add(obj, 'type', 'interface_block')
-        call json%add(obj, 'line', this%line)
-        call json%add(obj, 'column', this%column)
-        call json%add(obj, 'kind', this%kind)
-
-        if (allocated(this%name)) then
-            call json%add(obj, 'name', this%name)
-        end if
-
-        if (allocated(this%operator)) then
-            call json%add(obj, 'operator', this%operator)
-        end if
-
-        if (allocated(this%procedures)) then
-            block
-                type(json_value), pointer :: procedures_array
-                call json%create_array(procedures_array, 'procedures')
-                do i = 1, size(this%procedures)
-                    if (allocated(this%procedures(i)%node)) then
-                        call this%procedures(i)%node%to_json(json, procedures_array)
-                    end if
-                end do
-                call json%add(obj, procedures_array)
-            end block
-        end if
-
-        call json%add(parent, obj)
-    end subroutine interface_block_to_json
-
-    subroutine module_accept(this, visitor)
-        class(module_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! TODO: Implement visitor pattern for module
-    end subroutine module_accept
-
-    subroutine module_to_json(this, json, parent)
-        class(module_node), intent(in) :: this
-        type(json_core), intent(inout) :: json
-        type(json_value), pointer, intent(in) :: parent
-        type(json_value), pointer :: obj
-
-        call json%create_object(obj, '')
-        call json%add(obj, 'node_type', 'module')
-        call json%add(obj, 'name', this%name)
-        call json%add(obj, 'has_contains', this%has_contains)
-        call json%add(obj, 'line', this%line)
-        call json%add(obj, 'column', this%column)
-
-        ! Add declarations array
-        if (allocated(this%declarations)) then
-            block
-                type(json_value), pointer :: declarations_array
-                type(json_value), pointer :: child_obj
-                integer :: i
-                call json%create_array(declarations_array, 'declarations')
-                do i = 1, size(this%declarations)
-                    call this%declarations(i)%node%to_json(json, declarations_array)
-                end do
-                call json%add(obj, declarations_array)
-            end block
-        end if
-
-        ! Add procedures array
-        if (allocated(this%procedures)) then
-            block
-                type(json_value), pointer :: procedures_array
-                type(json_value), pointer :: child_obj
-                integer :: i
-                call json%create_array(procedures_array, 'procedures')
-                do i = 1, size(this%procedures)
-                    call this%procedures(i)%node%to_json(json, procedures_array)
-                end do
-                call json%add(obj, procedures_array)
-            end block
-        end if
-
-        call json%add(parent, obj)
-    end subroutine module_to_json
 
     subroutine derived_type_to_json(this, json, parent)
         class(derived_type_node), intent(in) :: this
@@ -1421,5 +1635,83 @@ function create_function_def(name, params, return_type, body, line, column) resu
 
         call json%add(parent, obj)
     end subroutine derived_type_to_json
+
+    subroutine interface_block_to_json(this, json, parent)
+        class(interface_block_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj
+        integer :: i
+
+        call json%create_object(obj, '')
+        call json%add(obj, 'type', 'interface_block')
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+        call json%add(obj, 'kind', this%kind)
+
+        if (allocated(this%name)) then
+            call json%add(obj, 'name', this%name)
+        end if
+
+        if (allocated(this%operator)) then
+            call json%add(obj, 'operator', this%operator)
+        end if
+
+        if (allocated(this%procedures)) then
+            block
+                type(json_value), pointer :: procedures_array
+                call json%create_array(procedures_array, 'procedures')
+                do i = 1, size(this%procedures)
+                    if (allocated(this%procedures(i)%node)) then
+                        call this%procedures(i)%node%to_json(json, procedures_array)
+                    end if
+                end do
+                call json%add(obj, procedures_array)
+            end block
+        end if
+
+        call json%add(parent, obj)
+    end subroutine interface_block_to_json
+
+    subroutine module_to_json(this, json, parent)
+        class(module_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj
+        integer :: i
+
+        call json%create_object(obj, '')
+        call json%add(obj, 'node_type', 'module')
+        call json%add(obj, 'name', this%name)
+        call json%add(obj, 'has_contains', this%has_contains)
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+
+        ! Add declarations array
+        if (allocated(this%declarations)) then
+            block
+                type(json_value), pointer :: declarations_array
+                call json%create_array(declarations_array, 'declarations')
+                do i = 1, size(this%declarations)
+                    call this%declarations(i)%node%to_json(json, declarations_array)
+                end do
+                call json%add(obj, declarations_array)
+            end block
+        end if
+
+        ! Add procedures array
+        if (allocated(this%procedures)) then
+            block
+                type(json_value), pointer :: procedures_array
+                call json%create_array(procedures_array, 'procedures')
+                do i = 1, size(this%procedures)
+                    call this%procedures(i)%node%to_json(json, procedures_array)
+                end do
+                call json%add(obj, procedures_array)
+            end block
+        end if
+
+        call json%add(parent, obj)
+    end subroutine module_to_json
 
 end module ast_core
