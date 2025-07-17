@@ -53,12 +53,15 @@ Extract smaller, focused modules from large pipeline modules to improve maintain
   - [x] All tests pass after refactoring
   - [x] Clean separation of concerns achieved
   - [x] Project builds successfully and all parser functionality verified
-- [ ] **ast_core.f90** (1425 lines) - Extract node factory functions, visitor pattern, node type definitions
+- [x] **ast_core.f90** (1425 → 307 lines) ✅ MAJOR REFACTORING COMPLETE:
   - [x] Phase 1: Created `ast_types.f90` - All AST node type definitions (550 lines)
   - [x] Phase 2: Created `ast_factory.f90` - All factory functions (428 lines)
   - [x] Phase 3: Created `ast_visitor.f90` - Visitor pattern implementations (140 lines)
-  - [ ] Phase 4: Extract `ast_json.f90` - JSON serialization methods
-  - [ ] Phase 5: Update ast_core.f90 to use new modules
+  - [x] Phase 4: Created `ast_json.f90` - JSON serialization methods (420 lines)
+  - [x] Total reduction: ~1118 lines extracted from ast_core (78% reduction!)
+  - [x] All tests pass after refactoring
+  - [x] Clean separation of concerns achieved
+  - [x] Improved modularity and maintainability
 - [ ] **semantic_analyzer.f90** (1038 lines) - Extract type inference engine, constraint solver, environment management
 - [x] **json_writer.f90** (137 lines) - Already small, no refactoring needed
 - [ ] **frontend.f90** (723 lines) - Within target size, lower priority for refactoring
