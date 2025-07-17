@@ -71,7 +71,9 @@ contains
 
         ! Initialize empty environment
         scope%env%count = 0
-        scope%env%capacity = 0
+        scope%env%capacity = 10  ! Start with some capacity
+        allocate (character(len=256) :: scope%env%names(scope%env%capacity))
+        allocate (scope%env%schemes(scope%env%capacity))
 
     end function create_scope
 
@@ -91,6 +93,11 @@ contains
         class(scope_t), intent(in) :: this
         character(len=*), intent(in) :: name
         type(poly_type_t), allocatable :: scheme
+
+        ! Safety check: ensure env is properly initialized
+        if (this%env%count < 0 .or. this%env%capacity < 0) then
+            return
+        end if
 
         scheme = this%env%lookup(name)
 
