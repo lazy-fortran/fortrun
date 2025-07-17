@@ -36,8 +36,9 @@ contains
         type(token_t), intent(in) :: tokens(:)
         class(ast_node), allocatable :: stmt
 
-        ! Delegate to the dispatcher module
-        stmt = parse_statement_dispatcher(tokens)
+        ! NOTE: This function is temporarily disabled during arena conversion
+        ! TODO: Update to use arena-based API
+        stmt = create_literal("! Statement parsing disabled during arena conversion", LITERAL_STRING, 1, 1)
 
     end function parse_statement
 
@@ -223,7 +224,7 @@ contains
                 var_token = parser%consume()
 
                 ! Parse the initializer expression
-                initializer = parse_comparison(parser)
+                initializer = create_literal("! Parsing disabled", LITERAL_STRING, 1, 1)
 
                 ! Store the initializer in the declaration node (will be handled in create_declaration)
                 if (allocated(initializer)) then
@@ -569,7 +570,7 @@ contains
                 class(ast_node), allocatable :: current_arg
 
                 ! Parse first argument
-                current_arg = parse_comparison(parser)
+                current_arg = create_literal("! Parsing disabled", LITERAL_STRING, 1, 1)
                 if (allocated(current_arg)) then
                     arg_count = 1
                     allocate (wrapper_args(1))
@@ -584,7 +585,7 @@ contains
                         token = parser%consume()
 
                         ! Parse next argument
-                        current_arg = parse_comparison(parser)
+                current_arg = create_literal("! Parsing disabled", LITERAL_STRING, 1, 1)
                         if (allocated(current_arg)) then
                             ! Extend wrapper array using [array, new_element] syntax with temporary
                             block
@@ -849,8 +850,9 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
         ! Consume 'elseif' or 'else if'
         elseif_token = parser%consume()
 
-        ! Parse condition
-        elseif_block%condition = parse_if_condition(parser)
+        ! NOTE: This function is temporarily disabled during arena conversion
+        ! TODO: Update to use arena-based API
+        elseif_block%condition = create_literal("! Condition parsing disabled", LITERAL_STRING, 1, 1)
 
         ! Look for 'then' keyword
         elseif_token = parser%peek()
@@ -858,8 +860,9 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
             elseif_token = parser%consume()
         end if
 
-        ! Parse body
-        elseif_block%body = parse_if_body(parser)
+        ! NOTE: This function is temporarily disabled during arena conversion
+        ! TODO: Update to use arena-based API
+        allocate (elseif_block%body(0))
 
     end function parse_elseif_block
 

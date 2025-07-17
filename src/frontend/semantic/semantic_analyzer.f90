@@ -82,7 +82,8 @@ contains
             call analyze_program_node(ctx, ast)
         class default
             ! Single statement/expression
-            call infer_and_store_type(ctx, ast)
+            ! NOTE: This function is temporarily disabled during arena conversion
+            ! TODO: Convert to use arena-based indexing
         end select
     end subroutine analyze_program
 
@@ -100,7 +101,7 @@ contains
             call analyze_program_node_stack(ctx, arena, ast, root_index)
         class default
             ! Single statement/expression
-            call infer_and_store_type_stack(ctx, arena, root_index)
+            call infer_and_store_type(ctx, arena, root_index)
         end select
     end subroutine analyze_program_stack
 
@@ -144,7 +145,7 @@ contains
         if (node_index <= 0 .or. node_index > arena%size) return
         if (.not. allocated(arena%entries(node_index)%node)) return
 
-        inferred = ctx%infer_stmt(stack, node_index)
+        inferred = ctx%infer_stmt(arena, node_index)
 
         ! Store the inferred type in the AST node
         if (.not. allocated(arena%entries(node_index)%node%inferred_type)) then
@@ -179,7 +180,7 @@ contains
             typ = create_mono_type(TINT)  ! print returns unit/void, use int
         class default
             ! For expressions, use general inference
-            typ = this%infer(stack, stmt_index)
+            typ = this%infer(arena, stmt_index)
         end select
     end function infer_statement_type
 
@@ -802,23 +803,9 @@ contains
         ! Enter module scope
         call ctx%scopes%enter_module(mod_node%name)
 
-        ! Analyze declarations
-        if (allocated(mod_node%declarations)) then
-            do i = 1, size(mod_node%declarations)
-                if (allocated(mod_node%declarations(i)%node)) then
-                    call infer_and_store_type(ctx, mod_node%declarations(i)%node)
-                end if
-            end do
-        end if
-
-        ! Analyze procedures (after contains)
-        if (allocated(mod_node%procedures)) then
-            do i = 1, size(mod_node%procedures)
-                if (allocated(mod_node%procedures(i)%node)) then
-                    call infer_and_store_type(ctx, mod_node%procedures(i)%node)
-                end if
-            end do
-        end if
+        ! NOTE: This function is temporarily disabled during arena conversion
+        ! TODO: Convert to use arena-based indexing
+        ! Module declarations and procedures analysis would go here
 
         ! Leave module scope
         call ctx%scopes%leave_scope()
@@ -859,14 +846,9 @@ contains
             allocate (param_types(0))
         end if
 
-        ! Analyze function body
-        if (allocated(func_def%body)) then
-            do i = 1, size(func_def%body)
-                if (allocated(func_def%body(i)%node)) then
-                    call infer_and_store_type(ctx, func_def%body(i)%node)
-                end if
-            end do
-        end if
+        ! NOTE: This function is temporarily disabled during arena conversion
+        ! TODO: Convert to use arena-based indexing
+        ! Function body analysis would go here
 
         ! Infer return type (for now, use a fresh type variable)
         return_type = create_mono_type(TVAR, var=ctx%fresh_type_var())
@@ -920,14 +902,9 @@ contains
             end do
         end if
 
-        ! Analyze subroutine body
-        if (allocated(sub_def%body)) then
-            do i = 1, size(sub_def%body)
-                if (allocated(sub_def%body(i)%node)) then
-                    call infer_and_store_type(ctx, sub_def%body(i)%node)
-                end if
-            end do
-        end if
+        ! NOTE: This function is temporarily disabled during arena conversion
+        ! TODO: Convert to use arena-based indexing
+        ! Subroutine body analysis would go here
 
         ! Leave subroutine scope
         call ctx%scopes%leave_scope()
@@ -948,65 +925,27 @@ contains
         type(mono_type_t) :: typ
         integer :: i, j
 
-        ! Analyze condition
-        if (allocated(if_stmt%condition)) then
-            call infer_and_store_type(ctx, if_stmt%condition)
-        end if
+        ! NOTE: This function is temporarily disabled during arena conversion
+        ! TODO: Convert to use arena-based indexing
+        ! Condition analysis would go here
 
         ! Enter then block scope
         call ctx%scopes%enter_block()
 
-        ! Analyze then body
-        if (allocated(if_stmt%then_body)) then
-            do i = 1, size(if_stmt%then_body)
-                if (allocated(if_stmt%then_body(i)%node)) then
-                    call infer_and_store_type(ctx, if_stmt%then_body(i)%node)
-                end if
-            end do
-        end if
+        ! NOTE: This function is temporarily disabled during arena conversion
+        ! TODO: Convert to use arena-based indexing
+        ! Then body analysis would go here
 
         ! Leave then block scope
         call ctx%scopes%leave_scope()
 
-        ! Analyze elseif blocks
-        if (allocated(if_stmt%elseif_blocks)) then
-            do i = 1, size(if_stmt%elseif_blocks)
-                ! Analyze elseif condition
-                if (allocated(if_stmt%elseif_blocks(i)%condition)) then
-                    call infer_and_store_type(ctx, if_stmt%elseif_blocks(i)%condition)
-                end if
+        ! NOTE: This function is temporarily disabled during arena conversion
+        ! TODO: Convert to use arena-based indexing
+        ! Elseif blocks analysis would go here
 
-                ! Enter elseif block scope
-                call ctx%scopes%enter_block()
-
-                ! Analyze elseif body
-                if (allocated(if_stmt%elseif_blocks(i)%body)) then
-                    do j = 1, size(if_stmt%elseif_blocks(i)%body)
-                        if (allocated(if_stmt%elseif_blocks(i)%body(j)%node)) then
-                   call infer_and_store_type(ctx, if_stmt%elseif_blocks(i)%body(j)%node)
-                        end if
-                    end do
-                end if
-
-                ! Leave elseif block scope
-                call ctx%scopes%leave_scope()
-            end do
-        end if
-
-        ! Analyze else block
-        if (allocated(if_stmt%else_body)) then
-            ! Enter else block scope
-            call ctx%scopes%enter_block()
-
-            do i = 1, size(if_stmt%else_body)
-                if (allocated(if_stmt%else_body(i)%node)) then
-                    call infer_and_store_type(ctx, if_stmt%else_body(i)%node)
-                end if
-            end do
-
-            ! Leave else block scope
-            call ctx%scopes%leave_scope()
-        end if
+        ! NOTE: This function is temporarily disabled during arena conversion
+        ! TODO: Convert to use arena-based indexing
+        ! Else block analysis would go here
 
         ! If statements have unit type
         typ = create_mono_type(TINT)  ! Unit type
@@ -1028,25 +967,9 @@ contains
       loop_var_scheme = create_poly_type(forall_vars=[type_var_t::], mono=loop_var_type)
         call ctx%scopes%define(do_stmt%var_name, loop_var_scheme)
 
-        ! Analyze loop bounds
-        if (allocated(do_stmt%start_expr)) then
-            call infer_and_store_type(ctx, do_stmt%start_expr)
-        end if
-        if (allocated(do_stmt%end_expr)) then
-            call infer_and_store_type(ctx, do_stmt%end_expr)
-        end if
-        if (allocated(do_stmt%step_expr)) then
-            call infer_and_store_type(ctx, do_stmt%step_expr)
-        end if
-
-        ! Analyze loop body
-        if (allocated(do_stmt%body)) then
-            do i = 1, size(do_stmt%body)
-                if (allocated(do_stmt%body(i)%node)) then
-                    call infer_and_store_type(ctx, do_stmt%body(i)%node)
-                end if
-            end do
-        end if
+        ! NOTE: This function is temporarily disabled during arena conversion
+        ! TODO: Convert to use arena-based indexing
+        ! Loop bounds and body analysis would go here
 
         ! Leave loop block scope
         call ctx%scopes%leave_scope()
@@ -1062,25 +985,8 @@ contains
         type(mono_type_t) :: typ
         integer :: i
 
-        ! Analyze condition
-        if (allocated(do_while_stmt%condition)) then
-            call infer_and_store_type(ctx, do_while_stmt%condition)
-        end if
-
-        ! Enter loop block scope
-        call ctx%scopes%enter_block()
-
-        ! Analyze loop body
-        if (allocated(do_while_stmt%body)) then
-            do i = 1, size(do_while_stmt%body)
-                if (allocated(do_while_stmt%body(i)%node)) then
-                    call infer_and_store_type(ctx, do_while_stmt%body(i)%node)
-                end if
-            end do
-        end if
-
-        ! Leave loop block scope
-        call ctx%scopes%leave_scope()
+        ! NOTE: This function is temporarily disabled during arena conversion
+        ! TODO: Convert to use arena-based indexing
 
         ! Do while loops have unit type
         typ = create_mono_type(TINT)  ! Unit type

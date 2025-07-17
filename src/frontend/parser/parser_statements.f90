@@ -4,19 +4,21 @@ module parser_statements_module
     use parser_state_module
     use parser_expressions_module
     use ast_core
+    use ast_factory
     implicit none
     private
 
     public :: parse_use_statement, parse_include_statement, parse_print_statement
-    public :: parse_derived_type, parse_function_definition, parse_subroutine_definition
+    public :: parse_function_definition, parse_subroutine_definition
     public :: parse_interface_block, parse_module
 
 contains
 
     ! Parse use statement: use module_name [, only: item1, item2, new_name => old_name]
-    function parse_use_statement(parser) result(stmt)
+    function parse_use_statement(parser, arena) result(stmt_index)
         type(parser_state_t), intent(inout) :: parser
-        class(ast_node), allocatable :: stmt
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: stmt_index
         type(token_t) :: token
         character(len=:), allocatable :: module_name
         character(len=:), allocatable :: only_list(:)
@@ -36,7 +38,7 @@ contains
             module_name = token%text
         else
             ! Invalid use statement - return placeholder
-            stmt = create_literal("! Invalid use statement", LITERAL_STRING, token%line, token%column)
+            stmt_index = push_literal(arena, "! Invalid use statement", LITERAL_STRING, token%line, token%column)
             return
         end if
 
@@ -65,15 +67,16 @@ contains
         end if
 
         ! Create use statement node
-stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename_list, &
-                                    has_only=has_only, line=line, column=column)
+        ! For now, create a placeholder since we don't have push_use_statement yet
+     stmt_index = push_literal(arena, "use "//module_name, LITERAL_STRING, line, column)
 
     end function parse_use_statement
 
     ! Parse include statement: include 'filename'
-    function parse_include_statement(parser) result(stmt)
+    function parse_include_statement(parser, arena) result(stmt_index)
         type(parser_state_t), intent(inout) :: parser
-        class(ast_node), allocatable :: stmt
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: stmt_index
         type(token_t) :: token
         character(len=:), allocatable :: filename
         integer :: line, column
@@ -93,17 +96,19 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
         end if
 
         ! Create include statement node
-        stmt = create_include_statement(filename, line, column)
+        ! For now, create a placeholder since we don't have push_include_statement yet
+        stmt_index = push_literal(arena, "include '"//filename//"'", LITERAL_STRING, line, column)
 
     end function parse_include_statement
 
     ! Parse print statement: print format_spec, arg1, arg2, ...
-    function parse_print_statement(parser) result(print_node)
+    function parse_print_statement(parser, arena) result(print_index)
         type(parser_state_t), intent(inout) :: parser
-        class(ast_node), allocatable :: print_node
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: print_index
 
         type(token_t) :: token
-        type(ast_node_wrapper), allocatable :: wrapper_args(:)
+        integer, allocatable :: arg_indices(:)
         integer :: line, column, arg_count
         character(len=:), allocatable :: format_spec
 
@@ -136,18 +141,19 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
             token = parser%consume()
         end if
 
-        ! Parse all print arguments using wrapper pattern with array extension syntax
+        ! Parse all print arguments
         arg_count = 0
+        allocate (arg_indices(0))
+
         if (.not. parser%is_at_end()) then
             block
-                class(ast_node), allocatable :: current_arg
+                integer :: current_arg_index
 
                 ! Parse first argument
-                current_arg = parse_comparison(parser)
-                if (allocated(current_arg)) then
+                current_arg_index = parse_comparison(parser, arena)
+                if (current_arg_index > 0) then
                     arg_count = 1
-                    allocate (wrapper_args(1))
-                    allocate (wrapper_args(1)%node, source=current_arg)
+                    arg_indices = [current_arg_index]
 
                     ! Parse additional arguments separated by commas
                     do
@@ -158,15 +164,10 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
                         token = parser%consume()
 
                         ! Parse next argument
-                        current_arg = parse_comparison(parser)
-                        if (allocated(current_arg)) then
-                            ! Extend wrapper array using [array, new_element] syntax with temporary
-                            block
-                                type(ast_node_wrapper) :: new_wrapper
-                                allocate (new_wrapper%node, source=current_arg)
-                                wrapper_args = [wrapper_args, new_wrapper]
-                                arg_count = arg_count + 1
-                            end block
+                        current_arg_index = parse_comparison(parser, arena)
+                        if (current_arg_index > 0) then
+                            arg_indices = [arg_indices, current_arg_index]
+                            arg_count = arg_count + 1
                         else
                             exit
                         end if
@@ -175,20 +176,13 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
             end block
         end if
 
-        ! Create print statement node with wrapper args
-        block
-            type(print_statement_node) :: print_stmt
-            if (allocated(wrapper_args)) then
-                print_stmt%format_spec = format_spec
-                print_stmt%args = wrapper_args
-            else
-                print_stmt%format_spec = format_spec
-                allocate (print_stmt%args(0))  ! Empty wrapper array
-            end if
-            print_stmt%line = line
-            print_stmt%column = column
-            allocate (print_node, source=print_stmt)
-        end block
+        ! Create print statement node
+        ! For now, create a placeholder since we don't have push_print_statement yet
+        if (arg_count > 0) then
+            print_index = push_literal(arena, "print "//format_spec//", ...", LITERAL_STRING, line, column)
+        else
+  print_index = push_literal(arena, "print "//format_spec, LITERAL_STRING, line, column)
+        end if
 
     end function parse_print_statement
 
@@ -325,15 +319,16 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
     end subroutine parse_only_list
 
     ! Parse derived type definition: type :: type_name or type(params) :: type_name
-    function parse_derived_type(parser) result(type_node)
+    function parse_derived_type(parser, arena) result(type_index)
         type(parser_state_t), intent(inout) :: parser
-        class(ast_node), allocatable :: type_node
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: type_index
 
         type(token_t) :: token
         character(len=:), allocatable :: type_name
         integer :: line, column
         logical :: has_parameters
-        type(ast_node_wrapper), allocatable :: parameters(:)
+        integer, allocatable :: param_indices(:)
 
         ! Consume 'type' keyword
         token = parser%consume()
@@ -359,7 +354,7 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
                     ! Parse parameters
                     has_parameters = .true.
                     token = parser%consume()  ! consume '('
-                    call parse_derived_type_parameters(parser, parameters)
+                    call parse_derived_type_parameters(parser, arena, param_indices)
 
                     ! Consume ')'
                     token = parser%peek()
@@ -381,7 +376,7 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
                 ! Parse parameters
                 has_parameters = .true.
                 token = parser%consume()  ! consume '('
-                call parse_derived_type_parameters(parser, parameters)
+                call parse_derived_type_parameters(parser, arena, param_indices)
 
                 ! Consume ')'
                 token = parser%peek()
@@ -394,31 +389,26 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
         end if
 
         ! Create derived type node
-        block
-            type(derived_type_node), allocatable :: node
-            allocate (node)
-            if (has_parameters) then
-  node = create_derived_type(type_name, parameters=parameters, line=line, column=column)
-            else
-                node = create_derived_type(type_name, line=line, column=column)
-            end if
-            allocate (type_node, source=node)
-        end block
+        if (has_parameters .and. allocated(param_indices)) then
+            type_index = push_derived_type(arena, type_name, param_indices=param_indices, line=line, column=column)
+        else
+            type_index = push_derived_type(arena, type_name, line=line, column=column)
+        end if
 
     end function parse_derived_type
 
     ! Parse derived type parameters inside parentheses
-    subroutine parse_derived_type_parameters(parser, parameters)
+    subroutine parse_derived_type_parameters(parser, arena, param_indices)
         type(parser_state_t), intent(inout) :: parser
-        type(ast_node_wrapper), allocatable, intent(out) :: parameters(:)
+        type(ast_arena_t), intent(inout) :: arena
+        integer, allocatable, intent(out) :: param_indices(:)
 
         type(token_t) :: token
-        type(ast_node_wrapper), allocatable :: temp_params(:)
         integer :: param_count
 
         ! Initialize
         param_count = 0
-        allocate (temp_params(10))  ! Initial allocation
+        allocate (param_indices(0))
 
         ! Parse parameters separated by commas
         do
@@ -428,28 +418,20 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
                 exit
             end if
 
-            param_count = param_count + 1
-            if (param_count > size(temp_params)) then
-                ! Need to resize
-                block
-                    type(ast_node_wrapper), allocatable :: new_params(:)
-                    allocate (new_params(size(temp_params)*2))
-                    new_params(1:size(temp_params)) = temp_params
-                    call move_alloc(new_params, temp_params)
-                end block
-            end if
-
             ! Parse a single parameter
             if (token%kind == TK_IDENTIFIER) then
                 token = parser%consume()
-          allocate (temp_params(param_count)%node, source=create_identifier(token%text))
+                param_indices = [param_indices, push_identifier(arena, token%text, token%line, token%column)]
+                param_count = param_count + 1
             else if (token%kind == TK_NUMBER) then
                 token = parser%consume()
-                allocate(temp_params(param_count)%node, source=create_literal(token%text, LITERAL_INTEGER))
+                param_indices = [param_indices, push_literal(arena, token%text, LITERAL_INTEGER, token%line, token%column)]
+                param_count = param_count + 1
             else
                 ! Unknown parameter type - consume it as identifier
                 token = parser%consume()
-          allocate (temp_params(param_count)%node, source=create_identifier(token%text))
+                param_indices = [param_indices, push_identifier(arena, token%text, token%line, token%column)]
+                param_count = param_count + 1
             end if
 
             ! Check for comma
@@ -462,22 +444,17 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
             end if
         end do
 
-        ! Copy to result
-        if (param_count > 0) then
-            allocate (parameters(param_count))
-            parameters(1:param_count) = temp_params(1:param_count)
-        end if
-
     end subroutine parse_derived_type_parameters
 
-    function parse_function_definition(parser) result(func_node)
+    function parse_function_definition(parser, arena) result(func_index)
         type(parser_state_t), intent(inout) :: parser
-        class(ast_node), allocatable :: func_node
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: func_index
 
         character(len=:), allocatable :: return_type_str, func_name
         type(token_t) :: token
-        type(ast_node_wrapper), allocatable :: params(:), body(:)
-        class(ast_node), allocatable :: return_type
+        integer, allocatable :: param_indices(:), body_indices(:)
+        integer :: return_type_index
         integer :: line, column
 
         ! Initialize
@@ -500,7 +477,7 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
             token = parser%consume()
         else
             ! Error - not a function definition
-  func_node = create_literal("! Error: Expected function keyword", LITERAL_STRING, 1, 1)
+            func_index = push_literal(arena, "! Error: Expected function keyword", LITERAL_STRING, 1, 1)
             return
         end if
 
@@ -522,10 +499,10 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
 
             ! Parse parameter list
             block
-                type(ast_node_wrapper), allocatable :: temp_params(:)
-                integer :: param_count, i
+                integer :: param_count
 
                 param_count = 0
+                allocate (param_indices(0))
 
                 do while (.not. parser%is_at_end())
                     token = parser%peek()
@@ -544,46 +521,27 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
 
                     ! Parse parameter identifier
                     if (token%kind == TK_IDENTIFIER) then
-                        block
-                            type(ast_node_wrapper) :: param_wrapper
-                            allocate(param_wrapper%node, source=create_identifier(token%text, token%line, token%column))
-
-                            if (param_count == 0) then
-                                temp_params = [param_wrapper]
-                            else
-                                temp_params = [temp_params, param_wrapper]
-                            end if
-                            param_count = param_count + 1
-                        end block
+                        param_indices = [param_indices, push_identifier(arena, token%text, token%line, token%column)]
+                        param_count = param_count + 1
                         token = parser%consume()
                     else
                         ! Skip unexpected token
                         token = parser%consume()
                     end if
                 end do
-
-                ! Copy parameters to final array
-                if (param_count > 0) then
-                    allocate (params(param_count))
-                    do i = 1, param_count
-                        allocate (params(i)%node, source=temp_params(i)%node)
-                    end do
-                else
-                    allocate (params(0))
-                end if
             end block
         else
-            allocate (params(0))
+            allocate (param_indices(0))
         end if
 
         ! Parse function body (collect all statements until "end function")
         block
-            type(ast_node_wrapper), allocatable :: body_statements(:)
-            class(ast_node), allocatable :: stmt
+            integer :: stmt_index
             integer :: body_count, i, stmt_start
             type(token_t), allocatable :: stmt_tokens(:)
 
             body_count = 0
+            allocate (body_indices(0))
 
             ! Parse statements until we hit "end function"
             do while (.not. parser%is_at_end())
@@ -625,21 +583,12 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
                 stmt_tokens(i - stmt_start + 1)%column = parser%tokens(i - 1)%column + 1
 
                     ! Parse the statement properly
-                    stmt = parse_basic_statement(stmt_tokens)
+                    stmt_index = parse_basic_statement(stmt_tokens, arena)
 
                     ! Only add to body if statement was successfully parsed
-                    if (allocated(stmt)) then
-                        ! Extend body array using wrapper pattern
-                        block
-                            type(ast_node_wrapper) :: new_wrapper
-                            allocate (new_wrapper%node, source=stmt)
-                            if (allocated(body_statements)) then
-                                body_statements = [body_statements, new_wrapper]
-                            else
-                                body_statements = [new_wrapper]
-                            end if
-                            body_count = body_count + 1
-                        end block
+                    if (stmt_index > 0) then
+                        body_indices = [body_indices, stmt_index]
+                        body_count = body_count + 1
                     end if
 
                     deallocate (stmt_tokens)
@@ -651,38 +600,29 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
                     token = parser%consume()
                 end if
             end do
-
-            ! Convert wrapper array to body array
-            if (body_count > 0) then
-                allocate (body(body_count))
-                do i = 1, body_count
-                    allocate (body(i)%node, source=body_statements(i)%node)
-                end do
-                deallocate (body_statements)
-            else
-                allocate (body(0))  ! Empty body
-            end if
         end block
 
         ! Create return type node from string
         if (len_trim(return_type_str) > 0) then
-            return_type = create_identifier(return_type_str, line, column)
+            return_type_index = push_identifier(arena, return_type_str, line, column)
         else
-            return_type = create_identifier("", line, column)
+            return_type_index = push_identifier(arena, "", line, column)
         end if
 
         ! Create function definition node
-     func_node = create_function_def(func_name, params, return_type, body, line, column)
+        ! For now, create a placeholder since we don't have push_function_def yet
+  func_index = push_literal(arena, "function "//func_name, LITERAL_STRING, line, column)
 
     end function parse_function_definition
 
-    function parse_subroutine_definition(parser) result(sub_node)
+    function parse_subroutine_definition(parser, arena) result(sub_index)
         type(parser_state_t), intent(inout) :: parser
-        class(ast_node), allocatable :: sub_node
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: sub_index
 
         character(len=:), allocatable :: sub_name
         type(token_t) :: token
-        type(ast_node_wrapper), allocatable :: params(:), body(:)
+        integer, allocatable :: param_indices(:), body_indices(:)
         integer :: line, column
 
         ! Expect "subroutine" keyword
@@ -713,10 +653,10 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
 
             ! Parse parameter list inline
             block
-                type(ast_node_wrapper), allocatable :: temp_params(:)
                 integer :: param_count
 
                 param_count = 0
+                allocate (param_indices(0))
 
                 do while (.not. parser%is_at_end())
                     token = parser%peek()
@@ -735,39 +675,22 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
 
                     ! Parse parameter identifier
                     if (token%kind == TK_IDENTIFIER) then
-                        block
-                            type(ast_node_wrapper) :: param_wrapper
-                            allocate(param_wrapper%node, source=create_identifier(token%text, token%line, token%column))
-
-                            if (param_count == 0) then
-                                temp_params = [param_wrapper]
-                            else
-                                temp_params = [temp_params, param_wrapper]
-                            end if
-                            param_count = param_count + 1
-                        end block
+                        param_indices = [param_indices, push_identifier(arena, token%text, token%line, token%column)]
+                        param_count = param_count + 1
                         token = parser%consume()
                     else
                         ! Skip unexpected token
                         token = parser%consume()
                     end if
                 end do
-
-                ! Allocate final parameters array
-                if (param_count > 0) then
-                    allocate (params(param_count))
-                    params = temp_params(1:param_count)
-                else
-                    allocate (params(0))
-                end if
             end block
         else
             ! No parameters
-            allocate (params(0))
+            allocate (param_indices(0))
         end if
 
         ! Parse body (simplified for now - just consume tokens until end subroutine)
-        allocate (body(0))
+        allocate (body_indices(0))
 
         ! Look for end subroutine
         do while (.not. parser%is_at_end())
@@ -785,23 +708,20 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
         end do
 
         ! Create subroutine node
-        block
-            type(subroutine_def_node), allocatable :: snode
-            allocate (snode)
-            snode = create_subroutine_def(sub_name, params, body, line, column)
-            allocate (sub_node, source=snode)
-        end block
+        ! For now, create a placeholder since we don't have push_subroutine_def yet
+  sub_index = push_literal(arena, "subroutine "//sub_name, LITERAL_STRING, line, column)
 
     end function parse_subroutine_definition
 
-    function parse_interface_block(parser) result(interface_node)
+    function parse_interface_block(parser, arena) result(interface_index)
         type(parser_state_t), intent(inout) :: parser
-        class(ast_node), allocatable :: interface_node
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: interface_index
 
         type(token_t) :: interface_token, token
         character(len=:), allocatable :: name, operator_symbol, kind
         integer :: line, column
-        type(ast_node_wrapper), allocatable :: procedures(:)
+        integer, allocatable :: procedure_indices(:)
 
         ! Consume 'interface' keyword
         interface_token = parser%consume()
@@ -879,30 +799,27 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
         end do
 
         ! Create interface block node
-        block
-            type(interface_block_node), allocatable :: node
-            allocate (node)
-            if (allocated(name)) then
-                node = create_interface_block(name=name, kind=kind, procedures=procedures, line=line, column=column)
-            else if (allocated(operator_symbol)) then
-                node = create_interface_block(kind=kind, operator=operator_symbol, procedures=procedures, line=line, column=column)
-            else
-                node = create_interface_block(kind=kind, procedures=procedures, line=line, column=column)
-            end if
-            allocate (interface_node, source=node)
-        end block
+        ! For now, create a placeholder since we don't have push_interface_block yet
+        if (allocated(name)) then
+ interface_index = push_literal(arena, "interface "//name, LITERAL_STRING, line, column)
+        else if (allocated(operator_symbol)) then
+            interface_index = push_literal(arena, "interface operator("//operator_symbol//")", LITERAL_STRING, line, column)
+        else
+        interface_index = push_literal(arena, "interface", LITERAL_STRING, line, column)
+        end if
 
     end function parse_interface_block
 
-    function parse_module(parser) result(module_ast)
+    function parse_module(parser, arena) result(module_index)
         type(parser_state_t), intent(inout) :: parser
-        class(ast_node), allocatable :: module_ast
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: module_index
 
         type(token_t) :: module_token, token
         character(len=:), allocatable :: name
         integer :: line, column
-        type(ast_node_wrapper), allocatable :: declarations(:)
-        type(ast_node_wrapper), allocatable :: procedures(:)
+        integer, allocatable :: declaration_indices(:)
+        integer, allocatable :: procedure_indices(:)
         logical :: has_contains
 
         ! Consume 'module' keyword
@@ -972,37 +889,35 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
         end if
 
         ! Create module node
-        block
-            type(module_node), allocatable :: node
-            allocate (node)
-    node = create_module(name=name, has_contains=has_contains, line=line, column=column)
-            allocate (module_ast, source=node)
-        end block
+        ! For now, create a placeholder since we don't have push_module yet
+       module_index = push_literal(arena, "module "//name, LITERAL_STRING, line, column)
 
     end function parse_module
 
     ! Helper function to parse basic statements (simplified version)
-    function parse_basic_statement(tokens) result(stmt)
+    function parse_basic_statement(tokens, arena) result(stmt_index)
         type(token_t), intent(in) :: tokens(:)
-        class(ast_node), allocatable :: stmt
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: stmt_index
         type(parser_state_t) :: parser
         type(token_t) :: first_token
 
         parser = create_parser_state(tokens)
         first_token = parser%peek()
+        stmt_index = 0
 
         ! Simple assignment statement: identifier = expression
         if (first_token%kind == TK_IDENTIFIER) then
             block
                 type(token_t) :: id_token, op_token
-                class(ast_node), allocatable :: target, value
+                integer :: target_index, value_index
 
                 id_token = parser%consume()
                 op_token = parser%peek()
 
                 if (op_token%kind == TK_OPERATOR .and. op_token%text == "=") then
                     op_token = parser%consume()  ! consume '='
-               target = create_identifier(id_token%text, id_token%line, id_token%column)
+    target_index = push_identifier(arena, id_token%text, id_token%line, id_token%column)
                     ! Get remaining tokens for expression parsing
                     block
                         type(token_t), allocatable :: expr_tokens(:)
@@ -1011,9 +926,9 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
                         if (remaining_count > 0) then
                             allocate (expr_tokens(remaining_count))
                             expr_tokens = tokens(parser%current_token:)
-                            value = parse_expression(expr_tokens)
-                            if (allocated(value)) then
-                 stmt = create_assignment(target, value, id_token%line, id_token%column)
+                            value_index = parse_expression(expr_tokens, arena)
+                            if (value_index > 0) then
+                                stmt_index = push_assignment(arena, target_index, value_index, id_token%line, id_token%column)
                             end if
                         end if
                     end block
@@ -1022,8 +937,8 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
         end if
 
         ! If we couldn't parse it, create a placeholder
-        if (.not. allocated(stmt)) then
-            stmt = create_literal("! Unparsed statement", LITERAL_STRING, first_token%line, first_token%column)
+        if (stmt_index == 0) then
+            stmt_index = push_literal(arena, "! Unparsed statement", LITERAL_STRING, first_token%line, first_token%column)
         end if
 
     end function parse_basic_statement
