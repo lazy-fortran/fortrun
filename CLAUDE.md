@@ -104,20 +104,60 @@ prefix = "fortplot"
 3. **Use JSON for test data** - Each stage accepts/produces JSON
 4. **Start with ONE LINE tests** - Minimal test cases first
 
-## ⚠️ CRITICAL FORTRAN PATTERNS ⚠️
+## ⚠️ CRITICAL SAFE FORTRAN REQUIREMENTS ⚠️
 
-### Polymorphic Arrays - Use Wrapper Pattern
+### Memory Management Rules (MANDATORY)
+1. **NO manual `deallocate`** - Let Fortran scope handle deallocation automatically
+2. **Use `allocatable`, NEVER `pointer`** - Allocatable provides automatic memory management
+3. **NO shared memory ownership** - Each data structure owns its memory exclusively
+4. **Implement proper deep copy operations** - Avoid shallow copies that cause double-free
+
+### Container Patterns (REQUIRED)
+
+#### Polymorphic Arrays - Use Wrapper Pattern
 ```fortran
 type :: ast_node_wrapper
     class(ast_node), allocatable :: node
 end type ast_node_wrapper
 ```
 
-### Array Extension - Use Temporary Variables
+#### Array Extension - Use Temporary Variables
 ```fortran
-! CORRECT: array = [array, temp_var]
-! WRONG: array = [array, function_call()]
+! CORRECT: Use temporary array for safe extension
+type(ast_node_wrapper), allocatable :: temp_array(:)
+if (allocated(array)) then
+    allocate(temp_array(size(array) + 1))
+    temp_array(1:size(array)) = array
+    temp_array(size(array) + 1) = new_element
+    array = temp_array
+else
+    array = [new_element]
+end if
+
+! WRONG: Direct extension with function calls
+! array = [array, function_call()]
 ```
+
+#### Deep Copy Operations (MANDATORY)
+```fortran
+! Each type MUST implement deep_copy method
+function deep_copy(this) result(copy)
+    class(my_type), intent(in) :: this
+    type(my_type) :: copy
+    ! Copy all fields, deep copy allocatable components
+    if (allocated(this%some_field)) then
+        copy%some_field = this%some_field%deep_copy()
+    end if
+end function deep_copy
+```
+
+### Forbidden Practices (NEVER ALLOW)
+- ❌ Manual `deallocate` calls
+- ❌ `pointer` attributes
+- ❌ Direct array extension: `array = [array, new_element]` with function calls
+- ❌ Shared memory references between data structures
+- ❌ Shallow copies of complex types
+- ❌ Move semantics with `move_alloc` for complex types
 
 ## Test Categories
 

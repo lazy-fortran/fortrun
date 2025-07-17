@@ -20,23 +20,108 @@ Key insights:
    - **Lazy Fortran**: Parser → AST → Semantic Analysis → Annotated AST → Codegen (types inferred)
 
 ## Success Criteria
-- [❌] All lazy fortran features compile to valid Fortran 95 - BLOCKED by memory corruption
-- [❌] Double standardization test: Running standardizer on its own output produces identical results - BLOCKED by memory corruption
-- [⚠️] Complete test coverage for all Fortran 95 features via frontend_test_cases - 9 test cases created, 1 working
+- [⚠️] All lazy fortran features compile to valid Fortran 95 - REQUIRES SAFE FORTRAN PRACTICES
+- [⚠️] Double standardization test: Running standardizer on its own output produces identical results - REQUIRES MEMORY SAFETY
+- [⚠️] Complete test coverage for all Fortran 95 features via frontend_test_cases - REQUIRES SAFE FORTRAN REFACTORING
 - [✅] JSON intermediate representations work correctly at all stages - WORKING
 - [✅] No shortcuts - everything goes through the real AST pipeline - ENFORCED
 
-## Current Status: ⚠️ CRITICAL ARCHITECTURAL ISSUES IDENTIFIED
+## Current Status: ⚠️ CRITICAL ARCHITECTURAL ISSUES IDENTIFIED - SAFE FORTRAN REQUIRED
 
 **Major Issues Found:**
-1. **Semantic analyzer memory corruption** - blocks type inference (Phase 5.4)
-2. **AST memory corruption** - blocks all complex features (Phase 6)  
+1. **Semantic analyzer memory corruption** - caused by unsafe memory management
+2. **AST memory corruption** - caused by unsafe copy operations and pointer usage
 3. **Code generation issues** - duplicate declarations, array processing
 
-**Only Working:** Simple single-statement assignments with explicit types.  
-**Blocked:** All advanced features including control flow, procedures, arrays, type inference.
+**Root Cause:** Unsafe Fortran practices including:
+- Manual `deallocate` calls causing double-free errors
+- Pointer usage instead of `allocatable`
+- Shared memory ownership without proper deep copying
+- Unsafe array extension patterns
 
-**Impact:** Fundamental memory management problems require architectural fixes before further development.
+**Solution:** Implement **SAFE FORTRAN PRACTICES** throughout codebase:
+- Use only `allocatable`, never `pointer`
+- Avoid manual `deallocate` - let scope handle deallocation automatically
+- Use container wrapper pattern for polymorphic arrays
+- Use `[array, new_element]` pattern for array extension
+- Implement proper deep copy operations
+
+**Impact:** Memory safety issues block all advanced features. Safe Fortran practices will eliminate these issues.
+
+## Safe Fortran Practices - CRITICAL REQUIREMENT
+
+### Overview
+All code must follow **Safe Fortran** practices to prevent memory corruption. This includes strict memory management rules, container patterns, and avoiding unsafe operations.
+
+### Memory Management Rules
+1. **No manual `deallocate`** - Let Fortran scope handle deallocation automatically
+2. **Use `allocatable`, never `pointer`** - Allocatable provides automatic memory management
+3. **No shared memory ownership** - Each data structure owns its memory exclusively
+4. **Implement proper deep copy operations** - Avoid shallow copies that cause double-free
+
+### Container Patterns
+1. **Wrapper pattern for polymorphic arrays**:
+   ```fortran
+   type :: ast_node_wrapper
+       class(ast_node), allocatable :: node
+   end type ast_node_wrapper
+   ```
+
+2. **Array extension pattern**:
+   ```fortran
+   ! CORRECT: Use temporary array for extension
+   type(ast_node_wrapper), allocatable :: temp_array(:)
+   if (allocated(array)) then
+       allocate(temp_array(size(array) + 1))
+       temp_array(1:size(array)) = array
+       temp_array(size(array) + 1) = new_element
+       array = temp_array
+   else
+       array = [new_element]
+   end if
+   ```
+
+3. **Deep copy operations**:
+   ```fortran
+   ! Each type must implement deep_copy method
+   function deep_copy(this) result(copy)
+       class(my_type), intent(in) :: this
+       type(my_type) :: copy
+       ! Copy all fields, deep copy allocatable components
+   end function deep_copy
+   ```
+
+### Forbidden Practices
+- ❌ Manual `deallocate` calls
+- ❌ `pointer` attributes  
+- ❌ Direct array extension: `array = [array, new_element]` with function calls
+- ❌ Shared memory references between data structures
+- ❌ Shallow copies of complex types
+
+### Safe Fortran Refactoring Tasks
+1. **Phase 1: Type System Memory Safety**
+   - [ ] Remove all manual `deallocate` calls in `type_system_hm.f90`
+   - [ ] Implement proper deep copy for `mono_type_t` and `poly_type_t`
+   - [ ] Fix `type_env_t` extend method to use deep copies
+   - [ ] Eliminate shared ownership in semantic context
+
+2. **Phase 2: AST Memory Safety**
+   - [ ] Remove all manual `deallocate` calls in AST modules
+   - [ ] Fix AST copy operations to use proper deep copy
+   - [ ] Implement safe array extension in parser
+   - [ ] Use wrapper pattern consistently for polymorphic arrays
+
+3. **Phase 3: General Memory Safety**
+   - [ ] Audit entire codebase for unsafe practices
+   - [ ] Replace all `pointer` with `allocatable`
+   - [ ] Implement safe container patterns throughout
+   - [ ] Add memory safety tests
+
+### Implementation Priority
+1. **CRITICAL**: Fix `type_env_t` extend method causing double-free
+2. **HIGH**: Implement safe AST copy operations
+3. **MEDIUM**: General codebase safety audit
+4. **LOW**: Performance optimization while maintaining safety
 
 ## Parser Refactoring Project ✅ MAJOR SUCCESS
 

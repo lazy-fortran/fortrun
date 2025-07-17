@@ -292,9 +292,17 @@ contains
                         ! Extend wrapper array using [array, new_element] pattern
                         block
                             type(ast_node_wrapper) :: new_wrapper
+                            type(ast_node_wrapper), allocatable :: temp_array(:)
+
+                            ! Now safe to use source= since inferred_type field is removed
                             allocate (new_wrapper%node, source=stmt)
+
+                            ! Use temporary array for proper extension (CLAUDE.md pattern)
                             if (allocated(body_statements)) then
-                                body_statements = [body_statements, new_wrapper]
+                                allocate (temp_array(size(body_statements) + 1))
+                                temp_array(1:size(body_statements)) = body_statements
+                                temp_array(size(body_statements) + 1) = new_wrapper
+                                body_statements = temp_array
                             else
                                 body_statements = [new_wrapper]
                             end if
