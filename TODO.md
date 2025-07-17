@@ -26,6 +26,31 @@ Key insights:
 - [ ] JSON intermediate representations work correctly at all stages
 - [ ] No shortcuts - everything goes through the real AST pipeline
 
+## IMMEDIATE: Refactor Large Pipeline Modules
+
+### Goal
+Extract smaller, focused modules from large pipeline modules to improve maintainability and follow SRP (Single Responsibility Principle).
+
+### Modules to Refactor
+- [ ] **lexer_core.f90** - Extract token type definitions, keyword management, operator handling
+- [ ] **parser_core.f90** - Extract expression parsing, statement parsing, declaration parsing
+- [ ] **ast_core.f90** - Extract node factory functions, visitor pattern, node type definitions
+- [ ] **semantic_analyzer.f90** - Extract type inference engine, constraint solver, environment management
+- [ ] **json_writer.f90** - Extract node-specific serialization into separate modules
+- [ ] **frontend.f90** - Extract pipeline orchestration, error handling, debug output
+
+### Refactoring Strategy
+1. Identify logical boundaries within each module
+2. Extract cohesive functionality into dedicated modules
+3. Update use statements and maintain clean interfaces
+4. Ensure all tests pass after each extraction
+5. Follow naming convention: `<module>_<component>.f90`
+
+### Target Module Sizes
+- Core modules: < 1000 lines
+- Component modules: < 500 lines
+- Utility modules: < 300 lines
+
 ## Phase 1: Clean Up and Organize
 
 ### 1.1 Example Directory Cleanup ✅
