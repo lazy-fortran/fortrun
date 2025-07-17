@@ -41,6 +41,7 @@ module type_system_hm
         type(mono_type_t) :: mono  ! the monomorphic type
     contains
         procedure :: to_string => poly_type_to_string
+        procedure :: deep_copy => poly_type_deep_copy
     end type poly_type_t
 
     ! Type substitution (maps type variables to types)
@@ -345,6 +346,24 @@ contains
             str = this%mono%to_string()
         end if
     end function poly_type_to_string
+
+    ! Deep copy a polymorphic type to avoid shared ownership issues
+    function poly_type_deep_copy(this) result(copy)
+        class(poly_type_t), intent(in) :: this
+        type(poly_type_t) :: copy
+        integer :: i
+
+        ! Deep copy forall variables
+        if (allocated(this%forall)) then
+            allocate (copy%forall(size(this%forall)))
+            do i = 1, size(this%forall)
+                copy%forall(i) = this%forall(i)
+            end do
+        end if
+
+        ! Deep copy mono type
+        copy%mono = this%mono%deep_copy()
+    end function poly_type_deep_copy
 
     ! Add a substitution
     subroutine subst_add(this, var, typ)
@@ -651,10 +670,10 @@ contains
             this%capacity = new_capacity
         end if
 
-        ! Add new binding
+        ! Add new binding (use deep copy to avoid shared ownership)
         this%count = this%count + 1
         this%names(this%count) = name
-        this%schemes(this%count) = scheme
+        this%schemes(this%count) = scheme%deep_copy()
     end subroutine env_extend
 
     ! Extend type environment with multiple bindings
