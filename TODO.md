@@ -41,7 +41,7 @@ Key insights:
 - **Type Inference Support**: Preserved `inferred_type` field for Hindley-Milner
 - **Backward Compatibility**: Original node structures maintained with stack functionality
 
-**Current Status:** Core AST and codegen working with new stack-based approach. Parser migration to stack-based API remains.
+**Current Status:** Core AST, codegen, and parser expressions working with new stack-based approach. Semantic analyzer needs stack-based AST support.
 
 ## Safe Fortran Practices - CRITICAL REQUIREMENT
 
@@ -131,7 +131,8 @@ Eliminate ALL unsafe patterns following Safe Fortran principles:
 - [✅] **ast_types.f90** - Stack-based approach with indices instead of pointers
 
 #### Phase 2: Parser and JSON Components (CURRENT PRIORITY)
-- [⚠️] **parser_expressions.f90** - Update to use stack-based AST API
+- [✅] **parser_expressions.f90** - Converted to stack-based AST with push_* factory functions
+- [⚠️] **semantic_analyzer.f90** - Update to use stack-based AST with indices instead of direct node access
 - [⚠️] **parser_control_flow.f90** - Update to use stack-based AST API
 - [⚠️] **parser_statements.f90** - Update to use stack-based AST API
 - [⚠️] **json_writer.f90** - Update for stack-based AST serialization

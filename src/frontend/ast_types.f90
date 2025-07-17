@@ -3,7 +3,7 @@ module ast_types
     ! All AST types are now defined in ast_core with stack-based storage
     use ast_core, only: ast_node, program_node, assignment_node, binary_op_node, &
                         function_call_node, identifier_node, literal_node, &
-                        ast_stack_t, ast_stack_stats_t, &
+                        ast_arena_t, ast_arena_stats_t, &
                        LITERAL_INTEGER, LITERAL_REAL, LITERAL_STRING, LITERAL_LOGICAL, &
                 create_ast_stack, create_program, create_assignment, create_binary_op, &
                         create_function_call, create_identifier, create_literal
@@ -12,7 +12,7 @@ module ast_types
     ! Re-export everything from ast_core
     public :: ast_node, program_node, assignment_node, binary_op_node
     public :: function_call_node, identifier_node, literal_node
-    public :: ast_stack_t, ast_stack_stats_t
+    public :: ast_arena_t, ast_arena_stats_t
     public :: LITERAL_INTEGER, LITERAL_REAL, LITERAL_STRING, LITERAL_LOGICAL
     public :: create_ast_stack, create_program, create_assignment, create_binary_op
     public :: create_function_call, create_identifier, create_literal

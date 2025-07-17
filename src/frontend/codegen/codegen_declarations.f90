@@ -8,9 +8,9 @@ module codegen_declarations
 
 contains
 
-    ! Generate variable declarations from AST stack with inferred types
-    function generate_variable_declarations(stack, prog_index) result(declarations)
-        type(ast_stack_t), intent(in) :: stack
+    ! Generate variable declarations from AST arena with inferred types
+    function generate_variable_declarations(arena, prog_index) result(declarations)
+        type(ast_arena_t), intent(in) :: arena
         integer, intent(in) :: prog_index
         character(len=:), allocatable :: declarations
         character(len=64), allocatable :: var_names(:)
@@ -28,23 +28,23 @@ contains
         var_count = 0
 
         ! Safety check
-        if (prog_index <= 0 .or. prog_index > stack%size) then
+        if (prog_index <= 0 .or. prog_index > arena%size) then
             return
         end if
 
         ! Get program node
-        if (allocated(stack%entries(prog_index)%node)) then
-            select type (prog => stack%entries(prog_index)%node)
+        if (allocated(arena%entries(prog_index)%node)) then
+            select type (prog => arena%entries(prog_index)%node)
             type is (program_node)
                 ! Get children of program node
-                child_indices = stack%get_children(prog_index)
+                child_indices = arena%get_children(prog_index)
 
                 ! Collect all variables that need declarations
                 do i = 1, size(child_indices)
-                    if (allocated(stack%entries(child_indices(i))%node)) then
-                        select type (stmt => stack%entries(child_indices(i))%node)
+                    if (allocated(arena%entries(child_indices(i))%node)) then
+                        select type (stmt => arena%entries(child_indices(i))%node)
                         type is (assignment_node)
-                            call collect_assignment_vars(stack, child_indices(i), var_names, var_types, var_declared, var_count)
+                            call collect_assignment_vars(arena, child_indices(i), var_names, var_types, var_declared, var_count)
                         type is (identifier_node)
         call collect_identifier_var(stmt, var_names, var_types, var_declared, var_count)
                         end select
@@ -66,23 +66,23 @@ contains
     end function generate_variable_declarations
 
     ! Collect variables from assignment node
-    subroutine collect_assignment_vars(stack, assign_index, var_names, var_types, var_declared, var_count)
-        type(ast_stack_t), intent(in) :: stack
+    subroutine collect_assignment_vars(arena, assign_index, var_names, var_types, var_declared, var_count)
+        type(ast_arena_t), intent(in) :: arena
         integer, intent(in) :: assign_index
         character(len=64), intent(inout) :: var_names(:)
         character(len=64), intent(inout) :: var_types(:)
         logical, intent(inout) :: var_declared(:)
         integer, intent(inout) :: var_count
 
-        if (assign_index <= 0 .or. assign_index > stack%size) return
-        if (.not. allocated(stack%entries(assign_index)%node)) return
+        if (assign_index <= 0 .or. assign_index > arena%size) return
+        if (.not. allocated(arena%entries(assign_index)%node)) return
 
-        select type (assign => stack%entries(assign_index)%node)
+        select type (assign => arena%entries(assign_index)%node)
         type is (assignment_node)
             ! Get target node
-            if (assign%target_index > 0 .and. assign%target_index <= stack%size) then
-                if (allocated(stack%entries(assign%target_index)%node)) then
-                    select type (target => stack%entries(assign%target_index)%node)
+            if (assign%target_index > 0 .and. assign%target_index <= arena%size) then
+                if (allocated(arena%entries(assign%target_index)%node)) then
+                    select type (target => arena%entries(assign%target_index)%node)
                     type is (identifier_node)
       call collect_identifier_var(target, var_names, var_types, var_declared, var_count)
                     end select

@@ -86,128 +86,177 @@ contains
         end select
     end subroutine analyze_program
 
-    ! Analyze a program node
+    ! Analyze a program with stack-based AST
+    subroutine analyze_program_stack(ctx, arena, root_index)
+        type(semantic_context_t), intent(inout) :: ctx
+        type(ast_arena_t), intent(inout) :: arena
+        integer, intent(in) :: root_index
+
+        if (root_index <= 0 .or. root_index > arena%size) return
+        if (.not. allocated(arena%entries(root_index)%node)) return
+
+        select type (ast => arena%entries(root_index)%node)
+        type is (program_node)
+            call analyze_program_node_stack(ctx, arena, ast, root_index)
+        class default
+            ! Single statement/expression
+            call infer_and_store_type_stack(ctx, arena, root_index)
+        end select
+    end subroutine analyze_program_stack
+
+    ! Analyze a program node with stack-based AST
+    subroutine analyze_program_node_stack(ctx, arena, prog, prog_index)
+        type(semantic_context_t), intent(inout) :: ctx
+        type(ast_arena_t), intent(inout) :: arena
+        type(program_node), intent(inout) :: prog
+        integer, intent(in) :: prog_index
+        integer :: i
+
+        if (allocated(prog%body_indices)) then
+            do i = 1, size(prog%body_indices)
+             if (prog%body_indices(i) > 0 .and. prog%body_indices(i) <= arena%size) then
+                    call infer_and_store_type(ctx, arena, prog%body_indices(i))
+                end if
+            end do
+        end if
+    end subroutine analyze_program_node_stack
+
+    ! Analyze a program node (legacy interface)
     subroutine analyze_program_node(ctx, prog)
         type(semantic_context_t), intent(inout) :: ctx
         type(program_node), intent(inout) :: prog
         integer :: i
 
-        if (allocated(prog%body)) then
-            do i = 1, size(prog%body)
-                if (allocated(prog%body(i)%node)) then
-                    call infer_and_store_type(ctx, prog%body(i)%node)
-                end if
-            end do
+        if (allocated(prog%body_indices)) then
+            ! This is a stack-based program node but called without stack
+            ! For now, skip analysis - this should be updated to use analyze_program_stack
+            return
         end if
     end subroutine analyze_program_node
 
     ! Infer type and store in AST node
-    subroutine infer_and_store_type(ctx, node)
+    subroutine infer_and_store_type(ctx, arena, node_index)
         type(semantic_context_t), intent(inout) :: ctx
-        class(ast_node), intent(inout) :: node
+        type(ast_arena_t), intent(inout) :: arena
+        integer, intent(in) :: node_index
         type(mono_type_t) :: inferred
 
-        inferred = ctx%infer_stmt(node)
+        if (node_index <= 0 .or. node_index > arena%size) return
+        if (.not. allocated(arena%entries(node_index)%node)) return
+
+        inferred = ctx%infer_stmt(stack, node_index)
 
         ! Store the inferred type in the AST node
-        if (.not. allocated(node%inferred_type)) then
-            allocate (node%inferred_type)
+        if (.not. allocated(arena%entries(node_index)%node%inferred_type)) then
+            allocate (arena%entries(node_index)%node%inferred_type)
         end if
-        node%inferred_type = inferred
+        arena%entries(node_index)%node%inferred_type = inferred
     end subroutine infer_and_store_type
 
     ! Infer type of a statement
-    function infer_statement_type(this, stmt) result(typ)
+    function infer_statement_type(this, arena, stmt_index) result(typ)
         class(semantic_context_t), intent(inout) :: this
-        class(ast_node), intent(inout) :: stmt
+        type(ast_arena_t), intent(inout) :: arena
+        integer, intent(in) :: stmt_index
         type(mono_type_t) :: typ
 
-        select type (stmt)
+        if (stmt_index <= 0 .or. stmt_index > arena%size) then
+            typ = create_mono_type(TINT)  ! Default fallback
+            return
+        end if
+        if (.not. allocated(arena%entries(stmt_index)%node)) then
+            typ = create_mono_type(TINT)  ! Default fallback
+            return
+        end if
+
+        select type (stmt => arena%entries(stmt_index)%node)
         type is (assignment_node)
-            typ = infer_assignment(this, stmt)
+            typ = infer_assignment(this, arena, stmt, stmt_index)
             ! Store inference metadata in the assignment_node for error detection
             stmt%type_was_inferred = .true.
             stmt%inferred_type_name = typ%to_string()
         type is (print_statement_node)
             typ = create_mono_type(TINT)  ! print returns unit/void, use int
-        type is (module_node)
-            typ = analyze_module(this, stmt)
-        type is (function_def_node)
-            typ = analyze_function_def(this, stmt)
-        type is (subroutine_def_node)
-            typ = analyze_subroutine_def(this, stmt)
-        type is (if_node)
-            typ = analyze_if_node(this, stmt)
-        type is (do_loop_node)
-            typ = analyze_do_loop(this, stmt)
-        type is (do_while_node)
-            typ = analyze_do_while(this, stmt)
         class default
             ! For expressions, use general inference
-            typ = this%infer(stmt)
+            typ = this%infer(stack, stmt_index)
         end select
     end function infer_statement_type
 
     ! Infer type of assignment and update environment
-    function infer_assignment(ctx, assign) result(typ)
+    function infer_assignment(ctx, arena, assign, assign_index) result(typ)
         type(semantic_context_t), intent(inout) :: ctx
+        type(ast_arena_t), intent(inout) :: arena
         type(assignment_node), intent(inout) :: assign
+        integer, intent(in) :: assign_index
         type(mono_type_t) :: typ, target_type
         type(poly_type_t) :: scheme
         type(poly_type_t), allocatable :: existing_scheme
         character(len=:), allocatable :: var_name
 
         ! Infer type of RHS
-        typ = ctx%infer(assign%value)
+        typ = ctx%infer(arena, assign%value_index)
 
         ! Get variable name from target
-        select type (target => assign%target)
-        type is (identifier_node)
-            var_name = target%name
+        if (assign%target_index > 0 .and. assign%target_index <= arena%size) then
+            select type (target => arena%entries(assign%target_index)%node)
+            type is (identifier_node)
+                var_name = target%name
 
-            ! Check if variable already exists
-            existing_scheme = ctx%scopes%lookup(var_name)
+                ! Check if variable already exists
+                existing_scheme = ctx%scopes%lookup(var_name)
 
-            if (allocated(existing_scheme)) then
-                ! Variable exists - check assignment compatibility
-                target_type = ctx%instantiate(existing_scheme)
+                if (allocated(existing_scheme)) then
+                    ! Variable exists - check assignment compatibility
+                    target_type = ctx%instantiate(existing_scheme)
 
-                if (.not. is_assignable(typ, target_type)) then
-                    ! Type error - for now, just continue with inference
-                    ! In a full implementation, we would report an error
-                    ! error stop type_error(target_type, typ, "assignment to " // var_name)
+                    if (.not. is_assignable(typ, target_type)) then
+                        ! Type error - for now, just continue with inference
+                        ! In a full implementation, we would report an error
+                        ! error stop type_error(target_type, typ, "assignment to " // var_name)
+                    end if
+
+                    ! Use the existing type for consistency
+                    typ = target_type
                 end if
 
-                ! Use the existing type for consistency
-                typ = target_type
-            end if
+                ! Store type in the identifier node
+                if (.not. allocated(target%inferred_type)) then
+                    allocate (target%inferred_type)
+                end if
+                target%inferred_type = typ
 
-            ! Store type in the identifier node
-            if (.not. allocated(target%inferred_type)) then
-                allocate (target%inferred_type)
-            end if
-            target%inferred_type = typ
-        class default
-            error stop "Assignment target must be identifier"
-        end select
+                ! If new variable, generalize and add to environment
+                if (.not. allocated(existing_scheme)) then
+                    scheme = ctx%generalize(typ)
+                    call ctx%scopes%define(var_name, scheme)
 
-        ! If new variable, generalize and add to environment
-        if (.not. allocated(existing_scheme)) then
-            scheme = ctx%generalize(typ)
-            call ctx%scopes%define(var_name, scheme)
-
-            ! Also add to legacy flat environment for compatibility
-            call ctx%env%extend(var_name, scheme)
+                    ! Also add to legacy flat environment for compatibility
+                    call ctx%env%extend(var_name, scheme)
+                end if
+            class default
+                error stop "Assignment target must be identifier"
+            end select
         end if
     end function infer_assignment
 
     ! Main type inference function (Algorithm W)
-    recursive function infer_type(this, expr) result(typ)
+    recursive function infer_type(this, arena, expr_index) result(typ)
         class(semantic_context_t), intent(inout) :: this
-        class(ast_node), intent(inout) :: expr
+        type(ast_arena_t), intent(inout) :: arena
+        integer, intent(in) :: expr_index
         type(mono_type_t) :: typ
 
-        select type (expr)
+        if (expr_index <= 0 .or. expr_index > arena%size) then
+            typ = create_mono_type(TREAL)
+            return
+        end if
+        if (.not. allocated(arena%entries(expr_index)%node)) then
+            typ = create_mono_type(TREAL)
+            return
+        end if
+
+        select type (expr => arena%entries(expr_index)%node)
         type is (literal_node)
             typ = infer_literal(this, expr)
 
@@ -215,13 +264,13 @@ contains
             typ = infer_identifier(this, expr)
 
         type is (binary_op_node)
-            typ = infer_binary_op(this, expr)
+            typ = infer_binary_op(this, arena, expr, expr_index)
 
         type is (function_call_node)
-            typ = infer_function_call(this, expr)
+            typ = infer_function_call(this, arena, expr)
 
         type is (assignment_node)
-            typ = infer_assignment(this, expr)
+            typ = infer_assignment(this, arena, expr, expr_index)
 
         class default
             ! Return real type as default for unsupported expressions
@@ -232,10 +281,10 @@ contains
         typ = this%apply_subst_to_type(typ)
 
         ! Store the inferred type in the AST node
-        if (.not. allocated(expr%inferred_type)) then
-            allocate (expr%inferred_type)
+        if (.not. allocated(arena%entries(expr_index)%node%inferred_type)) then
+            allocate (arena%entries(expr_index)%node%inferred_type)
         end if
-        expr%inferred_type = typ
+        arena%entries(expr_index)%node%inferred_type = typ
     end function infer_type
 
     ! Infer type of literal
@@ -285,19 +334,21 @@ contains
     end function infer_identifier
 
     ! Infer type of binary operation
-    function infer_binary_op(ctx, binop) result(typ)
+    function infer_binary_op(ctx, arena, binop, binop_index) result(typ)
         type(semantic_context_t), intent(inout) :: ctx
+        type(ast_arena_t), intent(inout) :: arena
         type(binary_op_node), intent(inout) :: binop
+        integer, intent(in) :: binop_index
         type(mono_type_t) :: typ
         type(mono_type_t) :: left_typ, right_typ, result_typ
         type(substitution_t) :: s1, s2, s3
         integer :: compat_level
 
         ! Infer left operand type
-        left_typ = ctx%infer(binop%left)
+        left_typ = ctx%infer(arena, binop%left_index)
 
         ! Infer right operand type
-        right_typ = ctx%infer(binop%right)
+        right_typ = ctx%infer(arena, binop%right_index)
 
         ! Determine result type based on operator
         select case (trim(binop%operator))
@@ -356,8 +407,9 @@ contains
     end function infer_binary_op
 
     ! Infer type of function call
-    function infer_function_call(ctx, call_node) result(typ)
+    function infer_function_call(ctx, arena, call_node) result(typ)
         type(semantic_context_t), intent(inout) :: ctx
+        type(ast_arena_t), intent(inout) :: arena
         type(function_call_node), intent(inout) :: call_node
         type(mono_type_t) :: typ
         type(mono_type_t) :: fun_typ, arg_typ, result_typ
@@ -379,12 +431,12 @@ contains
         end if
 
         ! Process arguments
-        if (allocated(call_node%args)) then
-            allocate (arg_types(size(call_node%args)))
+        if (allocated(call_node%arg_indices)) then
+            allocate (arg_types(size(call_node%arg_indices)))
 
             ! Infer all argument types
-            do i = 1, size(call_node%args)
-                arg_types(i) = ctx%infer(call_node%args(i)%node)
+            do i = 1, size(call_node%arg_indices)
+                arg_types(i) = infer_type(ctx, arena, call_node%arg_indices(i))
             end do
 
             ! Unify with function type

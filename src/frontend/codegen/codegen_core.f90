@@ -9,37 +9,37 @@ module codegen_core
     logical :: context_has_executable_before_contains = .false.
 
     ! Public interface for code generation
-public :: generate_code_from_stack, generate_code_polymorphic, generate_code_declaration
+public :: generate_code_from_arena, generate_code_polymorphic, generate_code_declaration
 
 contains
 
-    ! Generate code from AST stack
-    function generate_code_from_stack(stack, node_index) result(code)
-        type(ast_stack_t), intent(in) :: stack
+    ! Generate code from AST arena
+    function generate_code_from_arena(arena, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
         integer, intent(in) :: node_index
         character(len=:), allocatable :: code
 
         code = ""
-        if (node_index <= 0 .or. node_index > stack%size) return
-        if (.not. allocated(stack%entries(node_index)%node)) return
+        if (node_index <= 0 .or. node_index > arena%size) return
+        if (.not. allocated(arena%entries(node_index)%node)) return
 
-        select type (node => stack%entries(node_index)%node)
+        select type (node => arena%entries(node_index)%node)
         type is (literal_node)
             code = generate_code_literal(node)
         type is (identifier_node)
             code = generate_code_identifier(node)
         type is (assignment_node)
-            code = generate_code_assignment(stack, node, node_index)
+            code = generate_code_assignment(arena, node, node_index)
         type is (binary_op_node)
-            code = generate_code_binary_op(stack, node, node_index)
+            code = generate_code_binary_op(arena, node, node_index)
         type is (program_node)
-            code = generate_code_program(stack, node, node_index)
+            code = generate_code_program(arena, node, node_index)
         type is (function_call_node)
-            code = generate_code_function_call(stack, node, node_index)
+            code = generate_code_function_call(arena, node, node_index)
         class default
             code = "! Unknown node type"
         end select
-    end function generate_code_from_stack
+    end function generate_code_from_arena
 
     ! Generate code for literal node
     function generate_code_literal(node) result(code)
@@ -86,23 +86,23 @@ contains
     end function generate_code_identifier
 
     ! Generate code for assignment node
-    function generate_code_assignment(stack, node, node_index) result(code)
-        type(ast_stack_t), intent(in) :: stack
+    function generate_code_assignment(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
         type(assignment_node), intent(in) :: node
         integer, intent(in) :: node_index
         character(len=:), allocatable :: code
         character(len=:), allocatable :: target_code, value_code
 
         ! Generate code for target
-        if (node%target_index > 0 .and. node%target_index <= stack%size) then
-            target_code = generate_code_from_stack(stack, node%target_index)
+        if (node%target_index > 0 .and. node%target_index <= arena%size) then
+            target_code = generate_code_from_arena(arena, node%target_index)
         else
             target_code = "???"
         end if
 
         ! Generate code for value
-        if (node%value_index > 0 .and. node%value_index <= stack%size) then
-            value_code = generate_code_from_stack(stack, node%value_index)
+        if (node%value_index > 0 .and. node%value_index <= arena%size) then
+            value_code = generate_code_from_arena(arena, node%value_index)
         else
             value_code = "???"
         end if
@@ -112,22 +112,22 @@ contains
     end function generate_code_assignment
 
     ! Generate code for binary operation node
-    function generate_code_binary_op(stack, node, node_index) result(code)
-        type(ast_stack_t), intent(in) :: stack
+    function generate_code_binary_op(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
         type(binary_op_node), intent(in) :: node
         integer, intent(in) :: node_index
         character(len=:), allocatable :: code
         character(len=:), allocatable :: left_code, right_code
 
         ! Generate code for operands
-        if (node%left_index > 0 .and. node%left_index <= stack%size) then
-            left_code = generate_code_from_stack(stack, node%left_index)
+        if (node%left_index > 0 .and. node%left_index <= arena%size) then
+            left_code = generate_code_from_arena(arena, node%left_index)
         else
             left_code = "???"
         end if
 
-        if (node%right_index > 0 .and. node%right_index <= stack%size) then
-            right_code = generate_code_from_stack(stack, node%right_index)
+        if (node%right_index > 0 .and. node%right_index <= arena%size) then
+            right_code = generate_code_from_arena(arena, node%right_index)
         else
             right_code = "???"
         end if
@@ -137,8 +137,8 @@ contains
     end function generate_code_binary_op
 
     ! Generate code for program node
-    function generate_code_program(stack, node, node_index) result(code)
-        type(ast_stack_t), intent(in) :: stack
+    function generate_code_program(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
         type(program_node), intent(in) :: node
         integer, intent(in) :: node_index
         character(len=:), allocatable :: code
@@ -147,17 +147,17 @@ contains
         integer :: i
 
         ! Generate variable declarations
-        declarations = generate_variable_declarations(stack, node_index)
+        declarations = generate_variable_declarations(arena, node_index)
 
         ! Generate body code
         body_code = ""
-        child_indices = stack%get_children(node_index)
+        child_indices = arena%get_children(node_index)
 
         do i = 1, size(child_indices)
             if (len(body_code) > 0) then
                 body_code = body_code//new_line('A')
             end if
-        body_code = body_code//"    "//generate_code_from_stack(stack, child_indices(i))
+        body_code = body_code//"    "//generate_code_from_arena(arena, child_indices(i))
         end do
 
         ! Combine everything
@@ -176,8 +176,8 @@ contains
     end function generate_code_program
 
     ! Generate code for function call node
-    function generate_code_function_call(stack, node, node_index) result(code)
-        type(ast_stack_t), intent(in) :: stack
+    function generate_code_function_call(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
         type(function_call_node), intent(in) :: node
         integer, intent(in) :: node_index
         character(len=:), allocatable :: code
@@ -191,8 +191,8 @@ contains
                 if (len(args_code) > 0) then
                     args_code = args_code//", "
                 end if
-               if (node%arg_indices(i) > 0 .and. node%arg_indices(i) <= stack%size) then
-             args_code = args_code//generate_code_from_stack(stack, node%arg_indices(i))
+               if (node%arg_indices(i) > 0 .and. node%arg_indices(i) <= arena%size) then
+             args_code = args_code//generate_code_from_arena(arena, node%arg_indices(i))
                 else
                     args_code = args_code//"???"
                 end if
@@ -204,21 +204,21 @@ contains
     end function generate_code_function_call
 
     ! Polymorphic code generation interface
-    function generate_code_polymorphic(stack, node_index) result(code)
-        type(ast_stack_t), intent(in) :: stack
+    function generate_code_polymorphic(arena, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
         integer, intent(in) :: node_index
         character(len=:), allocatable :: code
 
-        code = generate_code_from_stack(stack, node_index)
+        code = generate_code_from_arena(arena, node_index)
     end function generate_code_polymorphic
 
     ! Declaration code generation interface
-    function generate_code_declaration(stack, node_index) result(code)
-        type(ast_stack_t), intent(in) :: stack
+    function generate_code_declaration(arena, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
         integer, intent(in) :: node_index
         character(len=:), allocatable :: code
 
-        code = generate_variable_declarations(stack, node_index)
+        code = generate_variable_declarations(arena, node_index)
     end function generate_code_declaration
 
 end module codegen_core

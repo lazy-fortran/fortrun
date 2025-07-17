@@ -2,6 +2,7 @@ module parser_declarations_module
     use iso_fortran_env, only: error_unit
     use lexer_core, only: token_t, TK_EOF, TK_NUMBER, TK_STRING, TK_IDENTIFIER, TK_OPERATOR, TK_KEYWORD
     use ast_core
+    use ast_factory, only: push_literal, push_identifier, push_binary_op, push_derived_type, push_declaration
     use parser_state_module, only: parser_state_t
     use parser_expressions_module, only: parse_comparison
     implicit none
@@ -13,15 +14,16 @@ module parser_declarations_module
 contains
 
     ! Parse a variable declaration
-    function parse_declaration(parser) result(decl_node)
+    function parse_declaration(parser, arena) result(decl_index)
         type(parser_state_t), intent(inout) :: parser
-        class(ast_node), allocatable :: decl_node
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: decl_index
 
         type(token_t) :: type_token, var_token
         character(len=:), allocatable :: type_name, var_name
         integer :: line, column, kind_value
         logical :: has_kind, is_array, is_allocatable
-        type(ast_node_wrapper), allocatable :: dimensions(:)
+        integer, allocatable :: dimension_indices(:)
 
         ! Get type name (real, integer, etc.)
         type_token = parser%consume()
@@ -52,12 +54,7 @@ contains
                     type_token = parser%consume()
                 else
                     ! Error: expected )
-                    block
-                        type(literal_node), allocatable :: error_node
-                        allocate (error_node)
-          error_node = create_literal("ERROR: Expected )", LITERAL_STRING, line, column)
-                        allocate (decl_node, source=error_node)
-                    end block
+     decl_index = push_literal(arena, "ERROR: Expected )", LITERAL_STRING, line, column)
                     return
                 end if
             else if (var_token%kind == TK_IDENTIFIER) then
@@ -90,22 +87,12 @@ contains
                     type_token = parser%consume()
                 else
                     ! Error: expected )
-                    block
-                        type(literal_node), allocatable :: error_node
-                        allocate (error_node)
-          error_node = create_literal("ERROR: Expected )", LITERAL_STRING, line, column)
-                        allocate (decl_node, source=error_node)
-                    end block
+     decl_index = push_literal(arena, "ERROR: Expected )", LITERAL_STRING, line, column)
                     return
                 end if
             else
                 ! Error: expected number or identifier
-                block
-                    type(literal_node), allocatable :: error_node
-                    allocate (error_node)
- error_node = create_literal("ERROR: Expected kind value or type name", LITERAL_STRING, line, column)
-                    allocate (decl_node, source=error_node)
-                end block
+                decl_index = push_literal(arena, "ERROR: Expected kind value or type name", LITERAL_STRING, line, column)
                 return
             end if
         end if
@@ -133,12 +120,7 @@ contains
             type_token = parser%consume()
         else
             ! Error: expected ::
-            block
-                type(literal_node), allocatable :: error_node
-                allocate (error_node)
-         error_node = create_literal("ERROR: Expected ::", LITERAL_STRING, line, column)
-                allocate (decl_node, source=error_node)
-            end block
+    decl_index = push_literal(arena, "ERROR: Expected ::", LITERAL_STRING, line, column)
             return
         end if
 
@@ -149,12 +131,7 @@ contains
             var_name = var_token%text
         else
             ! Error: expected identifier
-            block
-                type(literal_node), allocatable :: error_node
-                allocate (error_node)
- error_node = create_literal("ERROR: Expected identifier", LITERAL_STRING, line, column)
-                allocate (decl_node, source=error_node)
-            end block
+            decl_index = push_literal(arena, "ERROR: Expected identifier", LITERAL_STRING, line, column)
             return
         end if
 
@@ -167,7 +144,7 @@ contains
             var_token = parser%consume()
 
             ! Parse dimensions - for now, just handle simple cases
-            call parse_array_dimensions(parser, dimensions)
+            call parse_array_dimensions(parser, arena, dimension_indices)
 
             ! Consume ')'
             var_token = parser%peek()
@@ -175,53 +152,43 @@ contains
                 var_token = parser%consume()
             else
                 ! Error: expected )
-                block
-                    type(literal_node), allocatable :: error_node
-                    allocate (error_node)
-    error_node = create_literal("ERROR: Expected ) after array dimensions", LITERAL_STRING, line, column)
-                    allocate (decl_node, source=error_node)
-                end block
+                decl_index = push_literal(arena, "ERROR: Expected ) after array dimensions", LITERAL_STRING, line, column)
                 return
             end if
         end if
 
         ! Check for initialization (= expression)
         block
-            class(ast_node), allocatable :: initializer
+            integer :: initializer_index
             var_token = parser%peek()
             if (var_token%kind == TK_OPERATOR .and. var_token%text == "=") then
                 ! Consume '='
                 var_token = parser%consume()
 
                 ! Parse the initializer expression
-                initializer = parse_comparison(parser)
+                initializer_index = parse_comparison(parser, arena)
 
                 ! Store the initializer in the declaration node (will be handled in create_declaration)
-                if (allocated(initializer)) then
+                if (initializer_index > 0) then
                     ! Create declaration node with initializer
-                    block
-                        type(declaration_node), allocatable :: node
-                        allocate (node)
-                        if (has_kind .and. is_array) then
-                            node = create_declaration(type_name, var_name, &
-                                       kind_value=kind_value, initializer=initializer, &
-                                 dimensions=dimensions, is_allocatable=is_allocatable, &
+                    if (has_kind .and. is_array) then
+                        decl_index = push_declaration(arena, type_name, var_name, &
+                           kind_value=kind_value, initializer_index=initializer_index, &
+                   dimension_indices=dimension_indices, is_allocatable=is_allocatable, &
                                                       line=line, column=column)
-                        else if (has_kind) then
-                            node = create_declaration(type_name, var_name, &
-                                       kind_value=kind_value, initializer=initializer, &
+                    else if (has_kind) then
+                        decl_index = push_declaration(arena, type_name, var_name, &
+                           kind_value=kind_value, initializer_index=initializer_index, &
                                 is_allocatable=is_allocatable, line=line, column=column)
-                        else if (is_array) then
-                            node = create_declaration(type_name, var_name, &
-                                       initializer=initializer, dimensions=dimensions, &
+                    else if (is_array) then
+                        decl_index = push_declaration(arena, type_name, var_name, &
+             initializer_index=initializer_index, dimension_indices=dimension_indices, &
                                 is_allocatable=is_allocatable, line=line, column=column)
-                        else
-                            node = create_declaration(type_name, var_name, &
-                               initializer=initializer, is_allocatable=is_allocatable, &
+                    else
+                        decl_index = push_declaration(arena, type_name, var_name, &
+                   initializer_index=initializer_index, is_allocatable=is_allocatable, &
                                                       line=line, column=column)
-                        end if
-                        allocate (decl_node, source=node)
-                    end block
+                    end if
                     return
                 end if
             end if
@@ -235,44 +202,39 @@ contains
         end block
 
         ! Create declaration node
-        block
-            type(declaration_node), allocatable :: node
-            allocate (node)
-            if (has_kind .and. is_array) then
-                node = create_declaration(type_name, var_name, &
-                                         kind_value=kind_value, dimensions=dimensions, &
+        if (has_kind .and. is_array) then
+            decl_index = push_declaration(arena, type_name, var_name, &
+                           kind_value=kind_value, dimension_indices=dimension_indices, &
                                 is_allocatable=is_allocatable, line=line, column=column)
-            else if (has_kind) then
-                node = create_declaration(type_name, var_name, &
+        else if (has_kind) then
+            decl_index = push_declaration(arena, type_name, var_name, &
                                  kind_value=kind_value, is_allocatable=is_allocatable, &
                                           line=line, column=column)
-            else if (is_array) then
-                node = create_declaration(type_name, var_name, &
-                                 dimensions=dimensions, is_allocatable=is_allocatable, &
+        else if (is_array) then
+            decl_index = push_declaration(arena, type_name, var_name, &
+                   dimension_indices=dimension_indices, is_allocatable=is_allocatable, &
                                           line=line, column=column)
-            else
-                node = create_declaration(type_name, var_name, &
+        else
+            decl_index = push_declaration(arena, type_name, var_name, &
                                 is_allocatable=is_allocatable, line=line, column=column)
-            end if
-            allocate (decl_node, source=node)
-        end block
+        end if
 
     end function parse_declaration
 
     ! Parse array dimensions helper
-    subroutine parse_array_dimensions(parser, dimensions)
+    subroutine parse_array_dimensions(parser, arena, dimension_indices)
         type(parser_state_t), intent(inout) :: parser
-        type(ast_node_wrapper), allocatable, intent(out) :: dimensions(:)
+        type(ast_arena_t), intent(inout) :: arena
+        integer, allocatable, intent(out) :: dimension_indices(:)
 
         type(token_t) :: token
-        type(ast_node_wrapper), allocatable :: temp_dims(:)
         integer :: dim_count
         character(len=:), allocatable :: dim_spec
-        class(ast_node), allocatable :: lower_bound, upper_bound
+        integer :: lower_bound_index, upper_bound_index
         integer :: line, column
 
         dim_count = 0
-        allocate (dimensions(0))
+        allocate (dimension_indices(0))
 
         do
             token = parser%peek()
@@ -285,17 +247,17 @@ contains
 
                 ! Create assumed shape dimension node
                 block
-                    type(ast_node_wrapper) :: new_dim
-       allocate (new_dim%node, source=create_literal(":", LITERAL_STRING, line, column))
-                    dimensions = [dimensions, new_dim]
+                    integer :: dim_index
+                    dim_index = push_literal(arena, ":", LITERAL_STRING, line, column)
+                    dimension_indices = [dimension_indices, dim_index]
                     dim_count = dim_count + 1
                 end block
 
             else
                 ! Parse lower bound expression
-                lower_bound = parse_comparison(parser)
+                lower_bound_index = parse_comparison(parser, arena)
 
-                if (allocated(lower_bound)) then
+                if (lower_bound_index > 0) then
                     token = parser%peek()
 
                     ! Check for : (range)
@@ -303,28 +265,21 @@ contains
                         token = parser%consume()
 
                         ! Parse upper bound
-                        upper_bound = parse_comparison(parser)
+                        upper_bound_index = parse_comparison(parser, arena)
 
-                        if (allocated(upper_bound)) then
+                        if (upper_bound_index > 0) then
                             ! Create range dimension (lower:upper)
                             block
-                                type(ast_node_wrapper) :: new_dim
-                                type(binary_op_node), allocatable :: range_node
-                                allocate (range_node)
-              range_node = create_binary_op(lower_bound, upper_bound, ":", line, column)
-                                allocate (new_dim%node, source=range_node)
-                                dimensions = [dimensions, new_dim]
+                                integer :: dim_index
+                                dim_index = push_binary_op(arena, lower_bound_index, upper_bound_index, ":", line, column)
+                                dimension_indices = [dimension_indices, dim_index]
                                 dim_count = dim_count + 1
                             end block
                         end if
                     else
                         ! Single dimension (just the size)
-                        block
-                            type(ast_node_wrapper) :: new_dim
-                            allocate (new_dim%node, source=lower_bound)
-                            dimensions = [dimensions, new_dim]
-                            dim_count = dim_count + 1
-                        end block
+                        dimension_indices = [dimension_indices, lower_bound_index]
+                        dim_count = dim_count + 1
                     end if
                 end if
             end if
@@ -341,13 +296,14 @@ contains
     end subroutine parse_array_dimensions
 
     ! Parse derived type definition: type :: type_name or type(params) :: type_name
-    function parse_derived_type(parser) result(type_node)
+    function parse_derived_type(parser, arena) result(type_index)
         type(parser_state_t), intent(inout) :: parser
-        class(ast_node), allocatable :: type_node
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: type_index
 
         type(token_t) :: token
         character(len=:), allocatable :: type_name
-        type(ast_node_wrapper), allocatable :: components(:), params(:)
+        integer, allocatable :: component_indices(:), param_indices(:)
         integer :: line, column
 
         ! Already consumed 'type' keyword
@@ -365,7 +321,7 @@ contains
             token = parser%consume()  ! consume '('
 
             ! Parse parameters
-            call parse_derived_type_parameters(parser, params)
+            call parse_derived_type_parameters(parser, arena, param_indices)
 
             ! Consume ')'
             token = parser%peek()
@@ -390,31 +346,32 @@ contains
             type_name = token%text
         else
             ! Error: expected type name
-   type_node = create_literal("ERROR: Expected type name", LITERAL_STRING, line, column)
+            type_index = push_literal(arena, "ERROR: Expected type name", LITERAL_STRING, line, column)
             return
         end if
 
         ! TODO: Parse type components until 'end type'
         ! For now, just create the type node
-        if (allocated(params)) then
-            type_node = create_derived_type(type_name, components, params, line, column)
+        if (allocated(param_indices)) then
+            type_index = push_derived_type(arena, type_name, component_indices, param_indices, line, column)
         else
-            allocate (components(0))
-        type_node = create_derived_type(type_name, components, line=line, column=column)
+            allocate (component_indices(0))
+            type_index = push_derived_type(arena, type_name, component_indices, line=line, column=column)
         end if
 
     end function parse_derived_type
 
     ! Parse derived type parameters
-    subroutine parse_derived_type_parameters(parser, params)
+    subroutine parse_derived_type_parameters(parser, arena, param_indices)
         type(parser_state_t), intent(inout) :: parser
-        type(ast_node_wrapper), allocatable, intent(out) :: params(:)
+        type(ast_arena_t), intent(inout) :: arena
+        integer, allocatable, intent(out) :: param_indices(:)
 
         type(token_t) :: token
         integer :: param_count
 
         param_count = 0
-        allocate (params(0))
+        allocate (param_indices(0))
 
         do
             token = parser%peek()
@@ -425,9 +382,9 @@ contains
 
                 ! Create parameter node
                 block
-                    type(ast_node_wrapper) :: new_param
-                    allocate (new_param%node, source=create_identifier(token%text, token%line, token%column))
-                    params = [params, new_param]
+                    integer :: param_index
+              param_index = push_identifier(arena, token%text, token%line, token%column)
+                    param_indices = [param_indices, param_index]
                     param_count = param_count + 1
                 end block
 

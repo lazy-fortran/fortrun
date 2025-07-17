@@ -42,33 +42,33 @@ module ast_core
     end type ast_entry_t
 
     ! Stack-based AST storage system
-    type, public :: ast_stack_t
+    type, public :: ast_arena_t
         type(ast_entry_t), allocatable :: entries(:)  ! Contiguous array of entries
         integer :: size = 0                           ! Current number of entries
         integer :: capacity = 0                       ! Array capacity
-        integer :: current_index = 0                  ! Current position in stack
+        integer :: current_index = 0                  ! Current position in arena
         integer :: max_depth = 0                      ! Maximum depth reached
     contains
-        procedure :: push => ast_stack_push
-        procedure :: pop => ast_stack_pop
-        procedure :: current => ast_stack_current
-        procedure :: get_parent => ast_stack_get_parent
-        procedure :: get_depth => ast_stack_get_depth
-        procedure :: traverse_depth => ast_stack_traverse_depth
-        procedure :: find_by_type => ast_stack_find_by_type
-        procedure :: get_children => ast_stack_get_children
-        procedure :: get_stats => ast_stack_get_stats
-        procedure :: clear => ast_stack_clear
-        procedure :: add_child => ast_stack_add_child
-    end type ast_stack_t
+        procedure :: push => ast_arena_push
+        procedure :: pop => ast_arena_pop
+        procedure :: current => ast_arena_current
+        procedure :: get_parent => ast_arena_get_parent
+        procedure :: get_depth => ast_arena_get_depth
+        procedure :: traverse_depth => ast_arena_traverse_depth
+        procedure :: find_by_type => ast_arena_find_by_type
+        procedure :: get_children => ast_arena_get_children
+        procedure :: get_stats => ast_arena_get_stats
+        procedure :: clear => ast_arena_clear
+        procedure :: add_child => ast_arena_add_child
+    end type ast_arena_t
 
     ! Statistics for performance monitoring
-    type, public :: ast_stack_stats_t
+    type, public :: ast_arena_stats_t
         integer :: total_nodes = 0
         integer :: max_depth = 0
         integer :: capacity = 0
         integer :: memory_usage = 0  ! Approximate memory usage in bytes
-    end type ast_stack_stats_t
+    end type ast_arena_stats_t
 
     ! Core AST node types shared by all Fortran dialects
     ! KEEP OLD STRUCTURE FOR COMPATIBILITY but also support stack-based access
@@ -194,10 +194,13 @@ module ast_core
         character(len=:), allocatable :: var_name      ! Variable name
         integer :: kind_value                          ! Kind parameter (e.g., 8 for real(8))
         logical :: has_kind                            ! Whether kind was specified
-        class(ast_node), allocatable :: initializer    ! Optional initialization value
+        class(ast_node), allocatable :: initializer    ! Optional initialization value (legacy)
+        integer :: initializer_index = 0              ! Initializer index (stack-based)
+        logical :: has_initializer = .false.          ! Whether initializer is present
         ! Array dimension support
         logical :: is_array = .false.                  ! Whether this is an array declaration
-        type(ast_node_wrapper), allocatable :: dimensions(:) ! Array dimensions
+        type(ast_node_wrapper), allocatable :: dimensions(:) ! Array dimensions (legacy)
+        integer, allocatable :: dimension_indices(:)  ! Dimension indices (stack-based)
         logical :: is_allocatable = .false.           ! Whether allocatable attribute is present
     contains
         procedure :: accept => declaration_accept
@@ -245,9 +248,11 @@ module ast_core
     ! Derived type definition node
     type, extends(ast_node), public :: derived_type_node
         character(len=:), allocatable :: name          ! Type name
-        type(ast_node_wrapper), allocatable :: components(:) ! Type components
+        type(ast_node_wrapper), allocatable :: components(:) ! Type components (legacy)
+        integer, allocatable :: component_indices(:)   ! Component indices (stack-based)
         logical :: has_parameters = .false.            ! Whether it has parameters
-        type(ast_node_wrapper), allocatable :: parameters(:) ! Type parameters
+        type(ast_node_wrapper), allocatable :: parameters(:) ! Type parameters (legacy)
+        integer, allocatable :: param_indices(:)       ! Parameter indices (stack-based)
     contains
         procedure :: accept => derived_type_accept
         procedure :: to_json => derived_type_to_json
@@ -316,7 +321,7 @@ contains
     ! Create a new AST stack
     function create_ast_stack(initial_capacity) result(stack)
         integer, intent(in), optional :: initial_capacity
-        type(ast_stack_t) :: stack
+        type(ast_arena_t) :: stack
         integer :: cap
 
         cap = 100  ! Default capacity
@@ -330,8 +335,8 @@ contains
     end function create_ast_stack
 
     ! Push a new AST node onto the stack
-    subroutine ast_stack_push(this, node, node_type, parent_index)
-        class(ast_stack_t), intent(inout) :: this
+    subroutine ast_arena_push(this, node, node_type, parent_index)
+        class(ast_arena_t), intent(inout) :: this
         class(ast_node), intent(in) :: node
         character(len=*), intent(in), optional :: node_type
         integer, intent(in), optional :: parent_index
@@ -392,11 +397,11 @@ contains
         if (parent_idx > 0) then
             call this%add_child(parent_idx, this%size)
         end if
-    end subroutine ast_stack_push
+    end subroutine ast_arena_push
 
     ! Add a child to a parent node
-    subroutine ast_stack_add_child(this, parent_index, child_index)
-        class(ast_stack_t), intent(inout) :: this
+    subroutine ast_arena_add_child(this, parent_index, child_index)
+        class(ast_arena_t), intent(inout) :: this
         integer, intent(in) :: parent_index, child_index
         integer, allocatable :: temp_children(:)
         integer :: new_size
@@ -418,11 +423,11 @@ contains
         ! Add child
      this%entries(parent_index)%child_count = this%entries(parent_index)%child_count + 1
         this%entries(parent_index)%child_indices(this%entries(parent_index)%child_count) = child_index
-    end subroutine ast_stack_add_child
+    end subroutine ast_arena_add_child
 
     ! Pop the current node from the stack
-    subroutine ast_stack_pop(this)
-        class(ast_stack_t), intent(inout) :: this
+    subroutine ast_arena_pop(this)
+        class(ast_arena_t), intent(inout) :: this
 
         if (this%size > 0) then
             this%size = this%size - 1
@@ -434,11 +439,11 @@ contains
         else
             error stop "Cannot pop from empty AST stack"
         end if
-    end subroutine ast_stack_pop
+    end subroutine ast_arena_pop
 
     ! Get the current node from the stack
-    function ast_stack_current(this) result(node)
-        class(ast_stack_t), intent(in) :: this
+    function ast_arena_current(this) result(node)
+        class(ast_arena_t), intent(in) :: this
         class(ast_node), allocatable :: node
 
         if (this%current_index > 0 .and. this%current_index <= this%size) then
@@ -446,11 +451,11 @@ contains
                 allocate (node, source=this%entries(this%current_index)%node)
             end if
         end if
-    end function ast_stack_current
+    end function ast_arena_current
 
     ! Get the parent of the current node
-    function ast_stack_get_parent(this, index) result(parent_node)
-        class(ast_stack_t), intent(in) :: this
+    function ast_arena_get_parent(this, index) result(parent_node)
+        class(ast_arena_t), intent(in) :: this
         integer, intent(in), optional :: index
         class(ast_node), allocatable :: parent_node
         integer :: idx, parent_idx
@@ -464,11 +469,11 @@ contains
                 allocate (parent_node, source=this%entries(parent_idx)%node)
             end if
         end if
-    end function ast_stack_get_parent
+    end function ast_arena_get_parent
 
     ! Get the depth of a node (or current node)
-    function ast_stack_get_depth(this, index) result(depth)
-        class(ast_stack_t), intent(in) :: this
+    function ast_arena_get_depth(this, index) result(depth)
+        class(ast_arena_t), intent(in) :: this
         integer, intent(in), optional :: index
         integer :: depth, idx
 
@@ -479,11 +484,11 @@ contains
         if (idx > 0 .and. idx <= this%size) then
             depth = this%entries(idx)%depth
         end if
-    end function ast_stack_get_depth
+    end function ast_arena_get_depth
 
     ! Traverse nodes at a specific depth (O(depth) complexity)
-    subroutine ast_stack_traverse_depth(this, target_depth, visitor)
-        class(ast_stack_t), intent(in) :: this
+    subroutine ast_arena_traverse_depth(this, target_depth, visitor)
+        class(ast_arena_t), intent(in) :: this
         integer, intent(in) :: target_depth
         class(*), intent(inout) :: visitor
         integer :: i
@@ -496,11 +501,11 @@ contains
                 end if
             end if
         end do
-    end subroutine ast_stack_traverse_depth
+    end subroutine ast_arena_traverse_depth
 
     ! Find nodes by type (O(n) but cache-efficient)
-    function ast_stack_find_by_type(this, node_type) result(indices)
-        class(ast_stack_t), intent(in) :: this
+    function ast_arena_find_by_type(this, node_type) result(indices)
+        class(ast_arena_t), intent(in) :: this
         character(len=*), intent(in) :: node_type
         integer, allocatable :: indices(:)
         integer, allocatable :: temp_indices(:)
@@ -532,11 +537,11 @@ contains
         else
             allocate (indices(0))
         end if
-    end function ast_stack_find_by_type
+    end function ast_arena_find_by_type
 
     ! Get children of a node (O(1) lookup)
-    function ast_stack_get_children(this, parent_index) result(child_indices)
-        class(ast_stack_t), intent(in) :: this
+    function ast_arena_get_children(this, parent_index) result(child_indices)
+        class(ast_arena_t), intent(in) :: this
         integer, intent(in) :: parent_index
         integer, allocatable :: child_indices(:)
 
@@ -550,28 +555,28 @@ contains
         else
             allocate (child_indices(0))
         end if
-    end function ast_stack_get_children
+    end function ast_arena_get_children
 
     ! Get performance statistics
-    function ast_stack_get_stats(this) result(stats)
-        class(ast_stack_t), intent(in) :: this
-        type(ast_stack_stats_t) :: stats
+    function ast_arena_get_stats(this) result(stats)
+        class(ast_arena_t), intent(in) :: this
+        type(ast_arena_stats_t) :: stats
 
         stats%total_nodes = this%size
         stats%max_depth = this%max_depth
         stats%capacity = this%capacity
         stats%memory_usage = this%capacity*100  ! Rough estimate in bytes
-    end function ast_stack_get_stats
+    end function ast_arena_get_stats
 
     ! Clear the stack
-    subroutine ast_stack_clear(this)
-        class(ast_stack_t), intent(inout) :: this
+    subroutine ast_arena_clear(this)
+        class(ast_arena_t), intent(inout) :: this
 
         this%size = 0
         this%current_index = 0
         this%max_depth = 0
         ! Keep capacity and array allocated for reuse
-    end subroutine ast_stack_clear
+    end subroutine ast_arena_clear
 
     ! Factory functions for creating AST nodes (KEEP ALL ORIGINAL SIGNATURES)
 
