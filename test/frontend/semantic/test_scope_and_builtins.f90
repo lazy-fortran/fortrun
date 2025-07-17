@@ -37,7 +37,7 @@ contains
 
         ! Create assignment: x = 42
         target = create_identifier("x", 1, 1)
-        value_lit = create_literal(LITERAL_INTEGER, "42", 1, 5)
+        value_lit = create_literal("42", LITERAL_INTEGER, 1, 5)
         assign = create_assignment(target, value_lit, 1, 1)
 
         ! Infer type and add to environment
@@ -71,7 +71,7 @@ contains
         ctx = create_semantic_context()
 
         ! Create function call: sin(3.14)
-        arg = create_literal(LITERAL_REAL, "3.14", 1, 5)
+        arg = create_literal("3.14", LITERAL_REAL, 1, 5)
         allocate (arg_wrapper%node, source=arg)
         call_node = create_function_call("sin", [arg_wrapper], 1, 1)
 
@@ -103,7 +103,7 @@ contains
 
         ! Create assignment: pi = 3.14159
         target = create_identifier("pi", 1, 1)
-        value = create_literal(LITERAL_REAL, "3.14159", 1, 5)
+        value = create_literal("3.14159", LITERAL_REAL, 1, 5)
         assign = create_assignment(target, value, 1, 1)
 
         ! Analyze and store types

@@ -92,7 +92,7 @@ contains
             ! Check if semantic analysis ran without crash
             select type (ast_tree)
             type is (assignment_node)
-                if (ast_tree%inferred_type) then
+                if (allocated(ast_tree%inferred_type)) then
                     print *, '  PASS: Function call inference completed'
                     print *, '  INFO: Inferred type: ', ast_tree%inferred_type_name
                 else

@@ -33,15 +33,20 @@ Extract smaller, focused modules from large pipeline modules to improve maintain
 
 ### Modules to Refactor
 - [ ] **lexer_core.f90** (548 lines) - Extract token type definitions, keyword management, operator handling
-- [x] **parser_core.f90** (2635 → 2611 lines) - PARTIAL: Extracted parser_state, parser_expressions, parser_declarations modules
-  - [x] Created `parser_state.f90` - Parser state management (82 lines)
-  - [x] Created `parser_expressions.f90` - Expression parsing hierarchy (366 lines)
-  - [x] Created `parser_declarations.f90` - Declaration and type parsing (382 lines)
-  - [ ] Note: Control flow kept in parser_core due to circular dependencies
-- [ ] **ast_core.f90** (1446 lines) - Extract node factory functions, visitor pattern, node type definitions
-- [ ] **semantic_analyzer.f90** (1037 lines) - Extract type inference engine, constraint solver, environment management
-- [ ] **json_writer.f90** (137 lines) - Already small, no refactoring needed
-- [ ] **frontend.f90** (855 lines) - Extract pipeline orchestration, error handling, debug output
+- [x] **parser_core.f90** (2635 → 2195 lines) - COMPLETED: Extracted parser_state, parser_expressions, parser_declarations modules
+  - [x] Created `parser_state.f90` - Parser state management (84 lines)
+  - [x] Created `parser_expressions.f90` - Expression parsing hierarchy (385 lines)
+  - [x] Created `parser_declarations.f90` - Declaration and type parsing (448 lines)
+  - [x] Note: Control flow kept in parser_core due to circular dependencies
+  - [x] All tests pass after refactoring
+  - [x] Total lines extracted: 917 lines (440 lines reduction in parser_core)
+  - [x] Fixed semantic test compilation errors (inferred_type allocation checks)
+  - [x] Fixed function call signature errors (create_literal parameter order)
+  - [x] Project builds successfully and core parser functionality verified
+- [ ] **ast_core.f90** (1425 lines) - Extract node factory functions, visitor pattern, node type definitions
+- [ ] **semantic_analyzer.f90** (1038 lines) - Extract type inference engine, constraint solver, environment management
+- [x] **json_writer.f90** (137 lines) - Already small, no refactoring needed
+- [ ] **frontend.f90** (723 lines) - Within target size, lower priority for refactoring
 
 ### Refactoring Strategy
 1. Identify logical boundaries within each module
@@ -49,11 +54,20 @@ Extract smaller, focused modules from large pipeline modules to improve maintain
 3. Update use statements and maintain clean interfaces
 4. Ensure all tests pass after each extraction
 5. Follow naming convention: `<module>_<component>.f90`
+6. Follow Single Responsibility Principle (SRP) throughout
 
 ### Target Module Sizes
 - Core modules: < 1000 lines
 - Component modules: < 500 lines
 - Utility modules: < 300 lines
+
+### Additional Refactoring Opportunities
+**Parser Statement Dispatcher Pattern** - Created example modules showing how to further refactor the large `parse_statement` function:
+- `parser_dispatcher.f90` - Clean switch logic that delegates to specialized modules
+- `parser_control_flow.f90` - Handles if/do/select constructs  
+- `parser_statements.f90` - Handles use/include/print/function/subroutine/module statements
+
+This approach would eliminate the massive switch statement and improve maintainability, testability, and extensibility. Implementation would further reduce parser_core.f90 size and improve code organization.
 
 ## Phase 1: Clean Up and Organize
 

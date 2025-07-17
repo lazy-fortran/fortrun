@@ -56,7 +56,7 @@ contains
             ! Check if semantic analysis ran without crash
             select type (ast_tree)
             type is (assignment_node)
-                if (ast_tree%inferred_type) then
+                if (allocated(ast_tree%inferred_type)) then
                     print *, '  PASS: Array literal inference completed'
                     print *, '  INFO: Inferred type: ', ast_tree%inferred_type_name
                 else
@@ -96,7 +96,7 @@ contains
             ! Check if semantic analysis ran without crash
             select type (ast_tree)
             type is (assignment_node)
-                if (ast_tree%inferred_type) then
+                if (allocated(ast_tree%inferred_type)) then
                     print *, '  PASS: Array indexing inference completed'
                     print *, '  INFO: Inferred type: ', ast_tree%inferred_type_name
                 else
@@ -136,7 +136,7 @@ contains
             ! Check if semantic analysis ran without crash
             select type (ast_tree)
             type is (assignment_node)
-                if (ast_tree%inferred_type) then
+                if (allocated(ast_tree%inferred_type)) then
                     print *, '  PASS: Array assignment inference completed'
                     print *, '  INFO: Inferred type: ', ast_tree%inferred_type_name
                 else
@@ -176,7 +176,7 @@ contains
             ! Check if semantic analysis ran without crash
             select type (ast_tree)
             type is (assignment_node)
-                if (ast_tree%inferred_type) then
+                if (allocated(ast_tree%inferred_type)) then
                     print *, '  PASS: Array operations inference completed'
                     print *, '  INFO: Inferred type: ', ast_tree%inferred_type_name
                 else
