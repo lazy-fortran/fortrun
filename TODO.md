@@ -117,9 +117,83 @@ All code must follow **Safe Fortran** practices to prevent memory corruption. Th
    - [ ] Implement safe container patterns throughout
    - [ ] Add memory safety tests
 
+## IMMEDIATE GOAL: Scope Manager Refactoring (Phase 1.5)
+
+### Problem
+Current `scope_manager.f90` uses pointers extensively, causing segmentation faults:
+- `scope_t` has `pointer :: parent` (line 23)
+- `scope_stack_t` has `pointer :: current, global` (lines 32-33)
+- All scope creation/navigation uses pointer manipulation
+- Manual pointer cleanup in `stack_finalize` (line 263)
+
+### Solution: Stack-Based Scope Manager
+Replace pointer-based hierarchical tree with allocatable stack approach:
+
+#### Step 1: Refactor Data Structures
+- [❌] Remove all `pointer` declarations from `scope_t` and `scope_stack_t`
+- [❌] Replace with `allocatable` stack array in `scope_stack_t`
+- [❌] Use integer indices instead of pointers for parent relationships
+
+#### Step 2: Implement Stack Operations
+- [❌] Rewrite `stack_push_scope` to use array extension with temp variables
+- [❌] Rewrite `stack_pop_scope` to shrink array safely
+- [❌] Implement `stack_lookup` to walk up the stack (O(depth) performance)
+- [❌] Update `stack_define` to add to current scope (top of stack)
+
+#### Step 3: Update Scope Navigation
+- [❌] Rewrite `stack_enter_module/function/subroutine/block/interface` methods
+- [❌] Implement `stack_leave_scope` to pop from stack
+- [❌] Remove `stack_finalize` (automatic cleanup with allocatable)
+
+#### Step 4: Fix Scope Lookup Chain
+- [❌] Rewrite `scope_lookup_recursive` to use stack instead of parent pointers
+- [❌] Update `stack_lookup` to iterate through stack from top to bottom
+- [❌] Ensure proper symbol resolution with shadowing semantics
+
+#### Step 5: Testing and Validation
+- [❌] Create unit tests for stack operations
+- [❌] Test nested scope scenarios (module → function → block)
+- [❌] Validate symbol lookup with shadowing
+- [❌] Run `test_minimal_semantic_analyzer` to verify fix
+
+### Data Structure Design
+```fortran
+type :: scope_t
+    integer :: scope_type = SCOPE_GLOBAL
+    character(len=:), allocatable :: name
+    type(type_env_t) :: env
+    ! No parent pointer - stack handles hierarchy
+end type scope_t
+
+type :: scope_stack_t
+    type(scope_t), allocatable :: scopes(:)  ! Stack of scopes
+    integer :: depth = 0                     ! Current depth (top of stack)
+    integer :: capacity = 0                  ! Array capacity
+    ! No current/global pointers - use indices
+end type scope_stack_t
+```
+
+### Performance Characteristics
+- **Push/Pop**: O(1) amortized with dynamic array growth
+- **Lookup**: O(d) where d = scope depth (typically 2-5)
+- **Define**: O(1) add to current scope
+- **Memory**: O(n) where n = total active scopes
+
 ### Implementation Priority
-1. **CRITICAL**: Fix `type_env_t` extend method causing double-free
-2. **HIGH**: Implement safe AST copy operations
+1. **CRITICAL**: Fix segmentation fault in `scope_lookup` at line 102
+2. **HIGH**: Eliminate all pointer usage in scope management
+3. **MEDIUM**: Optimize array growth strategy
+4. **LOW**: Add performance benchmarks
+
+### Success Criteria
+- [❌] `test_minimal_semantic_analyzer` passes without segfault
+- [❌] All scope-related tests pass
+- [❌] No pointer usage in `scope_manager.f90`
+- [❌] Memory safety with automatic cleanup
+
+### Implementation Priority
+1. **CRITICAL**: Scope Manager Refactoring (Phase 1.5)
+2. **HIGH**: Fix remaining type system deep copy issues
 3. **MEDIUM**: General codebase safety audit
 4. **LOW**: Performance optimization while maintaining safety
 
