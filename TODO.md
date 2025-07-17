@@ -33,16 +33,16 @@ Extract smaller, focused modules from large pipeline modules to improve maintain
 
 ### Modules to Refactor
 - [ ] **lexer_core.f90** (548 lines) - Extract token type definitions, keyword management, operator handling
-- [x] **parser_core.f90** (2635 → 2195 lines) - COMPLETED: Extracted parser_state, parser_expressions, parser_declarations modules
-  - [x] Created `parser_state.f90` - Parser state management (84 lines)
-  - [x] Created `parser_expressions.f90` - Expression parsing hierarchy (385 lines)
-  - [x] Created `parser_declarations.f90` - Declaration and type parsing (448 lines)
-  - [x] Note: Control flow kept in parser_core due to circular dependencies
+- [x] **parser_core.f90** (2635 → ~1200 lines) - MAJOR REFACTORING PROGRESS:
+  - [x] Phase 1: Created `parser_state.f90` - Parser state management (84 lines)
+  - [x] Phase 1: Created `parser_expressions.f90` - Expression parsing hierarchy (385 lines)
+  - [x] Phase 1: Created `parser_declarations.f90` - Declaration and type parsing (448 lines)
+  - [x] Phase 2: Created `parser_statements.f90` - Statement parsing functions (moved from parser_core)
+  - [x] Phase 3: Enhanced `parser_control_flow.f90` - All control flow parsing (if/do/while/select)
+  - [x] Total reduction: ~1400+ lines extracted from parser_core
   - [x] All tests pass after refactoring
-  - [x] Total lines extracted: 917 lines (440 lines reduction in parser_core)
-  - [x] Fixed semantic test compilation errors (inferred_type allocation checks)
-  - [x] Fixed function call signature errors (create_literal parameter order)
-  - [x] Project builds successfully and core parser functionality verified
+  - [x] Fixed semantic test compilation errors
+  - [x] Project builds successfully and all parser functionality verified
 - [ ] **ast_core.f90** (1425 lines) - Extract node factory functions, visitor pattern, node type definitions
 - [ ] **semantic_analyzer.f90** (1038 lines) - Extract type inference engine, constraint solver, environment management
 - [x] **json_writer.f90** (137 lines) - Already small, no refactoring needed
@@ -114,10 +114,15 @@ This approach would eliminate the massive switch statement and improve maintaina
   - Move `parse_if` → `parser_control_flow.f90` ✅ (already extracted)
   - Move `parse_do_loop` → `parser_control_flow.f90` ✅ (already extracted)
   - Move `parse_do_while` → `parser_control_flow.f90` ✅ (already extracted)
-  - Move `parse_select_case` → `parser_control_flow.f90` ✅ (implemented)
+  - Move `parse_select_case` → `parser_control_flow.f90` ✅ (implemented from scratch)
 - [x] **Update all control flow imports** in dependent modules ✅
+  - parser_core.f90 now imports all control flow functions from parser_control_flow_module
 - [x] **Run comprehensive frontend tests** after each move ✅
+  - All parser tests pass including test_frontend_parser_select_case
+  - Added test_select_case_extract.f90 to verify extraction
 - [x] **Verify test coverage maintained** for control flow constructs ✅
+  - Control flow parsing functions fully tested
+  - parse_select_case implementation handles all test cases
 
 #### Phase 4: Implement Clean Dispatcher (Week 4)
 - [ ] **Replace massive parse_statement switch** with `parser_dispatcher.f90`:
