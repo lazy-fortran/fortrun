@@ -1,462 +1,30 @@
 module parser_core
     use lexer_core
-    use ast_core, only: ast_node, ast_node_wrapper, assignment_node, binary_op_node, identifier_node, &
-        literal_node, call_or_subscript_node, function_def_node, subroutine_def_node, print_statement_node, &
-                         use_statement_node, include_statement_node, declaration_node, do_loop_node, do_while_node, if_node, elseif_wrapper, select_case_node, case_wrapper, &
-            derived_type_node, interface_block_node, module_node, create_assignment, create_binary_op, create_identifier, &
-create_literal, create_call_or_subscript, create_function_def, create_subroutine_def, create_print_statement, &
-                         create_use_statement, create_include_statement, create_declaration, create_do_loop, create_do_while, create_if, create_select_case, &
-     create_derived_type, create_interface_block, create_module, LITERAL_INTEGER, LITERAL_REAL, LITERAL_STRING, LITERAL_LOGICAL
+    use parser_state_module, only: parser_state_t, create_parser_state
+    use parser_expressions_module, only: parse_expression, parse_logical_or, parse_logical_and, &
+          parse_comparison, parse_member_access, parse_term, parse_factor, parse_primary
+    use ast_core, only: ast_node, ast_node_wrapper, assignment_node, binary_op_node, &
+             identifier_node, literal_node, call_or_subscript_node, function_def_node, &
+                        subroutine_def_node, print_statement_node, use_statement_node, &
+                include_statement_node, declaration_node, do_loop_node, do_while_node, &
+                        if_node, elseif_wrapper, select_case_node, case_wrapper, &
+                        derived_type_node, interface_block_node, module_node, &
+                        create_assignment, create_binary_op, create_identifier, &
+                        create_literal, create_call_or_subscript, create_function_def, &
+                        create_subroutine_def, create_print_statement, &
+                   create_use_statement, create_include_statement, create_declaration, &
+                       create_do_loop, create_do_while, create_if, create_select_case, &
+                        create_derived_type, create_interface_block, create_module, &
+                        LITERAL_INTEGER, LITERAL_REAL, LITERAL_STRING, LITERAL_LOGICAL
     implicit none
     private
 
-    ! Parser state for tracking tokens
-    type, public :: parser_state_t
-        type(token_t), allocatable :: tokens(:)
-        integer :: current_token = 1
-    contains
-        procedure :: peek => parser_peek
-        procedure :: consume => parser_consume
-        procedure :: is_at_end => parser_is_at_end
-        procedure :: match => parser_match
-    end type parser_state_t
-
     ! Public parsing interface
     public :: parse_expression, parse_statement
-    public :: create_parser_state, parse_primary, parse_function_definition
+    public :: parse_primary, parse_function_definition
     public :: parse_do_loop, parse_do_while, parse_if, parse_select_case, parse_subroutine_definition
 
 contains
-
-    ! Create parser state from tokens
-    function create_parser_state(tokens) result(state)
-        type(token_t), intent(in) :: tokens(:)
-        type(parser_state_t) :: state
-
-        allocate (state%tokens(size(tokens)))
-        state%tokens = tokens
-        state%current_token = 1
-    end function create_parser_state
-
-    ! Peek at current token without consuming it
-    function parser_peek(this) result(current_token)
-        class(parser_state_t), intent(in) :: this
-        type(token_t) :: current_token
-
-        if (this%current_token <= size(this%tokens)) then
-            current_token = this%tokens(this%current_token)
-        else
-            ! Return EOF token
-            current_token%kind = TK_EOF
-            current_token%text = ""
-            current_token%line = 1
-            current_token%column = 1
-        end if
-    end function parser_peek
-
-    ! Consume current token and advance
-    function parser_consume(this) result(consumed_token)
-        class(parser_state_t), intent(inout) :: this
-        type(token_t) :: consumed_token
-
-        consumed_token = this%peek()
-        if (.not. this%is_at_end()) then
-            this%current_token = this%current_token + 1
-        end if
-    end function parser_consume
-
-    ! Check if we're at the end of tokens
-    logical function parser_is_at_end(this)
-        class(parser_state_t), intent(in) :: this
-        type(token_t) :: current
-
-        current = this%peek()
-        parser_is_at_end = (current%kind == TK_EOF)
-    end function parser_is_at_end
-
-    ! Check if current token matches expected kind and consume if so
-    logical function parser_match(this, expected_kind)
-        class(parser_state_t), intent(inout) :: this
-        integer, intent(in) :: expected_kind
-        type(token_t) :: current, consumed
-
-        current = this%peek()
-        if (current%kind == expected_kind) then
-            consumed = this%consume()
-            parser_match = .true.
-        else
-            parser_match = .false.
-        end if
-    end function parser_match
-
-    ! Parse expression with operator precedence
-    function parse_expression(tokens) result(expr)
-        type(token_t), intent(in) :: tokens(:)
-        class(ast_node), allocatable :: expr
-        type(parser_state_t) :: parser
-
-        parser = create_parser_state(tokens)
-        expr = parse_logical_or(parser)
-    end function parse_expression
-
-    ! Parse logical OR operators (lowest precedence)
-    function parse_logical_or(parser) result(expr)
-        type(parser_state_t), intent(inout) :: parser
-        class(ast_node), allocatable :: expr
-        class(ast_node), allocatable :: right_expr, temp_expr
-        type(token_t) :: op_token
-
-        expr = parse_logical_and(parser)
-
-        do while (.not. parser%is_at_end())
-            op_token = parser%peek()
-            if (op_token%kind == TK_OPERATOR .and. op_token%text == ".or.") then
-                op_token = parser%consume()  ! consume operator
-                right_expr = parse_logical_and(parser)
-                if (allocated(right_expr)) then
-                    allocate (temp_expr, source=expr)
-                    expr = create_binary_op(temp_expr, right_expr, op_token%text)
-                else
-                    exit
-                end if
-            else
-                exit
-            end if
-        end do
-    end function parse_logical_or
-
-    ! Parse logical AND operators
-    function parse_logical_and(parser) result(expr)
-        type(parser_state_t), intent(inout) :: parser
-        class(ast_node), allocatable :: expr
-        class(ast_node), allocatable :: right_expr, temp_expr
-        type(token_t) :: op_token
-
-        expr = parse_comparison(parser)
-
-        do while (.not. parser%is_at_end())
-            op_token = parser%peek()
-            if (op_token%kind == TK_OPERATOR .and. op_token%text == ".and.") then
-                op_token = parser%consume()  ! consume operator
-                right_expr = parse_comparison(parser)
-                if (allocated(right_expr)) then
-                    allocate (temp_expr, source=expr)
-                    expr = create_binary_op(temp_expr, right_expr, op_token%text)
-                else
-                    exit
-                end if
-            else
-                exit
-            end if
-        end do
-    end function parse_logical_and
-
-    ! Parse comparison operators
-    function parse_comparison(parser) result(expr)
-        type(parser_state_t), intent(inout) :: parser
-        class(ast_node), allocatable :: expr
-        class(ast_node), allocatable :: right_expr, temp_expr
-        type(token_t) :: op_token
-
-        expr = parse_member_access(parser)
-
-        do while (.not. parser%is_at_end())
-            op_token = parser%peek()
-            if (op_token%kind == TK_OPERATOR .and. &
-                (op_token%text == "==" .or. op_token%text == "/=" .or. &
-                 op_token%text == "<=" .or. op_token%text == ">=" .or. &
-                 op_token%text == "<" .or. op_token%text == ">")) then
-                op_token = parser%consume()
-                right_expr = parse_member_access(parser)
-                temp_expr = create_binary_op(expr, right_expr, op_token%text, op_token%line, op_token%column)
-                call move_alloc(temp_expr, expr)
-            else
-                exit
-            end if
-        end do
-    end function parse_comparison
-
-    ! Parse member access operator (%)
-    function parse_member_access(parser) result(expr)
-        type(parser_state_t), intent(inout) :: parser
-        class(ast_node), allocatable :: expr
-        class(ast_node), allocatable :: right_expr, temp_expr
-        type(token_t) :: op_token
-
-        expr = parse_term(parser)
-
-        do while (.not. parser%is_at_end())
-            op_token = parser%peek()
-            if (op_token%kind == TK_OPERATOR .and. op_token%text == "%") then
-                op_token = parser%consume()
-                right_expr = parse_term(parser)
-                temp_expr = create_binary_op(expr, right_expr, op_token%text, op_token%line, op_token%column)
-                call move_alloc(temp_expr, expr)
-            else
-                exit
-            end if
-        end do
-    end function parse_member_access
-
-    ! Parse addition and subtraction
-    function parse_term(parser) result(expr)
-        type(parser_state_t), intent(inout) :: parser
-        class(ast_node), allocatable :: expr
-        class(ast_node), allocatable :: right_expr, temp_expr
-        type(token_t) :: op_token
-
-        expr = parse_factor(parser)
-
-        do while (.not. parser%is_at_end())
-            op_token = parser%peek()
-            if (op_token%kind == TK_OPERATOR .and. &
-                (op_token%text == "+" .or. op_token%text == "-")) then
-                op_token = parser%consume()
-                right_expr = parse_factor(parser)
-                temp_expr = create_binary_op(expr, right_expr, op_token%text, op_token%line, op_token%column)
-                call move_alloc(temp_expr, expr)
-            else
-                exit
-            end if
-        end do
-    end function parse_term
-
-    ! Parse multiplication, division, and power
-    function parse_factor(parser) result(expr)
-        type(parser_state_t), intent(inout) :: parser
-        class(ast_node), allocatable :: expr
-        class(ast_node), allocatable :: right_expr, temp_expr
-        type(token_t) :: op_token
-
-        expr = parse_primary(parser)
-
-        do while (.not. parser%is_at_end())
-            op_token = parser%peek()
-            if (op_token%kind == TK_OPERATOR .and. &
-       (op_token%text == "*" .or. op_token%text == "/" .or. op_token%text == "**")) then
-                op_token = parser%consume()
-                right_expr = parse_primary(parser)
-                temp_expr = create_binary_op(expr, right_expr, op_token%text, op_token%line, op_token%column)
-                call move_alloc(temp_expr, expr)
-            else
-                exit
-            end if
-        end do
-    end function parse_factor
-
-    ! Parse primary expressions (literals, identifiers, parentheses)
-    recursive function parse_primary(parser) result(expr)
-        type(parser_state_t), intent(inout) :: parser
-        class(ast_node), allocatable :: expr
-        type(token_t) :: current
-
-        current = parser%peek()
-
-        select case (current%kind)
-        case (TK_NUMBER)
-            ! Parse number literal
-            current = parser%consume()
-            if (index(current%text, '.') > 0) then
-                ! Contains decimal point - classify as real
-         expr = create_literal(current%text, LITERAL_REAL, current%line, current%column)
-            else
-                ! No decimal point - classify as integer
-      expr = create_literal(current%text, LITERAL_INTEGER, current%line, current%column)
-            end if
-
-        case (TK_STRING)
-            ! Parse string literal
-            current = parser%consume()
-       expr = create_literal(current%text, LITERAL_STRING, current%line, current%column)
-
-        case (TK_IDENTIFIER)
-            ! Parse identifier or function call
-            current = parser%consume()
-
-            ! Check if followed by '(' for function call
-            block
-                type(token_t) :: next_token
-                character(len=:), allocatable :: func_name
-                type(ast_node_wrapper), allocatable :: args(:)
-                type(token_t) :: paren
-                integer :: arg_count
-
-                next_token = parser%peek()
-                if (next_token%kind == TK_OPERATOR .and. next_token%text == "(") then
-                    ! Parse function call
-
-                    func_name = current%text
-                    arg_count = 0
-
-                    ! Consume opening paren
-                    paren = parser%consume()
-
-                    ! Parse arguments (now handles multiple arguments)
-                    next_token = parser%peek()
-                    if (next_token%kind /= TK_OPERATOR .or. next_token%text /= ")") then
-                        block
-                            class(ast_node), allocatable :: arg
-
-                            ! Handle multiple arguments using wrapper pattern
-                            arg_count = 0
-
-                            ! Parse first argument
-                            arg = parse_comparison(parser)
-                            if (allocated(arg)) then
-                                arg_count = 1
-                                allocate (args(1))
-                                allocate (args(1)%node, source=arg)
-
-                                ! Parse additional arguments separated by commas
-                                do
-                                    next_token = parser%peek()
-                    if (next_token%kind /= TK_OPERATOR .or. next_token%text /= ",") exit
-
-                                    ! Consume comma
-                                    next_token = parser%consume()
-
-                                    ! Parse next argument
-                                    arg = parse_comparison(parser)
-                                    if (allocated(arg)) then
-                                        ! Extend wrapper array: args = [args, new_wrapper]
-                                        block
-                                            type(ast_node_wrapper) :: new_wrapper
-                                            allocate (new_wrapper%node, source=arg)
-                                            args = [args, new_wrapper]  ! Extend array with wrapper
-                                            arg_count = arg_count + 1
-                                        end block
-                                    else
-                                        exit
-                                    end if
-                                end do
-                            end if
-                        end block
-                    end if
-
-                    ! Consume closing paren if present
-                    next_token = parser%peek()
-                   if (next_token%kind == TK_OPERATOR .and. next_token%text == ")") then
-                        paren = parser%consume()
-                    end if
-
-                    ! Create function call node
-                    if (allocated(args)) then
-          expr = create_call_or_subscript(func_name, args, current%line, current%column)
-                    else
-                        ! For empty args, create empty function call
-                        block
-                            type(ast_node_wrapper), allocatable :: empty_args(:)
-                            allocate (empty_args(0))  ! Empty wrapper array
-    expr = create_call_or_subscript(func_name, empty_args, current%line, current%column)
-                        end block
-                    end if
-                else
-                    expr = create_identifier(current%text, current%line, current%column)
-                end if
-            end block
-
-        case (TK_OPERATOR)
-            ! Check for parentheses
-            if (current%text == "(") then
-                current = parser%consume()  ! consume '('
-                expr = parse_comparison(parser)  ! parse the expression inside
-                current = parser%peek()
-                if (current%text == ")") then
-                    current = parser%consume()  ! consume ')'
-                end if
-            else if (current%text == "-" .or. current%text == "+") then
-                ! Unary operator
-                block
-                    type(token_t) :: op_token
-                    class(ast_node), allocatable :: operand
-                    op_token = parser%consume()
-                    operand = parse_primary(parser)
-                    if (allocated(operand)) then
-                        ! Create unary expression as binary op with zero
-                        if (op_token%text == "-") then
-                            ! For unary minus, create 0 - operand
-                            block
-                                class(ast_node), allocatable :: zero
-             zero = create_literal("0", LITERAL_INTEGER, op_token%line, op_token%column)
-                                expr = create_binary_op(zero, operand, "-")
-                            end block
-                        else
-                            ! For unary plus, just return the operand
-                            allocate (expr, source=operand)
-                        end if
-                    end if
-                end block
-            else if (current%text == ".not.") then
-                ! Logical NOT operator
-                block
-                    type(token_t) :: op_token
-                    class(ast_node), allocatable :: operand
-                    op_token = parser%consume()
-                    operand = parse_primary(parser)
-                    if (allocated(operand)) then
-                        ! Create unary NOT expression as binary op with false
-                        block
-                            class(ast_node), allocatable :: false_literal
-             false_literal = create_literal(".false.", LITERAL_LOGICAL, op_token%line, op_token%column)
-                            expr = create_binary_op(false_literal, operand, ".not.")
-                        end block
-                    end if
-                end block
-            else if (current%text == ".") then
-                ! Check for logical literals (.true. or .false.)
-                block
-                    type(token_t) :: next_token, third_token
-                    if (parser%current_token + 2 <= size(parser%tokens)) then
-                        next_token = parser%tokens(parser%current_token + 1)
-                        third_token = parser%tokens(parser%current_token + 2)
-
-                        if (next_token%kind == TK_IDENTIFIER .and. &
-                     third_token%kind == TK_OPERATOR .and. third_token%text == ".") then
-                     if (next_token%text == "true" .or. next_token%text == "false") then
-                                ! It's a logical literal
-                                current = parser%consume()  ! consume first '.'
-                                current = parser%consume()  ! consume 'true'/'false'
-                                current = parser%consume()  ! consume second '.'
-               expr = create_literal("."//trim(next_token%text)//".", LITERAL_LOGICAL, &
-                                                      current%line, current%column)
-                            else
-                                ! Not a logical literal
-                 expr = create_literal("", LITERAL_STRING, current%line, current%column)
-                                current = parser%consume()
-                            end if
-                        else
-                            ! Not a logical literal pattern
-                 expr = create_literal("", LITERAL_STRING, current%line, current%column)
-                            current = parser%consume()
-                        end if
-                    else
-                        ! Not enough tokens
-                 expr = create_literal("", LITERAL_STRING, current%line, current%column)
-                        current = parser%consume()
-                    end if
-                end block
-            else
-                ! Unrecognized operator - create a placeholder
-                expr = create_literal("", LITERAL_STRING, current%line, current%column)
-                current = parser%consume()
-            end if
-
-        case (TK_KEYWORD)
-            ! Handle logical constants
-            current = parser%consume()
-            if (current%text == ".true." .or. current%text == ".false.") then
-      expr = create_literal(current%text, LITERAL_LOGICAL, current%line, current%column)
-            else
-                ! Other keywords - create placeholder for now
-                expr = create_literal("", LITERAL_STRING, current%line, current%column)
-            end if
-
-        case default
-            ! Unrecognized token - create a placeholder and skip
-            expr = create_literal("", LITERAL_STRING, current%line, current%column)
-            current = parser%consume()
-        end select
-    end function parse_primary
 
     ! Parse a simple statement (minimal implementation for TDD)
     function parse_statement(tokens) result(stmt)
@@ -827,13 +395,22 @@ contains
                         type(declaration_node), allocatable :: node
                         allocate (node)
                         if (has_kind .and. is_array) then
-                            node = create_declaration(type_name, var_name, kind_value=kind_value, initializer=initializer, dimensions=dimensions, is_allocatable=is_allocatable, line=line, column=column)
+                            node = create_declaration(type_name, var_name, &
+                                       kind_value=kind_value, initializer=initializer, &
+                                 dimensions=dimensions, is_allocatable=is_allocatable, &
+                                                      line=line, column=column)
                         else if (has_kind) then
-                            node = create_declaration(type_name, var_name, kind_value=kind_value, initializer=initializer, is_allocatable=is_allocatable, line=line, column=column)
+                            node = create_declaration(type_name, var_name, &
+                                       kind_value=kind_value, initializer=initializer, &
+                                is_allocatable=is_allocatable, line=line, column=column)
                         else if (is_array) then
-                            node = create_declaration(type_name, var_name, initializer=initializer, dimensions=dimensions, is_allocatable=is_allocatable, line=line, column=column)
+                            node = create_declaration(type_name, var_name, &
+                                       initializer=initializer, dimensions=dimensions, &
+                                is_allocatable=is_allocatable, line=line, column=column)
                         else
-                            node = create_declaration(type_name, var_name, initializer=initializer, is_allocatable=is_allocatable, line=line, column=column)
+                            node = create_declaration(type_name, var_name, &
+                               initializer=initializer, is_allocatable=is_allocatable, &
+                                                      line=line, column=column)
                         end if
                         allocate (decl_node, source=node)
                     end block
@@ -854,11 +431,17 @@ contains
             type(declaration_node), allocatable :: node
             allocate (node)
             if (has_kind .and. is_array) then
-                node = create_declaration(type_name, var_name, kind_value=kind_value, dimensions=dimensions, is_allocatable=is_allocatable, line=line, column=column)
+                node = create_declaration(type_name, var_name, &
+                                         kind_value=kind_value, dimensions=dimensions, &
+                                is_allocatable=is_allocatable, line=line, column=column)
             else if (has_kind) then
-                node = create_declaration(type_name, var_name, kind_value=kind_value, is_allocatable=is_allocatable, line=line, column=column)
+                node = create_declaration(type_name, var_name, &
+                                 kind_value=kind_value, is_allocatable=is_allocatable, &
+                                          line=line, column=column)
             else if (is_array) then
-                node = create_declaration(type_name, var_name, dimensions=dimensions, is_allocatable=is_allocatable, line=line, column=column)
+                node = create_declaration(type_name, var_name, &
+                                 dimensions=dimensions, is_allocatable=is_allocatable, &
+                                          line=line, column=column)
             else
                 node = create_declaration(type_name, var_name, is_allocatable=is_allocatable, line=line, column=column)
             end if
@@ -922,7 +505,8 @@ contains
                         if (next_token%kind == TK_NUMBER) then
                             ! Complete bounds notation
                             token = parser%consume()
-                            allocate (temp_dims(dim_count)%node, source=create_literal(first_number//":"//token%text, LITERAL_STRING))
+                            allocate (temp_dims(dim_count)%node, &
+                   source=create_literal(first_number//":"//token%text, LITERAL_STRING))
                         else
                             ! Just first_number:
                             allocate (temp_dims(dim_count)%node, source=create_literal(first_number//":", LITERAL_STRING))

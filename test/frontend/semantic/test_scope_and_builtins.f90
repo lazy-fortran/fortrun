@@ -2,7 +2,6 @@ program test_scope_and_builtins
     use semantic_analyzer
     use type_system_hm
     use ast_core
-    use ast_fortran95
     implicit none
 
     integer :: test_count = 0
