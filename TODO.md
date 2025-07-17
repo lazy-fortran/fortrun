@@ -69,9 +69,9 @@ Extract smaller, focused modules from large pipeline modules to improve maintain
 
 This approach would eliminate the massive switch statement and improve maintainability, testability, and extensibility. Implementation would further reduce parser_core.f90 size and improve code organization.
 
-### Immediate Next Phase: Implement Parser Dispatcher Pattern
+### Current Phase: Extract Control Flow Functions (Phase 3)
 
-**Goal**: Replace the large `parse_statement` function in `parser_core.f90` with a clean dispatcher pattern that delegates to specialized modules.
+**Goal**: Continue refactoring `parser_core.f90` by extracting control flow parsing functions to specialized modules.
 
 #### Phase 1: Test Coverage & Baseline (Week 1) ✅
 - [x] **Establish baseline test coverage** for parser_core.f90 using gcovr ✅

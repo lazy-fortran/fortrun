@@ -18,3 +18,10 @@ test_output*
 # Draft directory - never commit draft work
 draft/
 !draft/.gitkeep
+
+# Coverage reports
+coverage/
+coverage.*
+*.gcov
+*.gcda
+*.gcno
