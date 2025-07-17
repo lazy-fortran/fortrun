@@ -9,7 +9,7 @@ module frontend
   use parser_control_flow_module, only: parse_do_loop, parse_do_while, parse_select_case
     use ast_core
     use semantic_analyzer, only: semantic_context_t, create_semantic_context, analyze_program
-    use codegen_core, only: generate_code, generate_code_polymorphic
+    use codegen_core, only: generate_code_from_arena, generate_code_polymorphic
     use logger, only: log_debug, log_verbose, set_verbose_level
 
     use debug_utils, only: debug_output_tokens, debug_output_ast, debug_output_semantic, debug_output_codegen
@@ -318,18 +318,9 @@ contains
                                  trim(adjustl(int_to_str(i))))
             end do
 
-            ! Create polymorphic array properly using wrapper pattern
-            if (stmt_count > 0) then
-                ! Create the wrapper array - this works now!
-                allocate (prog%body(stmt_count))
-
-                ! Copy each wrapper directly
-                do i = 1, stmt_count
-                    allocate (prog%body(i)%node, source=body_statements(i)%node)
-                end do
-
-                deallocate (body_statements)
-            end if
+            ! NOTE: Temporarily disabled during arena conversion
+            ! TODO: Convert entire parsing pipeline to arena-based approach
+            ! The program node creation needs to be redesigned for arena-based storage
         end select
     end subroutine parse_tokens
 
@@ -467,29 +458,13 @@ contains
         ! Check what type of program unit this is
         if (is_function_start(tokens, 1)) then
             ! Multi-line function definition - use proper parser
-            parser = create_parser_state(tokens)
-            unit = parse_function_definition(parser)
-        else if (is_subroutine_start(tokens, 1)) then
-            ! Multi-line subroutine definition - fallback to statement parser for now
-            unit = parse_statement(tokens)
-        else if (is_module_start(tokens, 1)) then
-            ! Multi-line module definition - fallback to statement parser for now
-            unit = parse_statement(tokens)
-        else if (is_do_while_start(tokens, 1)) then
-            ! Multi-line do while loop - use proper parser
-            parser = create_parser_state(tokens)
-            unit = parse_do_while(parser)
-        else if (is_do_loop_start(tokens, 1)) then
-            ! Multi-line do loop - use proper parser
-            parser = create_parser_state(tokens)
-            unit = parse_do_loop(parser)
-        else if (is_select_case_start(tokens, 1)) then
-            ! Multi-line select case - use proper parser
-            parser = create_parser_state(tokens)
-            unit = parse_select_case(parser)
+            ! NOTE: Temporarily disabled during arena conversion
+            ! TODO: Update to arena-based API
+            unit = create_literal("! Function parsing disabled during arena conversion", LITERAL_STRING, 1, 1)
         else
-            ! Single statement
-            unit = parse_statement(tokens)
+            ! NOTE: All parsing temporarily disabled during arena conversion
+            ! TODO: Update all parse functions to use arena-based API
+            unit = create_literal("! Parsing disabled during arena conversion", LITERAL_STRING, 1, 1)
         end if
     end function parse_program_unit
 
@@ -634,7 +609,9 @@ contains
         character(len=:), allocatable :: code
 
         ! ARCHITECTURE: AST-based code generation ONLY - NO FALLBACK
-        code = generate_code(prog)
+        ! NOTE: Temporarily disabled during arena conversion
+        ! TODO: Convert to arena-based API
+        code = "! Code generation disabled during arena conversion"
     end function generate_fortran_program
 
     ! Generate Fortran program without semantic context (for testing)
@@ -643,7 +620,9 @@ contains
         character(len=:), allocatable :: code
 
         ! ARCHITECTURE: AST-based code generation ONLY - NO FALLBACK
-        code = generate_code(prog)
+        ! NOTE: Temporarily disabled during arena conversion
+        ! TODO: Convert to arena-based API
+        code = "! Code generation disabled during arena conversion"
     end function generate_fortran_program_no_sem
 
     ! Write output to file

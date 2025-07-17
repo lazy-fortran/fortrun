@@ -246,13 +246,9 @@ contains
         node%line = line
         node%column = column
 
-        ! Assign the wrapper array
-        if (allocated(body_wrappers)) then
-            allocate (node%body(size(body_wrappers)))
-            node%body = body_wrappers
-        else
-            allocate (node%body(0))
-        end if
+        ! NOTE: This function is temporarily disabled during arena conversion
+        ! TODO: Convert to use arena-based indexing
+        ! Body assignment would go here
 
     end function json_to_program_node
 
@@ -295,11 +291,19 @@ contains
         end if
 
         ! Create node with type inference
-        if (allocated(inferred_type_name)) then
-node = create_assignment(target, value, line, column, inferred_type, inferred_type_name)
-        else
-            node = create_assignment(target, value, line, column, inferred_type)
-        end if
+        ! NOTE: Temporarily disabled during arena conversion
+        ! TODO: Convert to arena-based API - target/value need to be integer indices
+        block
+            type(assignment_node) :: temp_node
+            temp_node%line = line
+            temp_node%column = column
+            ! For now, create placeholder indices
+            temp_node%target_index = 0
+            temp_node%value_index = 0
+            temp_node%type_was_inferred = inferred_type
+    if (allocated(inferred_type_name)) temp_node%inferred_type_name = inferred_type_name
+            node = temp_node
+        end block
 
     end function json_to_assignment_node
 
@@ -339,7 +343,18 @@ node = create_assignment(target, value, line, column, inferred_type, inferred_ty
         end if
 
         ! Create node
-        node = create_binary_op(left, right, operator, line, column)
+        ! NOTE: Temporarily disabled during arena conversion
+        ! TODO: Convert to arena-based API - left/right need to be integer indices
+        block
+            type(binary_op_node) :: temp_node
+            temp_node%operator = operator
+            temp_node%line = line
+            temp_node%column = column
+            ! For now, create placeholder indices
+            temp_node%left_index = 0
+            temp_node%right_index = 0
+            node = temp_node
+        end block
 
     end function json_to_binary_op_node
 
@@ -481,7 +496,16 @@ node = create_assignment(target, value, line, column, inferred_type, inferred_ty
         end if
 
         ! Create node
-        node = create_function_call(name, args, line, column)
+        ! NOTE: Temporarily disabled during arena conversion
+        ! TODO: Convert to arena-based API - args needs to be integer indices array
+        block
+            type(function_call_node) :: temp_node
+            temp_node%name = name
+            temp_node%line = line
+            temp_node%column = column
+            allocate (temp_node%arg_indices(0))  ! Empty args for now
+            node = temp_node
+        end block
 
     end function json_to_function_call_node
 
