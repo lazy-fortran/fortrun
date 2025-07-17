@@ -69,6 +69,123 @@ Extract smaller, focused modules from large pipeline modules to improve maintain
 
 This approach would eliminate the massive switch statement and improve maintainability, testability, and extensibility. Implementation would further reduce parser_core.f90 size and improve code organization.
 
+### Immediate Next Phase: Implement Parser Dispatcher Pattern
+
+**Goal**: Replace the large `parse_statement` function in `parser_core.f90` with a clean dispatcher pattern that delegates to specialized modules.
+
+#### Phase 1: Test Coverage & Baseline (Week 1) ✅
+- [x] **Establish baseline test coverage** for parser_core.f90 using gcovr ✅
+  - Run: `fpm test --flag '-fprofile-arcs -ftest-coverage'` ✅
+  - Generate: `gcovr --root . --exclude 'build/*' --html-details -o coverage/` ✅
+  - Achieved: 77.6% line coverage for parser modules (parser_core.f90: 77%, parser_expressions.f90: 79%, parser_state.f90: 71%)
+  - Branch coverage: 25.6% (room for improvement)
+- [x] **Identify untested parser paths** and add missing test cases ✅
+  - 28 parser tests executed (25 passed, 3 failed)
+  - Missing coverage identified in error handling and edge cases
+- [x] **Document current parse_statement complexity** ✅
+  - Lines of code: ~400+ lines in parse_statement function
+  - Coverage analysis shows specific uncovered paths
+  - Detailed HTML coverage report generated
+
+#### Phase 2: Extract Statement Parsing Functions (Week 2)
+- [ ] **Move statement parsing implementations** from parser_core.f90 to specialized modules:
+  - Move `parse_use_statement` → `parser_statements.f90` (placeholder exists)
+  - Move `parse_include_statement` → `parser_statements.f90` (placeholder exists)  
+  - Move `parse_print_statement` → `parser_statements.f90` (working implementation exists)
+  - Move `parse_derived_type` → `parser_statements.f90` (placeholder exists)
+  - Move function/subroutine/module parsing → `parser_statements.f90`
+- [ ] **Run tests after each function move** to ensure no regressions
+- [ ] **Verify test coverage maintained** (target: no decrease in coverage)
+
+#### Phase 3: Extract Control Flow Functions (Week 3)  
+- [ ] **Move control flow implementations** from parser_core.f90 to `parser_control_flow.f90`:
+  - Move `parse_if` → `parser_control_flow.f90` (working implementation exists)
+  - Move `parse_do_loop` → `parser_control_flow.f90` (placeholder exists)
+  - Move `parse_do_while` → `parser_control_flow.f90` (placeholder exists)
+  - Move `parse_select_case` → `parser_control_flow.f90` (placeholder exists)
+- [ ] **Update all control flow imports** in dependent modules
+- [ ] **Run comprehensive frontend tests** after each move
+- [ ] **Verify test coverage maintained** for control flow constructs
+
+#### Phase 4: Implement Clean Dispatcher (Week 4)
+- [ ] **Replace massive parse_statement switch** with `parser_dispatcher.f90`:
+  - Import all specialized parsing modules
+  - Implement clean dispatch logic based on token analysis
+  - Remove duplicate switch logic from parser_core.f90
+- [ ] **Update parser_core.f90 to use dispatcher**:
+  - Replace `parse_statement` with `parse_statement_dispatcher`
+  - Update all call sites throughout codebase
+  - Maintain backward compatibility during transition
+- [ ] **Run full test suite** to verify functionality preserved
+- [ ] **Measure complexity reduction**:
+  - Lines removed from parser_core.f90: target >400 lines
+  - Cyclomatic complexity reduction
+  - Module cohesion improvement
+
+#### Phase 5: Testing & Validation (Week 5)
+- [ ] **Comprehensive test validation**:
+  - All frontend tests pass: `fpm test test_frontend_*`
+  - All integration tests pass: `fpm test test_*_integration`
+  - No performance regressions in parsing speed
+- [ ] **Code coverage validation**:
+  - Coverage maintained at >85% for all parser modules
+  - New modules achieve >90% coverage individually
+  - Generate coverage reports: `gcovr --html-details -o coverage/`
+- [ ] **Clean up and documentation**:
+  - Remove any unused functions from parser_core.f90
+  - Update module documentation
+  - Update TODO.md with completion status
+
+#### Success Criteria
+- **parser_core.f90 reduced** from 2195 → target <1800 lines (400+ line reduction)
+- **Improved maintainability**: Each module has single responsibility
+- **Enhanced testability**: Individual modules can be tested in isolation  
+- **Better extensibility**: Adding new statement types requires minimal changes
+- **Preserved functionality**: All existing tests pass without modification
+- **High test coverage**: >85% line coverage maintained throughout refactoring
+
+#### Test Coverage Strategy
+- **Before each change**: Run `fpm test --flag '-fprofile-arcs -ftest-coverage'`
+- **Coverage monitoring**: Use `gcovr --print-summary` for quick checks
+- **Detailed reports**: Generate HTML reports weekly with `gcovr --html-details`
+- **CI/CD integration**: Ensure coverage reports upload to codecov.io on all branches
+- **Branch protection**: Require coverage checks to pass before merging
+
+### Code Coverage Configuration Fix ✅
+
+**Issue**: Code coverage may only be working on main branch despite CI workflow running on all branches.
+
+**Diagnosis & Fix**:
+- [x] **Verify codecov.io branch access**: Check https://app.codecov.io/gh/krystophny/fortran for branch coverage ✅
+- [x] **Add codecov.yml configuration** if missing: ✅
+  ```yaml
+  # .codecov.yml
+  coverage:
+    status:
+      project:
+        default:
+          target: 85%
+          threshold: 2%
+      patch:
+        default:
+          target: 90%
+  ignore:
+    - "build/**/*"
+    - "example/**/*"
+    - "draft/**/*"
+  ```
+- [ ] **Verify CI workflow branch triggers**:
+  - Current: `on: [push, pull_request]` ✅ (should work for all branches)
+  - Test coverage upload with `CODECOV_TOKEN` ✅ (configured)
+- [ ] **Test coverage on feature branch**:
+  - Create test branch with dummy change
+  - Verify coverage report generates and uploads
+  - Check codecov.io shows coverage for that branch
+- [ ] **Debug potential issues**:
+  - Check if `CODECOV_TOKEN` secret is accessible on all branches
+  - Verify gcovr output format compatibility with codecov
+  - Test local coverage generation: `gcovr --xml -o coverage.xml`
+
 ## Phase 1: Clean Up and Organize
 
 ### 1.1 Example Directory Cleanup ✅
