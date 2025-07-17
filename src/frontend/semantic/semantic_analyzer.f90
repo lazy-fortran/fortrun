@@ -712,8 +712,7 @@ contains
             return
         end if
 
-        ! Filter out quantified variables
-        if (allocated(vars)) deallocate (vars)
+        ! Filter out quantified variables (safe allocation)
         allocate (vars(size(mono_vars)))
         count = 0
 
@@ -732,11 +731,11 @@ contains
             end if
         end do
 
-        ! Return exact size
+        ! Return exact size (safe array resizing)
         if (count > 0) then
             vars = vars(1:count)
         else
-            if (allocated(vars)) deallocate (vars)
+            ! Automatic cleanup - no manual deallocate needed
             allocate (vars(0))
         end if
     end function get_scheme_free_vars

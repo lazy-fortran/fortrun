@@ -648,6 +648,8 @@ contains
                 return
             end if
         end do
+
+        ! Scheme not found - return unallocated
     end function env_lookup
 
     ! Extend type environment with single binding
