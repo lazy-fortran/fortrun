@@ -356,9 +356,16 @@ This approach would eliminate the massive switch statement and improve maintaina
 
 ## Phase 5: Code Generation
 
-### 5.1 Declaration Generation
-- [ ] Test: Generate type declarations from inferred types
-- [ ] Test: Generate proper array declarations
+### 5.1 Declaration Generation ✅ COMPLETE
+- [x] Test: Generate type declarations from inferred types - COMPLETE
+  - [x] Integer declarations from TINT type
+  - [x] Real(8) declarations from TREAL type
+  - [x] Character(len=N) declarations from TCHAR type
+  - [x] Declaration generation when type_name is empty (pure inference)
+- [x] Test: Generate proper array declarations - COMPLETE
+  - [x] Array dimension handling with ast_node_wrapper pattern
+  - [x] Support for static array dimensions
+  - [x] Integration with type inference system
 - [ ] Test: Generate derived type declarations
 - [ ] Test: Generate interface blocks
 
@@ -469,9 +476,19 @@ This approach would eliminate the massive switch statement and improve maintaina
 4. **Double Standardization**: Output must be idempotent
 5. **No Shortcuts**: Everything through proper AST pipeline
 
-## Current Status - Phase 4 COMPLETE! ✅
+## Current Status - Phase 5.1 COMPLETE! ✅
 
-### Semantic Analysis Fully Operational 🎉
+### Code Generation with Type Inference Support 🎉
+
+**Phase 5.1 Declaration Generation - COMPLETE! ✅**
+- Type declaration generation from mono_type_t implemented
+- generate_type_declaration_from_mono function for all basic types
+- Support for integer, real(8), character(len=N) declarations
+- Array declaration generation with proper dimension handling
+- Integration with type inference - can generate declarations from inferred types
+- Comprehensive test coverage with all tests passing
+
+### Semantic Analysis Fully Operational (Phase 4) ✅
 
 **Phase 4.1 Algorithm W Implementation - FULLY WORKING! ✅**
 - Hindley-Milner type inference with proper environment lookup
@@ -517,7 +534,7 @@ This approach would eliminate the massive switch statement and improve maintaina
 - JSON intermediate representations
 - Complete 4-phase compiler pipeline
 
-### Ready for Phase 5: Code Generation
+### Ready for Phase 5.2: Statement Generation
 
 **Array Declaration Parsing Complete ✅**:
 - Core array parsing infrastructure implemented with proper AST support
