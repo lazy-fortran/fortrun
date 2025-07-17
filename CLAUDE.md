@@ -25,7 +25,7 @@ This project uses FPM (Fortran Package Manager).
 fpm build                         # Build project
 fpm run fortran -- example.f90    # Run main app (IMPORTANT: Use -- separator)
 fpm run fortran -- --clear-cache  # Clear cache (CRITICAL before testing frontend!)
-fpm clean --all                   # Clean build directory without prompting
+fpm clean --skip                  # Clean build directory without prompting
 
 # Testing
 fpm test                          # Run all tests

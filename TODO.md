@@ -32,12 +32,16 @@ Key insights:
 Extract smaller, focused modules from large pipeline modules to improve maintainability and follow SRP (Single Responsibility Principle).
 
 ### Modules to Refactor
-- [ ] **lexer_core.f90** - Extract token type definitions, keyword management, operator handling
-- [ ] **parser_core.f90** - Extract expression parsing, statement parsing, declaration parsing
-- [ ] **ast_core.f90** - Extract node factory functions, visitor pattern, node type definitions
-- [ ] **semantic_analyzer.f90** - Extract type inference engine, constraint solver, environment management
-- [ ] **json_writer.f90** - Extract node-specific serialization into separate modules
-- [ ] **frontend.f90** - Extract pipeline orchestration, error handling, debug output
+- [ ] **lexer_core.f90** (548 lines) - Extract token type definitions, keyword management, operator handling
+- [x] **parser_core.f90** (2635 → 2611 lines) - PARTIAL: Extracted parser_state, parser_expressions, parser_declarations modules
+  - [x] Created `parser_state.f90` - Parser state management (82 lines)
+  - [x] Created `parser_expressions.f90` - Expression parsing hierarchy (366 lines)
+  - [x] Created `parser_declarations.f90` - Declaration and type parsing (382 lines)
+  - [ ] Note: Control flow kept in parser_core due to circular dependencies
+- [ ] **ast_core.f90** (1446 lines) - Extract node factory functions, visitor pattern, node type definitions
+- [ ] **semantic_analyzer.f90** (1037 lines) - Extract type inference engine, constraint solver, environment management
+- [ ] **json_writer.f90** (137 lines) - Already small, no refactoring needed
+- [ ] **frontend.f90** (855 lines) - Extract pipeline orchestration, error handling, debug output
 
 ### Refactoring Strategy
 1. Identify logical boundaries within each module

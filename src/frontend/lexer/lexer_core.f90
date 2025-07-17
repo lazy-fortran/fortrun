@@ -333,7 +333,7 @@ contains
         integer, intent(inout) :: pos, line_num, col_num, token_count
         type(token_t), allocatable, intent(inout) :: tokens(:)
 
-        integer :: start_pos, start_col
+        integer :: start_pos, start_col, remaining
         character(len=:), allocatable :: word
 
         start_pos = pos
@@ -341,83 +341,102 @@ contains
 
         ! Check for logical constants and operators that start with '.'
         if (pos <= len(source)) then
-            ! Look ahead to see if this forms a logical token
-            ! Debug: print "DEBUG: pos=" // pos // ", len=" // len(source) // ", substr=" // source(pos:min(pos+5, len(source)))
-            if (pos + 5 <= len(source) .and. source(pos:pos + 5) == ".true.") then
-                ! Found .true.
-                pos = pos + 6
-                col_num = col_num + 6
-                word = ".true."
+            ! Calculate remaining characters
+            remaining = len(source) - pos + 1
 
-                token_count = token_count + 1
-                if (token_count > size(tokens)) then
-                    call resize_tokens(tokens)
-                end if
-                tokens(token_count)%kind = TK_KEYWORD
-                tokens(token_count)%text = word
-                tokens(token_count)%line = line_num
-                tokens(token_count)%column = start_col
-                return
-            else if (pos + 6 <= len(source) .and. source(pos:pos + 6) == ".false.") then
-                ! Found .false.
-                pos = pos + 7
-                col_num = col_num + 7
-                word = ".false."
+            ! Check for .true. (6 characters)
+            if (remaining >= 6) then
+                if (source(pos:pos + 5) == ".true.") then
+                    ! Found .true.
+                    pos = pos + 6
+                    col_num = col_num + 6
+                    word = ".true."
 
-                token_count = token_count + 1
-                if (token_count > size(tokens)) then
-                    call resize_tokens(tokens)
+                    token_count = token_count + 1
+                    if (token_count > size(tokens)) then
+                        call resize_tokens(tokens)
+                    end if
+                    tokens(token_count)%kind = TK_KEYWORD
+                    tokens(token_count)%text = word
+                    tokens(token_count)%line = line_num
+                    tokens(token_count)%column = start_col
+                    return
                 end if
-                tokens(token_count)%kind = TK_KEYWORD
-                tokens(token_count)%text = word
-                tokens(token_count)%line = line_num
-                tokens(token_count)%column = start_col
-                return
-            else if (pos + 4 <= len(source) .and. source(pos:pos + 4) == ".and.") then
-                ! Found .and.
-                pos = pos + 5
-                col_num = col_num + 5
-                word = ".and."
+            end if
 
-                token_count = token_count + 1
-                if (token_count > size(tokens)) then
-                    call resize_tokens(tokens)
-                end if
-                tokens(token_count)%kind = TK_OPERATOR
-                tokens(token_count)%text = word
-                tokens(token_count)%line = line_num
-                tokens(token_count)%column = start_col
-                return
-            else if (pos + 3 <= len(source) .and. source(pos:pos + 3) == ".or.") then
-                ! Found .or.
-                pos = pos + 4
-                col_num = col_num + 4
-                word = ".or."
+            ! Check for .false. (7 characters)
+            if (remaining >= 7) then
+                if (source(pos:pos + 6) == ".false.") then
+                    ! Found .false.
+                    pos = pos + 7
+                    col_num = col_num + 7
+                    word = ".false."
 
-                token_count = token_count + 1
-                if (token_count > size(tokens)) then
-                    call resize_tokens(tokens)
+                    token_count = token_count + 1
+                    if (token_count > size(tokens)) then
+                        call resize_tokens(tokens)
+                    end if
+                    tokens(token_count)%kind = TK_KEYWORD
+                    tokens(token_count)%text = word
+                    tokens(token_count)%line = line_num
+                    tokens(token_count)%column = start_col
+                    return
                 end if
-                tokens(token_count)%kind = TK_OPERATOR
-                tokens(token_count)%text = word
-                tokens(token_count)%line = line_num
-                tokens(token_count)%column = start_col
-                return
-            else if (pos + 4 <= len(source) .and. source(pos:pos + 4) == ".not.") then
-                ! Found .not.
-                pos = pos + 5
-                col_num = col_num + 5
-                word = ".not."
+            end if
 
-                token_count = token_count + 1
-                if (token_count > size(tokens)) then
-                    call resize_tokens(tokens)
+            ! Check for .and. and .not. (5 characters)
+            if (remaining >= 5) then
+                if (source(pos:pos + 4) == ".and.") then
+                    ! Found .and.
+                    pos = pos + 5
+                    col_num = col_num + 5
+                    word = ".and."
+
+                    token_count = token_count + 1
+                    if (token_count > size(tokens)) then
+                        call resize_tokens(tokens)
+                    end if
+                    tokens(token_count)%kind = TK_OPERATOR
+                    tokens(token_count)%text = word
+                    tokens(token_count)%line = line_num
+                    tokens(token_count)%column = start_col
+                    return
+                else if (source(pos:pos + 4) == ".not.") then
+                    ! Found .not.
+                    pos = pos + 5
+                    col_num = col_num + 5
+                    word = ".not."
+
+                    token_count = token_count + 1
+                    if (token_count > size(tokens)) then
+                        call resize_tokens(tokens)
+                    end if
+                    tokens(token_count)%kind = TK_OPERATOR
+                    tokens(token_count)%text = word
+                    tokens(token_count)%line = line_num
+                    tokens(token_count)%column = start_col
+                    return
                 end if
-                tokens(token_count)%kind = TK_OPERATOR
-                tokens(token_count)%text = word
-                tokens(token_count)%line = line_num
-                tokens(token_count)%column = start_col
-                return
+            end if
+
+            ! Check for .or. (4 characters)
+            if (remaining >= 4) then
+                if (source(pos:pos + 3) == ".or.") then
+                    ! Found .or.
+                    pos = pos + 4
+                    col_num = col_num + 4
+                    word = ".or."
+
+                    token_count = token_count + 1
+                    if (token_count > size(tokens)) then
+                        call resize_tokens(tokens)
+                    end if
+                    tokens(token_count)%kind = TK_OPERATOR
+                    tokens(token_count)%text = word
+                    tokens(token_count)%line = line_num
+                    tokens(token_count)%column = start_col
+                    return
+                end if
             end if
         end if
 

@@ -1,7 +1,7 @@
 program test_frontend_test_cases
     ! Automatically discover and test all frontend test cases in example/frontend_test_cases/
     use frontend, only: compile_source, compilation_options_t
-    use standardizer, only: standardize_file
+    use frontend_integration, only: compile_with_frontend
     implicit none
 
     integer :: test_count = 0, pass_count = 0
@@ -61,8 +61,8 @@ contains
             return
         end if
 
-        ! Test using standardize_file API
-        call standardize_file(input_file, actual_file, error_msg)
+        ! Test using compile_with_frontend API
+        call compile_with_frontend(input_file, actual_file, error_msg)
 
         if (len_trim(error_msg) > 0) then
             print *, "FAIL: ", trim(test_name), " - ", trim(error_msg)

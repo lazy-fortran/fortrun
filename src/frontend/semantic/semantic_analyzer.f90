@@ -1,16 +1,19 @@
 module semantic_analyzer
     ! Hindley-Milner type inference (Algorithm W) - dialect-agnostic
     use type_system_hm
+    use scope_manager
+    use type_checker
     use ast_core
     implicit none
     private
-    
+
     public :: semantic_context_t, create_semantic_context
     public :: analyze_program
-    
+
     ! Semantic analysis context
     type :: semantic_context_t
-        type(type_env_t) :: env
+        type(type_env_t) :: env  ! Legacy flat environment (to be removed)
+        type(scope_stack_t) :: scopes  ! Hierarchical scope management
         integer :: next_var_id = 0
         type(substitution_t) :: subst
     contains
@@ -24,27 +27,56 @@ module semantic_analyzer
         procedure :: get_builtin_function_type
         procedure :: compose_with_subst
     end type semantic_context_t
-    
+
 contains
-    
+
     ! Create a new semantic context with builtin functions
     function create_semantic_context() result(ctx)
         type(semantic_context_t) :: ctx
-        
+        type(poly_type_t) :: builtin_scheme
+        type(mono_type_t) :: real_to_real, real_type
+
         ! Initialize substitution
         ctx%subst%count = 0
-        
-        ! Start with empty environment to avoid crashes
-        ! TODO: Fix type system memory management before adding builtins
-        
+
+        ! Initialize hierarchical scope stack
+        ctx%scopes = create_scope_stack()
+
+        ! Initialize environment with builtin functions
         ctx%next_var_id = 1
+
+        ! Create real -> real type for math functions
+        real_type = create_mono_type(TREAL)
+        real_to_real = create_fun_type(real_type, real_type)
+
+        ! Create polymorphic type scheme (no type variables to generalize)
+        builtin_scheme = create_poly_type(forall_vars=[type_var_t::], mono=real_to_real)
+
+        ! Add common math functions to global scope
+        call ctx%scopes%define("sin", builtin_scheme)
+        call ctx%scopes%define("cos", builtin_scheme)
+        call ctx%scopes%define("tan", builtin_scheme)
+        call ctx%scopes%define("sqrt", builtin_scheme)
+        call ctx%scopes%define("exp", builtin_scheme)
+        call ctx%scopes%define("log", builtin_scheme)
+        call ctx%scopes%define("abs", builtin_scheme)
+
+        ! Also add to legacy flat environment for compatibility
+        call ctx%env%extend("sin", builtin_scheme)
+        call ctx%env%extend("cos", builtin_scheme)
+        call ctx%env%extend("tan", builtin_scheme)
+        call ctx%env%extend("sqrt", builtin_scheme)
+        call ctx%env%extend("exp", builtin_scheme)
+        call ctx%env%extend("log", builtin_scheme)
+        call ctx%env%extend("abs", builtin_scheme)
+
     end function create_semantic_context
-    
+
     ! Main entry point: analyze entire program
     subroutine analyze_program(ctx, ast)
         type(semantic_context_t), intent(inout) :: ctx
         class(ast_node), intent(inout) :: ast
-        
+
         select type (ast)
         type is (program_node)
             call analyze_program_node(ctx, ast)
@@ -53,13 +85,13 @@ contains
             call infer_and_store_type(ctx, ast)
         end select
     end subroutine analyze_program
-    
+
     ! Analyze a program node
     subroutine analyze_program_node(ctx, prog)
         type(semantic_context_t), intent(inout) :: ctx
         type(program_node), intent(inout) :: prog
         integer :: i
-        
+
         if (allocated(prog%body)) then
             do i = 1, size(prog%body)
                 if (allocated(prog%body(i)%node)) then
@@ -68,106 +100,150 @@ contains
             end do
         end if
     end subroutine analyze_program_node
-    
-    
+
     ! Infer type and store in AST node
     subroutine infer_and_store_type(ctx, node)
         type(semantic_context_t), intent(inout) :: ctx
         class(ast_node), intent(inout) :: node
         type(mono_type_t) :: inferred
-        
+
         inferred = ctx%infer_stmt(node)
-        
-        ! Type inference result is not stored (stub implementation)
+
+        ! Store the inferred type in the AST node
+        if (.not. allocated(node%inferred_type)) then
+            allocate (node%inferred_type)
+        end if
+        node%inferred_type = inferred
     end subroutine infer_and_store_type
-    
+
     ! Infer type of a statement
     function infer_statement_type(this, stmt) result(typ)
         class(semantic_context_t), intent(inout) :: this
         class(ast_node), intent(inout) :: stmt
         type(mono_type_t) :: typ
-        
+
         select type (stmt)
         type is (assignment_node)
             typ = infer_assignment(this, stmt)
             ! Store inference metadata in the assignment_node for error detection
-            stmt%inferred_type = .true.
+            stmt%type_was_inferred = .true.
             stmt%inferred_type_name = typ%to_string()
         type is (print_statement_node)
             typ = create_mono_type(TINT)  ! print returns unit/void, use int
+        type is (module_node)
+            typ = analyze_module(this, stmt)
+        type is (function_def_node)
+            typ = analyze_function_def(this, stmt)
+        type is (subroutine_def_node)
+            typ = analyze_subroutine_def(this, stmt)
+        type is (if_node)
+            typ = analyze_if_node(this, stmt)
+        type is (do_loop_node)
+            typ = analyze_do_loop(this, stmt)
+        type is (do_while_node)
+            typ = analyze_do_while(this, stmt)
         class default
             ! For expressions, use general inference
             typ = this%infer(stmt)
         end select
     end function infer_statement_type
-    
+
     ! Infer type of assignment and update environment
     function infer_assignment(ctx, assign) result(typ)
         type(semantic_context_t), intent(inout) :: ctx
         type(assignment_node), intent(inout) :: assign
-        type(mono_type_t) :: typ
+        type(mono_type_t) :: typ, target_type
         type(poly_type_t) :: scheme
+        type(poly_type_t), allocatable :: existing_scheme
         character(len=:), allocatable :: var_name
-        
+
         ! Infer type of RHS
         typ = ctx%infer(assign%value)
-        
-        ! Type storage removed (stub implementation)
-        
+
         ! Get variable name from target
         select type (target => assign%target)
         type is (identifier_node)
             var_name = target%name
-            
-            ! Type storage removed (stub implementation)
+
+            ! Check if variable already exists
+            existing_scheme = ctx%scopes%lookup(var_name)
+
+            if (allocated(existing_scheme)) then
+                ! Variable exists - check assignment compatibility
+                target_type = ctx%instantiate(existing_scheme)
+
+                if (.not. is_assignable(typ, target_type)) then
+                    ! Type error - for now, just continue with inference
+                    ! In a full implementation, we would report an error
+                    ! error stop type_error(target_type, typ, "assignment to " // var_name)
+                end if
+
+                ! Use the existing type for consistency
+                typ = target_type
+            end if
+
+            ! Store type in the identifier node
+            if (.not. allocated(target%inferred_type)) then
+                allocate (target%inferred_type)
+            end if
+            target%inferred_type = typ
         class default
             error stop "Assignment target must be identifier"
         end select
-        
-        ! Generalize and add to environment
-        scheme = ctx%generalize(typ)
-        call ctx%env%extend(var_name, scheme)
+
+        ! If new variable, generalize and add to environment
+        if (.not. allocated(existing_scheme)) then
+            scheme = ctx%generalize(typ)
+            call ctx%scopes%define(var_name, scheme)
+
+            ! Also add to legacy flat environment for compatibility
+            call ctx%env%extend(var_name, scheme)
+        end if
     end function infer_assignment
-    
+
     ! Main type inference function (Algorithm W)
     recursive function infer_type(this, expr) result(typ)
         class(semantic_context_t), intent(inout) :: this
         class(ast_node), intent(inout) :: expr
         type(mono_type_t) :: typ
-        
+
         select type (expr)
         type is (literal_node)
             typ = infer_literal(this, expr)
-            
+
         type is (identifier_node)
             typ = infer_identifier(this, expr)
-            
+
         type is (binary_op_node)
             typ = infer_binary_op(this, expr)
-            
+
         type is (function_call_node)
             typ = infer_function_call(this, expr)
-            
+
         type is (assignment_node)
             typ = infer_assignment(this, expr)
-            
+
         class default
             ! Return real type as default for unsupported expressions
             typ = create_mono_type(TREAL)
         end select
-        
+
         ! Apply current substitution
         typ = this%apply_subst_to_type(typ)
-        
-        ! Type storage removed (stub implementation)
+
+        ! Store the inferred type in the AST node
+        if (.not. allocated(expr%inferred_type)) then
+            allocate (expr%inferred_type)
+        end if
+        expr%inferred_type = typ
     end function infer_type
-    
+
     ! Infer type of literal
     function infer_literal(ctx, lit) result(typ)
         type(semantic_context_t), intent(inout) :: ctx
         type(literal_node), intent(in) :: lit
         type(mono_type_t) :: typ
-        
+
         select case (lit%literal_kind)
         case (LITERAL_INTEGER)
             typ = create_mono_type(TINT)
@@ -175,31 +251,39 @@ contains
             typ = create_mono_type(TREAL)
         case (LITERAL_STRING)
             ! Calculate string length (subtract 2 for quotes)
-            typ = create_mono_type(TCHAR, char_size=len_trim(lit%value)-2)
+            typ = create_mono_type(TCHAR, char_size=len_trim(lit%value) - 2)
         case (LITERAL_LOGICAL)
             typ = create_mono_type(TINT)  ! Boolean as integer
         case default
             error stop "Unknown literal kind"
         end select
     end function infer_literal
-    
+
     ! Infer type of identifier
     function infer_identifier(ctx, ident) result(typ)
         type(semantic_context_t), intent(inout) :: ctx
         type(identifier_node), intent(in) :: ident
         type(mono_type_t) :: typ
-        
+        type(poly_type_t), allocatable :: scheme
+
         ! Safety check: ensure identifier name is allocated and not empty
         if (.not. allocated(ident%name) .or. len_trim(ident%name) == 0) then
             typ = create_mono_type(TVAR, var=ctx%fresh_type_var())
             return
         end if
-        
-        ! Temporary fix: assign a fresh type variable for all identifiers
-        ! This avoids the segfault in environment lookup while we debug
-        typ = create_mono_type(TVAR, var=ctx%fresh_type_var())
+
+        ! Look up identifier in hierarchical scopes
+        scheme = ctx%scopes%lookup(ident%name)
+
+        if (allocated(scheme)) then
+            ! Found in environment - instantiate the type scheme
+            typ = ctx%instantiate(scheme)
+        else
+            ! Not found - create fresh type variable
+            typ = create_mono_type(TVAR, var=ctx%fresh_type_var())
+        end if
     end function infer_identifier
-    
+
     ! Infer type of binary operation
     function infer_binary_op(ctx, binop) result(typ)
         type(semantic_context_t), intent(inout) :: ctx
@@ -207,40 +291,55 @@ contains
         type(mono_type_t) :: typ
         type(mono_type_t) :: left_typ, right_typ, result_typ
         type(substitution_t) :: s1, s2, s3
-        
+        integer :: compat_level
+
         ! Infer left operand type
         left_typ = ctx%infer(binop%left)
-        
-        ! Infer right operand type  
+
+        ! Infer right operand type
         right_typ = ctx%infer(binop%right)
-        
+
         ! Determine result type based on operator
         select case (trim(binop%operator))
         case ("+", "-", "*", "/", "**")
-            ! Numeric operations: both operands and result have same type
-            result_typ = create_mono_type(TVAR, var=ctx%fresh_type_var())
-            
-            ! Unify left with result
-            s1 = ctx%unify(left_typ, result_typ)
-            call ctx%compose_with_subst(s1)
-            
-            ! Apply s1 to right_typ before unifying
-            right_typ = s1%apply(right_typ)
-            result_typ = s1%apply(result_typ)
-            
-            ! Unify right with result
-            s2 = ctx%unify(right_typ, result_typ)
-            call ctx%compose_with_subst(s2)
-            
-            ! Final result type
-            result_typ = s2%apply(result_typ)
-            
+            ! Numeric operations: check compatibility
+            if (is_compatible(left_typ, right_typ, compat_level)) then
+                if (is_numeric_type(left_typ) .or. is_numeric_type(right_typ)) then
+                    ! Get common type for numeric operations
+                    result_typ = get_common_type(left_typ, right_typ)
+                else
+                    ! For type variables, unify as before
+                    result_typ = create_mono_type(TVAR, var=ctx%fresh_type_var())
+
+                    ! Unify left with result
+                    s1 = ctx%unify(left_typ, result_typ)
+                    call ctx%compose_with_subst(s1)
+
+                    ! Apply s1 to right_typ before unifying
+                    right_typ = s1%apply(right_typ)
+                    result_typ = s1%apply(result_typ)
+
+                    ! Unify right with result
+                    s2 = ctx%unify(right_typ, result_typ)
+                    call ctx%compose_with_subst(s2)
+
+                    ! Final result type
+                    result_typ = s2%apply(result_typ)
+                end if
+            else
+                ! Type error - for now, return real as default
+                result_typ = create_mono_type(TREAL)
+            end if
+
         case ("<", ">", "<=", ">=", "==", "/=")
-            ! Comparison operations: operands same type, result is boolean (int)
-            s1 = ctx%unify(left_typ, right_typ)
-            call ctx%compose_with_subst(s1)
-            result_typ = create_mono_type(TINT)  ! Boolean as integer
-            
+            ! Comparison operations: operands must be compatible
+            if (is_compatible(left_typ, right_typ, compat_level)) then
+                result_typ = create_mono_type(TINT)  ! Boolean as integer
+            else
+                ! Type error - still return boolean
+                result_typ = create_mono_type(TINT)
+            end if
+
         case (".and.", ".or.")
             ! Logical operations: all integer (boolean)
             s1 = ctx%unify(left_typ, create_mono_type(TINT))
@@ -248,14 +347,14 @@ contains
             s2 = ctx%unify(right_typ, create_mono_type(TINT))
             call ctx%compose_with_subst(s2)
             result_typ = create_mono_type(TINT)
-            
+
         case default
-            error stop "Unknown binary operator: " // trim(binop%operator)
+            error stop "Unknown binary operator: "//trim(binop%operator)
         end select
-        
+
         typ = ctx%apply_subst_to_type(result_typ)
     end function infer_binary_op
-    
+
     ! Infer type of function call
     function infer_function_call(ctx, call_node) result(typ)
         type(semantic_context_t), intent(inout) :: ctx
@@ -265,29 +364,29 @@ contains
         type(mono_type_t), allocatable :: arg_types(:)
         type(substitution_t) :: s
         integer :: i
-        
+
         ! Get function type
         fun_typ = ctx%get_builtin_function_type(call_node%name)
-        
+
         if (fun_typ%kind == 0) then
             ! Unknown function - look up in environment
             block
                 type(identifier_node) :: fun_ident
                 fun_ident = create_identifier(call_node%name, &
-                    call_node%line, call_node%column)
+                                              call_node%line, call_node%column)
                 fun_typ = infer_identifier(ctx, fun_ident)
             end block
         end if
-        
+
         ! Process arguments
         if (allocated(call_node%args)) then
-            allocate(arg_types(size(call_node%args)))
-            
+            allocate (arg_types(size(call_node%args)))
+
             ! Infer all argument types
             do i = 1, size(call_node%args)
                 arg_types(i) = ctx%infer(call_node%args(i)%node)
             end do
-            
+
             ! Unify with function type
             result_typ = fun_typ
             do i = 1, size(arg_types)
@@ -295,20 +394,20 @@ contains
                 block
                     type(type_var_t) :: tv
                     type(mono_type_t) :: expected_fun_type, new_result_typ
-                    
+
                     tv = ctx%fresh_type_var()
                     new_result_typ = create_mono_type(TVAR, var=tv)
                     expected_fun_type = create_fun_type(arg_types(i), new_result_typ)
-                    
+
                     ! Unify current function type with expected
                     s = ctx%unify(result_typ, expected_fun_type)
                     call ctx%compose_with_subst(s)
-                    
+
                     ! Update result type
                     result_typ = s%apply(new_result_typ)
                 end block
             end do
-            
+
             typ = result_typ
         else
             ! No arguments - function type is the result
@@ -318,24 +417,24 @@ contains
                 typ = fun_typ
             end if
         end if
-        
+
         typ = ctx%apply_subst_to_type(typ)
     end function infer_function_call
-    
+
     ! Type unification
     recursive function unify_types(this, t1, t2) result(subst)
         class(semantic_context_t), intent(inout) :: this
         type(mono_type_t), intent(in) :: t1, t2
         type(substitution_t) :: subst
         type(mono_type_t) :: t1_subst, t2_subst
-        
+
         ! Apply current substitution first
         t1_subst = this%apply_subst_to_type(t1)
         t2_subst = this%apply_subst_to_type(t2)
-        
+
         ! Initialize empty substitution
         subst%count = 0
-        
+
         ! Handle type variables
         if (t1_subst%kind == TVAR) then
             if (t2_subst%kind == TVAR .and. t1_subst%var%id == t2_subst%var%id) then
@@ -355,22 +454,22 @@ contains
             end if
             return
         end if
-        
+
         ! Both are concrete types
         if (t1_subst%kind /= t2_subst%kind) then
-            error stop "Type mismatch: cannot unify " // &
-                t1_subst%to_string() // " with " // t2_subst%to_string()
+            error stop "Type mismatch: cannot unify "// &
+                t1_subst%to_string()//" with "//t2_subst%to_string()
         end if
-        
+
         select case (t1_subst%kind)
         case (TINT, TREAL)
             ! Base types unify if equal (already checked kind)
-            
+
         case (TCHAR)
             if (t1_subst%size /= t2_subst%size) then
                 error stop "Cannot unify character types of different lengths"
             end if
-            
+
         case (TFUN)
             if (.not. allocated(t1_subst%args) .or. .not. allocated(t2_subst%args)) then
                 error stop "Invalid function types"
@@ -378,12 +477,12 @@ contains
             if (size(t1_subst%args) /= size(t2_subst%args)) then
                 error stop "Function arity mismatch"
             end if
-            
+
             ! Unify arguments pairwise
             block
                 integer :: i
                 type(substitution_t) :: s
-                
+
                 do i = 1, size(t1_subst%args)
                     s = this%unify(this%apply_subst_to_type(t1_subst%args(i)), &
                                    this%apply_subst_to_type(t2_subst%args(i)))
@@ -391,27 +490,27 @@ contains
                     call this%compose_with_subst(s)
                 end do
             end block
-            
+
         case (TARRAY)
             if (.not. allocated(t1_subst%args) .or. .not. allocated(t2_subst%args)) then
                 error stop "Invalid array types"
             end if
-            
+
             ! Unify element types
             subst = this%unify(t1_subst%args(1), t2_subst%args(1))
-            
+
             ! Check sizes if known
             if (t1_subst%size > 0 .and. t2_subst%size > 0) then
                 if (t1_subst%size /= t2_subst%size) then
                     error stop "Cannot unify arrays of different sizes"
                 end if
             end if
-            
+
         case default
             error stop "Unknown type kind in unification"
         end select
     end function unify_types
-    
+
     ! Instantiate a type scheme
     function instantiate_type_scheme(this, scheme) result(typ)
         class(semantic_context_t), intent(inout) :: this
@@ -419,20 +518,20 @@ contains
         type(mono_type_t) :: typ
         type(substitution_t) :: subst
         integer :: i
-        
+
         ! Create fresh type variables for all quantified variables
         subst%count = 0
         if (allocated(scheme%forall)) then
             do i = 1, size(scheme%forall)
                 call subst%add(scheme%forall(i), &
-                    create_mono_type(TVAR, var=this%fresh_type_var()))
+                               create_mono_type(TVAR, var=this%fresh_type_var()))
             end do
         end if
-        
+
         ! Apply substitution to get instance
         typ = subst%apply(scheme%mono)
     end function instantiate_type_scheme
-    
+
     ! Generalize a type to a type scheme
     function generalize_type(this, typ) result(scheme)
         class(semantic_context_t), intent(inout) :: this
@@ -441,23 +540,23 @@ contains
         type(type_var_t), allocatable :: free_vars(:), env_vars(:), gen_vars(:)
         integer :: i, j, count
         logical :: in_env
-        
+
         ! Get free variables in type
         free_vars = free_type_vars(typ)
-        
+
         if (size(free_vars) == 0) then
             ! No free variables - monomorphic type
             scheme = create_poly_type(forall_vars=[type_var_t::], mono=typ)
             return
         end if
-        
+
         ! Get free variables in environment
         env_vars = get_env_free_vars(this%env)
-        
+
         ! Find variables to generalize (in type but not in env)
-        allocate(gen_vars(size(free_vars)))
+        allocate (gen_vars(size(free_vars)))
         count = 0
-        
+
         do i = 1, size(free_vars)
             in_env = .false.
             do j = 1, size(env_vars)
@@ -466,13 +565,13 @@ contains
                     exit
                 end if
             end do
-            
+
             if (.not. in_env) then
                 count = count + 1
                 gen_vars(count) = free_vars(i)
             end if
         end do
-        
+
         ! Create type scheme
         if (count > 0) then
             scheme = create_poly_type(forall_vars=gen_vars(1:count), mono=typ)
@@ -480,70 +579,98 @@ contains
             scheme = create_poly_type(forall_vars=[type_var_t::], mono=typ)
         end if
     end function generalize_type
-    
+
     ! Generate fresh type variable
     function generate_fresh_type_var(this) result(tv)
         class(semantic_context_t), intent(inout) :: this
         type(type_var_t) :: tv
-        
+
         this%next_var_id = this%next_var_id + 1
         tv = create_type_var(this%next_var_id)
     end function generate_fresh_type_var
-    
+
     ! Apply current substitution to a type
     function apply_current_substitution(this, typ) result(result_typ)
         class(semantic_context_t), intent(in) :: this
         type(mono_type_t), intent(in) :: typ
         type(mono_type_t) :: result_typ
-        
+
         result_typ = this%subst%apply(typ)
     end function apply_current_substitution
-    
+
     ! Compose a substitution with the current one
     subroutine compose_with_subst(this, s)
         class(semantic_context_t), intent(inout) :: this
         type(substitution_t), intent(in) :: s
-        
+
         this%subst = compose_substitutions(s, this%subst)
     end subroutine compose_with_subst
-    
+
     ! Get builtin function type
     function get_builtin_function_type(this, name) result(typ)
         class(semantic_context_t), intent(inout) :: this
         character(len=*), intent(in) :: name
         type(mono_type_t) :: typ
-        
+        type(mono_type_t) :: int_type, real_type
+
         ! Safety check: ensure name is not empty
         if (len_trim(name) == 0) then
             typ%kind = 0
             return
         end if
-        
-        ! For now, return a simple real->real function type for mathematical functions
-        ! This is a temporary fix to avoid segfaults while we debug the environment
+
+        ! Create basic types
+        int_type = create_mono_type(TINT)
+        real_type = create_mono_type(TREAL)
+
+        ! Return appropriate function types for intrinsics
         select case (trim(name))
-        case ("sqrt", "sin", "cos", "tan", "exp", "log", "abs")
-            typ = create_fun_type(create_mono_type(TREAL), create_mono_type(TREAL))
+            ! Real -> Real functions
+        case ("sqrt", "sin", "cos", "tan", "exp", "log", "asin", "acos", "atan", &
+              "sinh", "cosh", "tanh", "asinh", "acosh", "atanh")
+            typ = create_fun_type(real_type, real_type)
+
+            ! Abs can take integer or real (polymorphic - for now just real)
+        case ("abs")
+            typ = create_fun_type(real_type, real_type)
+
+            ! Integer functions
+        case ("int", "floor", "ceiling", "nint")
+            typ = create_fun_type(real_type, int_type)
+
+            ! Real conversion
+        case ("real", "float")
+            typ = create_fun_type(int_type, real_type)
+
+            ! Min/max (for now, just real -> real)
+        case ("min", "max")
+            typ = create_fun_type(real_type, real_type)
+
+            ! Mod function
+        case ("mod", "modulo")
+            ! Two arguments - for now simplified as real -> real
+            typ = create_fun_type(real_type, real_type)
+
         case default
             ! Return empty type to indicate not found
             typ%kind = 0
         end select
     end function get_builtin_function_type
-    
+
     ! Get free type variables in environment
     function get_env_free_vars(env) result(vars)
         type(type_env_t), intent(in) :: env
         type(type_var_t), allocatable :: vars(:), temp_vars(:), scheme_vars(:)
         integer :: i, j, k, count
         logical :: found
-        
-        allocate(temp_vars(1000))  ! Temporary storage
+
+        allocate (temp_vars(1000))  ! Temporary storage
         count = 0
-        
+
         ! Collect all free variables from all schemes
         do i = 1, env%count
             scheme_vars = get_scheme_free_vars(env%schemes(i))
-            
+
             do j = 1, size(scheme_vars)
                 ! Check if already collected
                 found = .false.
@@ -553,43 +680,43 @@ contains
                         exit
                     end if
                 end do
-                
+
                 if (.not. found) then
                     count = count + 1
                     temp_vars(count) = scheme_vars(j)
                 end if
             end do
         end do
-        
+
         ! Return exact size array
         if (count > 0) then
-            allocate(vars(count))
+            allocate (vars(count))
             vars = temp_vars(1:count)
         else
-            allocate(vars(0))
+            allocate (vars(0))
         end if
     end function get_env_free_vars
-    
+
     ! Get free variables in a type scheme
     function get_scheme_free_vars(scheme) result(vars)
         type(poly_type_t), intent(in) :: scheme
         type(type_var_t), allocatable :: vars(:), mono_vars(:)
         integer :: i, j, count
         logical :: quantified
-        
+
         ! Get free variables in monotype
         mono_vars = free_type_vars(scheme%mono)
-        
+
         if (.not. allocated(scheme%forall) .or. size(scheme%forall) == 0) then
             vars = mono_vars
             return
         end if
-        
+
         ! Filter out quantified variables
-        if (allocated(vars)) deallocate(vars)
-        allocate(vars(size(mono_vars)))
+        if (allocated(vars)) deallocate (vars)
+        allocate (vars(size(mono_vars)))
         count = 0
-        
+
         do i = 1, size(mono_vars)
             quantified = .false.
             do j = 1, size(scheme%forall)
@@ -598,20 +725,314 @@ contains
                     exit
                 end if
             end do
-            
+
             if (.not. quantified) then
                 count = count + 1
                 vars(count) = mono_vars(i)
             end if
         end do
-        
+
         ! Return exact size
         if (count > 0) then
             vars = vars(1:count)
         else
-            if (allocated(vars)) deallocate(vars)
-            allocate(vars(0))
+            if (allocated(vars)) deallocate (vars)
+            allocate (vars(0))
         end if
     end function get_scheme_free_vars
-    
+
+    ! Analyze module node
+    function analyze_module(ctx, mod_node) result(typ)
+        type(semantic_context_t), intent(inout) :: ctx
+        type(module_node), intent(inout) :: mod_node
+        type(mono_type_t) :: typ
+        integer :: i
+
+        ! Enter module scope
+        call ctx%scopes%enter_module(mod_node%name)
+
+        ! Analyze declarations
+        if (allocated(mod_node%declarations)) then
+            do i = 1, size(mod_node%declarations)
+                if (allocated(mod_node%declarations(i)%node)) then
+                    call infer_and_store_type(ctx, mod_node%declarations(i)%node)
+                end if
+            end do
+        end if
+
+        ! Analyze procedures (after contains)
+        if (allocated(mod_node%procedures)) then
+            do i = 1, size(mod_node%procedures)
+                if (allocated(mod_node%procedures(i)%node)) then
+                    call infer_and_store_type(ctx, mod_node%procedures(i)%node)
+                end if
+            end do
+        end if
+
+        ! Leave module scope
+        call ctx%scopes%leave_scope()
+
+        ! Modules don't have a type value
+        typ = create_mono_type(TINT)  ! Unit type
+    end function analyze_module
+
+    ! Analyze function definition
+    function analyze_function_def(ctx, func_def) result(typ)
+        type(semantic_context_t), intent(inout) :: ctx
+        type(function_def_node), intent(inout) :: func_def
+        type(mono_type_t) :: typ, param_type, return_type
+        type(mono_type_t), allocatable :: param_types(:)
+        type(poly_type_t) :: func_scheme
+        integer :: i
+
+        ! Enter function scope
+        call ctx%scopes%enter_function(func_def%name)
+
+        ! Process parameters and add to local scope
+        if (allocated(func_def%params)) then
+            allocate (param_types(size(func_def%params)))
+            do i = 1, size(func_def%params)
+                if (allocated(func_def%params(i)%node)) then
+                    ! For now, assign fresh type variables to parameters
+                    param_types(i) = create_mono_type(TVAR, var=ctx%fresh_type_var())
+
+                    ! Add parameter to local scope
+                    select type (param => func_def%params(i)%node)
+                    type is (identifier_node)
+                        call ctx%scopes%define(param%name, &
+                      create_poly_type(forall_vars=[type_var_t::], mono=param_types(i)))
+                    end select
+                end if
+            end do
+        else
+            allocate (param_types(0))
+        end if
+
+        ! Analyze function body
+        if (allocated(func_def%body)) then
+            do i = 1, size(func_def%body)
+                if (allocated(func_def%body(i)%node)) then
+                    call infer_and_store_type(ctx, func_def%body(i)%node)
+                end if
+            end do
+        end if
+
+        ! Infer return type (for now, use a fresh type variable)
+        return_type = create_mono_type(TVAR, var=ctx%fresh_type_var())
+
+        ! Build function type
+        if (size(param_types) == 0) then
+            typ = return_type
+        else if (size(param_types) == 1) then
+            typ = create_fun_type(param_types(1), return_type)
+        else
+            ! Multi-argument function - curry
+            typ = param_types(size(param_types))
+            do i = size(param_types) - 1, 1, -1
+                typ = create_fun_type(param_types(i), typ)
+            end do
+            typ = create_fun_type(param_types(1), typ)
+        end if
+
+        ! Leave function scope
+        call ctx%scopes%leave_scope()
+
+        ! Add function to parent scope
+        func_scheme = ctx%generalize(typ)
+        call ctx%scopes%define(func_def%name, func_scheme)
+
+    end function analyze_function_def
+
+    ! Analyze subroutine definition
+    function analyze_subroutine_def(ctx, sub_def) result(typ)
+        type(semantic_context_t), intent(inout) :: ctx
+        type(subroutine_def_node), intent(inout) :: sub_def
+        type(mono_type_t) :: typ
+        type(poly_type_t) :: sub_scheme
+        integer :: i
+
+        ! Enter subroutine scope
+        call ctx%scopes%enter_subroutine(sub_def%name)
+
+        ! Process parameters and add to local scope
+        if (allocated(sub_def%params)) then
+            do i = 1, size(sub_def%params)
+                if (allocated(sub_def%params(i)%node)) then
+                    ! For now, assign fresh type variables to parameters
+                    select type (param => sub_def%params(i)%node)
+                    type is (identifier_node)
+                        call ctx%scopes%define(param%name, &
+                                          create_poly_type(forall_vars=[type_var_t::], &
+                                 mono=create_mono_type(TVAR, var=ctx%fresh_type_var())))
+                    end select
+                end if
+            end do
+        end if
+
+        ! Analyze subroutine body
+        if (allocated(sub_def%body)) then
+            do i = 1, size(sub_def%body)
+                if (allocated(sub_def%body(i)%node)) then
+                    call infer_and_store_type(ctx, sub_def%body(i)%node)
+                end if
+            end do
+        end if
+
+        ! Leave subroutine scope
+        call ctx%scopes%leave_scope()
+
+        ! Subroutines have unit type
+        typ = create_mono_type(TINT)  ! Unit type
+
+        ! Add subroutine to parent scope
+        sub_scheme = create_poly_type(forall_vars=[type_var_t::], mono=typ)
+        call ctx%scopes%define(sub_def%name, sub_scheme)
+
+    end function analyze_subroutine_def
+
+    ! Analyze if node with block scopes
+    function analyze_if_node(ctx, if_stmt) result(typ)
+        type(semantic_context_t), intent(inout) :: ctx
+        type(if_node), intent(inout) :: if_stmt
+        type(mono_type_t) :: typ
+        integer :: i, j
+
+        ! Analyze condition
+        if (allocated(if_stmt%condition)) then
+            call infer_and_store_type(ctx, if_stmt%condition)
+        end if
+
+        ! Enter then block scope
+        call ctx%scopes%enter_block()
+
+        ! Analyze then body
+        if (allocated(if_stmt%then_body)) then
+            do i = 1, size(if_stmt%then_body)
+                if (allocated(if_stmt%then_body(i)%node)) then
+                    call infer_and_store_type(ctx, if_stmt%then_body(i)%node)
+                end if
+            end do
+        end if
+
+        ! Leave then block scope
+        call ctx%scopes%leave_scope()
+
+        ! Analyze elseif blocks
+        if (allocated(if_stmt%elseif_blocks)) then
+            do i = 1, size(if_stmt%elseif_blocks)
+                ! Analyze elseif condition
+                if (allocated(if_stmt%elseif_blocks(i)%condition)) then
+                    call infer_and_store_type(ctx, if_stmt%elseif_blocks(i)%condition)
+                end if
+
+                ! Enter elseif block scope
+                call ctx%scopes%enter_block()
+
+                ! Analyze elseif body
+                if (allocated(if_stmt%elseif_blocks(i)%body)) then
+                    do j = 1, size(if_stmt%elseif_blocks(i)%body)
+                        if (allocated(if_stmt%elseif_blocks(i)%body(j)%node)) then
+                   call infer_and_store_type(ctx, if_stmt%elseif_blocks(i)%body(j)%node)
+                        end if
+                    end do
+                end if
+
+                ! Leave elseif block scope
+                call ctx%scopes%leave_scope()
+            end do
+        end if
+
+        ! Analyze else block
+        if (allocated(if_stmt%else_body)) then
+            ! Enter else block scope
+            call ctx%scopes%enter_block()
+
+            do i = 1, size(if_stmt%else_body)
+                if (allocated(if_stmt%else_body(i)%node)) then
+                    call infer_and_store_type(ctx, if_stmt%else_body(i)%node)
+                end if
+            end do
+
+            ! Leave else block scope
+            call ctx%scopes%leave_scope()
+        end if
+
+        ! If statements have unit type
+        typ = create_mono_type(TINT)  ! Unit type
+    end function analyze_if_node
+
+    ! Analyze do loop with block scope
+    function analyze_do_loop(ctx, do_stmt) result(typ)
+        type(semantic_context_t), intent(inout) :: ctx
+        type(do_loop_node), intent(inout) :: do_stmt
+        type(mono_type_t) :: typ, loop_var_type
+        type(poly_type_t) :: loop_var_scheme
+        integer :: i
+
+        ! Enter loop block scope
+        call ctx%scopes%enter_block()
+
+        ! Add loop variable to scope
+        loop_var_type = create_mono_type(TINT)  ! Loop variables are integers
+      loop_var_scheme = create_poly_type(forall_vars=[type_var_t::], mono=loop_var_type)
+        call ctx%scopes%define(do_stmt%var_name, loop_var_scheme)
+
+        ! Analyze loop bounds
+        if (allocated(do_stmt%start_expr)) then
+            call infer_and_store_type(ctx, do_stmt%start_expr)
+        end if
+        if (allocated(do_stmt%end_expr)) then
+            call infer_and_store_type(ctx, do_stmt%end_expr)
+        end if
+        if (allocated(do_stmt%step_expr)) then
+            call infer_and_store_type(ctx, do_stmt%step_expr)
+        end if
+
+        ! Analyze loop body
+        if (allocated(do_stmt%body)) then
+            do i = 1, size(do_stmt%body)
+                if (allocated(do_stmt%body(i)%node)) then
+                    call infer_and_store_type(ctx, do_stmt%body(i)%node)
+                end if
+            end do
+        end if
+
+        ! Leave loop block scope
+        call ctx%scopes%leave_scope()
+
+        ! Do loops have unit type
+        typ = create_mono_type(TINT)  ! Unit type
+    end function analyze_do_loop
+
+    ! Analyze do while loop with block scope
+    function analyze_do_while(ctx, do_while_stmt) result(typ)
+        type(semantic_context_t), intent(inout) :: ctx
+        type(do_while_node), intent(inout) :: do_while_stmt
+        type(mono_type_t) :: typ
+        integer :: i
+
+        ! Analyze condition
+        if (allocated(do_while_stmt%condition)) then
+            call infer_and_store_type(ctx, do_while_stmt%condition)
+        end if
+
+        ! Enter loop block scope
+        call ctx%scopes%enter_block()
+
+        ! Analyze loop body
+        if (allocated(do_while_stmt%body)) then
+            do i = 1, size(do_while_stmt%body)
+                if (allocated(do_while_stmt%body(i)%node)) then
+                    call infer_and_store_type(ctx, do_while_stmt%body(i)%node)
+                end if
+            end do
+        end if
+
+        ! Leave loop block scope
+        call ctx%scopes%leave_scope()
+
+        ! Do while loops have unit type
+        typ = create_mono_type(TINT)  ! Unit type
+    end function analyze_do_while
+
 end module semantic_analyzer

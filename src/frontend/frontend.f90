@@ -4,7 +4,8 @@ module frontend
     ! Architecture: Lexer → Parser → Semantic → Codegen with FALLBACK support
 
     use lexer_core, only: token_t, tokenize_core, TK_EOF, TK_KEYWORD
-    use parser_core, only: parse_expression, parse_statement, parser_state_t, create_parser_state, &
+    use parser_state_module, only: parser_state_t, create_parser_state
+    use parser_core, only: parse_expression, parse_statement, &
              parse_function_definition, parse_do_loop, parse_do_while, parse_select_case
     use ast_core
     use semantic_analyzer, only: semantic_context_t, create_semantic_context, analyze_program

@@ -1,6 +1,6 @@
 module ast_core
     use json_module
-    ! use type_system_hm, only: mono_type_t  ! TODO: integrate HM type system
+    use type_system_hm, only: mono_type_t
     implicit none
     private
 
@@ -8,7 +8,7 @@ module ast_core
     type, abstract, public :: ast_node
         integer :: line = 1
         integer :: column = 1
-        ! type(mono_type_t), allocatable :: inferred_type  ! TODO: Type information from semantic analysis
+        type(mono_type_t), allocatable :: inferred_type  ! Type information from semantic analysis
     contains
         procedure(visit_interface), deferred :: accept
         procedure(to_json_interface), deferred :: to_json
@@ -47,7 +47,7 @@ module ast_core
         class(ast_node), allocatable :: target
         class(ast_node), allocatable :: value
         ! Type inference support (dialect-agnostic)
-        logical :: inferred_type = .false.  ! true if type was inferred
+        logical :: type_was_inferred = .false.  ! true if type was inferred
         character(len=:), allocatable :: inferred_type_name
     contains
         procedure :: accept => assignment_accept
@@ -304,7 +304,7 @@ contains
         allocate (node%value, source=value)
         if (present(line)) node%line = line
         if (present(column)) node%column = column
-        if (present(inferred_type)) node%inferred_type = inferred_type
+        if (present(inferred_type)) node%type_was_inferred = inferred_type
         if (present(inferred_type_name)) node%inferred_type_name = inferred_type_name
     end function create_assignment
 
@@ -629,7 +629,7 @@ function create_function_def(name, params, return_type, body, line, column) resu
         call json%add(obj, 'type', 'assignment')
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
-        call json%add(obj, 'inferred_type', this%inferred_type)
+        call json%add(obj, 'inferred_type', this%type_was_inferred)
         if (allocated(this%inferred_type_name)) then
             call json%add(obj, 'inferred_type_name', this%inferred_type_name)
         end if
