@@ -51,7 +51,7 @@ contains
             call execute_command_line("mkdir -p "//trim(test_cache_dir))
 
             ! Read the simple_math.f example
-            call read_example_file("example/notebook/simple_math.f", content)
+            call read_example_file("example/scientific/notebook/simple_math.f", content)
 
             if (len(content) == 0) then
                 print *, '  FAIL: Could not read simple_math.f'
@@ -137,7 +137,7 @@ contains
             call execute_command_line("mkdir -p "//trim(test_cache_dir))
 
             ! Read the arrays_loops.f example
-            call read_example_file("example/notebook/arrays_loops.f", content)
+           call read_example_file("example/scientific/notebook/arrays_loops.f", content)
 
             if (len(content) == 0) then
                 print *, '  FAIL: Could not read arrays_loops.f'
@@ -223,7 +223,7 @@ contains
             call execute_command_line("mkdir -p "//trim(test_cache_dir))
 
             ! Read the control_flow.f example
-            call read_example_file("example/notebook/control_flow.f", content)
+           call read_example_file("example/scientific/notebook/control_flow.f", content)
 
             if (len(content) == 0) then
                 print *, '  FAIL: Could not read control_flow.f'

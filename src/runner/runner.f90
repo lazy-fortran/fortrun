@@ -255,10 +255,10 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
                 output_file = get_temp_file_path(create_temp_dir('fortran_build'), 'fpm_build_output.txt')
                 if (len_trim(flag_string) > 0) then
                     command = 'cd "'//trim(project_dir)//'" && '// &
-                      'fpm build --flag "' // trim(flag_string) // '" > "'//trim(output_file)//'" 2>&1'
+           'fpm build --flag "'//trim(flag_string)//'" > "'//trim(output_file)//'" 2>&1'
                 else
                     command = 'cd "'//trim(project_dir)//'" && '// &
-                      'fpm build > "'//trim(output_file)//'" 2>&1'
+                              'fpm build > "'//trim(output_file)//'" 2>&1'
                 end if
             end block
         else if (verbose_level >= 2) then
@@ -333,11 +333,11 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         ! Use realpath command to get absolute path
         block
             character(len=256) :: temp_file
-            temp_file = get_temp_file_path(create_temp_dir('fortran_realpath'), 'fortran_path.tmp')
-            command = 'realpath "' // trim(filename) // '" > "'//trim(temp_file)//'"'
+ temp_file = get_temp_file_path(create_temp_dir('fortran_realpath'), 'fortran_path.tmp')
+            command = 'realpath "'//trim(filename)//'" > "'//trim(temp_file)//'"'
             call execute_command_line(command)
 
-            open(newunit=unit, file=temp_file, status='old', iostat=iostat)
+            open (newunit=unit, file=temp_file, status='old', iostat=iostat)
         end block
         if (iostat == 0) then
             read (unit, '(a)') absolute_path

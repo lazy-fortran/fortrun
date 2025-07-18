@@ -807,9 +807,17 @@ contains
 
         ! Return exact size (safe array resizing)
         if (count > 0) then
-            vars = vars(1:count)
+            block
+                type(type_var_t), allocatable :: temp(:)
+                allocate (temp(count))
+                temp = vars(1:count)
+                deallocate (vars)
+                allocate (vars(count))
+                vars = temp
+            end block
         else
-            ! Automatic cleanup - no manual deallocate needed
+            ! Deallocate and allocate empty array
+            deallocate (vars)
             allocate (vars(0))
         end if
     end subroutine get_scheme_free_vars

@@ -126,14 +126,14 @@ contains
 
         block
             character(len=256) :: temp_file
-            temp_file = get_temp_file_path(create_temp_dir('fortran_test'), 'fortran_test_dir.tmp')
+ temp_file = get_temp_file_path(create_temp_dir('fortran_test'), 'fortran_test_dir.tmp')
             call system('mktemp -d > '//trim(temp_file))
-            open(newunit=unit, file=temp_file, status='old', iostat=iostat)
+            open (newunit=unit, file=temp_file, status='old', iostat=iostat)
             if (iostat == 0) then
                 read (unit, '(a)') dir
                 close (unit)
                 ! Cleanup handled by temp_utils
-                
+
                 ! Remove trailing newline if present
                 last_char = len_trim(dir)
                 if (last_char > 0) then

@@ -67,20 +67,9 @@ contains
         nargs = command_argument_count()
 
         if (nargs == 0) then
-            ! Check if STDIN has data available
-            block
-                logical :: has_stdin
-                call check_stdin_available(has_stdin)
-
-                if (has_stdin) then
-                    filename = '-'  ! Special marker for STDIN
-                    show_help = .false.
-                    return
-                else
-                    show_help = .true.
-                    return
-                end if
-            end block
+            ! When no arguments provided, show help
+            show_help = .true.
+            return
         end if
 
         i = 1

@@ -328,61 +328,17 @@ contains
         end select
     end function mono_type_to_string
 
-    ! Deep copy a monomorphic type (non-recursive to avoid gfortran crash)
-    function mono_type_deep_copy(this) result(copy)
+    ! Deep copy a monomorphic type (recursive to handle ALL nesting levels)
+    recursive function mono_type_deep_copy(this) result(copy)
         class(mono_type_t), intent(in) :: this
         type(mono_type_t) :: copy
-        integer :: i
 
-        copy%kind = this%kind
-        copy%size = this%size
-
-        ! Deep copy var field
-        copy%var%id = this%var%id
-        if (allocated(this%var%name)) then
-            copy%var%name = this%var%name
-        else
-            allocate (character(len=0) :: copy%var%name)
-        end if
-
-        ! Deep copy args array to avoid shared references
-        if (allocated(this%args)) then
-            allocate (copy%args(size(this%args)))
-            do i = 1, size(this%args)
-                ! Manually deep copy each element to avoid shared allocatable components
-                copy%args(i)%kind = this%args(i)%kind
-                copy%args(i)%size = this%args(i)%size
-                copy%args(i)%var%id = this%args(i)%var%id
-                if (allocated(this%args(i)%var%name)) then
-                    copy%args(i)%var%name = this%args(i)%var%name
-                else
-                    allocate (character(len=0) :: copy%args(i)%var%name)
-                end if
-                ! Don't recursively copy args to avoid infinite recursion
-                if (allocated(this%args(i)%args)) then
-                    allocate (copy%args(i)%args(size(this%args(i)%args)))
-                    ! Create deep copies of nested args to avoid shared references
-                    block
-                        integer :: j
-                        do j = 1, size(this%args(i)%args)
-                            copy%args(i)%args(j)%kind = this%args(i)%args(j)%kind
-                            copy%args(i)%args(j)%size = this%args(i)%args(j)%size
-                            copy%args(i)%args(j)%var%id = this%args(i)%args(j)%var%id
-                            if (allocated(this%args(i)%args(j)%var%name)) then
-                           copy%args(i)%args(j)%var%name = this%args(i)%args(j)%var%name
-                            else
-                            allocate (character(len=0) :: copy%args(i)%args(j)%var%name)
-                            end if
-                            ! Don't copy further nested args to prevent infinite recursion
-                        end do
-                    end block
-                end if
-            end do
-        end if
+        ! Just call the assignment which now does proper deep copy
+        call mono_type_assign(copy, this)
     end function mono_type_deep_copy
 
     ! Assignment operator for mono_type_t (deep copy)
-    subroutine mono_type_assign(lhs, rhs)
+    recursive subroutine mono_type_assign(lhs, rhs)
         class(mono_type_t), intent(out) :: lhs
         type(mono_type_t), intent(in) :: rhs
         integer :: i
@@ -399,44 +355,12 @@ contains
             allocate (character(len=0) :: lhs%var%name)
         end if
 
-        ! Deep copy args array
+        ! Deep copy args array recursively to handle ALL nesting levels
         if (allocated(rhs%args)) then
             allocate (lhs%args(size(rhs%args)))
             do i = 1, size(rhs%args)
-                ! Manually copy to avoid recursion
-                lhs%args(i)%kind = rhs%args(i)%kind
-                lhs%args(i)%size = rhs%args(i)%size
-                lhs%args(i)%var%id = rhs%args(i)%var%id
-                ! Ensure clean allocation for name field
-                if (allocated(lhs%args(i)%var%name)) then
-                    deallocate (lhs%args(i)%var%name)
-                end if
-                if (allocated(rhs%args(i)%var%name)) then
-                    lhs%args(i)%var%name = rhs%args(i)%var%name
-                else
-                    allocate (character(len=0) :: lhs%args(i)%var%name)
-                end if
-                ! Deep copy nested args
-                if (allocated(rhs%args(i)%args)) then
-                    allocate (lhs%args(i)%args(size(rhs%args(i)%args)))
-                    block
-                        integer :: j
-                        do j = 1, size(rhs%args(i)%args)
-                            lhs%args(i)%args(j)%kind = rhs%args(i)%args(j)%kind
-                            lhs%args(i)%args(j)%size = rhs%args(i)%args(j)%size
-                            lhs%args(i)%args(j)%var%id = rhs%args(i)%args(j)%var%id
-                            ! Ensure clean allocation for name field
-                            if (allocated(lhs%args(i)%args(j)%var%name)) then
-                                deallocate (lhs%args(i)%args(j)%var%name)
-                            end if
-                            if (allocated(rhs%args(i)%args(j)%var%name)) then
-                             lhs%args(i)%args(j)%var%name = rhs%args(i)%args(j)%var%name
-                            else
-                             allocate (character(len=0) :: lhs%args(i)%args(j)%var%name)
-                            end if
-                        end do
-                    end block
-                end if
+                ! Recursively deep copy each element
+                call mono_type_assign(lhs%args(i), rhs%args(i))
             end do
         end if
     end subroutine mono_type_assign
@@ -546,6 +470,7 @@ contains
 
         do i = 1, this%count
             if (this%vars(i)%id == var%id) then
+                allocate (typ)
                 typ = this%types(i)
                 return
             end if

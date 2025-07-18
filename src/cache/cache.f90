@@ -470,13 +470,13 @@ command = 'xcopy /E /I /Y "'//trim(cache_path)//'\*" "'//trim(target_dir)//'" >n
         ! Execute command and capture output
         block
             character(len=256) :: temp_file
-            temp_file = get_temp_file_path(create_temp_dir('fortran_cache'), 'cache_size.tmp')
-            call execute_command_line(command // ' > '//trim(temp_file), &
+      temp_file = get_temp_file_path(create_temp_dir('fortran_cache'), 'cache_size.tmp')
+            call execute_command_line(command//' > '//trim(temp_file), &
                                       exitstat=exitstat, cmdstat=cmdstat)
-            
+
             size_output = "unknown"
             if (cmdstat == 0 .and. exitstat == 0) then
-                open (newunit=unit, file=temp_file, status='old', action='read', iostat=ios)
+            open (newunit=unit, file=temp_file, status='old', action='read', iostat=ios)
                 if (ios == 0) then
                     read (unit, '(A)', iostat=ios) size_output
                     close (unit)
@@ -494,13 +494,13 @@ command = 'xcopy /E /I /Y "'//trim(cache_path)//'\*" "'//trim(target_dir)//'" >n
 
         block
             character(len=256) :: temp_file
-            temp_file = get_temp_file_path(create_temp_dir('fortran_cache'), 'cache_count.tmp')
-            call execute_command_line(command // ' > '//trim(temp_file), &
+     temp_file = get_temp_file_path(create_temp_dir('fortran_cache'), 'cache_count.tmp')
+            call execute_command_line(command//' > '//trim(temp_file), &
                                       exitstat=exitstat, cmdstat=cmdstat)
 
             num_files = 0
             if (cmdstat == 0 .and. exitstat == 0) then
-                open (newunit=unit, file=temp_file, status='old', action='read', iostat=ios)
+            open (newunit=unit, file=temp_file, status='old', action='read', iostat=ios)
                 if (ios == 0) then
                     read (unit, *, iostat=ios) num_files
                     close (unit)
