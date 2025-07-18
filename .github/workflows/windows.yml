@@ -51,11 +51,11 @@ jobs:
       shell: powershell
 
     - name: Build project
-      run: fpm build --compiler gfortran
+      run: fpm build --compiler gfortran --flag=cpp
       shell: msys2 {0}
 
     - name: Run unit tests
-      run: fpm test --compiler gfortran
+      run: fpm test --compiler gfortran --flag=cpp
       shell: msys2 {0}
 
     - name: Test cache functionality
@@ -136,7 +136,7 @@ jobs:
         fpm --version
 
     - name: Build project
-      run: fpm build --compiler gfortran
+      run: fpm build --compiler gfortran --flag=cpp
       shell: msys2 {0}
 
     - name: Download artifacts
