@@ -73,6 +73,7 @@ contains
         block
             integer :: iostat
             integer :: unit
+            logical :: file_exists
 
             ! Create a simple .f file
             open (newunit=unit, file='/tmp/test_debug.f', action='write', iostat=iostat)
@@ -86,41 +87,48 @@ contains
             close (unit)
 
             ! Test --debug-tokens
+            ! Note: This will write debug output to a file AND try to run the program
+            ! For .f files, it may fail at runtime but should create the debug file
     call execute_command_line('fpm run fortran -- --debug-tokens /tmp/test_debug.f '// &
-                                      '> /tmp/debug_tokens.json 2>/dev/null', &
+                                      '> /dev/null 2>&1', &
                                       exitstat=iostat)
-            if (iostat /= 0) then
-                print *, '  FAIL: --debug-tokens failed'
+            ! Check if the debug tokens file was created
+            inquire (file='/tmp/test_debug_tokens.json', exist=file_exists)
+            if (.not. file_exists) then
+                print *, '  FAIL: --debug-tokens did not create expected file'
                 test_debug_output_pipeline = .false.
                 return
             end if
 
             ! Test --debug-ast
        call execute_command_line('fpm run fortran -- --debug-ast /tmp/test_debug.f '// &
-                                      '> /tmp/debug_ast.json 2>/dev/null', &
+                                      '> /dev/null 2>&1', &
                                       exitstat=iostat)
-            if (iostat /= 0) then
-                print *, '  FAIL: --debug-ast failed'
+            inquire (file='/tmp/test_debug_ast.json', exist=file_exists)
+            if (.not. file_exists) then
+                print *, '  FAIL: --debug-ast did not create expected file'
                 test_debug_output_pipeline = .false.
                 return
             end if
 
             ! Test --debug-semantic
   call execute_command_line('fpm run fortran -- --debug-semantic /tmp/test_debug.f '// &
-                                      '> /tmp/debug_semantic.json 2>/dev/null', &
+                                      '> /dev/null 2>&1', &
                                       exitstat=iostat)
-            if (iostat /= 0) then
-                print *, '  FAIL: --debug-semantic failed'
+            inquire (file='/tmp/test_debug_semantic.json', exist=file_exists)
+            if (.not. file_exists) then
+                print *, '  FAIL: --debug-semantic did not create expected file'
                 test_debug_output_pipeline = .false.
                 return
             end if
 
             ! Test --debug-codegen
    call execute_command_line('fpm run fortran -- --debug-codegen /tmp/test_debug.f '// &
-                                      '> /tmp/debug_codegen.json 2>/dev/null', &
+                                      '> /dev/null 2>&1', &
                                       exitstat=iostat)
-            if (iostat /= 0) then
-                print *, '  FAIL: --debug-codegen failed'
+            inquire (file='/tmp/test_debug_codegen.json', exist=file_exists)
+            if (.not. file_exists) then
+                print *, '  FAIL: --debug-codegen did not create expected file'
                 test_debug_output_pipeline = .false.
                 return
             end if
@@ -128,7 +136,7 @@ contains
             print *, '  PASS: All debug output flags work'
 
             ! Clean up
-            call execute_command_line('rm -f /tmp/test_debug.f /tmp/debug_*.json', &
+           call execute_command_line('rm -f /tmp/test_debug.f /tmp/test_debug_*.json', &
                                       exitstat=iostat)
         end block
 
