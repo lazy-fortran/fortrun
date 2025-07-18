@@ -393,6 +393,10 @@ contains
                 lhs%args(i)%kind = rhs%args(i)%kind
                 lhs%args(i)%size = rhs%args(i)%size
                 lhs%args(i)%var%id = rhs%args(i)%var%id
+                ! Ensure clean allocation for name field
+                if (allocated(lhs%args(i)%var%name)) then
+                    deallocate (lhs%args(i)%var%name)
+                end if
                 if (allocated(rhs%args(i)%var%name)) then
                     lhs%args(i)%var%name = rhs%args(i)%var%name
                 else
@@ -407,6 +411,10 @@ contains
                             lhs%args(i)%args(j)%kind = rhs%args(i)%args(j)%kind
                             lhs%args(i)%args(j)%size = rhs%args(i)%args(j)%size
                             lhs%args(i)%args(j)%var%id = rhs%args(i)%args(j)%var%id
+                            ! Ensure clean allocation for name field
+                            if (allocated(lhs%args(i)%args(j)%var%name)) then
+                                deallocate (lhs%args(i)%args(j)%var%name)
+                            end if
                             if (allocated(rhs%args(i)%args(j)%var%name)) then
                              lhs%args(i)%args(j)%var%name = rhs%args(i)%args(j)%var%name
                             else
