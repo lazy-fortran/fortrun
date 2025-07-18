@@ -167,8 +167,12 @@ contains
         test_file = temp_dir%get_file_path('test_preprocess.f')
 
         open (newunit=unit, file=test_file)
-        write (unit, '(a)') 'x = 42'
-        write (unit, '(a)') 'print *, x'
+        write (unit, '(a)') 'program test'
+        write (unit, '(a)') '  implicit none'
+        write (unit, '(a)') '  integer :: x'
+        write (unit, '(a)') '  x = 42'
+        write (unit, '(a)') '  print *, x'
+        write (unit, '(a)') 'end program test'
         close (unit)
 
         call run_fortran_file(test_file, exit_code, 1, '', '', 0, .false.)

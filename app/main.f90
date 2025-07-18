@@ -1,8 +1,8 @@
 program main
     use cli, only: parse_arguments
     use runner, only: run_fortran_file
-  use frontend_integration, only: compile_with_frontend, compile_with_frontend_debug, is_simple_fortran_file
-  use frontend, only: compile_from_tokens_json, compile_from_ast_json, compile_from_semantic_json, compilation_options_t
+    use frontend_integration, only: compile_with_frontend, compile_with_frontend_debug, is_simple_fortran_file
+    use frontend, only: compile_from_tokens_json, compile_from_ast_json, compile_from_semantic_json, compilation_options_t
     use cache, only: clear_cache, get_cache_info
     use debug_state, only: set_debug_flags
     use logger, only: set_verbose_level
