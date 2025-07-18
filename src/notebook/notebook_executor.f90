@@ -743,15 +743,6 @@ contains
 
     end subroutine create_temp_notebook_dir
 
-    subroutine cleanup_temp_dir(temp_dir)
-        character(len=*), intent(in) :: temp_dir
-        character(len=512) :: command
-
-        command = 'rm -rf '//trim(temp_dir)
-        call execute_command_line(command)
-
-    end subroutine cleanup_temp_dir
-
     subroutine execute_and_capture(command, output, exit_code)
         character(len=*), intent(in) :: command
         character(len=:), allocatable, intent(out) :: output
