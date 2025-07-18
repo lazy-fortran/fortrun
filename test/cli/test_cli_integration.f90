@@ -97,8 +97,8 @@ contains
             end if
 
             ! Test --debug-ast
-            call execute_command_line('fpm run fortran -- /tmp/test_debug.f '// &
-                                      '--debug-ast > /tmp/debug_ast.json 2>/dev/null', &
+            call execute_command_line('fpm run fortran -- '//get_temp_file_path(create_temp_dir('fortran_test'), 'test_debug.f')//' '// &
+                                      '--debug-ast > '//get_temp_file_path(create_temp_dir('fortran_test'), 'debug_ast.json')//' 2>/dev/null', &
                                       exitstat=iostat)
             if (iostat /= 0) then
                 print *, '  FAIL: --debug-ast failed'
@@ -107,8 +107,8 @@ contains
             end if
 
             ! Test --debug-semantic
-            call execute_command_line('fpm run fortran -- /tmp/test_debug.f '// &
-                            '--debug-semantic > /tmp/debug_semantic.json 2>/dev/null', &
+            call execute_command_line('fpm run fortran -- '//get_temp_file_path(create_temp_dir('fortran_test'), 'test_debug.f')//' '// &
+                            '--debug-semantic > '//get_temp_file_path(create_temp_dir('fortran_test'), 'debug_semantic.json')//' 2>/dev/null', &
                                       exitstat=iostat)
             if (iostat /= 0) then
                 print *, '  FAIL: --debug-semantic failed'
@@ -117,8 +117,8 @@ contains
             end if
 
             ! Test --debug-codegen
-            call execute_command_line('fpm run fortran -- /tmp/test_debug.f '// &
-                              '--debug-codegen > /tmp/debug_codegen.json 2>/dev/null', &
+            call execute_command_line('fpm run fortran -- '//get_temp_file_path(create_temp_dir('fortran_test'), 'test_debug.f')//' '// &
+                              '--debug-codegen > '//get_temp_file_path(create_temp_dir('fortran_test'), 'debug_codegen.json')//' 2>/dev/null', &
                                       exitstat=iostat)
             if (iostat /= 0) then
                 print *, '  FAIL: --debug-codegen failed'
@@ -129,7 +129,8 @@ contains
             print *, '  PASS: All debug output flags work'
 
             ! Clean up
-            call execute_command_line('rm -f /tmp/test_debug.f /tmp/debug_*.json', &
+            call execute_command_line('rm -f '//get_temp_file_path(create_temp_dir('fortran_test'), 'test_debug.f')//' '// &
+                  get_temp_file_path(create_temp_dir('fortran_test'), 'debug_*.json'), &
                                       exitstat=iostat)
         end block
 

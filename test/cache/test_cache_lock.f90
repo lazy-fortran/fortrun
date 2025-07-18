@@ -139,7 +139,7 @@ contains
                 end if
             end if
         else
-            dir = '/tmp/fortran_cache_lock_test'
+            dir = create_temp_dir('fortran_cache_lock_test')
         end if
     end subroutine get_temp_dir
 
