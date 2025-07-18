@@ -57,12 +57,35 @@ jobs:
         }
       shell: powershell
 
+    - name: Debug FPM installation
+      shell: msys2 {0}
+      run: |
+        echo "Checking FPM installation..."
+        which fpm || echo "FPM not found in PATH"
+        echo "PATH: $PATH"
+        echo "Looking for FPM executables..."
+        find /c/hostedtoolcache -name "fpm*" 2>/dev/null || echo "No FPM found in toolcache"
+
     - name: Build project
-      run: fpm build --compiler gfortran
+      run: |
+        # Try to find and use FPM
+        if which fpm; then
+          fpm build --compiler gfortran
+        else
+          echo "FPM not found, trying with full path..."
+          /c/hostedtoolcache/fpm/*/x64/fpm build --compiler gfortran 2>/dev/null || echo "FPM not found"
+        fi
       shell: msys2 {0}
 
     - name: Run unit tests
-      run: fpm test --compiler gfortran
+      run: |
+        # Try to find and use FPM
+        if which fpm; then
+          fpm test --compiler gfortran
+        else
+          echo "FPM not found, trying with full path..."
+          /c/hostedtoolcache/fpm/*/x64/fpm test --compiler gfortran 2>/dev/null || echo "FPM not found"
+        fi
       shell: msys2 {0}
 
     - name: Test cache functionality
