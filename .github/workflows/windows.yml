@@ -11,26 +11,22 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        compiler: [gfortran, intel]
+        compiler: [gfortran]
         include:
           - compiler: gfortran
             fc: gfortran
-            setup: |
-              choco install mingw
-              echo "FC=gfortran" >> $GITHUB_ENV
-              echo "CC=gcc" >> $GITHUB_ENV
-          - compiler: intel
-            fc: ifort
-            setup: |
-              # Intel oneAPI setup would go here
-              echo "FC=ifort" >> $GITHUB_ENV
-              echo "CC=icc" >> $GITHUB_ENV
 
     steps:
     - uses: actions/checkout@v4
 
     - name: Setup Fortran compiler
-      run: ${{ matrix.setup }}
+      run: |
+        # Install MSYS2 and gfortran
+        choco install msys2
+        msys2 -c "pacman --noconfirm -S mingw-w64-x86_64-gcc-fortran"
+        echo "C:\msys64\mingw64\bin" >> $GITHUB_PATH
+        echo "FC=gfortran" >> $GITHUB_ENV
+        echo "CC=gcc" >> $GITHUB_ENV
       shell: bash
 
     - name: Setup FPM
@@ -107,9 +103,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: fortran-windows-${{ matrix.compiler }}
-        path: |
-          build/*/app/fortran.exe
-          build/*/app/fortran
+        path: build/*/app/fortran.exe
         retention-days: 30
 
   test-windows-examples:
@@ -121,7 +115,10 @@ jobs:
 
     - name: Setup Fortran compiler
       run: |
-        choco install mingw
+        # Install MSYS2 and gfortran
+        choco install msys2
+        msys2 -c "pacman --noconfirm -S mingw-w64-x86_64-gcc-fortran"
+        echo "C:\msys64\mingw64\bin" >> $GITHUB_PATH
         echo "FC=gfortran" >> $GITHUB_ENV
         echo "CC=gcc" >> $GITHUB_ENV
       shell: bash
