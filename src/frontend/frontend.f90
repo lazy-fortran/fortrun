@@ -238,10 +238,24 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
         integer :: stmt_index
         integer :: i, unit_start, unit_end, stmt_count
         type(token_t), allocatable :: unit_tokens(:)
+        logical :: has_explicit_program
 
         error_msg = ""
         stmt_count = 0
         allocate (body_indices(0))
+        has_explicit_program = .false.
+
+        ! Check if file starts with explicit 'program' statement
+        do i = 1, size(tokens)
+            if (tokens(i)%kind == TK_KEYWORD) then
+                if (tokens(i)%text == "program") then
+                    has_explicit_program = .true.
+                end if
+                exit  ! Stop at first keyword
+            else if (tokens(i)%kind /= TK_EOF) then
+                exit  ! Stop at first non-EOF token
+            end if
+        end do
 
         ! Parse program units, not individual lines
         i = 1
@@ -305,7 +319,17 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
         end do
 
         ! Create program node with collected body indices
-        prog_index = push_program(arena, "main", body_indices, 1, 1)
+        ! Only wrap in implicit program if there's no explicit program statement
+        if (.not. has_explicit_program) then
+            prog_index = push_program(arena, "main", body_indices, 1, 1)
+        else if (stmt_count > 0) then
+            ! Use the first (and should be only) statement as the program
+            prog_index = body_indices(1)
+        else
+            ! No program found
+            error_msg = "No program found in file"
+            prog_index = 0
+        end if
     end subroutine parse_tokens
 
     ! Find program unit boundary (function/subroutine/module spans multiple lines)
@@ -339,6 +363,10 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
                 nesting_level = 1
             else if (is_module_start(tokens, start_pos)) then
                 in_module = .true.
+                nesting_level = 1
+            else if (is_program_start(tokens, start_pos)) then
+                ! Handle explicit program blocks
+                in_module = .true.  ! Reuse module logic for program blocks
                 nesting_level = 1
             else if (is_do_while_start(tokens, start_pos)) then
                 in_do_loop = .true.
@@ -527,6 +555,18 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
             is_module_start = .true.
         end if
     end function is_module_start
+
+    logical function is_program_start(tokens, pos)
+        type(token_t), intent(in) :: tokens(:)
+        integer, intent(in) :: pos
+
+        is_program_start = .false.
+        if (pos > size(tokens)) return
+
+        if (tokens(pos)%kind == TK_KEYWORD .and. tokens(pos)%text == "program") then
+            is_program_start = .true.
+        end if
+    end function is_program_start
 
     logical function is_end_function(tokens, pos)
         type(token_t), intent(in) :: tokens(:)

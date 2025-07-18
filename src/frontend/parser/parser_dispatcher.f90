@@ -8,7 +8,7 @@ module parser_dispatcher_module
     use parser_statements_module, only: parse_use_statement, parse_include_statement, &
                                      parse_print_statement, parse_function_definition, &
                                    parse_subroutine_definition, parse_interface_block, &
-                                        parse_module
+                                        parse_module, parse_program_statement
     use parser_control_flow_module
     use ast_core
     use ast_factory
@@ -55,6 +55,8 @@ contains
                 stmt_index = parse_interface_block(parser, arena)
             case ("module")
                 stmt_index = parse_module(parser, arena)
+            case ("program")
+                stmt_index = parse_program_statement(parser, arena)
             case ("type")
                 stmt_index = parse_type_or_declaration(parser, arena)
             case ("real", "integer", "logical", "character", "complex")

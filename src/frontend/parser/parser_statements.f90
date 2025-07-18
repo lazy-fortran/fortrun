@@ -11,7 +11,7 @@ module parser_statements_module
 
     public :: parse_use_statement, parse_include_statement, parse_print_statement
     public :: parse_function_definition, parse_subroutine_definition
-    public :: parse_interface_block, parse_module
+    public :: parse_interface_block, parse_module, parse_program_statement
 
 contains
 
@@ -1023,5 +1023,131 @@ contains
         end if
 
     end function parse_basic_statement
+
+    ! Parse program statement: program program_name
+    function parse_program_statement(parser, arena) result(prog_index)
+        type(parser_state_t), intent(inout) :: parser
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: prog_index
+        type(token_t) :: token, name_token
+        character(len=:), allocatable :: program_name
+        integer :: line, column
+        integer, allocatable :: body_indices(:)
+        integer :: stmt_index
+
+        prog_index = 0
+        allocate (body_indices(0))
+
+        ! Consume 'program' keyword
+        token = parser%consume()
+        line = token%line
+        column = token%column
+
+        ! Get program name (optional in lazy fortran, required in standard)
+        name_token = parser%peek()
+        if (name_token%kind == TK_IDENTIFIER) then
+            name_token = parser%consume()
+            program_name = name_token%text
+        else
+            program_name = "main"
+        end if
+
+        ! Parse program body until 'end program'
+        do while (.not. parser%is_at_end())
+            token = parser%peek()
+
+            ! Check for 'end program'
+            if (token%kind == TK_KEYWORD .and. token%text == "end") then
+                if (parser%current_token + 1 <= size(parser%tokens)) then
+                  if (parser%tokens(parser%current_token + 1)%kind == TK_KEYWORD .and. &
+                        parser%tokens(parser%current_token + 1)%text == "program") then
+                        ! Found 'end program', consume both tokens
+                        token = parser%consume()  ! end
+                        token = parser%consume()  ! program
+
+                        ! Optional program name after 'end program'
+                        token = parser%peek()
+                        if (token%kind == TK_IDENTIFIER) then
+                            token = parser%consume()
+                        end if
+                        exit
+                    end if
+                end if
+            end if
+
+            ! Parse each statement in the program body
+            block
+                type(token_t) :: first_token
+                first_token = parser%peek()
+
+                ! Handle different statement types
+                select case (first_token%kind)
+                case (TK_KEYWORD)
+                    select case (first_token%text)
+                    case ("use")
+                        stmt_index = parse_use_statement(parser, arena)
+                    case ("implicit")
+                        ! Skip implicit none - already handled by codegen
+                        token = parser%consume()  ! implicit
+                        token = parser%peek()
+                        if (token%text == "none") then
+                            token = parser%consume()  ! none
+                        end if
+                        stmt_index = 0  ! Don't add to AST
+                    case ("integer", "real", "logical", "character", "complex")
+                        stmt_index = parse_declaration(parser, arena)
+                    case ("print")
+                        stmt_index = parse_print_statement(parser, arena)
+                    case default
+                        ! Skip unknown keywords
+                        token = parser%consume()
+                        stmt_index = 0
+                    end select
+                case (TK_IDENTIFIER)
+                    ! Could be assignment
+                    block
+                        type(token_t) :: id_token, op_token
+                        integer :: target_index, value_index
+
+                        id_token = parser%consume()
+                        op_token = parser%peek()
+
+                       if (op_token%kind == TK_OPERATOR .and. op_token%text == "=") then
+                            op_token = parser%consume()
+
+                            ! Create target identifier
+    target_index = push_identifier(arena, id_token%text, id_token%line, id_token%column)
+
+                            ! Parse value - simple literal for now
+                            token = parser%peek()
+                            if (token%kind == TK_NUMBER) then
+                                token = parser%consume()
+value_index = push_literal(arena, token%text, LITERAL_INTEGER, token%line, token%column)
+                                stmt_index = push_assignment(arena, target_index, value_index, id_token%line, id_token%column)
+                            else
+                                stmt_index = 0
+                            end if
+                        else
+                            stmt_index = 0
+                        end if
+                    end block
+                case default
+                    ! Skip this token
+                    if (.not. parser%is_at_end()) then
+                        token = parser%consume()
+                    end if
+                    stmt_index = 0
+                end select
+
+                if (stmt_index > 0) then
+                    body_indices = [body_indices, stmt_index]
+                end if
+            end block
+        end do
+
+        ! Create program node
+        prog_index = push_program(arena, program_name, body_indices, line, column)
+
+    end function parse_program_statement
 
 end module parser_statements_module

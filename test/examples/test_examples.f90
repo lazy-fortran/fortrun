@@ -17,66 +17,66 @@ program test_examples
     allocate (example_files(n_examples))
 
     ! Hello examples (.f90 and .f versions)
-    example_files(1) = 'example/hello/hello.f90'
-    example_files(2) = 'example/hello/hello.f'
+    example_files(1) = 'example/basic/hello/hello.f90'
+    example_files(2) = 'example/basic/hello/hello.f'
 
     ! Calculator examples (.f90 and .f versions)
-    example_files(3) = 'example/calculator/calculator.f90'
-    example_files(4) = 'example/calculator/calculator.f'
+    example_files(3) = 'example/basic/calculator/calculator.f90'
+    example_files(4) = 'example/basic/calculator/calculator.f'
 
     ! Precision examples (.f90 and .f versions)
-    example_files(5) = 'example/precision/precision_test.f90'
-    example_files(6) = 'example/precision/precision_test.f'
-    example_files(7) = 'example/precision/precision_compare.f90'
-    example_files(8) = 'example/precision/precision_compare.f'
-    example_files(9) = 'example/precision/real_default_test.f90'
-    example_files(10) = 'example/precision/real_default_test.f'
+    example_files(5) = 'example/scientific/precision/precision_test.f90'
+    example_files(6) = 'example/scientific/precision/precision_test.f'
+    example_files(7) = 'example/scientific/precision/precision_compare.f90'
+    example_files(8) = 'example/scientific/precision/precision_compare.f'
+    example_files(9) = 'example/scientific/precision/real_default_test.f90'
+    example_files(10) = 'example/scientific/precision/real_default_test.f'
 
     ! Interdependent examples (.f90 and .f versions)
-    example_files(11) = 'example/interdependent/main.f90'
-    example_files(12) = 'example/interdependent/main.f'
+    example_files(11) = 'example/modules/interdependent/main.f90'
+    example_files(12) = 'example/modules/interdependent/main.f'
 
     ! Type inference examples
-    example_files(13) = 'example/type_inference/calculate.f90'
-    example_files(14) = 'example/type_inference/calculate.f'
-    example_files(15) = 'example/type_inference/all_types.f90'
-    example_files(16) = 'example/type_inference/all_types.f'
+    example_files(13) = 'example/lazy_fortran/type_inference/calculate.f90'
+    example_files(14) = 'example/lazy_fortran/type_inference/calculate.f'
+    example_files(15) = 'example/lazy_fortran/type_inference/all_types.f90'
+    example_files(16) = 'example/lazy_fortran/type_inference/all_types.f'
 
     ! Advanced inference examples
-    example_files(17) = 'example/advanced_inference/arrays.f90'
-    example_files(18) = 'example/advanced_inference/arrays.f'
-    example_files(19) = 'example/advanced_inference/derived_types.f90'
-    example_files(20) = 'example/advanced_inference/derived_types.f'
+    example_files(17) = 'example/lazy_fortran/advanced_inference/arrays.f90'
+    example_files(18) = 'example/lazy_fortran/advanced_inference/arrays.f'
+    example_files(19) = 'example/lazy_fortran/advanced_inference/derived_types.f90'
+    example_files(20) = 'example/lazy_fortran/advanced_inference/derived_types.f'
 
     ! Notebook examples
-    example_files(21) = 'example/notebook/simple_math.f90'
-    example_files(22) = 'example/notebook/simple_math.f'
-    example_files(23) = 'example/notebook/arrays_loops.f90'
-    example_files(24) = 'example/notebook/arrays_loops_simple.f'
-    example_files(25) = 'example/notebook/control_flow.f90'
-    example_files(26) = 'example/notebook/control_flow_simple.f'
+    example_files(21) = 'example/scientific/notebook/simple_math.f90'
+    example_files(22) = 'example/scientific/notebook/simple_math.f'
+    example_files(23) = 'example/scientific/notebook/arrays_loops.f90'
+    example_files(24) = 'example/scientific/notebook/arrays_loops_simple.f'
+    example_files(25) = 'example/scientific/notebook/control_flow.f90'
+    example_files(26) = 'example/scientific/notebook/control_flow_simple.f'
 
     ! Step 1 explicit types examples (our new Step 1 work)
-    example_files(27) = 'example/step1_explicit_types/step1_demo.f90'
-    example_files(28) = 'example/step1_explicit_types/step1_demo.f'
+    example_files(27) = 'example/lazy_fortran/step1_explicit_types/step1_demo.f90'
+    example_files(28) = 'example/lazy_fortran/step1_explicit_types/step1_demo.f'
 
     ! Advanced inference function returns and intrinsics
-    example_files(29) = 'example/advanced_inference/function_returns.f90'
-    example_files(30) = 'example/advanced_inference/function_returns.f'
-    example_files(31) = 'example/advanced_inference/intrinsic_functions.f90'
-    example_files(32) = 'example/advanced_inference/intrinsic_functions.f'
+    example_files(29) = 'example/lazy_fortran/advanced_inference/function_returns.f90'
+    example_files(30) = 'example/lazy_fortran/advanced_inference/function_returns.f'
+   example_files(31) = 'example/lazy_fortran/advanced_inference/intrinsic_functions.f90'
+    example_files(32) = 'example/lazy_fortran/advanced_inference/intrinsic_functions.f'
 
     ! Plotting examples (may have external deps but should be testable)
-    example_files(33) = 'example/plotting/plot_demo.f90'
+    example_files(33) = 'example/scientific/plotting/plot_demo.f90'
 
     ! List of expected failures - .f files with known preprocessor issues
     ! These require advanced type inference and complex syntax support
     n_expected_failures = 4
     allocate (expected_failures(n_expected_failures))
-    expected_failures(1) = 'example/advanced_inference/arrays.f'              ! Complex array type inference
-    expected_failures(2) = 'example/advanced_inference/derived_types.f'       ! Derived type syntax
-    expected_failures(3) = 'example/notebook/arrays_loops_simple.f'           ! Complex array functions
-    expected_failures(4) = 'example/advanced_inference/function_returns.f'    ! Function interfaces
+expected_failures(1) = 'example/lazy_fortran/advanced_inference/arrays.f'              ! Complex array type inference
+expected_failures(2) = 'example/lazy_fortran/advanced_inference/derived_types.f'       ! Derived type syntax
+    expected_failures(3) = 'example/scientific/notebook/arrays_loops_simple.f'           ! Complex array functions
+expected_failures(4) = 'example/lazy_fortran/advanced_inference/function_returns.f'    ! Function interfaces
 
     n_passed = 0
     n_failed = 0
@@ -115,33 +115,33 @@ program test_examples
 
             ! Show output for specific examples
             select case (trim(example_files(i)))
-            case ('example/hello/hello.f90', 'example/hello/hello.f')
+            case ('example/basic/hello/hello.f90', 'example/basic/hello/hello.f')
                 if (index(output, 'Hello from fortran CLI!') == 0) then
                     print '(a)', '    WARNING: Expected output not found'
                 end if
 
-           case ('example/calculator/calculator.f90', 'example/calculator/calculator.f')
+           case ('example/basic/calculator/calculator.f90', 'example/basic/calculator/calculator.f')
              if (index(output, 'Sum of') > 0 .and. index(output, 'Product of') > 0) then
                     print '(a)', '    ✓ Calculator output correct'
                 else
                     print '(a)', '    WARNING: Calculator output incomplete'
                 end if
 
-            case ('example/precision/real_default_test.f90')
+            case ('example/scientific/precision/real_default_test.f90')
               if (index(output, 'sizeof(real) =                     4  bytes') > 0) then
                     print '(a)', '    ✓ Standard single precision confirmed (.f90)'
                 else
                   print '(a)', '    WARNING: Standard precision not working as expected'
                 end if
 
-            case ('example/precision/real_default_test.f')
+            case ('example/scientific/precision/real_default_test.f')
               if (index(output, 'sizeof(real) =                     8  bytes') > 0) then
                     print '(a)', '    ✓ Opinionated double precision confirmed (.f)'
                 else
                print '(a)', '    WARNING: Opinionated precision not working as expected'
                 end if
 
-            case ('example/interdependent/main.f90', 'example/interdependent/main.f')
+            case ('example/modules/interdependent/main.f90', 'example/modules/interdependent/main.f')
                 if (index(output, 'Cylinder Calculations') > 0) then
                     print '(a)', '    ✓ Interdependent modules working correctly'
                 else
@@ -331,7 +331,7 @@ contains
         integer, intent(inout) :: n_passed, n_failed
         character(len=1024) :: output1, output2
         integer :: exit_code1, exit_code2
-        character(len=*), parameter :: test_file = 'example/hello/hello.f90'
+        character(len=*), parameter :: test_file = 'example/basic/hello/hello.f90'
         character(len=256) :: temp_cache_dir
         character(len=512) :: cleanup_command
 
@@ -856,16 +856,16 @@ contains
         print '(a,a)', 'Using temporary cache: ', trim(temp_cache_dir)
 
         ! Test pairs of .f and .f90 files that should produce identical output
-        call test_file_pair('example/hello/hello.f', 'example/hello/hello.f90', &
+   call test_file_pair('example/basic/hello/hello.f', 'example/basic/hello/hello.f90', &
                             temp_cache_dir, n_passed, n_failed)
 
-    call test_file_pair('example/calculator/calculator.f', 'example/calculator/calculator.f90', &
+    call test_file_pair('example/basic/calculator/calculator.f', 'example/basic/calculator/calculator.f90', &
                             temp_cache_dir, n_passed, n_failed)
 
-    call test_file_pair('example/type_inference/calculate.f', 'example/type_inference/calculate.f90', &
+    call test_file_pair('example/lazy_fortran/type_inference/calculate.f', 'example/lazy_fortran/type_inference/calculate.f90', &
                             temp_cache_dir, n_passed, n_failed)
 
-    call test_file_pair('example/type_inference/all_types.f', 'example/type_inference/all_types.f90', &
+    call test_file_pair('example/lazy_fortran/type_inference/all_types.f', 'example/lazy_fortran/type_inference/all_types.f90', &
                             temp_cache_dir, n_passed, n_failed)
 
         ! Clean up temporary cache directory
@@ -987,10 +987,10 @@ else if (index(clean1, 'Integer count:') > 0 .and. index(clean1, 'Real pi:') > 0
         character(len=*), intent(in) :: filename
         logical :: is_expected
         character(len=256), parameter :: expected_f_failures(4) = [ &
-                                         'example/hello/hello.f                 ', &
-                                         'example/calculator/calculator.f       ', &
-                                         'example/type_inference/calculate.f    ', &
-                                         'example/type_inference/all_types.f    ']
+                     'example/basic/hello/hello.f                                   ', &
+                     'example/basic/calculator/calculator.f                         ', &
+                     'example/lazy_fortran/type_inference/calculate.f               ', &
+                       'example/lazy_fortran/type_inference/all_types.f               ']
         integer :: i
 
         is_expected = .false.
