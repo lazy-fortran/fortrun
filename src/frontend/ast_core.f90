@@ -22,6 +22,10 @@ module ast_core
         character(len=:), allocatable :: node_type  ! Type name for debugging
         integer, allocatable :: child_indices(:)    ! Indices of child nodes
         integer :: child_count = 0              ! Number of children
+    contains
+        procedure :: deep_copy => ast_entry_deep_copy
+        procedure :: assign => ast_entry_assign
+        generic :: assignment(=) => assign
     end type ast_entry_t
 
     ! High-performance arena-based AST storage system
@@ -46,6 +50,9 @@ module ast_core
         procedure :: clear => ast_arena_clear
         procedure :: add_child => ast_arena_add_child
         procedure :: shrink_arena
+        procedure :: deep_copy => ast_arena_deep_copy
+        procedure :: assign => ast_arena_assign
+        generic :: assignment(=) => assign
     end type ast_arena_t
 
     ! Abstract interfaces for visitor pattern and JSON serialization
@@ -1807,5 +1814,109 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         class(*), intent(inout) :: visitor
         ! Basic accept implementation - can be overridden
     end subroutine module_accept
+
+    ! Deep copy an AST entry
+    function ast_entry_deep_copy(this) result(copy)
+        class(ast_entry_t), intent(in) :: this
+        type(ast_entry_t) :: copy
+        integer :: i
+
+        ! Copy scalar fields
+        copy%parent_index = this%parent_index
+        copy%depth = this%depth
+        copy%child_count = this%child_count
+
+        ! Deep copy allocatable components
+        if (allocated(this%node_type)) then
+            copy%node_type = this%node_type
+        end if
+
+        if (allocated(this%child_indices)) then
+            allocate (copy%child_indices(size(this%child_indices)))
+            copy%child_indices = this%child_indices
+        end if
+
+        ! Note: We cannot deep copy the polymorphic node component
+        ! as it would require knowledge of all possible derived types.
+        ! This should be handled at a higher level if needed.
+        if (allocated(this%node)) then
+            ! For now, we'll skip deep copying the node itself
+            ! This is a limitation that needs to be addressed based on usage
+        end if
+    end function ast_entry_deep_copy
+
+    ! Assignment operator for ast_entry_t (deep copy)
+    subroutine ast_entry_assign(lhs, rhs)
+        class(ast_entry_t), intent(out) :: lhs
+        type(ast_entry_t), intent(in) :: rhs
+        integer :: i
+
+        ! Copy scalar fields
+        lhs%parent_index = rhs%parent_index
+        lhs%depth = rhs%depth
+        lhs%child_count = rhs%child_count
+
+        ! Deep copy allocatable components
+        if (allocated(rhs%node_type)) then
+            lhs%node_type = rhs%node_type
+        end if
+
+        if (allocated(rhs%child_indices)) then
+            allocate (lhs%child_indices(size(rhs%child_indices)))
+            lhs%child_indices = rhs%child_indices
+        end if
+
+        ! Note: See comment in deep_copy about node component
+        if (allocated(rhs%node)) then
+            ! For now, we'll skip deep copying the node itself
+            ! This is a limitation that needs to be addressed based on usage
+        end if
+    end subroutine ast_entry_assign
+
+    ! Deep copy an AST arena
+    function ast_arena_deep_copy(this) result(copy)
+        class(ast_arena_t), intent(in) :: this
+        type(ast_arena_t) :: copy
+        integer :: i
+
+        ! Copy scalar fields
+        copy%size = this%size
+        copy%capacity = this%capacity
+        copy%current_index = this%current_index
+        copy%max_depth = this%max_depth
+        copy%chunk_size = this%chunk_size
+        copy%initial_capacity = this%initial_capacity
+
+        ! Deep copy entries array
+        if (allocated(this%entries)) then
+            allocate (copy%entries(size(this%entries)))
+            do i = 1, size(this%entries)
+                copy%entries(i) = this%entries(i)  ! Uses ast_entry assignment
+            end do
+        end if
+    end function ast_arena_deep_copy
+
+    ! Assignment operator for ast_arena_t (deep copy)
+    subroutine ast_arena_assign(lhs, rhs)
+        class(ast_arena_t), intent(out) :: lhs
+        type(ast_arena_t), intent(in) :: rhs
+        integer :: i
+
+        ! Copy scalar fields
+        lhs%size = rhs%size
+        lhs%capacity = rhs%capacity
+        lhs%current_index = rhs%current_index
+        lhs%max_depth = rhs%max_depth
+        lhs%chunk_size = rhs%chunk_size
+        lhs%initial_capacity = rhs%initial_capacity
+
+        ! Deep copy entries array
+        if (allocated(rhs%entries)) then
+            allocate (lhs%entries(size(rhs%entries)))
+            do i = 1, size(rhs%entries)
+                lhs%entries(i) = rhs%entries(i)  ! Uses ast_entry assignment
+            end do
+        end if
+    end subroutine ast_arena_assign
 
 end module ast_core

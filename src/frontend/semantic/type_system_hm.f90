@@ -58,6 +58,9 @@ module type_system_hm
         procedure :: lookup => subst_lookup
         procedure :: apply => subst_apply_to_mono
         procedure :: apply_to_poly => subst_apply_to_poly
+        procedure :: deep_copy => subst_deep_copy
+        procedure :: assign => subst_assign
+        generic :: assignment(=) => assign
     end type substitution_t
 
     ! Type environment (maps identifiers to type schemes)
@@ -72,6 +75,9 @@ module type_system_hm
         procedure :: extend_many => env_extend_many
         procedure :: remove => env_remove
         procedure :: apply_subst => env_apply_subst
+        procedure :: deep_copy => env_deep_copy
+        procedure :: assign => env_assign
+        generic :: assignment(=) => assign
     end type type_env_t
 
 contains
@@ -650,6 +656,40 @@ contains
         end do
     end function compose_substitutions
 
+    ! Deep copy a substitution
+    function subst_deep_copy(this) result(copy)
+        class(substitution_t), intent(in) :: this
+        type(substitution_t) :: copy
+        integer :: i
+
+        copy%count = this%count
+        if (this%count > 0 .and. allocated(this%vars)) then
+            allocate (copy%vars(size(this%vars)))
+            allocate (copy%types(size(this%types)))
+            do i = 1, this%count
+                copy%vars(i) = this%vars(i)
+                copy%types(i) = this%types(i)  ! Uses mono_type assignment (deep copy)
+            end do
+        end if
+    end function subst_deep_copy
+
+    ! Assignment operator for substitution_t (deep copy)
+    subroutine subst_assign(lhs, rhs)
+        class(substitution_t), intent(out) :: lhs
+        type(substitution_t), intent(in) :: rhs
+        integer :: i
+
+        lhs%count = rhs%count
+        if (rhs%count > 0 .and. allocated(rhs%vars)) then
+            allocate (lhs%vars(size(rhs%vars)))
+            allocate (lhs%types(size(rhs%types)))
+            do i = 1, rhs%count
+                lhs%vars(i) = rhs%vars(i)
+                lhs%types(i) = rhs%types(i)  ! Uses mono_type assignment (deep copy)
+            end do
+        end if
+    end subroutine subst_assign
+
     ! Occurs check - check if variable occurs in type
     logical function occurs_check(var, typ) result(occurs)
         type(type_var_t), intent(in) :: var
@@ -864,5 +904,45 @@ contains
             end do
         end if
     end subroutine env_apply_subst
+
+    ! Deep copy a type environment
+    function env_deep_copy(this) result(copy)
+        class(type_env_t), intent(in) :: this
+        type(type_env_t) :: copy
+        integer :: i
+
+        copy%count = this%count
+        copy%capacity = this%capacity
+
+        if (copy%capacity > 0) then
+            allocate (character(len=256) :: copy%names(copy%capacity))
+            allocate (copy%schemes(copy%capacity))
+
+            do i = 1, this%count
+                copy%names(i) = this%names(i)
+                copy%schemes(i) = this%schemes(i)  ! Uses poly_type assignment (deep copy)
+            end do
+        end if
+    end function env_deep_copy
+
+    ! Assignment operator for type_env_t (deep copy)
+    subroutine env_assign(lhs, rhs)
+        class(type_env_t), intent(out) :: lhs
+        type(type_env_t), intent(in) :: rhs
+        integer :: i
+
+        lhs%count = rhs%count
+        lhs%capacity = rhs%capacity
+
+        if (rhs%capacity > 0) then
+            allocate (character(len=256) :: lhs%names(rhs%capacity))
+            allocate (lhs%schemes(rhs%capacity))
+
+            do i = 1, rhs%count
+                lhs%names(i) = rhs%names(i)
+                lhs%schemes(i) = rhs%schemes(i)  ! Uses poly_type assignment (deep copy)
+            end do
+        end if
+    end subroutine env_assign
 
 end module type_system_hm
