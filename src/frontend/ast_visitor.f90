@@ -11,7 +11,8 @@ module ast_visitor
         procedure(visit_binary_op_interface), deferred :: visit_binary_op
         procedure(visit_function_def_interface), deferred :: visit_function_def
         procedure(visit_subroutine_def_interface), deferred :: visit_subroutine_def
-        procedure(visit_function_call_interface), deferred :: visit_function_call
+       procedure(visit_call_or_subscript_interface), deferred :: visit_call_or_subscript
+        procedure(visit_subroutine_call_interface), deferred :: visit_subroutine_call
         procedure(visit_identifier_interface), deferred :: visit_identifier
         procedure(visit_literal_interface), deferred :: visit_literal
         procedure(visit_declaration_interface), deferred :: visit_declaration
@@ -25,7 +26,6 @@ module ast_visitor
         procedure(visit_module_interface), deferred :: visit_module
         procedure(visit_use_statement_interface), deferred :: visit_use_statement
        procedure(visit_include_statement_interface), deferred :: visit_include_statement
-       procedure(visit_call_or_subscript_interface), deferred :: visit_call_or_subscript
     end type ast_visitor_t
 
     ! Concrete visitor implementation for debugging/printing
@@ -38,7 +38,7 @@ module ast_visitor
         procedure :: visit_binary_op => debug_visit_binary_op
         procedure :: visit_function_def => debug_visit_function_def
         procedure :: visit_subroutine_def => debug_visit_subroutine_def
-        procedure :: visit_function_call => debug_visit_function_call
+        procedure :: visit_subroutine_call => debug_visit_subroutine_call
         procedure :: visit_identifier => debug_visit_identifier
         procedure :: visit_literal => debug_visit_literal
         procedure :: visit_declaration => debug_visit_declaration
@@ -87,11 +87,17 @@ module ast_visitor
             class(subroutine_def_node), intent(in) :: node
         end subroutine visit_subroutine_def_interface
 
-        subroutine visit_function_call_interface(this, node)
-            import :: ast_visitor_t, function_call_node
+        subroutine visit_call_or_subscript_interface(this, node)
+            import :: ast_visitor_t, call_or_subscript_node
             class(ast_visitor_t), intent(inout) :: this
-            class(function_call_node), intent(in) :: node
-        end subroutine visit_function_call_interface
+            class(call_or_subscript_node), intent(in) :: node
+        end subroutine visit_call_or_subscript_interface
+
+        subroutine visit_subroutine_call_interface(this, node)
+            import :: ast_visitor_t, subroutine_call_node
+            class(ast_visitor_t), intent(inout) :: this
+            class(subroutine_call_node), intent(in) :: node
+        end subroutine visit_subroutine_call_interface
 
         subroutine visit_identifier_interface(this, node)
             import :: ast_visitor_t, identifier_node
@@ -170,19 +176,13 @@ module ast_visitor
             class(ast_visitor_t), intent(inout) :: this
             class(include_statement_node), intent(in) :: node
         end subroutine visit_include_statement_interface
-
-        subroutine visit_call_or_subscript_interface(this, node)
-            import :: ast_visitor_t, call_or_subscript_node
-            class(ast_visitor_t), intent(inout) :: this
-            class(call_or_subscript_node), intent(in) :: node
-        end subroutine visit_call_or_subscript_interface
     end interface
 
     ! Public interface
     public :: ast_visitor_t, debug_visitor_t
     public :: program_accept, assignment_accept, binary_op_accept
-    public :: function_def_accept, subroutine_def_accept, function_call_accept
-    public :: call_or_subscript_accept, identifier_accept, literal_accept
+    public :: function_def_accept, subroutine_def_accept
+    public :: call_or_subscript_accept, subroutine_call_accept, identifier_accept, literal_accept
     public :: use_statement_accept, include_statement_accept, print_statement_accept
     public :: declaration_accept, do_loop_accept, do_while_accept, if_accept
 public :: select_case_accept, derived_type_accept, interface_block_accept, module_accept
@@ -239,15 +239,15 @@ contains
         end select
     end subroutine subroutine_def_accept
 
-    subroutine function_call_accept(this, visitor)
-        class(function_call_node), intent(in) :: this
+    subroutine subroutine_call_accept(this, visitor)
+        class(subroutine_call_node), intent(in) :: this
         class(*), intent(inout) :: visitor
 
         select type (vis => visitor)
         class is (ast_visitor_t)
-            call vis%visit_function_call(this)
+            call vis%visit_subroutine_call(this)
         end select
-    end subroutine function_call_accept
+    end subroutine subroutine_call_accept
 
     subroutine call_or_subscript_accept(this, visitor)
         class(call_or_subscript_node), intent(in) :: this
@@ -444,15 +444,15 @@ contains
         this%indent_level = this%indent_level - 1
     end subroutine debug_visit_subroutine_def
 
-    subroutine debug_visit_function_call(this, node)
+    subroutine debug_visit_subroutine_call(this, node)
         class(debug_visitor_t), intent(inout) :: this
-        class(function_call_node), intent(in) :: node
+        class(subroutine_call_node), intent(in) :: node
 
-        call append_debug(this, "function_call: "//node%name)
+        call append_debug(this, "subroutine_call: "//node%name)
         if (allocated(node%arg_indices)) then
          call append_debug(this, "arg_indices: "//int_array_to_string(node%arg_indices))
         end if
-    end subroutine debug_visit_function_call
+    end subroutine debug_visit_subroutine_call
 
     subroutine debug_visit_identifier(this, node)
         class(debug_visitor_t), intent(inout) :: this

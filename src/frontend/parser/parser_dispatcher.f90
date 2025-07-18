@@ -12,6 +12,7 @@ module parser_dispatcher_module
     use parser_control_flow_module
     use ast_core
     use ast_factory
+    use parser_expressions_module, only: parse_expression
     implicit none
     private
 
@@ -61,6 +62,8 @@ contains
                 stmt_index = parse_type_or_declaration(parser, arena)
             case ("real", "integer", "logical", "character", "complex")
                 stmt_index = parse_type_or_declaration(parser, arena)
+            case ("call")
+                stmt_index = parse_call_statement(parser, arena)
             case default
                 stmt_index = parse_as_expression(tokens, arena)
             end select
@@ -195,5 +198,99 @@ contains
             end if
         end do
     end function has_double_colon
+
+    ! Parse call statement
+    function parse_call_statement(parser, arena) result(stmt_index)
+        type(parser_state_t), intent(inout) :: parser
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: stmt_index
+        type(token_t) :: token
+        character(len=:), allocatable :: subroutine_name
+        integer, allocatable :: arg_indices(:)
+        integer :: line, column
+
+        ! Consume 'call' keyword
+        token = parser%consume()
+        line = token%line
+        column = token%column
+
+        ! Get subroutine name
+        token = parser%peek()
+        if (token%kind == TK_IDENTIFIER) then
+            token = parser%consume()
+            subroutine_name = token%text
+
+            ! Check for arguments
+            token = parser%peek()
+            if (token%kind == TK_OPERATOR .and. token%text == "(") then
+                ! Parse arguments
+                call parse_call_arguments(parser, arena, arg_indices)
+            else
+                ! No arguments
+                allocate (arg_indices(0))
+            end if
+
+            ! Create call node
+            stmt_index = push_subroutine_call(arena, subroutine_name, arg_indices, &
+                                              line, column)
+        else
+            ! Error: expected subroutine name
+    stmt_index = push_literal(arena, "! Error: expected subroutine name after 'call'", &
+                                      LITERAL_STRING, line, column)
+        end if
+
+    end function parse_call_statement
+
+    ! Parse call arguments
+    subroutine parse_call_arguments(parser, arena, arg_indices)
+        type(parser_state_t), intent(inout) :: parser
+        type(ast_arena_t), intent(inout) :: arena
+        integer, allocatable, intent(out) :: arg_indices(:)
+        type(token_t) :: token
+        integer, allocatable :: temp_indices(:)
+        integer :: arg_count
+
+        ! Consume opening parenthesis
+        token = parser%consume()
+
+        arg_count = 0
+        allocate (temp_indices(100))  ! Max 100 arguments
+
+        ! Parse arguments
+        do
+            token = parser%peek()
+            if (token%kind == TK_OPERATOR .and. token%text == ")") then
+                ! End of arguments
+                token = parser%consume()
+                exit
+            end if
+
+            ! Parse argument expression
+            arg_count = arg_count + 1
+ temp_indices(arg_count) = parse_expression(parser%tokens(parser%current_token:), arena)
+
+            ! Advance parser position based on expression length
+            ! For now, just advance to next comma or closing paren
+            do
+                token = parser%peek()
+                if (token%kind == TK_OPERATOR .and. &
+                    (token%text == "," .or. token%text == ")")) then
+                    exit
+                end if
+                token = parser%consume()
+            end do
+
+            ! Check for comma
+            token = parser%peek()
+            if (token%kind == TK_OPERATOR .and. token%text == ",") then
+                token = parser%consume()  ! consume comma
+            end if
+        end do
+
+        ! Copy to output array
+        allocate (arg_indices(arg_count))
+        arg_indices = temp_indices(1:arg_count)
+
+    end subroutine parse_call_arguments
 
 end module parser_dispatcher_module

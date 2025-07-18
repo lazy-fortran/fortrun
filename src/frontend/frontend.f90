@@ -242,18 +242,19 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
         integer :: stmt_index
         integer :: i, unit_start, unit_end, stmt_count
         type(token_t), allocatable :: unit_tokens(:)
-        logical :: has_explicit_program
+        logical :: has_explicit_program_unit
 
         error_msg = ""
         stmt_count = 0
         allocate (body_indices(0))
-        has_explicit_program = .false.
+        has_explicit_program_unit = .false.
 
-        ! Check if file starts with explicit 'program' statement
+        ! Check if file starts with explicit 'program', 'module', 'function', or 'subroutine' statement
         do i = 1, size(tokens)
             if (tokens(i)%kind == TK_KEYWORD) then
-                if (tokens(i)%text == "program") then
-                    has_explicit_program = .true.
+                if (tokens(i)%text == "program" .or. tokens(i)%text == "module" .or. &
+                  tokens(i)%text == "function" .or. tokens(i)%text == "subroutine") then
+                    has_explicit_program_unit = .true.
                 end if
                 exit  ! Stop at first keyword
             else if (tokens(i)%kind /= TK_EOF) then
@@ -323,15 +324,15 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
         end do
 
         ! Create program node with collected body indices
-        ! Only wrap in implicit program if there's no explicit program statement
-        if (.not. has_explicit_program) then
+        ! Only wrap in implicit program if there's no explicit program unit (program/module/function/subroutine)
+        if (.not. has_explicit_program_unit) then
             prog_index = push_program(arena, "main", body_indices, 1, 1)
         else if (stmt_count > 0) then
-            ! Use the first (and should be only) statement as the program
+            ! Use the first (and should be only) statement as the program unit
             prog_index = body_indices(1)
         else
-            ! No program found
-            error_msg = "No program found in file"
+            ! No program unit found
+            error_msg = "No program unit found in file"
             prog_index = 0
         end if
     end subroutine parse_tokens
@@ -730,30 +731,30 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
     function compilation_options_deep_copy(this) result(copy)
         class(compilation_options_t), intent(in) :: this
         type(compilation_options_t) :: copy
-        
+
         copy%backend = this%backend
         copy%debug_tokens = this%debug_tokens
         copy%debug_ast = this%debug_ast
         copy%debug_semantic = this%debug_semantic
         copy%debug_codegen = this%debug_codegen
         copy%optimize = this%optimize
-        
+
         if (allocated(this%output_file)) then
             copy%output_file = this%output_file
         end if
     end function compilation_options_deep_copy
-    
+
     subroutine compilation_options_assign(lhs, rhs)
         class(compilation_options_t), intent(out) :: lhs
         type(compilation_options_t), intent(in) :: rhs
-        
+
         lhs%backend = rhs%backend
         lhs%debug_tokens = rhs%debug_tokens
         lhs%debug_ast = rhs%debug_ast
         lhs%debug_semantic = rhs%debug_semantic
         lhs%debug_codegen = rhs%debug_codegen
         lhs%optimize = rhs%optimize
-        
+
         if (allocated(rhs%output_file)) then
             lhs%output_file = rhs%output_file
         end if

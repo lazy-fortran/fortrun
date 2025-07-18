@@ -48,7 +48,7 @@ contains
             close (unit)
 
             ! Test processing the file
-            call execute_command_line('fpm run fortran -- /tmp/test_simple.f > '// &
+  call execute_command_line('fpm run fortran -- --standardize /tmp/test_simple.f > '// &
                                     '/tmp/test_output.f90 2>/dev/null', exitstat=iostat)
 
             if (iostat == 0) then
@@ -86,8 +86,8 @@ contains
             close (unit)
 
             ! Test --debug-tokens
-            call execute_command_line('fpm run fortran -- /tmp/test_debug.f '// &
-                                '--debug-tokens > /tmp/debug_tokens.json 2>/dev/null', &
+    call execute_command_line('fpm run fortran -- --debug-tokens /tmp/test_debug.f '// &
+                                      '> /tmp/debug_tokens.json 2>/dev/null', &
                                       exitstat=iostat)
             if (iostat /= 0) then
                 print *, '  FAIL: --debug-tokens failed'
@@ -96,8 +96,8 @@ contains
             end if
 
             ! Test --debug-ast
-            call execute_command_line('fpm run fortran -- /tmp/test_debug.f '// &
-                                      '--debug-ast > /tmp/debug_ast.json 2>/dev/null', &
+       call execute_command_line('fpm run fortran -- --debug-ast /tmp/test_debug.f '// &
+                                      '> /tmp/debug_ast.json 2>/dev/null', &
                                       exitstat=iostat)
             if (iostat /= 0) then
                 print *, '  FAIL: --debug-ast failed'
@@ -106,8 +106,8 @@ contains
             end if
 
             ! Test --debug-semantic
-            call execute_command_line('fpm run fortran -- /tmp/test_debug.f '// &
-                            '--debug-semantic > /tmp/debug_semantic.json 2>/dev/null', &
+  call execute_command_line('fpm run fortran -- --debug-semantic /tmp/test_debug.f '// &
+                                      '> /tmp/debug_semantic.json 2>/dev/null', &
                                       exitstat=iostat)
             if (iostat /= 0) then
                 print *, '  FAIL: --debug-semantic failed'
@@ -116,8 +116,8 @@ contains
             end if
 
             ! Test --debug-codegen
-            call execute_command_line('fpm run fortran -- /tmp/test_debug.f '// &
-                              '--debug-codegen > /tmp/debug_codegen.json 2>/dev/null', &
+   call execute_command_line('fpm run fortran -- --debug-codegen /tmp/test_debug.f '// &
+                                      '> /tmp/debug_codegen.json 2>/dev/null', &
                                       exitstat=iostat)
             if (iostat /= 0) then
                 print *, '  FAIL: --debug-codegen failed'

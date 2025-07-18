@@ -2,7 +2,7 @@ module parser_expressions_module
     use iso_fortran_env, only: error_unit
     use lexer_core, only: token_t, TK_EOF, TK_NUMBER, TK_STRING, TK_IDENTIFIER, TK_OPERATOR, TK_KEYWORD
     use ast_core
-use ast_factory, only: push_binary_op, push_literal, push_identifier, push_function_call
+    use ast_factory, only: push_binary_op, push_literal, push_identifier, push_call_or_subscript
     use parser_state_module, only: parser_state_t, create_parser_state
     implicit none
     private

@@ -1,6 +1,7 @@
 module ast_core
     use json_module
     use type_system_hm, only: mono_type_t
+    use fpm_strings, only: string_t
     implicit none
     private
 
@@ -135,14 +136,14 @@ module ast_core
         procedure :: to_json => subroutine_def_to_json
     end type subroutine_def_node
 
-    ! Function call node
-    type, extends(ast_node), public :: function_call_node
+    ! Subroutine call node (represents explicit CALL statements)
+    type, extends(ast_node), public :: subroutine_call_node
         character(len=:), allocatable :: name
         integer, allocatable :: arg_indices(:)
     contains
-        procedure :: accept => function_call_accept
-        procedure :: to_json => function_call_to_json
-    end type function_call_node
+        procedure :: accept => subroutine_call_accept
+        procedure :: to_json => subroutine_call_to_json
+    end type subroutine_call_node
 
     ! Call or subscript node (represents both function calls and array indexing)
     type, extends(ast_node), public :: call_or_subscript_node
@@ -173,8 +174,8 @@ module ast_core
     ! Use statement node
     type, extends(ast_node), public :: use_statement_node
         character(len=:), allocatable :: module_name
-        character(len=:), allocatable :: only_list(:)     ! Optional only clause items
-        character(len=:), allocatable :: rename_list(:)   ! Optional rename mappings (new_name => old_name)
+        type(string_t), allocatable :: only_list(:)       ! Optional only clause items
+        type(string_t), allocatable :: rename_list(:)     ! Optional rename mappings (new_name => old_name)
         logical :: has_only = .false.                     ! Whether the only clause is present
     contains
         procedure :: accept => use_statement_accept
@@ -321,7 +322,7 @@ module ast_core
     ! Public interface for creating nodes and stack
     public :: create_ast_stack
     public :: create_program, create_assignment, create_binary_op
-    public :: create_function_def, create_subroutine_def, create_function_call, create_call_or_subscript
+    public :: create_function_def, create_subroutine_def, create_call_or_subscript, create_subroutine_call
     public :: create_identifier, create_literal, create_use_statement, create_include_statement, create_print_statement
     public :: create_declaration, create_do_loop, create_do_while, create_if, create_select_case
     public :: create_derived_type, create_interface_block, create_module
@@ -717,11 +718,11 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         if (present(column)) node%column = column
     end function create_subroutine_def
 
-    function create_function_call(name, args, line, column) result(node)
+    function create_subroutine_call(name, args, line, column) result(node)
         character(len=*), intent(in) :: name
         integer, intent(in) :: args(:)
         integer, intent(in), optional :: line, column
-        type(function_call_node) :: node
+        type(subroutine_call_node) :: node
         integer :: i
 
         node%name = name
@@ -733,7 +734,7 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         end if
         if (present(line)) node%line = line
         if (present(column)) node%column = column
-    end function create_function_call
+    end function create_subroutine_call
 
     function create_call_or_subscript(name, args, line, column) result(node)
         character(len=*), intent(in) :: name
@@ -827,20 +828,20 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
 
         node%module_name = module_name
         if (present(only_list)) then
-            allocate (character(len=100) :: node%only_list(size(only_list)))
+            allocate (node%only_list(size(only_list)))
             block
                 integer :: i
                 do i = 1, size(only_list)
-                    node%only_list(i) = trim(only_list(i))
+                    node%only_list(i)%s = trim(only_list(i))
                 end do
             end block
         end if
         if (present(rename_list)) then
-            allocate (character(len=100) :: node%rename_list(size(rename_list)))
+            allocate (node%rename_list(size(rename_list)))
             block
                 integer :: i
                 do i = 1, size(rename_list)
-                    node%rename_list(i) = trim(rename_list(i))
+                    node%rename_list(i)%s = trim(rename_list(i))
                 end do
             end block
         end if
@@ -1202,15 +1203,15 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         call json%add(parent, obj)
     end subroutine subroutine_def_to_json
 
-    subroutine function_call_to_json(this, json, parent)
-        class(function_call_node), intent(in) :: this
+    subroutine subroutine_call_to_json(this, json, parent)
+        class(subroutine_call_node), intent(in) :: this
         type(json_core), intent(inout) :: json
         type(json_value), pointer, intent(in) :: parent
         type(json_value), pointer :: obj, args_array
         integer :: i
 
         call json%create_object(obj, '')
-        call json%add(obj, 'type', 'function_call')
+        call json%add(obj, 'type', 'subroutine_call')
         call json%add(obj, 'name', this%name)
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
@@ -1229,7 +1230,7 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         end if
 
         call json%add(parent, obj)
-    end subroutine function_call_to_json
+    end subroutine subroutine_call_to_json
 
     subroutine call_or_subscript_to_json(this, json, parent)
         class(call_or_subscript_node), intent(in) :: this
@@ -1323,7 +1324,11 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
             call json%create_array(only_array, 'only_list')
             call json%add(obj, only_array)
             do i = 1, size(this%only_list)
-                call json%add(only_array, '', this%only_list(i))
+                if (allocated(this%only_list(i)%s)) then
+                    call json%add(only_array, '', this%only_list(i)%s)
+                else
+                    call json%add(only_array, '', '')
+                end if
             end do
         end if
 
@@ -1331,7 +1336,11 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
             call json%create_array(rename_array, 'rename_list')
             call json%add(obj, rename_array)
             do i = 1, size(this%rename_list)
-                call json%add(rename_array, '', this%rename_list(i))
+                if (allocated(this%rename_list(i)%s)) then
+                    call json%add(rename_array, '', this%rename_list(i)%s)
+                else
+                    call json%add(rename_array, '', '')
+                end if
             end do
         end if
 
@@ -1737,11 +1746,11 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         ! Basic accept implementation - can be overridden
     end subroutine subroutine_def_accept
 
-    subroutine function_call_accept(this, visitor)
-        class(function_call_node), intent(in) :: this
+    subroutine subroutine_call_accept(this, visitor)
+        class(subroutine_call_node), intent(in) :: this
         class(*), intent(inout) :: visitor
         ! Basic accept implementation - can be overridden
-    end subroutine function_call_accept
+    end subroutine subroutine_call_accept
 
     subroutine call_or_subscript_accept(this, visitor)
         class(call_or_subscript_node), intent(in) :: this

@@ -2,6 +2,7 @@ module codegen_core
     use ast_core
     use type_system_hm
     use codegen_declarations
+    use fpm_strings, only: string_t
     implicit none
     private
 
@@ -36,6 +37,8 @@ contains
             code = generate_code_program(arena, node, node_index)
         type is (call_or_subscript_node)
             code = generate_code_call_or_subscript(arena, node, node_index)
+        type is (subroutine_call_node)
+            code = generate_code_subroutine_call(arena, node, node_index)
         type is (function_def_node)
             code = generate_code_function_def(arena, node, node_index)
         type is (subroutine_def_node)
@@ -244,6 +247,36 @@ contains
         ! Combine function name and arguments
         code = node%name//"("//args_code//")"
     end function generate_code_call_or_subscript
+
+    ! Generate code for subroutine call node
+    function generate_code_subroutine_call(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
+        type(subroutine_call_node), intent(in) :: node
+        integer, intent(in) :: node_index
+        character(len=:), allocatable :: code
+        character(len=:), allocatable :: args_code
+        integer :: i
+
+        ! Generate arguments
+        args_code = ""
+        if (allocated(node%arg_indices)) then
+            do i = 1, size(node%arg_indices)
+                if (len(args_code) > 0) then
+                    args_code = args_code//", "
+                end if
+                if (node%arg_indices(i) > 0) then
+             args_code = args_code//generate_code_from_arena(arena, node%arg_indices(i))
+                end if
+            end do
+        end if
+
+        ! Generate call statement
+        if (len(args_code) > 0) then
+            code = "call "//node%name//"("//args_code//")"
+        else
+            code = "call "//node%name
+        end if
+    end function generate_code_subroutine_call
 
     ! Polymorphic code generation interface
     function generate_code_polymorphic(arena, node_index) result(code)
@@ -646,30 +679,37 @@ contains
         type(use_statement_node), intent(in) :: node
         character(len=:), allocatable :: code
         integer :: i
+        logical :: first_item
 
-        code = "use "//node%module_name
+        code = "use "//trim(node%module_name)
 
         if (node%has_only) then
             code = code//", only: "
+            first_item = .true.
 
             ! Add rename list items first
-            if (allocated(node%rename_list)) then
+            if (allocated(node%rename_list) .and. size(node%rename_list) > 0) then
                 do i = 1, size(node%rename_list)
-                    if (i > 1) code = code//", "
-                    code = code//trim(node%rename_list(i))
+                    if (allocated(node%rename_list(i)%s)) then
+                        if (len_trim(node%rename_list(i)%s) > 0) then
+                            if (.not. first_item) code = code//", "
+                            code = code//trim(adjustl(node%rename_list(i)%s))
+                            first_item = .false.
+                        end if
+                    end if
                 end do
-                if (allocated(node%only_list) .and. size(node%only_list) > 0) then
-                    code = code//", "
-                end if
             end if
 
             ! Add only list items
             if (allocated(node%only_list)) then
                 do i = 1, size(node%only_list)
-     if (i > 1 .or. (allocated(node%rename_list) .and. size(node%rename_list) > 0)) then
-                        code = code//", "
+                    if (allocated(node%only_list(i)%s)) then
+                        if (len_trim(node%only_list(i)%s) > 0) then
+                            if (.not. first_item) code = code//", "
+                            code = code//trim(adjustl(node%only_list(i)%s))
+                            first_item = .false.
+                        end if
                     end if
-                    code = code//trim(node%only_list(i))
                 end do
             end if
         end if

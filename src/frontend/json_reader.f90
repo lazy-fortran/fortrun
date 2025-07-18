@@ -6,6 +6,7 @@ module json_reader
     use lexer_core, only: token_t, TK_IDENTIFIER, TK_KEYWORD, TK_OPERATOR, TK_NUMBER, TK_STRING, TK_NEWLINE, TK_EOF
     use ast_core
     use semantic_analyzer, only: semantic_context_t, create_semantic_context
+    use fpm_strings, only: string_t
     ! Note: Using core AST nodes only - no dialect-specific imports
     implicit none
     private
@@ -209,8 +210,11 @@ contains
         case ('function_def')
             call arena%push(json_to_function_def_node(core, json_obj, arena))
             node_index = arena%size
-        case ('function_call')
-            call arena%push(json_to_function_call_node(core, json_obj, arena))
+        case ('call_or_subscript')
+            call arena%push(json_to_call_or_subscript_node(core, json_obj, arena))
+            node_index = arena%size
+        case ('subroutine_call')
+            call arena%push(json_to_subroutine_call_node(core, json_obj, arena))
             node_index = arena%size
         case ('use_statement')
             call arena%push(json_to_use_statement_node(core, json_obj, arena))
@@ -460,15 +464,14 @@ contains
 
     end function json_to_function_def_node
 
-    ! Convert JSON to function call node
-    function json_to_function_call_node(core, json_obj, arena) result(node)
+    ! Convert JSON to call_or_subscript node
+    function json_to_call_or_subscript_node(core, json_obj, arena) result(node)
         type(json_core), intent(inout) :: core
         type(json_value), pointer, intent(in) :: json_obj
         type(ast_arena_t), intent(inout) :: arena
-        type(function_call_node) :: node
+        type(call_or_subscript_node) :: node
         character(len=:), allocatable :: name
         type(json_value), pointer :: args_array
-        type(ast_node_wrapper), allocatable :: args(:)
         integer :: line, column
         logical :: found
 
@@ -493,7 +496,41 @@ contains
         node%line = line
         node%column = column
 
-    end function json_to_function_call_node
+    end function json_to_call_or_subscript_node
+
+    ! Convert JSON to subroutine_call node
+    function json_to_subroutine_call_node(core, json_obj, arena) result(node)
+        type(json_core), intent(inout) :: core
+        type(json_value), pointer, intent(in) :: json_obj
+        type(ast_arena_t), intent(inout) :: arena
+        type(subroutine_call_node) :: node
+        character(len=:), allocatable :: name
+        type(json_value), pointer :: args_array
+        integer :: line, column
+        logical :: found
+
+        ! Get properties
+        call core%get(json_obj, 'name', name, found)
+        if (.not. found) name = 'unknown'
+        call core%get(json_obj, 'line', line, found)
+        if (.not. found) line = 1
+        call core%get(json_obj, 'column', column, found)
+        if (.not. found) column = 1
+
+        ! Get arguments
+        call core%get(json_obj, 'args', args_array, found)
+        if (found) then
+            node%arg_indices = json_to_ast_indices(core, args_array, arena)
+        else
+            node%arg_indices = [integer::]  ! Empty arguments
+        end if
+
+        ! Create node
+        node%name = name
+        node%line = line
+        node%column = column
+
+    end function json_to_subroutine_call_node
 
     ! Convert JSON to use statement node
     function json_to_use_statement_node(core, json_obj, arena) result(node)
@@ -502,7 +539,6 @@ contains
         type(ast_arena_t), intent(inout) :: arena
         type(use_statement_node) :: node
         character(len=:), allocatable :: module_name
-        character(len=:), allocatable :: only_list(:)
         type(json_value), pointer :: only_array
         integer :: line, column, i, n_only
         logical :: found
@@ -519,20 +555,25 @@ contains
         call core%get(json_obj, 'only_list', only_array, found)
         if (found) then
             call core%info(only_array, n_children=n_only)
-            allocate (character(len=50) :: only_list(n_only))
-            do i = 1, n_only
-                block
-                    type(json_value), pointer :: item
-                    character(len=:), allocatable :: item_str
-                    call core%get_child(only_array, i, item)
-                    call core%get(item, item_str)
-                    only_list(i) = item_str
-                end block
-            end do
+            if (n_only > 0) then
+                allocate (node%only_list(n_only))
+                do i = 1, n_only
+                    block
+                        type(json_value), pointer :: item
+                        character(len=:), allocatable :: item_str
+                        call core%get_child(only_array, i, item)
+                        call core%get(item, item_str)
+                        node%only_list(i)%s = item_str
+                    end block
+                end do
+            end if
         end if
 
-        ! Create node
- node = create_use_statement(module_name, only_list=only_list, line=line, column=column)
+        ! Create basic node properties
+        node%module_name = module_name
+        node%has_only = allocated(node%only_list)
+        node%line = line
+        node%column = column
 
     end function json_to_use_statement_node
 

@@ -5,7 +5,7 @@ module ast_factory
 
     ! Public interface for creating AST nodes in stack-based system
     public :: push_program, push_assignment, push_binary_op
-    public :: push_function_call, push_identifier, push_literal
+   public :: push_call_or_subscript, push_subroutine_call, push_identifier, push_literal
     public :: push_derived_type, push_declaration
     public :: push_if, push_do_loop, push_do_while, push_select_case
     public :: push_use_statement, push_include_statement, push_print_statement
@@ -55,19 +55,33 @@ contains
         binop_index = arena%size
     end function push_binary_op
 
-    ! Create function call node and add to stack
-    function push_function_call(arena, name, arg_indices, line, column, parent_index) result(call_index)
+    ! Create call_or_subscript node and add to stack
+    function push_call_or_subscript(arena, name, arg_indices, line, column, parent_index) result(call_index)
         type(ast_arena_t), intent(inout) :: arena
         character(len=*), intent(in) :: name
         integer, intent(in) :: arg_indices(:)
         integer, intent(in), optional :: line, column, parent_index
         integer :: call_index
-        type(function_call_node) :: call_node
+        type(call_or_subscript_node) :: call_node
 
-        call_node = create_function_call(name, arg_indices, line, column)
-        call arena%push(call_node, "function_call", parent_index)
+        call_node = create_call_or_subscript(name, arg_indices, line, column)
+        call arena%push(call_node, "call_or_subscript", parent_index)
         call_index = arena%size
-    end function push_function_call
+    end function push_call_or_subscript
+
+    ! Create subroutine call node and add to stack
+    function push_subroutine_call(arena, name, arg_indices, line, column, parent_index) result(call_index)
+        type(ast_arena_t), intent(inout) :: arena
+        character(len=*), intent(in) :: name
+        integer, intent(in) :: arg_indices(:)
+        integer, intent(in), optional :: line, column, parent_index
+        integer :: call_index
+        type(subroutine_call_node) :: call_node
+
+        call_node = create_subroutine_call(name, arg_indices, line, column)
+        call arena%push(call_node, "subroutine_call", parent_index)
+        call_index = arena%size
+    end function push_subroutine_call
 
     ! Create identifier node and add to stack
     function push_identifier(arena, name, line, column, parent_index) result(id_index)

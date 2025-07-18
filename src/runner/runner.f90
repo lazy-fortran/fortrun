@@ -209,7 +209,8 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
             end if
 
             ! Always update source files to allow incremental compilation
-            call update_source_files(working_file, project_dir)
+            ! Use working_file for the main file but absolute_path for finding companion modules
+            call update_source_files(working_file, project_dir, absolute_path)
         else
             ! Cache miss: need to set up project
             if (verbose_level >= 1) then
@@ -229,10 +230,10 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
             ! Copy source files and generate FPM project only on cache miss
             if (present(custom_flags)) then
           call setup_project_files(working_file, project_dir, basename, verbose_level, &
-                                      custom_config_dir, was_preprocessed, custom_flags)
+                       custom_config_dir, was_preprocessed, custom_flags, absolute_path)
             else
           call setup_project_files(working_file, project_dir, basename, verbose_level, &
-                                         custom_config_dir, was_preprocessed, '')
+                                 custom_config_dir, was_preprocessed, '', absolute_path)
             end if
         end if
 
@@ -641,6 +642,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
     end subroutine cache_single_file
 
     subroutine copy_local_modules(main_file, project_dir)
+        use logger, only: log_verbose
         character(len=*), intent(in) :: main_file, project_dir
         character(len=256) :: source_dir
         character(len=512) :: command
@@ -665,6 +667,8 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         command = 'mkdir -p "'//trim(project_dir)//'/src"'
         call execute_command_line(command)
 
+        call log_verbose("runner", "copy_local_modules: source_dir="//trim(source_dir)//", main_file="//trim(main_file))
+
         ! Copy all .f90 files except the main file (only files, not directories)
     command = 'find "' // trim(source_dir) // '" -maxdepth 1 -type f \( -name "*.f90" -o -name "*.F90" \) | ' // &
                   'while read f; do '// &
@@ -674,7 +678,116 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
                   'done'
         call execute_command_line(command)
 
+        ! Process and copy all .f files (lowercase fortran) except the main file
+        call process_and_copy_f_files(source_dir, main_file, project_dir)
+
     end subroutine copy_local_modules
+
+    subroutine process_and_copy_f_files(source_dir, main_file, project_dir)
+        use frontend_integration, only: compile_with_frontend
+        use logger, only: log_verbose
+        character(len=*), intent(in) :: source_dir, main_file, project_dir
+        character(len=512) :: f_files(100), f_file, output_file, error_msg
+        character(len=256) :: basename, module_name
+        integer :: num_files, i, j, last_slash, last_dot
+        character(len=512) :: temp_file, command
+
+        call log_verbose("runner", "Processing .f files from: "//trim(source_dir))
+
+        ! Get list of .f files in source directory
+        temp_file = '/tmp/fortran_f_list.tmp'
+        command = 'find "' // trim(source_dir) // '" -maxdepth 1 -type f \( -name "*.f" -o -name "*.F" \) > ' // trim(temp_file)
+        call execute_command_line(command)
+
+        ! Read the list of .f files
+        num_files = 0
+        block
+            integer :: unit, iostat
+            character(len=512) :: line
+
+         open (newunit=unit, file=temp_file, status='old', action='read', iostat=iostat)
+            if (iostat == 0) then
+                do
+                    read (unit, '(A)', iostat=iostat) line
+                    if (iostat /= 0) exit
+                    if (len_trim(line) > 0 .and. trim(line) /= trim(main_file)) then
+                        num_files = num_files + 1
+                        if (num_files <= 100) then
+                            f_files(num_files) = trim(line)
+                        end if
+                    end if
+                end do
+                close (unit)
+            end if
+        end block
+
+        ! Clean up temp file
+        call execute_command_line('rm -f '//trim(temp_file))
+
+        call log_verbose("runner", "Found "//trim(adjustl(int_to_str(num_files)))//" .f files to process")
+
+        ! Process each .f file through the frontend
+        do i = 1, num_files
+            f_file = f_files(i)
+
+            ! Extract basename for the output file
+            last_slash = 0
+            last_dot = 0
+            do j = len_trim(f_file), 1, -1
+                if (f_file(j:j) == '/' .and. last_slash == 0) then
+                    last_slash = j
+                end if
+                if (f_file(j:j) == '.' .and. last_dot == 0) then
+                    last_dot = j
+                end if
+            end do
+
+            if (last_slash > 0) then
+                if (last_dot > last_slash) then
+                    basename = f_file(last_slash + 1:last_dot - 1)
+                else
+                    basename = f_file(last_slash + 1:)
+                end if
+            else
+                if (last_dot > 0) then
+                    basename = f_file(1:last_dot - 1)
+                else
+                    basename = f_file
+                end if
+            end if
+
+            ! Output file in project src directory
+            output_file = trim(project_dir)//'/src/'//trim(basename)//'.f90'
+
+            ! Check if a .f90 version already exists
+            block
+                character(len=512) :: f90_file
+                logical :: f90_exists
+
+                ! Construct the .f90 filename
+                f90_file = f_file(1:len_trim(f_file) - 2)//'.f90'
+                inquire (file=f90_file, exist=f90_exists)
+
+                if (f90_exists) then
+                    ! Use the existing .f90 file instead of processing
+                call log_verbose("runner", "Using existing .f90 file: "//trim(f90_file))
+                    command = 'cp "'//trim(f90_file)//'" "'//trim(output_file)//'"'
+                    call execute_command_line(command)
+                else
+                    ! Compile the .f file through the frontend to generate standard Fortran
+                  call compile_with_frontend(trim(f_file), trim(output_file), error_msg)
+
+                    if (len_trim(error_msg) > 0) then
+           print '(a,a)', 'Warning: Failed to process companion .f file: ', trim(f_file)
+                        print '(a,a)', '         Error: ', trim(error_msg)
+                        ! Try to copy the original file as fallback (but this will likely fail FPM compilation)
+                        ! Actually, don't copy it - better to fail early
+                    end if
+                end if
+            end block
+        end do
+
+    end subroutine process_and_copy_f_files
 
     subroutine provide_helpful_error_message(error_file)
         character(len=*), intent(in) :: error_file
@@ -744,11 +857,12 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
     end function directory_exists
 
    subroutine setup_project_files(absolute_path, project_dir, basename, verbose_level, &
-                                  custom_config_dir, is_preprocessed_file, custom_flags)
+            custom_config_dir, is_preprocessed_file, custom_flags, original_source_path)
  character(len=*), intent(in) :: absolute_path, project_dir, basename, custom_config_dir
         integer, intent(in) :: verbose_level
         logical, intent(in) :: is_preprocessed_file
         character(len=*), intent(in), optional :: custom_flags
+        character(len=*), intent(in), optional :: original_source_path
         character(len=512) :: command
         integer :: exitstat, cmdstat
 
@@ -762,7 +876,12 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         end if
 
         ! Copy all other .f90 files from the same directory to src/
-        call copy_local_modules(absolute_path, project_dir)
+        ! Use original source path if provided (for preprocessed files)
+        if (present(original_source_path)) then
+            call copy_local_modules(original_source_path, project_dir)
+        else
+            call copy_local_modules(absolute_path, project_dir)
+        end if
 
         ! Scan for module dependencies and generate fpm.toml
         ! Sanitize basename for use as package name (limit length and remove spaces)
@@ -795,13 +914,14 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
 
     end subroutine setup_project_files
 
-    subroutine update_source_files(absolute_path, project_dir)
-        character(len=*), intent(in) :: absolute_path, project_dir
+    subroutine update_source_files(main_file_path, project_dir, original_source_path)
+        character(len=*), intent(in) :: main_file_path, project_dir
+        character(len=*), intent(in), optional :: original_source_path
         character(len=512) :: command
         integer :: exitstat, cmdstat
 
         ! Update the main source file in the cached project
-       command = 'cp "'//trim(absolute_path)//'" "'//trim(project_dir)//'/app/main.f90"'
+      command = 'cp "'//trim(main_file_path)//'" "'//trim(project_dir)//'/app/main.f90"'
         call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
 
         if (cmdstat /= 0 .or. exitstat /= 0) then
@@ -809,9 +929,20 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         end if
 
         ! Update any local module files (copy all .f90 files from source directory)
-        call copy_local_modules(absolute_path, project_dir)
+        ! Use original source path if provided (for preprocessed files)
+        if (present(original_source_path)) then
+            call copy_local_modules(original_source_path, project_dir)
+        else
+            call copy_local_modules(main_file_path, project_dir)
+        end if
 
     end subroutine update_source_files
+
+    function int_to_str(n) result(str)
+        integer, intent(in) :: n
+        character(len=20) :: str
+        write (str, '(I0)') n
+    end function int_to_str
 
     function get_project_structure_hash(source_dir, main_file) result(structure_hash)
         character(len=*), intent(in) :: source_dir, main_file

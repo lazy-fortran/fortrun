@@ -6,7 +6,7 @@ module ast_json
 
     ! Make all JSON serialization methods public
     public :: program_to_json, assignment_to_json, binary_op_to_json
-    public :: function_def_to_json, subroutine_def_to_json, function_call_to_json
+    public :: function_def_to_json, subroutine_def_to_json, subroutine_call_to_json
     public :: call_or_subscript_to_json, identifier_to_json, literal_to_json
     public :: use_statement_to_json, include_statement_to_json, print_statement_to_json
     public :: declaration_to_json, do_loop_to_json, do_while_to_json, if_to_json
@@ -157,27 +157,29 @@ contains
         call json%add(parent, obj)
     end subroutine subroutine_def_to_json
 
-    subroutine function_call_to_json(this, json, parent)
-        class(function_call_node), intent(in) :: this
+    subroutine subroutine_call_to_json(this, json, parent)
+        class(subroutine_call_node), intent(in) :: this
         type(json_core), intent(inout) :: json
         type(json_value), pointer, intent(in) :: parent
         type(json_value), pointer :: obj, args_array
         integer :: i
 
         call json%create_object(obj, '')
-        call json%add(obj, 'type', 'function_call')
+        call json%add(obj, 'type', 'subroutine_call')
         call json%add(obj, 'name', this%name)
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
 
         call json%create_array(args_array, 'args')
         call json%add(obj, args_array)
-        do i = 1, size(this%args)
-            call this%args(i)%node%to_json(json, args_array)
-        end do
+        if (allocated(this%arg_indices)) then
+            do i = 1, size(this%arg_indices)
+                call json%add(args_array, '', this%arg_indices(i))
+            end do
+        end if
 
         call json%add(parent, obj)
-    end subroutine function_call_to_json
+    end subroutine subroutine_call_to_json
 
     subroutine call_or_subscript_to_json(this, json, parent)
         class(call_or_subscript_node), intent(in) :: this
@@ -194,9 +196,11 @@ contains
 
         call json%create_array(args_array, 'args')
         call json%add(obj, args_array)
-        do i = 1, size(this%args)
-            call this%args(i)%node%to_json(json, args_array)
-        end do
+        if (allocated(this%arg_indices)) then
+            do i = 1, size(this%arg_indices)
+                call json%add(args_array, '', this%arg_indices(i))
+            end do
+        end if
 
         call json%add(parent, obj)
     end subroutine call_or_subscript_to_json

@@ -1,6 +1,10 @@
 module semantic_analyzer
     ! Hindley-Milner type inference (Algorithm W) - dialect-agnostic
-    use type_system_hm
+    use type_system_hm, only: type_env_t, type_var_t, mono_type_t, poly_type_t, &
+                              substitution_t, create_mono_type, create_type_var, &
+                              create_poly_type, create_fun_type, free_type_vars, &
+                              compose_substitutions, occurs_check, &
+                              TVAR, TINT, TREAL, TCHAR, TFUN, TARRAY
     use scope_manager
     use type_checker
     use ast_core
@@ -273,8 +277,13 @@ contains
         type is (binary_op_node)
             typ = infer_binary_op(this, arena, expr, expr_index)
 
-        type is (function_call_node)
+        type is (call_or_subscript_node)
             typ = infer_function_call(this, arena, expr)
+
+        type is (subroutine_call_node)
+            ! Subroutine calls don't return a value - shouldn't appear in expressions
+            ! Return a type variable that will fail type checking
+            typ = create_mono_type(TVAR, var=create_type_var(0, "error"))
 
         type is (assignment_node)
             typ = infer_assignment(this, arena, expr, expr_index)
@@ -417,7 +426,7 @@ contains
     function infer_function_call(ctx, arena, call_node) result(typ)
         type(semantic_context_t), intent(inout) :: ctx
         type(ast_arena_t), intent(inout) :: arena
-        type(function_call_node), intent(inout) :: call_node
+        type(call_or_subscript_node), intent(inout) :: call_node
         type(mono_type_t) :: typ
         type(mono_type_t) :: fun_typ, arg_typ, result_typ
         type(mono_type_t), allocatable :: arg_types(:)

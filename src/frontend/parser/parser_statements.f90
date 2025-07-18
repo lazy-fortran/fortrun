@@ -69,7 +69,7 @@ contains
 
         ! Create use statement node
         stmt_index = push_use_statement(arena, module_name, only_list, rename_list, &
-                                        has_only, line, column)
+                                        has_only, line, column, parent_index=0)
 
     end function parse_use_statement
 
