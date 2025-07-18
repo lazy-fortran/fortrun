@@ -1,5 +1,9 @@
 module json_writer
+#ifdef _WIN32
+    use simple_json
+#else
     use json_module
+#endif
     implicit none
     private
 
@@ -11,26 +15,57 @@ module json_writer
 
 contains
 
-    ! Write tokens array to JSON file
+#ifdef _WIN32
+    ! Windows implementation using simple_json
+    subroutine json_write_tokens_to_file(tokens, filename)
+        use lexer_core, only: token_t
+        type(token_t), intent(in) :: tokens(:)
+        character(len=*), intent(in) :: filename
+        call simple_json_write_tokens_to_file(tokens, filename)
+    end subroutine json_write_tokens_to_file
+
+    function json_write_tokens_to_string(tokens) result(json_str)
+        use lexer_core, only: token_t
+        type(token_t), intent(in) :: tokens(:)
+        character(len=:), allocatable :: json_str
+        json_str = simple_json_write_tokens_to_string(tokens)
+    end function json_write_tokens_to_string
+
+    subroutine json_write_ast_to_file(ast, filename)
+        use ast_core, only: ast_node
+        class(ast_node), intent(in) :: ast
+        character(len=*), intent(in) :: filename
+        call simple_json_write_ast_to_file(ast, filename)
+    end subroutine json_write_ast_to_file
+
+    function json_write_ast_to_string(ast) result(json_str)
+        use ast_core, only: ast_node
+        class(ast_node), intent(in) :: ast
+        character(len=:), allocatable :: json_str
+        json_str = simple_json_write_ast_to_string(ast)
+    end function json_write_ast_to_string
+
+#else
+    ! Unix implementation using json-fortran
     subroutine json_write_tokens_to_file(tokens, filename)
         use lexer_core, only: token_t, token_type_name
         type(token_t), intent(in) :: tokens(:)
         character(len=*), intent(in) :: filename
-        
+
         type(json_core) :: json
         type(json_value), pointer :: root, token_array, token_obj
         integer :: i
-        
+
         ! Initialize JSON
         call json%initialize()
-        
+
         ! Create root object
         call json%create_object(root, '')
-        
+
         ! Create tokens array
         call json%create_array(token_array, 'tokens')
         call json%add(root, token_array)
-        
+
         ! Add each token to array
         do i = 1, size(tokens)
             ! Create token object
@@ -39,14 +74,14 @@ contains
             call json%add(token_obj, 'text', tokens(i)%text)
             call json%add(token_obj, 'line', tokens(i)%line)
             call json%add(token_obj, 'column', tokens(i)%column)
-            
+
             ! Add to array
             call json%add(token_array, token_obj)
         end do
-        
+
         ! Write to file
         call json%print(root, filename)
-        
+
         ! Clean up
         call json%destroy(root)
     end subroutine json_write_tokens_to_file
@@ -56,21 +91,21 @@ contains
         use lexer_core, only: token_t, token_type_name
         type(token_t), intent(in) :: tokens(:)
         character(len=:), allocatable :: json_str
-        
+
         type(json_core) :: json
         type(json_value), pointer :: root, token_array, token_obj
         integer :: i
-        
+
         ! Initialize JSON
         call json%initialize()
-        
+
         ! Create root object
         call json%create_object(root, '')
-        
+
         ! Create tokens array
         call json%create_array(token_array, 'tokens')
         call json%add(root, token_array)
-        
+
         ! Add each token to array
         do i = 1, size(tokens)
             ! Create token object
@@ -79,14 +114,14 @@ contains
             call json%add(token_obj, 'text', tokens(i)%text)
             call json%add(token_obj, 'line', tokens(i)%line)
             call json%add(token_obj, 'column', tokens(i)%column)
-            
+
             ! Add to array
             call json%add(token_array, token_obj)
         end do
-        
+
         ! Convert to string
         call json%print_to_string(root, json_str)
-        
+
         ! Clean up
         call json%destroy(root)
     end function json_write_tokens_to_string
@@ -96,22 +131,22 @@ contains
         use ast_core, only: ast_node
         class(ast_node), intent(in) :: ast
         character(len=*), intent(in) :: filename
-        
+
         type(json_core) :: json
         type(json_value), pointer :: root
-        
+
         ! Initialize JSON
         call json%initialize()
-        
+
         ! Create root object
         call json%create_object(root, '')
-        
+
         ! Add AST to root
         call ast%to_json(json, root)
-        
+
         ! Write to file
         call json%print(root, filename)
-        
+
         ! Clean up
         call json%destroy(root)
     end subroutine json_write_ast_to_file
@@ -121,24 +156,26 @@ contains
         use ast_core, only: ast_node
         class(ast_node), intent(in) :: ast
         character(len=:), allocatable :: json_str
-        
+
         type(json_core) :: json
         type(json_value), pointer :: root
-        
+
         ! Initialize JSON
         call json%initialize()
-        
+
         ! Create root object
         call json%create_object(root, '')
-        
+
         ! Add AST to root
         call ast%to_json(json, root)
-        
+
         ! Convert to string
         call json%print_to_string(root, json_str)
-        
+
         ! Clean up
         call json%destroy(root)
     end function json_write_ast_to_string
+
+#endif
 
 end module json_writer
