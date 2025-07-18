@@ -53,6 +53,9 @@ module fpm_module_cache
         procedure :: is_cached => cache_is_cached
         procedure :: get_module_dir => cache_get_module_dir
         procedure :: clean_stale => cache_clean_stale
+        procedure :: deep_copy => cache_deep_copy
+        procedure :: assign => cache_assign
+        generic :: assignment(=) => assign
     end type module_cache_t
 
 contains
@@ -559,5 +562,44 @@ contains
         end if
 
     end subroutine remove_cache_entry
+
+    !> Deep copy procedures for module_cache_t
+    function cache_deep_copy(this) result(copy)
+        class(module_cache_t), intent(in) :: this
+        type(module_cache_t) :: copy
+
+        copy%enabled = this%enabled
+
+        if (allocated(this%cache_dir)) then
+            copy%cache_dir = this%cache_dir
+        end if
+
+        if (allocated(this%compiler_id)) then
+            copy%compiler_id = this%compiler_id
+        end if
+
+        if (allocated(this%compiler_version)) then
+            copy%compiler_version = this%compiler_version
+        end if
+    end function cache_deep_copy
+
+    subroutine cache_assign(lhs, rhs)
+        class(module_cache_t), intent(out) :: lhs
+        type(module_cache_t), intent(in) :: rhs
+
+        lhs%enabled = rhs%enabled
+
+        if (allocated(rhs%cache_dir)) then
+            lhs%cache_dir = rhs%cache_dir
+        end if
+
+        if (allocated(rhs%compiler_id)) then
+            lhs%compiler_id = rhs%compiler_id
+        end if
+
+        if (allocated(rhs%compiler_version)) then
+            lhs%compiler_version = rhs%compiler_version
+        end if
+    end subroutine cache_assign
 
 end module fpm_module_cache

@@ -946,10 +946,10 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         end if
 
         ! Create temporary directory
-        temp_dir = create_temp_dir('fortran_stdin')
+        call create_temp_dir('fortran_stdin', temp_dir)
 
         ! Create temporary file with .f extension for lowercase fortran
-        temp_file = get_temp_file_path(temp_dir, 'stdin_input.f')
+        call get_temp_file_path(temp_dir, 'stdin_input.f', temp_file)
 
         ! Open temporary file for writing
         open (newunit=unit, file=temp_file, action='write', iostat=ios)
