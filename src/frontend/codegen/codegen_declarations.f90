@@ -36,8 +36,13 @@ contains
         if (allocated(arena%entries(prog_index)%node)) then
             select type (prog => arena%entries(prog_index)%node)
             type is (program_node)
-                ! Get children of program node
-                child_indices = arena%get_children(prog_index)
+                ! Use body_indices from program_node
+                if (allocated(prog%body_indices)) then
+                    allocate (child_indices(size(prog%body_indices)))
+                    child_indices = prog%body_indices
+                else
+                    allocate (child_indices(0))
+                end if
 
                 ! Collect all variables that need declarations
                 do i = 1, size(child_indices)
