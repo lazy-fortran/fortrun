@@ -440,7 +440,6 @@ contains
 999     continue
         ! Clean up temporary cache directory
         call cleanup_temp_dir(temp_cache_dir)
-        call execute_command_line(trim(cleanup_command))
         print '(a)', 'Cleaned up temporary cache directory'
         print *
 
@@ -638,7 +637,6 @@ contains
 999     continue
         ! Clean up temporary files and cache directory
         call cleanup_temp_dir(temp_cache_dir)
-        call execute_command_line(trim(cleanup_command))
         cleanup_command = 'rm -rf "'//trim(temp_source_dir)//'"'
         call execute_command_line(trim(cleanup_command))
         print '(a)', 'Cleaned up temporary files and cache directory'
@@ -886,7 +884,6 @@ contains
 
         ! Clean up temporary cache directory
         call cleanup_temp_dir(temp_cache_dir)
-        call execute_command_line(trim(cleanup_command))
         print '(a)', 'Cleaned up temporary cache directory'
         print *
 
