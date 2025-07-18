@@ -48,11 +48,14 @@ Complete the lexer → parser → semantic analyzer → codegen pipeline for sta
 - **Fixed parameter and argument collection** - Print statements and subroutines now properly use parsed data
 - **Improved error messages** - Replaced empty string placeholders with descriptive errors
 
-**Next Phase:**
-- **Implement complete function/module body parsing**
-- **Fix semantic analyzer segfault** in scope lookup
+**CRITICAL PRIORITIES - MUST BE DONE IMMEDIATELY:**
+1. **Fix semantic analyzer segfault** in scope lookup
+2. **Implement complete function/module body parsing**
+3. **Fix test suite** - all tests must pass with arena-based AST
+
+**Secondary Tasks (after critical priorities):**
 - **Complete elseif and case block implementation**
-- **Fix test compilation errors** with arena-based AST
+- **Implement visitor pattern** in ast_visitor.f90
 
 **Completed Work ✅**
 - All critical frontend TODOs resolved and implemented
