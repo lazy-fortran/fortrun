@@ -8,6 +8,8 @@ module ast_factory
     public :: push_function_call, push_identifier, push_literal
     public :: push_derived_type, push_declaration
     public :: push_if, push_do_loop, push_do_while, push_select_case
+    public :: push_use_statement, push_include_statement, push_print_statement
+    public :: push_function_def, push_subroutine_def, push_interface_block, push_module
     public :: build_ast_from_nodes
 
 contains
@@ -361,5 +363,122 @@ contains
             end block
         end do
     end subroutine build_ast_from_nodes
+
+    ! Create use statement node and add to stack
+    function push_use_statement(arena, module_name, only_list, rename_list, &
+                                has_only, line, column, parent_index) result(use_index)
+        type(ast_arena_t), intent(inout) :: arena
+        character(len=*), intent(in) :: module_name
+        character(len=*), intent(in), optional :: only_list(:), rename_list(:)
+        logical, intent(in), optional :: has_only
+        integer, intent(in), optional :: line, column, parent_index
+        integer :: use_index
+        type(use_statement_node) :: use_stmt
+
+        use_stmt = create_use_statement(module_name, only_list, rename_list, has_only, line, column)
+        call arena%push(use_stmt, "use_statement", parent_index)
+        use_index = arena%size
+    end function push_use_statement
+
+    ! Create include statement node and add to stack
+    function push_include_statement(arena, filename, line, column, parent_index) result(include_index)
+        type(ast_arena_t), intent(inout) :: arena
+        character(len=*), intent(in) :: filename
+        integer, intent(in), optional :: line, column, parent_index
+        integer :: include_index
+        type(include_statement_node) :: include_stmt
+
+        include_stmt = create_include_statement(filename, line, column)
+        call arena%push(include_stmt, "include_statement", parent_index)
+        include_index = arena%size
+    end function push_include_statement
+
+    ! Create print statement node and add to stack
+    function push_print_statement(arena, format_spec, arg_indices, line, column, parent_index) result(print_index)
+        type(ast_arena_t), intent(inout) :: arena
+        character(len=*), intent(in) :: format_spec
+        integer, intent(in), optional :: arg_indices(:)
+        integer, intent(in), optional :: line, column, parent_index
+        integer :: print_index
+        type(print_statement_node) :: print_stmt
+
+        print_stmt%format_spec = format_spec
+        if (present(arg_indices)) then
+            if (size(arg_indices) > 0) then
+                print_stmt%arg_indices = arg_indices
+            end if
+        end if
+        if (present(line)) print_stmt%line = line
+        if (present(column)) print_stmt%column = column
+
+        call arena%push(print_stmt, "print_statement", parent_index)
+        print_index = arena%size
+    end function push_print_statement
+
+    ! Create function definition node and add to stack
+    function push_function_def(arena, name, param_indices, return_type, body_indices, &
+                               line, column, parent_index) result(func_index)
+        type(ast_arena_t), intent(inout) :: arena
+        character(len=*), intent(in) :: name
+        integer, intent(in), optional :: param_indices(:)
+        character(len=*), intent(in), optional :: return_type
+        integer, intent(in), optional :: body_indices(:)
+        integer, intent(in), optional :: line, column, parent_index
+        integer :: func_index
+        type(function_def_node) :: func_def
+
+        func_def = create_function_def(name, param_indices, return_type, body_indices, line, column)
+        call arena%push(func_def, "function_def", parent_index)
+        func_index = arena%size
+    end function push_function_def
+
+    ! Create subroutine definition node and add to stack
+    function push_subroutine_def(arena, name, param_indices, body_indices, &
+                                 line, column, parent_index) result(sub_index)
+        type(ast_arena_t), intent(inout) :: arena
+        character(len=*), intent(in) :: name
+        integer, intent(in), optional :: param_indices(:)
+        integer, intent(in), optional :: body_indices(:)
+        integer, intent(in), optional :: line, column, parent_index
+        integer :: sub_index
+        type(subroutine_def_node) :: sub_def
+
+        sub_def = create_subroutine_def(name, param_indices, body_indices, line, column)
+        call arena%push(sub_def, "subroutine_def", parent_index)
+        sub_index = arena%size
+    end function push_subroutine_def
+
+    ! Create interface block node and add to stack
+    function push_interface_block(arena, interface_name, procedure_indices, &
+                                  line, column, parent_index) result(interface_index)
+        type(ast_arena_t), intent(inout) :: arena
+        character(len=*), intent(in), optional :: interface_name
+        integer, intent(in), optional :: procedure_indices(:)
+        integer, intent(in), optional :: line, column, parent_index
+        integer :: interface_index
+        type(interface_block_node) :: interface_block
+
+        ! TODO: Convert interface_block_node to arena-based indices
+        interface_block = create_interface_block(interface_name, "interface", line=line, column=column)
+        call arena%push(interface_block, "interface_block", parent_index)
+        interface_index = arena%size
+    end function push_interface_block
+
+    ! Create module node and add to stack
+    function push_module(arena, name, body_indices, line, column, parent_index) result(module_index)
+        type(ast_arena_t), intent(inout) :: arena
+        character(len=*), intent(in) :: name
+        integer, intent(in), optional :: body_indices(:)
+        integer, intent(in), optional :: line, column, parent_index
+        integer :: module_index
+        type(module_node) :: mod_node
+
+        ! Create module with simplified approach (using create_module)
+        ! TODO: Convert module_node to arena-based indices
+        mod_node = create_module(name, line=line, column=column)
+
+        call arena%push(mod_node, "module_node", parent_index)
+        module_index = arena%size
+    end function push_module
 
 end module ast_factory

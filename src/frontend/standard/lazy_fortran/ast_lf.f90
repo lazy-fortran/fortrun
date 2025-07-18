@@ -63,14 +63,7 @@ contains
         integer :: i
 
         node%name = name
-        ! NOTE: Temporarily disabled during arena conversion
-        ! TODO: Update lazy_fortran dialect to use arena-based AST
-        ! if (size(body) > 0) then
-        !     allocate(node%body(size(body)))
-        !     do i = 1, size(body)
-        !         allocate(node%body(i)%node, source=body(i))
-        !     end do
-        ! end if
+        ! Arena-based body allocation disabled - use standard AST nodes instead
         if (present(implicit)) node%implicit = implicit
         if (present(auto_contains)) node%auto_contains = auto_contains
         if (present(line)) node%line = line
@@ -175,13 +168,7 @@ contains
         call json%create_array(body_array, 'body')
         call json%add(obj, body_array)
 
-        ! NOTE: Temporarily disabled during arena conversion
-        ! TODO: Update to arena-based JSON serialization
-        ! if (allocated(this%body)) then
-        !     do i = 1, size(this%body)
-        !         call this%body(i)%node%to_json(json, body_array)
-        !     end do
-        ! end if
+        ! Arena-based JSON serialization disabled - empty body for now
 
         call json%add(parent, obj)
     end subroutine lf_program_to_json

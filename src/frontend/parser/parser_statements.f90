@@ -67,8 +67,8 @@ contains
         end if
 
         ! Create use statement node
-        ! For now, create a placeholder since we don't have push_use_statement yet
-     stmt_index = push_literal(arena, "use "//module_name, LITERAL_STRING, line, column)
+        stmt_index = push_use_statement(arena, module_name, only_list, rename_list, &
+                                        has_only, line, column)
 
     end function parse_use_statement
 
@@ -96,8 +96,7 @@ contains
         end if
 
         ! Create include statement node
-        ! For now, create a placeholder since we don't have push_include_statement yet
-        stmt_index = push_literal(arena, "include '"//filename//"'", LITERAL_STRING, line, column)
+        stmt_index = push_include_statement(arena, filename, line, column)
 
     end function parse_include_statement
 
@@ -177,12 +176,13 @@ contains
         end if
 
         ! Create print statement node
-        ! For now, create a placeholder since we don't have push_print_statement yet
-        if (arg_count > 0) then
-            print_index = push_literal(arena, "print "//format_spec//", ...", LITERAL_STRING, line, column)
-        else
-  print_index = push_literal(arena, "print "//format_spec, LITERAL_STRING, line, column)
-        end if
+        block
+            integer, allocatable :: arg_indices(:)
+            if (arg_count > 0) then
+                allocate (arg_indices(0))  ! TODO: Convert parsed arguments to indices
+            end if
+       print_index = push_print_statement(arena, format_spec, arg_indices, line, column)
+        end block
 
     end function parse_print_statement
 
@@ -610,8 +610,12 @@ contains
         end if
 
         ! Create function definition node
-        ! For now, create a placeholder since we don't have push_function_def yet
-  func_index = push_literal(arena, "function "//func_name, LITERAL_STRING, line, column)
+        block
+            integer, allocatable :: param_indices(:), body_indices(:)
+            allocate (param_indices(0))  ! TODO: Convert parsed parameters to indices
+            allocate (body_indices(0))   ! TODO: Convert parsed body to indices
+            func_index = push_function_def(arena, func_name, param_indices, return_type_str, body_indices, line, column)
+        end block
 
     end function parse_function_definition
 
@@ -708,8 +712,12 @@ contains
         end do
 
         ! Create subroutine node
-        ! For now, create a placeholder since we don't have push_subroutine_def yet
-  sub_index = push_literal(arena, "subroutine "//sub_name, LITERAL_STRING, line, column)
+        block
+            integer, allocatable :: param_indices(:), body_indices(:)
+            allocate (param_indices(0))  ! TODO: Convert parsed parameters to indices
+            allocate (body_indices(0))   ! TODO: Convert parsed body to indices
+            sub_index = push_subroutine_def(arena, sub_name, param_indices, body_indices, line, column)
+        end block
 
     end function parse_subroutine_definition
 
@@ -799,14 +807,19 @@ contains
         end do
 
         ! Create interface block node
-        ! For now, create a placeholder since we don't have push_interface_block yet
-        if (allocated(name)) then
- interface_index = push_literal(arena, "interface "//name, LITERAL_STRING, line, column)
-        else if (allocated(operator_symbol)) then
-            interface_index = push_literal(arena, "interface operator("//operator_symbol//")", LITERAL_STRING, line, column)
-        else
-        interface_index = push_literal(arena, "interface", LITERAL_STRING, line, column)
-        end if
+        block
+            integer, allocatable :: procedure_indices(:)
+            character(len=:), allocatable :: interface_name
+            allocate (procedure_indices(0))  ! TODO: Convert parsed procedures to indices
+            if (allocated(name)) then
+                interface_name = name
+            else if (allocated(operator_symbol)) then
+                interface_name = "operator("//operator_symbol//")"
+            else
+                interface_name = ""
+            end if
+            interface_index = push_interface_block(arena, interface_name, procedure_indices, line, column)
+        end block
 
     end function parse_interface_block
 
@@ -889,8 +902,11 @@ contains
         end if
 
         ! Create module node
-        ! For now, create a placeholder since we don't have push_module yet
-       module_index = push_literal(arena, "module "//name, LITERAL_STRING, line, column)
+        block
+            integer, allocatable :: body_indices(:)
+            allocate (body_indices(0))  ! TODO: Convert parsed body to indices
+            module_index = push_module(arena, name, body_indices, line, column)
+        end block
 
     end function parse_module
 
