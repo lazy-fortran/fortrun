@@ -14,6 +14,26 @@ This project develops a command-line tool called `fortran` that **Makes Python F
 2. **GREEN**: Write minimal code to pass the test  
 3. **REFACTOR**: Clean up code while keeping tests green
 
+## ⚠️ CRITICAL: OBSOLETE CODE REMOVAL POLICY ⚠️
+
+**ALWAYS REMOVE OBSOLETE AND DEPRECATED CODE - NO EXCEPTIONS!**
+
+- **NEVER** leave deprecated functions, subroutines, or modules in the codebase
+- **NEVER** leave commented out sections of code in source files
+- **IMMEDIATELY DELETE** any code marked as "DEPRECATED", "OBSOLETE", or "REMOVED"
+- **AGGRESSIVELY PURGE** dead code, unused imports, and redundant implementations
+- You are safe to delete things that are obsolete if they are under version control
+- Don't hamster old messy stuff - clean as you go!
+
+This keeps the codebase clean, reduces maintenance burden, and prevents confusion.
+
+## Development Principles
+
+- We follow TDD, SOLID, KISS, SRP and DRY as strict requirements in the development process.
+- Always keep work units small and manageable.
+- Always work sequentially. Never do multiple things in parallel.
+- Never be lazy. Don't take shortcuts. Fulfill every task fully to 100%
+
 ## Build System
 
 This project uses FPM (Fortran Package Manager).

@@ -8,26 +8,26 @@ program test_minimal_alloc_bug
     type(my_type), allocatable :: result
 
     print *, "Test 1: Returning allocated"
-    result = get_allocated()
+    call get_allocated(result)
     print *, "Success! allocated = ", allocated(result)
 
     print *, ""
     print *, "Test 2: Returning unallocated"
     if (allocated(result)) deallocate (result)
-    result = get_unallocated()  ! This will likely crash
+    call get_unallocated(result)
     print *, "Success! allocated = ", allocated(result)
 
 contains
 
-    function get_allocated() result(mt)
-        type(my_type), allocatable :: mt
+    subroutine get_allocated(mt)
+        type(my_type), allocatable, intent(out) :: mt
         allocate (mt)
         mt%x = 42
-    end function
+    end subroutine
 
-    function get_unallocated() result(mt)
-        type(my_type), allocatable :: mt
-        ! Return without allocating
-    end function
+    subroutine get_unallocated(mt)
+        type(my_type), allocatable, intent(out) :: mt
+        ! Return without allocating - mt is automatically deallocated on entry
+    end subroutine
 
 end program test_minimal_alloc_bug
