@@ -4,7 +4,8 @@ program test_cli_system
   use temp_utils, only: temp_dir_manager
   implicit none
   
-  character(len=512) :: command, test_file
+  character(len=512) :: command
+  character(len=:), allocatable :: test_file
   character(len=1024) :: output_file, expected_output
   integer :: exit_code, unit, iostat
   logical :: test_passed
@@ -74,7 +75,7 @@ contains
     
     ! Create unique filename in temp directory
     call main_temp_mgr%create('test_cli_sys')
-    test_file = main_temp_mgr%get_file_path('test_cli_system.f90')
+    call main_temp_mgr%get_file_path('test_cli_system.f90', test_file)
     
     open(newunit=unit, file=test_file, status='replace')
     write(unit, '(a)') 'program test_cli_system'
@@ -93,8 +94,8 @@ contains
     print *, 'Test 1: No arguments (should show help)'
     
     call temp_mgr%create('test_no_args')
-    output_file = temp_mgr%get_file_path('cli_test_output.txt')
-    exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
+    call temp_mgr%get_file_path('cli_test_output.txt', output_file)
+    call temp_mgr%get_file_path('cli_test_exit.txt', exit_file)
     
     command = 'fpm run fortran -- > "' // output_file // '" 2>&1; echo $? > "' // exit_file // '"'
     call execute_command_line(command)
@@ -154,8 +155,8 @@ contains
     print *, 'Test 4: Basic execution'
     
     call temp_mgr%create('test_basic_exec')
-    output_file = temp_mgr%get_file_path('cli_test_output.txt')
-    exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
+    call temp_mgr%get_file_path('cli_test_output.txt', output_file)
+    call temp_mgr%get_file_path('cli_test_exit.txt', exit_file)
     
     command = 'fpm run fortran -- "' // trim(test_file) // '" > "' // output_file // &
               '" 2>&1; echo $? > "' // exit_file // '"'
@@ -643,7 +644,7 @@ contains
   end subroutine check_directory_exists
 
   subroutine test_f_file_execution()
-    character(len=512) :: test_f_file
+    character(len=:), allocatable :: test_f_file
     logical :: success, exit_ok
     integer :: unit
     type(temp_dir_manager) :: temp_mgr
@@ -652,11 +653,11 @@ contains
     print *, 'Test 13: .f file execution'
     
     call temp_mgr%create('test_f_file_exec')
-    output_file = temp_mgr%get_file_path('cli_test_output.txt')
-    exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
+    call temp_mgr%get_file_path('cli_test_output.txt', output_file)
+    call temp_mgr%get_file_path('cli_test_exit.txt', exit_file)
     
     ! Create a simple .f test file
-    test_f_file = temp_mgr%get_file_path('test_simple.f')
+    call temp_mgr%get_file_path('test_simple.f', test_f_file)
     open(newunit=unit, file=test_f_file, status='replace')
     write(unit, '(a)') "print *, 'Hello from .f file'"
     close(unit)
@@ -681,18 +682,18 @@ contains
   subroutine test_invalid_extension()
     logical :: exit_ok, has_error
     integer :: unit
-    character(len=256) :: test_txt_file
+    character(len=:), allocatable :: test_txt_file
     type(temp_dir_manager) :: temp_mgr
     character(len=:), allocatable :: output_file, exit_file
     
     print *, 'Test 14: Invalid file extension'
     
     call temp_mgr%create('test_invalid_ext')
-    output_file = temp_mgr%get_file_path('cli_test_output.txt')
-    exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
+    call temp_mgr%get_file_path('cli_test_output.txt', output_file)
+    call temp_mgr%get_file_path('cli_test_exit.txt', exit_file)
     
     ! Create a temporary .txt file
-    test_txt_file = temp_mgr%get_file_path('test_invalid.txt')
+    call temp_mgr%get_file_path('test_invalid.txt', test_txt_file)
     open(newunit=unit, file=test_txt_file, status='replace')
     write(unit, '(a)') "This is not a Fortran file"
     close(unit)
@@ -718,18 +719,18 @@ contains
   subroutine test_flag_option()
     logical :: exit_ok, has_output
     integer :: unit
-    character(len=256) :: test_flag_file
+    character(len=:), allocatable :: test_flag_file
     type(temp_dir_manager) :: temp_mgr
     character(len=:), allocatable :: output_file, exit_file
     
     print *, 'Test 15: --flag option functionality'
     
     call temp_mgr%create('test_flag_option')
-    output_file = temp_mgr%get_file_path('cli_test_output.txt')
-    exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
+    call temp_mgr%get_file_path('cli_test_output.txt', output_file)
+    call temp_mgr%get_file_path('cli_test_exit.txt', exit_file)
     
     ! Create a test .f90 file to test with custom flags
-    test_flag_file = temp_mgr%get_file_path('test_flag_option.f90')
+    call temp_mgr%get_file_path('test_flag_option.f90', test_flag_file)
     open(newunit=unit, file=test_flag_file, status='replace')
     write(unit, '(a)') 'program test_flags'
     write(unit, '(a)') '  implicit none'
@@ -756,7 +757,7 @@ contains
     print *, '  Testing .f file with --flag option'
     
     ! Create a test .f file
-    test_flag_file = temp_mgr%get_file_path('test_flag_option.f')
+    call temp_mgr%get_file_path('test_flag_option.f', test_flag_file)
     open(newunit=unit, file=test_flag_file, status='replace')
     write(unit, '(a)') 'print *, "Flag test output with .f file"'
     close(unit)
