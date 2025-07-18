@@ -19,15 +19,14 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Setup Fortran compiler
-      run: |
-        # Install MSYS2 and gfortran
-        choco install msys2
-        msys2 -c "pacman --noconfirm -S mingw-w64-x86_64-gcc-fortran"
-        echo "C:\msys64\mingw64\bin" >> $GITHUB_PATH
-        echo "FC=gfortran" >> $GITHUB_ENV
-        echo "CC=gcc" >> $GITHUB_ENV
-      shell: bash
+    - name: Setup MinGW (MSYS2)
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: false
+        install: >-
+          mingw-w64-x86_64-gcc-fortran
+          mingw-w64-x86_64-gcc
 
     - name: Setup FPM
       uses: fortran-lang/setup-fpm@v5
@@ -48,12 +47,12 @@ jobs:
       shell: powershell
 
     - name: Build project
-      run: fpm build --compiler ${{ matrix.fc }}
-      shell: bash
+      run: fpm build --compiler gfortran
+      shell: msys2 {0}
 
     - name: Run unit tests
-      run: fpm test --compiler ${{ matrix.fc }}
-      shell: bash
+      run: fpm test --compiler gfortran
+      shell: msys2 {0}
 
     - name: Test cache functionality
       run: |
@@ -113,15 +112,14 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Setup Fortran compiler
-      run: |
-        # Install MSYS2 and gfortran
-        choco install msys2
-        msys2 -c "pacman --noconfirm -S mingw-w64-x86_64-gcc-fortran"
-        echo "C:\msys64\mingw64\bin" >> $GITHUB_PATH
-        echo "FC=gfortran" >> $GITHUB_ENV
-        echo "CC=gcc" >> $GITHUB_ENV
-      shell: bash
+    - name: Setup MinGW (MSYS2)
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: false
+        install: >-
+          mingw-w64-x86_64-gcc-fortran
+          mingw-w64-x86_64-gcc
 
     - name: Setup FPM
       uses: fortran-lang/setup-fpm@v5
@@ -131,7 +129,7 @@ jobs:
 
     - name: Build project
       run: fpm build --compiler gfortran
-      shell: bash
+      shell: msys2 {0}
 
     - name: Download artifacts
       uses: actions/download-artifact@v4
