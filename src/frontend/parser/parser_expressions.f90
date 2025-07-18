@@ -374,8 +374,8 @@ contains
                     end if
                 end block
             else
-                ! Unrecognized operator - create a placeholder
-      expr_index = push_literal(arena, "", LITERAL_STRING, current%line, current%column)
+                ! Unrecognized operator - create error node
+      expr_index = push_literal(arena, "!ERROR: Unrecognized operator '"//current%text//"'", LITERAL_STRING, current%line, current%column)
                 current = parser%consume()
             end if
 
@@ -385,13 +385,13 @@ contains
             if (current%text == ".true." .or. current%text == ".false.") then
       expr_index = push_literal(arena, current%text, LITERAL_LOGICAL, current%line, current%column)
             else
-                ! Other keywords - create placeholder for now
-      expr_index = push_literal(arena, "", LITERAL_STRING, current%line, current%column)
+                ! Other keywords - create error node
+      expr_index = push_literal(arena, "!ERROR: Unexpected keyword '"//current%text//"' in expression", LITERAL_STRING, current%line, current%column)
             end if
 
         case default
-            ! Unrecognized token - create a placeholder and skip
-      expr_index = push_literal(arena, "", LITERAL_STRING, current%line, current%column)
+            ! Unrecognized token - create error node and skip
+      expr_index = push_literal(arena, "!ERROR: Unrecognized token in expression", LITERAL_STRING, current%line, current%column)
             current = parser%consume()
         end select
     end function parse_primary

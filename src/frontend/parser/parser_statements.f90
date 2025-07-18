@@ -175,18 +175,8 @@ contains
             end block
         end if
 
-        ! Create print statement node
-        block
-            integer, allocatable :: arg_indices(:)
-            if (arg_count > 0) then
-                ! For now, use empty array until arena-based print arg parsing is implemented
-                ! This preserves print statement functionality while avoiding complex type conversion
-                allocate (arg_indices(0))
-            else
-                allocate (arg_indices(0))
-            end if
+        ! Create print statement node with parsed arguments
        print_index = push_print_statement(arena, format_spec, arg_indices, line, column)
-        end block
 
     end function parse_print_statement
 
@@ -710,13 +700,10 @@ contains
             end if
         end do
 
-        ! Create subroutine node
-        block
-            integer, allocatable :: param_indices(:), body_indices(:)
-            allocate (param_indices(0))  ! TODO: Convert parsed parameters to indices
-            allocate (body_indices(0))   ! TODO: Convert parsed body to indices
-            sub_index = push_subroutine_def(arena, sub_name, param_indices, body_indices, line, column)
-        end block
+        ! Create subroutine node with collected parameters
+        ! Body parsing still needs implementation
+        allocate (body_indices(0))
+        sub_index = push_subroutine_def(arena, sub_name, param_indices, body_indices, line, column)
 
     end function parse_subroutine_definition
 
