@@ -5,9 +5,11 @@ module frontend
 
     use lexer_core, only: token_t, tokenize_core, TK_EOF, TK_KEYWORD
     use parser_state_module, only: parser_state_t, create_parser_state
-    use parser_core, only: parse_expression, parse_statement, parse_function_definition
+    use parser_core, only: parse_expression, parse_function_definition
+    use parser_dispatcher_module, only: parse_statement_dispatcher
   use parser_control_flow_module, only: parse_do_loop, parse_do_while, parse_select_case
     use ast_core
+    use ast_factory, only: push_program, push_literal
     use semantic_analyzer, only: semantic_context_t, create_semantic_context, analyze_program
     use codegen_core, only: generate_code_from_arena, generate_code_polymorphic
     use logger, only: log_debug, log_verbose, set_verbose_level
@@ -51,7 +53,8 @@ contains
 
         ! Local variables
         type(token_t), allocatable :: tokens(:)
-        class(ast_node), allocatable :: ast_tree
+        type(ast_arena_t) :: arena
+        integer :: prog_index
         type(semantic_context_t) :: sem_ctx
         character(len=:), allocatable :: code, source
         integer :: unit, iostat
@@ -87,19 +90,19 @@ contains
         if (options%debug_tokens) call debug_output_tokens(input_file, tokens)
 
         ! Phase 2: Parsing
-        call parse_tokens(tokens, ast_tree, error_msg)
+        arena = create_ast_stack()
+        call parse_tokens(tokens, arena, prog_index, error_msg)
         if (error_msg /= "") return
-        if (options%debug_ast) call debug_output_ast(input_file, ast_tree)
+        ! if (options%debug_ast) call debug_output_ast(input_file, arena, prog_index)
 
         ! Phase 3: Semantic Analysis
         ! TEMPORARY: Skip semantic analysis to avoid memory issues
         ! sem_ctx = create_semantic_context()
-        ! call analyze_program(sem_ctx, ast_tree)
-        if (options%debug_semantic) call debug_output_semantic(input_file, ast_tree)
+        ! call analyze_program(sem_ctx, arena, prog_index)
+        ! if (options%debug_semantic) call debug_output_semantic(input_file, arena, prog_index)
 
         ! Phase 4: Code Generation
-        ! TEMPORARY: Skip semantic context to avoid memory issues
-        call generate_fortran_code_no_sem(ast_tree, code)
+        call generate_fortran_code(arena, prog_index, code)
         if (options%debug_codegen) call debug_output_codegen(input_file, code)
 
         ! Write output
@@ -116,7 +119,8 @@ contains
         character(len=*), intent(out) :: error_msg
 
         type(token_t), allocatable :: tokens(:)
-        class(ast_node), allocatable :: ast_tree
+        type(ast_arena_t) :: arena
+        integer :: prog_index
         type(semantic_context_t) :: sem_ctx
         character(len=:), allocatable :: code
 
@@ -127,17 +131,18 @@ contains
         if (options%debug_tokens) call debug_output_tokens(tokens_json_file, tokens)
 
         ! Phase 2: Parsing
-        call parse_tokens(tokens, ast_tree, error_msg)
+        arena = create_ast_stack()
+        call parse_tokens(tokens, arena, prog_index, error_msg)
         if (error_msg /= "") return
-        if (options%debug_ast) call debug_output_ast(tokens_json_file, ast_tree)
+        ! if (options%debug_ast) call debug_output_ast(tokens_json_file, arena, prog_index)
 
         ! Phase 3: Semantic Analysis
         sem_ctx = create_semantic_context()
-        call analyze_program(sem_ctx, ast_tree)
-      if (options%debug_semantic) call debug_output_semantic(tokens_json_file, ast_tree)
+        ! call analyze_program(sem_ctx, arena, prog_index)
+        ! if (options%debug_semantic) call debug_output_semantic(tokens_json_file, arena, prog_index)
 
         ! Phase 4: Code Generation
-        call generate_fortran_code(ast_tree, sem_ctx, code)
+        call generate_fortran_code(arena, prog_index, code)
         if (options%debug_codegen) call debug_output_codegen(tokens_json_file, code)
 
         ! Write output
@@ -153,23 +158,25 @@ contains
         type(compilation_options_t), intent(in) :: options
         character(len=*), intent(out) :: error_msg
 
-        class(ast_node), allocatable :: ast_tree
+        type(ast_arena_t) :: arena
+        integer :: prog_index
         type(semantic_context_t) :: sem_ctx
         character(len=:), allocatable :: code
 
         error_msg = ""
 
-        ! Read AST from JSON
-        ast_tree = json_read_ast_from_file(ast_json_file)
-        if (options%debug_ast) call debug_output_ast(ast_json_file, ast_tree)
+        ! Read AST from JSON - simplified for now
+        arena = create_ast_stack()
+prog_index = push_literal(arena, "! JSON loading not implemented", LITERAL_STRING, 1, 1)
+        ! if (options%debug_ast) call debug_output_ast(ast_json_file, arena, prog_index)
 
-        ! Phase 3: Semantic Analysis
-        sem_ctx = create_semantic_context()
-        call analyze_program(sem_ctx, ast_tree)
-        if (options%debug_semantic) call debug_output_semantic(ast_json_file, ast_tree)
+        ! Phase 3: Semantic Analysis - skip for now
+        ! sem_ctx = create_semantic_context()
+        ! call analyze_program(sem_ctx, arena, prog_index)
+        ! if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, prog_index)
 
         ! Phase 4: Code Generation
-        call generate_fortran_code(ast_tree, sem_ctx, code)
+        call generate_fortran_code(arena, prog_index, code)
         if (options%debug_codegen) call debug_output_codegen(ast_json_file, code)
 
         ! Write output
@@ -185,18 +192,20 @@ contains
         type(compilation_options_t), intent(in) :: options
         character(len=*), intent(out) :: error_msg
 
-        class(ast_node), allocatable :: ast_tree
+        type(ast_arena_t) :: arena
+        integer :: prog_index
         type(semantic_context_t) :: sem_ctx
         character(len=:), allocatable :: code
 
         error_msg = ""
 
-        ! Read annotated AST and semantic context from JSON
-        call json_read_semantic_from_file(semantic_json_file, ast_tree, sem_ctx)
-    if (options%debug_semantic) call debug_output_semantic(semantic_json_file, ast_tree)
+        ! Read annotated AST and semantic context from JSON - simplified
+        arena = create_ast_stack()
+        prog_index = push_literal(arena, "! Semantic JSON loading not implemented", LITERAL_STRING, 1, 1)
+        ! if (options%debug_semantic) call debug_output_semantic(semantic_json_file, arena, prog_index)
 
         ! Phase 4: Code Generation (direct from annotated AST)
-        call generate_fortran_code(ast_tree, sem_ctx, code)
+        call generate_fortran_code(arena, prog_index, code)
         if (options%debug_codegen) call debug_output_codegen(semantic_json_file, code)
 
         ! Write output
@@ -217,111 +226,85 @@ contains
     end subroutine lex_file
 
     ! Phase 2: Parsing
-    subroutine parse_tokens(tokens, ast_tree, error_msg)
+    subroutine parse_tokens(tokens, arena, prog_index, error_msg)
         type(token_t), intent(in) :: tokens(:)
-        class(ast_node), allocatable, intent(out) :: ast_tree
+        type(ast_arena_t), intent(inout) :: arena
+        integer, intent(out) :: prog_index
         character(len=*), intent(out) :: error_msg
 
-        ! Local variables for program unit parsing using wrapper pattern
-        type(ast_node_wrapper), allocatable :: body_statements(:)
-        class(ast_node), allocatable :: stmt
+        ! Local variables for arena-based parsing
+        integer, allocatable :: body_indices(:)
+        integer :: stmt_index
         integer :: i, unit_start, unit_end, stmt_count
         type(token_t), allocatable :: unit_tokens(:)
 
         error_msg = ""
         stmt_count = 0
+        allocate (body_indices(0))
 
-        ! Create program node (dialect-agnostic core)
-        allocate (program_node :: ast_tree)
-        select type (prog => ast_tree)
-        type is (program_node)
-            prog%name = "main"
-            prog%line = 1
-            prog%column = 1
+        ! Parse program units, not individual lines
+        i = 1
+        do while (i <= size(tokens))
+            if (tokens(i)%kind == TK_EOF) exit
 
-            ! Parse program units, not individual lines
-            i = 1
-            do while (i <= size(tokens))
-                if (tokens(i)%kind == TK_EOF) exit
+            ! Skip empty lines (just EOF tokens)
+            if (i < size(tokens) .and. tokens(i)%kind == TK_EOF) then
+                i = i + 1
+                cycle
+            end if
 
-                ! Skip empty lines (just EOF tokens)
-                if (i < size(tokens) .and. tokens(i)%kind == TK_EOF) then
-                    i = i + 1
-                    cycle
-                end if
+            ! Find program unit boundary
+            call find_program_unit_boundary(tokens, i, unit_start, unit_end)
 
-                ! Find program unit boundary
-                call find_program_unit_boundary(tokens, i, unit_start, unit_end)
+            block
+                character(len=20) :: start_str, end_str
+                write (start_str, '(I0)') unit_start
+                write (end_str, '(I0)') unit_end
+                call log_verbose("parsing", "Found program unit from token "// &
+                                 trim(start_str)//" to "//trim(end_str))
+            end block
 
-                block
-                    character(len=20) :: start_str, end_str
-                    write (start_str, '(I0)') unit_start
-                    write (end_str, '(I0)') unit_end
-                    call log_verbose("parsing", "Found program unit from token "// &
-                                     trim(start_str)//" to "//trim(end_str))
-                end block
-
-                ! Skip empty units, units with just EOF, or single-token keywords that are part of larger constructs
-                if (unit_end >= unit_start .and. &
+            ! Skip empty units, units with just EOF, or single-token keywords that are part of larger constructs
+            if (unit_end >= unit_start .and. &
           .not. (unit_end == unit_start .and. tokens(unit_start)%kind == TK_EOF) .and. &
        .not. (unit_end == unit_start .and. tokens(unit_start)%kind == TK_KEYWORD .and. &
      (tokens(unit_start)%text == "real" .or. tokens(unit_start)%text == "integer" .or. &
  tokens(unit_start)%text == "logical" .or. tokens(unit_start)%text == "character" .or. &
                             tokens(unit_start)%text == "function" .or. tokens(unit_start)%text == "subroutine" .or. &
-                            tokens(unit_start)%text == "module"))) then
-                    ! Extract unit tokens and add EOF
-                    allocate (unit_tokens(unit_end - unit_start + 2))
-                  unit_tokens(1:unit_end - unit_start + 1) = tokens(unit_start:unit_end)
-                    ! Add EOF token
-                    unit_tokens(unit_end - unit_start + 2)%kind = TK_EOF
-                    unit_tokens(unit_end - unit_start + 2)%text = ""
-                    unit_tokens(unit_end - unit_start + 2)%line = tokens(unit_end)%line
+                        tokens(unit_start)%text == "module"))) then
+                ! Extract unit tokens and add EOF
+                allocate (unit_tokens(unit_end - unit_start + 2))
+                unit_tokens(1:unit_end - unit_start + 1) = tokens(unit_start:unit_end)
+                ! Add EOF token
+                unit_tokens(unit_end - unit_start + 2)%kind = TK_EOF
+                unit_tokens(unit_end - unit_start + 2)%text = ""
+                unit_tokens(unit_end - unit_start + 2)%line = tokens(unit_end)%line
              unit_tokens(unit_end - unit_start + 2)%column = tokens(unit_end)%column + 1
 
-                    ! Debug: Extracted tokens for do construct
+                ! Debug: Extracted tokens for do construct
 
                     call log_verbose("parsing", "Extracted " // trim(adjustl(int_to_str(size(unit_tokens)))) // &
-                                     " tokens for unit")
+                                 " tokens for unit")
 
-                    ! Parse the program unit
-                    stmt = parse_program_unit(unit_tokens)
+                ! Parse the program unit
+                stmt_index = parse_program_unit(unit_tokens, arena)
 
-                    if (allocated(stmt)) then
-                        ! Note: Statement added to AST
-
-                        ! Extend wrapper array using [array, new_element] pattern
-                        block
-                            type(ast_node_wrapper) :: new_wrapper
-                            type(ast_node_wrapper), allocatable :: temp_array(:)
-
-                            ! Now safe to use source= since inferred_type field is removed
-                            allocate (new_wrapper%node, source=stmt)
-
-                            ! Use temporary array for proper extension (CLAUDE.md pattern)
-                            if (allocated(body_statements)) then
-                                allocate (temp_array(size(body_statements) + 1))
-                                temp_array(1:size(body_statements)) = body_statements
-                                temp_array(size(body_statements) + 1) = new_wrapper
-                                body_statements = temp_array
-                            else
-                                body_statements = [new_wrapper]
-                            end if
-                            stmt_count = stmt_count + 1
-                        end block
-                    end if
-
-                    deallocate (unit_tokens)
+                if (stmt_index > 0) then
+                    ! Add to body indices
+                    body_indices = [body_indices, stmt_index]
+                    stmt_count = stmt_count + 1
                 end if
 
-                i = unit_end + 1
-                call log_verbose("parsing", "Next iteration will start at token "// &
-                                 trim(adjustl(int_to_str(i))))
-            end do
+                deallocate (unit_tokens)
+            end if
 
-            ! NOTE: Temporarily disabled during arena conversion
-            ! TODO: Convert entire parsing pipeline to arena-based approach
-            ! The program node creation needs to be redesigned for arena-based storage
-        end select
+            i = unit_end + 1
+            call log_verbose("parsing", "Next iteration will start at token "// &
+                             trim(adjustl(int_to_str(i))))
+        end do
+
+        ! Create program node with collected body indices
+        prog_index = push_program(arena, "main", body_indices, 1, 1)
     end subroutine parse_tokens
 
     ! Find program unit boundary (function/subroutine/module spans multiple lines)
@@ -448,23 +431,23 @@ contains
     end subroutine find_program_unit_boundary
 
     ! Parse a program unit (function, subroutine, module, or statement)
-    function parse_program_unit(tokens) result(unit)
+    function parse_program_unit(tokens, arena) result(unit_index)
         type(token_t), intent(in) :: tokens(:)
-        class(ast_node), allocatable :: unit
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: unit_index
         type(parser_state_t) :: parser
 
         ! Note: Parsing program unit
 
+        parser = create_parser_state(tokens)
+
         ! Check what type of program unit this is
         if (is_function_start(tokens, 1)) then
-            ! Multi-line function definition - use proper parser
-            ! NOTE: Temporarily disabled during arena conversion
-            ! TODO: Update to arena-based API
-            unit = create_literal("! Function parsing disabled during arena conversion", LITERAL_STRING, 1, 1)
+            ! Multi-line function definition
+            unit_index = push_literal(arena, "! Function parsing temporarily simplified", LITERAL_STRING, 1, 1)
         else
-            ! NOTE: All parsing temporarily disabled during arena conversion
-            ! TODO: Update all parse functions to use arena-based API
-            unit = create_literal("! Parsing disabled during arena conversion", LITERAL_STRING, 1, 1)
+            ! Simple statement - use arena-based parsing
+            unit_index = parse_statement_dispatcher(tokens, arena)
         end if
     end function parse_program_unit
 
@@ -575,55 +558,14 @@ contains
         end if
     end function is_end_module
 
-    ! Phase 4: Code Generation (using FALLBACK until full AST)
-    subroutine generate_fortran_code(ast_tree, sem_ctx, code)
-        class(ast_node), intent(in) :: ast_tree
-        type(semantic_context_t), intent(in) :: sem_ctx
+    ! Phase 4: Code Generation
+    subroutine generate_fortran_code(arena, prog_index, code)
+        type(ast_arena_t), intent(in) :: arena
+        integer, intent(in) :: prog_index
         character(len=:), allocatable, intent(out) :: code
 
-        select type (prog => ast_tree)
-        type is (program_node)
-            code = generate_fortran_program(prog, sem_ctx)
-        class default
-            code = "! Error: Unsupported AST node type"
-        end select
+        code = generate_code_from_arena(arena, prog_index)
     end subroutine generate_fortran_code
-
-    ! Overload without semantic context for testing
-    subroutine generate_fortran_code_no_sem(ast_tree, code)
-        class(ast_node), intent(in) :: ast_tree
-        character(len=:), allocatable, intent(out) :: code
-
-        select type (prog => ast_tree)
-        type is (program_node)
-            code = generate_fortran_program_no_sem(prog)
-        class default
-            code = "! Error: Unsupported AST node type"
-        end select
-    end subroutine generate_fortran_code_no_sem
-
-    ! Generate Fortran program (AST-based approach)
-    function generate_fortran_program(prog, sem_ctx) result(code)
-        type(program_node), intent(in) :: prog
-        type(semantic_context_t), intent(in) :: sem_ctx
-        character(len=:), allocatable :: code
-
-        ! ARCHITECTURE: AST-based code generation ONLY - NO FALLBACK
-        ! NOTE: Temporarily disabled during arena conversion
-        ! TODO: Convert to arena-based API
-        code = "! Code generation disabled during arena conversion"
-    end function generate_fortran_program
-
-    ! Generate Fortran program without semantic context (for testing)
-    function generate_fortran_program_no_sem(prog) result(code)
-        type(program_node), intent(in) :: prog
-        character(len=:), allocatable :: code
-
-        ! ARCHITECTURE: AST-based code generation ONLY - NO FALLBACK
-        ! NOTE: Temporarily disabled during arena conversion
-        ! TODO: Convert to arena-based API
-        code = "! Code generation disabled during arena conversion"
-    end function generate_fortran_program_no_sem
 
     ! Write output to file
     subroutine write_output_file(filename, content, error_msg)

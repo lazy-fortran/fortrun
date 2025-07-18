@@ -1,5 +1,6 @@
 program test_minimal_ast_inferred_type
     use ast_core
+    use ast_factory, only: push_identifier, push_literal, push_assignment
     use type_system_hm
     use iso_fortran_env, only: error_unit
     implicit none
@@ -81,46 +82,49 @@ contains
     end subroutine test_create_literal_with_inferred_type
 
     subroutine test_assignment_with_inferred_type()
-        type(assignment_node) :: assign
-        type(identifier_node) :: target
-        type(literal_node) :: value
+        type(ast_arena_t) :: arena
+        integer :: target_idx, value_idx, assign_idx
+        type(assignment_node), pointer :: assign
         type(mono_type_t) :: real_type
 
         test_count = test_count + 1
 
-        ! Create target identifier
-        target%name = "y"
-        target%line = 1
-        target%column = 1
+        ! Create arena for AST storage
+        arena = create_ast_stack()
 
-        ! Create value literal
-        value%value = "2.71"
-        value%literal_kind = LITERAL_REAL
-        value%line = 1
-        value%column = 5
+        ! Create target identifier using arena
+        target_idx = push_identifier(arena, "y", 1, 1)
 
-        ! Create assignment
-        assign%line = 1
-        assign%column = 1
-        allocate (assign%target, source=target)
-        allocate (assign%value, source=value)
+        ! Create value literal using arena
+        value_idx = push_literal(arena, "2.71", LITERAL_REAL, 1, 5)
 
-        ! Create and assign inferred type to assignment
-        real_type = create_mono_type(TREAL)
-        allocate (assign%inferred_type)
-        assign%inferred_type = real_type
+        ! Create assignment using arena
+        assign_idx = push_assignment(arena, target_idx, value_idx, 1, 1)
 
-        ! Check if inferred type is properly set
-        if (allocated(assign%inferred_type)) then
-            if (assign%inferred_type%kind == TREAL) then
-                pass_count = pass_count + 1
-                write (*, '(A)') "PASS: Assignment with inferred type"
+        ! Get reference to assignment node
+        select type (node => arena%entries(assign_idx)%node)
+        type is (assignment_node)
+            assign => node
+
+            ! Create and assign inferred type to assignment
+            real_type = create_mono_type(TREAL)
+            allocate (assign%inferred_type)
+            assign%inferred_type = real_type
+
+            ! Check if inferred type is properly set
+            if (allocated(assign%inferred_type)) then
+                if (assign%inferred_type%kind == TREAL) then
+                    pass_count = pass_count + 1
+                    write (*, '(A)') "PASS: Assignment with inferred type"
+                else
+                    write (*, '(A)') "FAIL: Assignment inferred type wrong kind"
+                end if
             else
-                write (*, '(A)') "FAIL: Assignment inferred type wrong kind"
+                write (*, '(A)') "FAIL: Assignment inferred type not allocated"
             end if
-        else
-            write (*, '(A)') "FAIL: Assignment inferred type not allocated"
-        end if
+        class default
+            write (*, '(A)') "FAIL: Could not get assignment node from arena"
+        end select
     end subroutine test_assignment_with_inferred_type
 
 end program test_minimal_ast_inferred_type

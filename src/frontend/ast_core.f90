@@ -41,13 +41,15 @@ module ast_core
         integer :: child_count = 0              ! Number of children
     end type ast_entry_t
 
-    ! Stack-based AST storage system
+    ! High-performance arena-based AST storage system
     type, public :: ast_arena_t
         type(ast_entry_t), allocatable :: entries(:)  ! Contiguous array of entries
         integer :: size = 0                           ! Current number of entries
         integer :: capacity = 0                       ! Array capacity
         integer :: current_index = 0                  ! Current position in arena
         integer :: max_depth = 0                      ! Maximum depth reached
+        integer :: chunk_size = 1024                  ! Default chunk size for growth
+        integer :: initial_capacity = 256             ! Starting capacity
     contains
         procedure :: push => ast_arena_push
         procedure :: pop => ast_arena_pop
@@ -60,6 +62,7 @@ module ast_core
         procedure :: get_stats => ast_arena_get_stats
         procedure :: clear => ast_arena_clear
         procedure :: add_child => ast_arena_add_child
+        procedure :: shrink_arena
     end type ast_arena_t
 
     ! Statistics for performance monitoring
@@ -318,20 +321,26 @@ module ast_core
 
 contains
 
-    ! Create a new AST stack
-    function create_ast_stack(initial_capacity) result(stack)
+    ! Create a new high-performance AST arena
+    function create_ast_stack(initial_capacity) result(arena)
         integer, intent(in), optional :: initial_capacity
-        type(ast_arena_t) :: stack
+        type(ast_arena_t) :: arena
         integer :: cap
 
-        cap = 100  ! Default capacity
-        if (present(initial_capacity)) cap = initial_capacity
+        ! Use chunk-aligned initial capacity for optimal performance
+        if (present(initial_capacity)) then
+            cap = max(initial_capacity, arena%initial_capacity)
+        else
+            cap = arena%initial_capacity
+        end if
 
-        stack%capacity = cap
-        allocate (stack%entries(cap))
-        stack%size = 0
-        stack%current_index = 0
-        stack%max_depth = 0
+        arena%capacity = cap
+        arena%chunk_size = 1024  ! High-performance chunk size
+        arena%initial_capacity = 256
+        allocate (arena%entries(cap))
+        arena%size = 0
+        arena%current_index = 0
+        arena%max_depth = 0
     end function create_ast_stack
 
     ! Push a new AST node onto the stack
@@ -343,10 +352,14 @@ contains
         type(ast_entry_t), allocatable :: temp_entries(:)
         integer :: new_capacity, parent_depth, parent_idx
 
-        ! Grow array if needed (following CLAUDE.md safe array extension)
+        ! Grow array using buffered chunk allocation for high performance
         if (this%size >= this%capacity) then
-            new_capacity = this%capacity*2
-            if (new_capacity == 0) new_capacity = 100
+            if (this%capacity == 0) then
+                new_capacity = this%initial_capacity
+            else
+                ! Grow by chunk_size to minimize allocations
+                new_capacity = this%capacity + this%chunk_size
+            end if
             allocate (temp_entries(new_capacity))
             if (this%size > 0) then
                 temp_entries(1:this%size) = this%entries(1:this%size)
@@ -425,19 +438,33 @@ contains
         this%entries(parent_index)%child_indices(this%entries(parent_index)%child_count) = child_index
     end subroutine ast_arena_add_child
 
-    ! Pop the current node from the stack
+    ! Pop the current node from arena (with memory cleanup)
     subroutine ast_arena_pop(this)
         class(ast_arena_t), intent(inout) :: this
 
         if (this%size > 0) then
+            ! Clean up the node allocation (ordered release)
+            if (allocated(this%entries(this%size)%node)) then
+                deallocate (this%entries(this%size)%node)
+            end if
+            if (allocated(this%entries(this%size)%child_indices)) then
+                deallocate (this%entries(this%size)%child_indices)
+            end if
+
             this%size = this%size - 1
             if (this%size > 0) then
                 this%current_index = this%size
             else
                 this%current_index = 0
             end if
+
+            ! Shrink arena if using less than 25% of capacity and over chunk size
+            if (this%capacity > this%chunk_size .and. &
+                this%size < this%capacity/4) then
+                call this%shrink_arena()
+            end if
         else
-            error stop "Cannot pop from empty AST stack"
+            error stop "Cannot pop from empty AST arena"
         end if
     end subroutine ast_arena_pop
 
@@ -571,11 +598,28 @@ contains
     ! Clear the stack
     subroutine ast_arena_clear(this)
         class(ast_arena_t), intent(inout) :: this
+        integer :: i
+
+        ! Clean up all node allocations in reverse order (ordered release)
+        do i = this%size, 1, -1
+            if (allocated(this%entries(i)%node)) then
+                deallocate (this%entries(i)%node)
+            end if
+            if (allocated(this%entries(i)%child_indices)) then
+                deallocate (this%entries(i)%child_indices)
+            end if
+        end do
 
         this%size = 0
         this%current_index = 0
         this%max_depth = 0
-        ! Keep capacity and array allocated for reuse
+
+        ! Reset to initial capacity to prevent memory leaks
+        if (allocated(this%entries)) then
+            deallocate (this%entries)
+            allocate (this%entries(this%initial_capacity))
+            this%capacity = this%initial_capacity
+        end if
     end subroutine ast_arena_clear
 
     ! Factory functions for creating AST nodes (KEEP ALL ORIGINAL SIGNATURES)
@@ -1718,5 +1762,27 @@ function create_function_def(name, params, return_type, body, line, column) resu
 
         call json%add(parent, obj)
     end subroutine module_to_json
+
+    ! High-performance arena memory management operations
+
+    ! Shrink arena to optimal size (chunk-based memory management)
+    subroutine shrink_arena(this)
+        class(ast_arena_t), intent(inout) :: this
+        type(ast_entry_t), allocatable :: temp_entries(:)
+        integer :: new_capacity
+
+        ! Calculate optimal new capacity (multiple of chunk_size)
+        new_capacity = max(this%initial_capacity, &
+                           ((this%size/this%chunk_size) + 1)*this%chunk_size)
+
+        if (new_capacity < this%capacity) then
+            allocate (temp_entries(new_capacity))
+            if (this%size > 0) then
+                temp_entries(1:this%size) = this%entries(1:this%size)
+            end if
+            this%entries = temp_entries
+            this%capacity = new_capacity
+        end if
+    end subroutine shrink_arena
 
 end module ast_core
