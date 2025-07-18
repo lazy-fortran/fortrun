@@ -115,7 +115,8 @@ contains
             integer :: j
             do j = 1, this%env%count
                 if (this%env%names(j) == name) then
-                    ! Use assignment operator for deep copy
+                    ! Allocate and use assignment operator for deep copy
+                    allocate (scheme)
                     scheme = this%env%schemes(j)
                     return
                 end if

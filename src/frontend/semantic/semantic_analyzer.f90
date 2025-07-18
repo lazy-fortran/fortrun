@@ -710,6 +710,10 @@ contains
             ! Two arguments - for now simplified as real -> real
             typ = create_fun_type(real_type, real_type)
 
+            ! Precision inquiry function (real -> integer)
+        case ("precision")
+            typ = create_fun_type(real_type, int_type)
+
         case default
             ! Return empty type to indicate not found
             typ%kind = 0
@@ -1143,17 +1147,17 @@ contains
     function semantic_context_deep_copy(this) result(copy)
         class(semantic_context_t), intent(in) :: this
         type(semantic_context_t) :: copy
-        
+
         copy%env = this%env              ! Uses type_env_t assignment (deep copy)
         copy%scopes = this%scopes        ! Uses scope_stack_t assignment (deep copy)
         copy%next_var_id = this%next_var_id
         copy%subst = this%subst          ! Uses substitution_t assignment (deep copy)
     end function semantic_context_deep_copy
-    
+
     subroutine semantic_context_assign(lhs, rhs)
         class(semantic_context_t), intent(out) :: lhs
         type(semantic_context_t), intent(in) :: rhs
-        
+
         lhs%env = rhs%env                ! Uses type_env_t assignment (deep copy)
         lhs%scopes = rhs%scopes          ! Uses scope_stack_t assignment (deep copy)
         lhs%next_var_id = rhs%next_var_id

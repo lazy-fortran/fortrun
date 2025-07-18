@@ -34,8 +34,8 @@ contains
             code = generate_code_binary_op(arena, node, node_index)
         type is (program_node)
             code = generate_code_program(arena, node, node_index)
-        type is (function_call_node)
-            code = generate_code_function_call(arena, node, node_index)
+        type is (call_or_subscript_node)
+            code = generate_code_call_or_subscript(arena, node, node_index)
         type is (function_def_node)
             code = generate_code_function_def(arena, node, node_index)
         type is (subroutine_def_node)
@@ -219,10 +219,10 @@ contains
         code = code//"end program "//node%name
     end function generate_code_program
 
-    ! Generate code for function call node
-    function generate_code_function_call(arena, node, node_index) result(code)
+    ! Generate code for call_or_subscript node (handles both function calls and array indexing)
+    function generate_code_call_or_subscript(arena, node, node_index) result(code)
         type(ast_arena_t), intent(in) :: arena
-        type(function_call_node), intent(in) :: node
+        type(call_or_subscript_node), intent(in) :: node
         integer, intent(in) :: node_index
         character(len=:), allocatable :: code
         character(len=:), allocatable :: args_code
@@ -235,17 +235,15 @@ contains
                 if (len(args_code) > 0) then
                     args_code = args_code//", "
                 end if
-               if (node%arg_indices(i) > 0 .and. node%arg_indices(i) <= arena%size) then
+                if (node%arg_indices(i) > 0) then
              args_code = args_code//generate_code_from_arena(arena, node%arg_indices(i))
-                else
-                    args_code = args_code//"???"
                 end if
             end do
         end if
 
         ! Combine function name and arguments
         code = node%name//"("//args_code//")"
-    end function generate_code_function_call
+    end function generate_code_call_or_subscript
 
     ! Polymorphic code generation interface
     function generate_code_polymorphic(arena, node_index) result(code)
