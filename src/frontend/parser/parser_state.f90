@@ -13,6 +13,9 @@ module parser_state_module
         procedure :: consume => parser_consume
         procedure :: is_at_end => parser_is_at_end
         procedure :: match => parser_match
+        procedure :: deep_copy => parser_state_deep_copy
+        procedure :: assign => parser_state_assign
+        generic :: assignment(=) => assign
     end type parser_state_t
 
     ! Public constructor
@@ -80,5 +83,29 @@ contains
             parser_match = .false.
         end if
     end function parser_match
+
+    ! Deep copy parser state
+    function parser_state_deep_copy(this) result(copy)
+        class(parser_state_t), intent(in) :: this
+        type(parser_state_t) :: copy
+
+        copy%current_token = this%current_token
+        if (allocated(this%tokens)) then
+            allocate (copy%tokens(size(this%tokens)))
+            copy%tokens = this%tokens  ! token_t should have proper assignment
+        end if
+    end function parser_state_deep_copy
+
+    ! Assignment operator for parser_state_t (deep copy)
+    subroutine parser_state_assign(lhs, rhs)
+        class(parser_state_t), intent(out) :: lhs
+        type(parser_state_t), intent(in) :: rhs
+
+        lhs%current_token = rhs%current_token
+        if (allocated(rhs%tokens)) then
+            allocate (lhs%tokens(size(rhs%tokens)))
+            lhs%tokens = rhs%tokens  ! token_t should have proper assignment
+        end if
+    end subroutine parser_state_assign
 
 end module parser_state_module

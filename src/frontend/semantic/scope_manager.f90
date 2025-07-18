@@ -24,6 +24,9 @@ module scope_manager
     contains
         procedure :: lookup => scope_lookup
         procedure :: define => scope_define
+        procedure :: deep_copy => scope_deep_copy
+        procedure :: assign => scope_assign
+        generic :: assignment(=) => assign
         ! Remove lookup_recursive - stack handles traversal
     end type scope_t
 
@@ -45,6 +48,9 @@ module scope_manager
         procedure :: enter_interface => stack_enter_interface
         procedure :: leave_scope => stack_leave_scope
         procedure :: get_current_scope_type => stack_get_current_scope_type
+        procedure :: deep_copy => scope_stack_deep_copy
+        procedure :: assign => scope_stack_assign
+        generic :: assignment(=) => assign
         ! Remove finalize - automatic cleanup with allocatable
     end type scope_stack_t
 
@@ -358,6 +364,64 @@ contains
         end if
 
     end function stack_get_current_scope_type
+
+    ! Deep copy a scope
+    function scope_deep_copy(this) result(copy)
+        class(scope_t), intent(in) :: this
+        type(scope_t) :: copy
+
+        copy%scope_type = this%scope_type
+        if (allocated(this%name)) then
+            copy%name = this%name
+        end if
+        copy%env = this%env  ! Uses type_env_t assignment (deep copy)
+    end function scope_deep_copy
+
+    ! Assignment operator for scope_t (deep copy)
+    subroutine scope_assign(lhs, rhs)
+        class(scope_t), intent(out) :: lhs
+        type(scope_t), intent(in) :: rhs
+
+        lhs%scope_type = rhs%scope_type
+        if (allocated(rhs%name)) then
+            lhs%name = rhs%name
+        end if
+        lhs%env = rhs%env  ! Uses type_env_t assignment (deep copy)
+    end subroutine scope_assign
+
+    ! Deep copy a scope stack
+    function scope_stack_deep_copy(this) result(copy)
+        class(scope_stack_t), intent(in) :: this
+        type(scope_stack_t) :: copy
+        integer :: i
+
+        copy%depth = this%depth
+        copy%capacity = this%capacity
+
+        if (allocated(this%scopes)) then
+            allocate (copy%scopes(size(this%scopes)))
+            do i = 1, size(this%scopes)
+                copy%scopes(i) = this%scopes(i)  ! Uses scope_t assignment (deep copy)
+            end do
+        end if
+    end function scope_stack_deep_copy
+
+    ! Assignment operator for scope_stack_t (deep copy)
+    subroutine scope_stack_assign(lhs, rhs)
+        class(scope_stack_t), intent(out) :: lhs
+        type(scope_stack_t), intent(in) :: rhs
+        integer :: i
+
+        lhs%depth = rhs%depth
+        lhs%capacity = rhs%capacity
+
+        if (allocated(rhs%scopes)) then
+            allocate (lhs%scopes(size(rhs%scopes)))
+            do i = 1, size(rhs%scopes)
+                lhs%scopes(i) = rhs%scopes(i)  ! Uses scope_t assignment (deep copy)
+            end do
+        end if
+    end subroutine scope_stack_assign
 
     ! Finalization removed - automatic cleanup with allocatable arrays
 
