@@ -55,6 +55,66 @@ Successfully completed the transition from unsafe wrapper-based AST to a safe, e
 
 **Next Phase**: Update test suite and implement arena-based frontend pipeline.
 
+## Post-Arena Conversion Tasks
+
+### High Priority Arena Integration Tasks
+Based on code analysis, the following specific tasks need completion:
+
+#### 1. Frontend Pipeline Integration
+- **frontend.f90**: Complete arena-based parsing pipeline implementation
+  - Convert `parse_tokens` to use arena-based parsing (line 322)
+  - Update `parse_program_unit` for arena-based API (lines 461-466)
+  - Fix `generate_fortran_program*` functions for arena-based codegen (lines 612, 623)
+
+#### 2. Semantic Analyzer Restoration  
+- **semantic_analyzer.f90**: Re-enable temporarily disabled analysis functions
+  - Restore `infer_and_store_type` with arena indexing (line 85)
+  - Re-enable node-specific inference functions (lines 806-988)
+  - Convert all node access patterns to use arena + indices
+
+#### 3. JSON Module Arena Integration
+- **json_reader.f90**: Complete arena-based JSON deserialization
+  - Convert assignment node creation to use indices (line 271)
+  - Convert binary op node creation to use indices (line 323)
+  - Convert function call node creation to use indices (line 476)
+  - Update program node creation for arena indexing (line 226)
+
+#### 4. Lazy Fortran Dialect Completion
+- **ast_lf.f90**: Implement arena-based lazy fortran support
+  - Convert `create_lf_program` to arena-based storage (line 66)
+  - Update JSON serialization for arena-based AST (line 178)
+
+#### 5. Parser Core Cleanup
+- **parser_core.f90**: Complete arena integration
+  - Restore `parse_statement` with arena API (line 39)
+  - Re-enable `parse_elseif_block` functions (lines 853, 863)
+
+### Medium Priority Tasks
+
+#### 6. AST Visitor Pattern
+- **ast_visitor.f90**: Implement missing visitor patterns for arena-based AST
+  - do_loop, do_while visitor patterns (lines 101, 107)
+  - select_case, derived_type visitor patterns (lines 119, 125)
+  - interface_block, module visitor patterns (lines 131, 137)
+
+#### 7. Parser Module Completions
+- **parser_declarations.f90**: Complete type component parsing (line 353)
+- **parser_statements.f90**: Implement interface body and module body parsing (lines 784, 841, 867)
+
+#### 8. Test Suite Update
+- Convert all test files to use arena-based AST API
+- Update tests that access old AST node fields (target/value → target_index/value_index)
+
+### Low Priority Tasks
+
+#### 9. Fallback Module Cleanup
+- Remove fallback modules when full arena-based AST is complete:
+  - **declaration_generator.f90**: Remove when type inference is restored (line 3)
+  - **token_fallback.f90**: Remove when full AST support is complete (line 3)
+
+#### 10. Type System Improvements
+- **type_system_hm.f90**: Fix remaining TVAR handling issues (lines 429, 441)
+
 ## Safe Fortran Practices - CRITICAL REQUIREMENT
 
 ### Overview
