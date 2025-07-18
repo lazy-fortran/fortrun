@@ -28,12 +28,24 @@ contains
         ! Load JSON file
         call json%load(filename=filename)
 
-        ! Check for JSON parsing errors
-        call json%check_for_errors(status_ok, error_msg)
-        if (.not. status_ok) then
-            ! Invalid JSON - fail with appropriate error
-            error stop "Invalid JSON format: "//error_msg
-        end if
+        ! Check for JSON parsing errors - safely handle potential issues
+        block
+            logical :: json_valid
+            json_valid = .true.
+
+            ! Try to get the root - if this fails, JSON is invalid
+            block
+                type(json_value), pointer :: root_test
+                call json%get(root_test)
+                if (.not. associated(root_test)) then
+                    json_valid = .false.
+                end if
+            end block
+
+            if (.not. json_valid) then
+                error stop "Invalid JSON format: could not parse JSON file"
+            end if
+        end block
 
         ! Convert JSON to tokens
         tokens = json_to_tokens(json)
