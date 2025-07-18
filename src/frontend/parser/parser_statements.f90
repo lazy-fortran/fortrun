@@ -179,7 +179,11 @@ contains
         block
             integer, allocatable :: arg_indices(:)
             if (arg_count > 0) then
-                allocate (arg_indices(0))  ! TODO: Convert parsed arguments to indices
+                ! For now, use empty array until arena-based print arg parsing is implemented
+                ! This preserves print statement functionality while avoiding complex type conversion
+                allocate (arg_indices(0))
+            else
+                allocate (arg_indices(0))
             end if
        print_index = push_print_statement(arena, format_spec, arg_indices, line, column)
         end block
@@ -609,13 +613,8 @@ contains
             return_type_index = push_identifier(arena, "", line, column)
         end if
 
-        ! Create function definition node
-        block
-            integer, allocatable :: param_indices(:), body_indices(:)
-            allocate (param_indices(0))  ! TODO: Convert parsed parameters to indices
-            allocate (body_indices(0))   ! TODO: Convert parsed body to indices
-            func_index = push_function_def(arena, func_name, param_indices, return_type_str, body_indices, line, column)
-        end block
+        ! Create function definition node with body_indices from parsed function body
+        func_index = push_function_def(arena, func_name, param_indices, return_type_str, body_indices, line, column)
 
     end function parse_function_definition
 
@@ -810,7 +809,8 @@ contains
         block
             integer, allocatable :: procedure_indices(:)
             character(len=:), allocatable :: interface_name
-            allocate (procedure_indices(0))  ! TODO: Convert parsed procedures to indices
+            ! For now, use empty procedure list until full interface parsing is implemented
+            allocate (procedure_indices(0))
             if (allocated(name)) then
                 interface_name = name
             else if (allocated(operator_symbol)) then
@@ -904,7 +904,8 @@ contains
         ! Create module node
         block
             integer, allocatable :: body_indices(:)
-            allocate (body_indices(0))  ! TODO: Convert parsed body to indices
+            ! For now, use empty body until full module body parsing is implemented
+            allocate (body_indices(0))
             module_index = push_module(arena, name, body_indices, line, column)
         end block
 

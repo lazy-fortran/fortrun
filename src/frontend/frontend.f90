@@ -445,7 +445,11 @@ prog_index = push_literal(arena, "! JSON loading not implemented", LITERAL_STRIN
         ! Check what type of program unit this is
         if (is_function_start(tokens, 1)) then
             ! Multi-line function definition
-            unit_index = push_literal(arena, "! Function parsing temporarily simplified", LITERAL_STRING, 1, 1)
+            block
+                type(parser_state_t) :: parser
+                parser = create_parser_state(tokens)
+                unit_index = parse_function_definition(parser, arena)
+            end block
         else
             ! Simple statement - use arena-based parsing
             unit_index = parse_statement_dispatcher(tokens, arena)
