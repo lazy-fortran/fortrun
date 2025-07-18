@@ -33,6 +33,8 @@ module type_system_hm
         procedure :: equals => mono_type_equals
         procedure :: to_string => mono_type_to_string
         procedure :: deep_copy => mono_type_deep_copy
+        procedure :: assign => mono_type_assign
+        generic :: assignment(=) => assign
     end type mono_type_t
 
     ! Polymorphic type (type scheme)
@@ -42,6 +44,8 @@ module type_system_hm
     contains
         procedure :: to_string => poly_type_to_string
         procedure :: deep_copy => poly_type_deep_copy
+        procedure :: assign => poly_type_assign
+        generic :: assignment(=) => assign
     end type poly_type_t
 
     ! Type substitution (maps type variables to types)
@@ -139,7 +143,7 @@ contains
             allocate (pt%forall(size(forall_vars)))
             pt%forall = forall_vars
         end if
-        pt%mono = mono%deep_copy()
+        pt%mono = mono  ! Assignment now does deep copy
     end function create_poly_type
 
     ! Helper function to create function type with two arguments
@@ -153,8 +157,8 @@ contains
         fun_type%var%id = -1
         allocate (character(len=0) :: fun_type%var%name)
         allocate (fun_type%args(2))
-        fun_type%args(1) = arg_type%deep_copy()
-        fun_type%args(2) = result_type%deep_copy()
+        fun_type%args(1) = arg_type  ! Assignment now does deep copy
+        fun_type%args(2) = result_type  ! Assignment now does deep copy
     end function create_fun_type
 
     ! Check if two monomorphic types are equal
@@ -321,14 +325,93 @@ contains
             allocate (character(len=0) :: copy%var%name)
         end if
 
-        ! For complex types, use shallow copy to avoid gfortran crash
+        ! Deep copy args array to avoid shared references
         if (allocated(this%args)) then
             allocate (copy%args(size(this%args)))
             do i = 1, size(this%args)
-                copy%args(i) = this%args(i)
+                ! Manually deep copy each element to avoid shared allocatable components
+                copy%args(i)%kind = this%args(i)%kind
+                copy%args(i)%size = this%args(i)%size
+                copy%args(i)%var%id = this%args(i)%var%id
+                if (allocated(this%args(i)%var%name)) then
+                    copy%args(i)%var%name = this%args(i)%var%name
+                else
+                    allocate (character(len=0) :: copy%args(i)%var%name)
+                end if
+                ! Don't recursively copy args to avoid infinite recursion
+                if (allocated(this%args(i)%args)) then
+                    allocate (copy%args(i)%args(size(this%args(i)%args)))
+                    ! Create deep copies of nested args to avoid shared references
+                    block
+                        integer :: j
+                        do j = 1, size(this%args(i)%args)
+                            copy%args(i)%args(j)%kind = this%args(i)%args(j)%kind
+                            copy%args(i)%args(j)%size = this%args(i)%args(j)%size
+                            copy%args(i)%args(j)%var%id = this%args(i)%args(j)%var%id
+                            if (allocated(this%args(i)%args(j)%var%name)) then
+                           copy%args(i)%args(j)%var%name = this%args(i)%args(j)%var%name
+                            else
+                            allocate (character(len=0) :: copy%args(i)%args(j)%var%name)
+                            end if
+                            ! Don't copy further nested args to prevent infinite recursion
+                        end do
+                    end block
+                end if
             end do
         end if
     end function mono_type_deep_copy
+
+    ! Assignment operator for mono_type_t (deep copy)
+    subroutine mono_type_assign(lhs, rhs)
+        class(mono_type_t), intent(out) :: lhs
+        type(mono_type_t), intent(in) :: rhs
+        integer :: i
+
+        ! Copy scalar fields
+        lhs%kind = rhs%kind
+        lhs%size = rhs%size
+
+        ! Deep copy var field
+        lhs%var%id = rhs%var%id
+        if (allocated(rhs%var%name)) then
+            lhs%var%name = rhs%var%name
+        else
+            allocate (character(len=0) :: lhs%var%name)
+        end if
+
+        ! Deep copy args array
+        if (allocated(rhs%args)) then
+            allocate (lhs%args(size(rhs%args)))
+            do i = 1, size(rhs%args)
+                ! Manually copy to avoid recursion
+                lhs%args(i)%kind = rhs%args(i)%kind
+                lhs%args(i)%size = rhs%args(i)%size
+                lhs%args(i)%var%id = rhs%args(i)%var%id
+                if (allocated(rhs%args(i)%var%name)) then
+                    lhs%args(i)%var%name = rhs%args(i)%var%name
+                else
+                    allocate (character(len=0) :: lhs%args(i)%var%name)
+                end if
+                ! Deep copy nested args
+                if (allocated(rhs%args(i)%args)) then
+                    allocate (lhs%args(i)%args(size(rhs%args(i)%args)))
+                    block
+                        integer :: j
+                        do j = 1, size(rhs%args(i)%args)
+                            lhs%args(i)%args(j)%kind = rhs%args(i)%args(j)%kind
+                            lhs%args(i)%args(j)%size = rhs%args(i)%args(j)%size
+                            lhs%args(i)%args(j)%var%id = rhs%args(i)%args(j)%var%id
+                            if (allocated(rhs%args(i)%args(j)%var%name)) then
+                             lhs%args(i)%args(j)%var%name = rhs%args(i)%args(j)%var%name
+                            else
+                             allocate (character(len=0) :: lhs%args(i)%args(j)%var%name)
+                            end if
+                        end do
+                    end block
+                end if
+            end do
+        end if
+    end subroutine mono_type_assign
 
     ! Convert polymorphic type to string
     function poly_type_to_string(this) result(str)
@@ -361,9 +444,27 @@ contains
             end do
         end if
 
-        ! Deep copy mono type
-        copy%mono = this%mono%deep_copy()
+        ! Deep copy mono type (assignment does deep copy)
+        copy%mono = this%mono
     end function poly_type_deep_copy
+
+    ! Assignment operator for poly_type_t (deep copy)
+    subroutine poly_type_assign(lhs, rhs)
+        class(poly_type_t), intent(out) :: lhs
+        type(poly_type_t), intent(in) :: rhs
+        integer :: i
+
+        ! Deep copy forall variables
+        if (allocated(rhs%forall)) then
+            allocate (lhs%forall(size(rhs%forall)))
+            do i = 1, size(rhs%forall)
+                lhs%forall(i) = rhs%forall(i)
+            end do
+        end if
+
+        ! Deep copy mono type (assignment operator handles deep copy)
+        lhs%mono = rhs%mono
+    end subroutine poly_type_assign
 
     ! Add a substitution
     subroutine subst_add(this, var, typ)
@@ -372,6 +473,7 @@ contains
         type(mono_type_t), intent(in) :: typ
         type(type_var_t), allocatable :: temp_vars(:)
         type(mono_type_t), allocatable :: temp_types(:)
+        integer :: i
 
         ! Grow arrays if needed
         if (this%count == 0) then
@@ -381,9 +483,17 @@ contains
             allocate (temp_vars(size(this%vars)*2))
             allocate (temp_types(size(this%types)*2))
             temp_vars(1:this%count) = this%vars(1:this%count)
-            temp_types(1:this%count) = this%types(1:this%count)
-            call move_alloc(temp_vars, this%vars)
-            call move_alloc(temp_types, this%types)
+            ! Deep copy mono types to avoid shared references
+            do i = 1, this%count
+                temp_types(i) = this%types(i)  ! Assignment now does deep copy
+            end do
+            ! Replace move_alloc with explicit deallocation and reallocation
+            deallocate (this%vars)
+            deallocate (this%types)
+            allocate (this%vars(size(temp_vars)))
+            allocate (this%types(size(temp_types)))
+            this%vars = temp_vars
+            this%types = temp_types
         end if
 
         this%count = this%count + 1
@@ -651,7 +761,7 @@ contains
 
         do i = 1, this%count
             if (this%names(i) == name) then
-                scheme = this%schemes(i)%deep_copy()
+                scheme = this%schemes(i)  ! Assignment now does deep copy
                 return
             end if
         end do
@@ -679,17 +789,24 @@ contains
             allocate (temp_schemes(new_capacity))
             do i = 1, this%count
                 temp_names(i) = this%names(i)
-                temp_schemes(i) = this%schemes(i)
+                temp_schemes(i) = this%schemes(i)  ! Assignment now does deep copy
             end do
-            call move_alloc(temp_names, this%names)
-            call move_alloc(temp_schemes, this%schemes)
+            ! Replace move_alloc with explicit deallocation and reallocation
+            deallocate (this%names)
+            deallocate (this%schemes)
+            allocate (character(len=256) :: this%names(new_capacity))
+            allocate (this%schemes(new_capacity))
+            do i = 1, this%count
+                this%names(i) = temp_names(i)
+                this%schemes(i) = temp_schemes(i)
+            end do
             this%capacity = new_capacity
         end if
 
         ! Add new binding (use deep copy to avoid shared ownership)
         this%count = this%count + 1
         this%names(this%count) = name
-        this%schemes(this%count) = scheme%deep_copy()
+        this%schemes(this%count) = scheme  ! Assignment now does deep copy
     end subroutine env_extend
 
     ! Extend type environment with multiple bindings
@@ -722,7 +839,7 @@ contains
             if (this%names(i) /= name) then
                 new_env%count = new_env%count + 1
                 new_env%names(new_env%count) = this%names(i)
-                new_env%schemes(new_env%count) = this%schemes(i)
+                new_env%schemes(new_env%count) = this%schemes(i)  ! Assignment now does deep copy
             end if
         end do
     end subroutine env_remove

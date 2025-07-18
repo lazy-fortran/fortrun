@@ -515,7 +515,10 @@ contains
 
         allocate (temp(size(tokens)*2))
         temp(1:size(tokens)) = tokens
-        call move_alloc(temp, tokens)
+        ! Replace move_alloc with explicit deallocation and reallocation
+        deallocate (tokens)
+        allocate (tokens(size(temp)))
+        tokens = temp
     end subroutine resize_tokens
 
     ! Convert token type to string name

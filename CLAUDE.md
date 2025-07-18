@@ -111,6 +111,7 @@ prefix = "fortplot"
 2. **Use `allocatable`, NEVER `pointer`** - Allocatable provides automatic memory management
 3. **NO shared memory ownership** - Each data structure owns its memory exclusively
 4. **Implement proper deep copy operations** - Avoid shallow copies that cause double-free
+5. **`move-alloc` is forbidden** - Find other safe ways to handle memory allocation
 
 ### Container Patterns (REQUIRED)
 

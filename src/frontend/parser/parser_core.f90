@@ -71,7 +71,10 @@ contains
                     type(ast_node_wrapper), allocatable :: new_dims(:)
                     allocate (new_dims(size(temp_dims)*2))
                     new_dims(1:size(temp_dims)) = temp_dims
-                    call move_alloc(new_dims, temp_dims)
+                    ! Replace move_alloc with explicit deallocation and reallocation
+                    deallocate (temp_dims)
+                    allocate (temp_dims(size(new_dims)))
+                    temp_dims = new_dims
                 end block
             end if
 
@@ -244,7 +247,10 @@ contains
                     type(ast_node_wrapper), allocatable :: new_params(:)
                     allocate (new_params(size(temp_params)*2))
                     new_params(1:size(temp_params)) = temp_params
-                    call move_alloc(new_params, temp_params)
+                    ! Replace move_alloc with explicit deallocation and reallocation
+                    deallocate (temp_params)
+                    allocate (temp_params(size(new_params)))
+                    temp_params = new_params
                 end block
             end if
 

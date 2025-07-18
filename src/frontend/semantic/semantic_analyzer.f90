@@ -138,7 +138,7 @@ contains
 
         inferred = ctx%infer_stmt(arena, node_index)
 
-        ! Store the inferred type in the AST node
+        ! Store the inferred type in the AST node (assignment now does deep copy automatically)
         if (.not. allocated(arena%entries(node_index)%node%inferred_type)) then
             allocate (arena%entries(node_index)%node%inferred_type)
         end if

@@ -143,8 +143,15 @@ contains
                     temp_names(j) = this%env%names(j)
                     temp_schemes(j) = this%env%schemes(j)
                 end do
-                call move_alloc(temp_names, this%env%names)
-                call move_alloc(temp_schemes, this%env%schemes)
+                ! Replace move_alloc with explicit deallocation and reallocation
+                deallocate (this%env%names)
+                deallocate (this%env%schemes)
+                allocate (character(len=256) :: this%env%names(new_capacity))
+                allocate (this%env%schemes(new_capacity))
+                do j = 1, this%env%count
+                    this%env%names(j) = temp_names(j)
+                    this%env%schemes(j) = temp_schemes(j)
+                end do
                 this%env%capacity = new_capacity
             end if
 
@@ -196,8 +203,10 @@ contains
                     end do
                 end block
             end if
-            ! Use move_alloc to safely transfer ownership
-            call move_alloc(temp_scopes, this%scopes)
+            ! Replace move_alloc with explicit deallocation and reallocation
+            deallocate (this%scopes)
+            allocate (this%scopes(new_capacity))
+            this%scopes = temp_scopes
             this%capacity = new_capacity
         end if
 
