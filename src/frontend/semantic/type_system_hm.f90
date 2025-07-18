@@ -640,7 +640,9 @@ contains
         end if
 
         do i = 1, this%count
+            ! print *, "env_lookup: checking names(", i, ") = '", trim(this%names(i)), "'"
             if (this%names(i) == name) then
+                ! print *, "env_lookup: found match, calling deep_copy"
                 scheme = this%schemes(i)%deep_copy()
                 return
             end if

@@ -97,7 +97,27 @@ contains
             return
         end if
 
-        scheme = this%env%lookup(name)
+        ! Additional safety check for uninitialized env
+        if (.not. allocated(this%env%names) .or. .not. allocated(this%env%schemes)) then
+            return
+        end if
+
+        ! Debug info
+        ! print *, "scope_lookup: name='", trim(name), "', count=", this%env%count, &
+        !          ", allocated names=", allocated(this%env%names), &
+        !          ", allocated schemes=", allocated(this%env%schemes)"
+
+        ! Direct implementation to avoid type-bound procedure issues
+        block
+            integer :: j
+            do j = 1, this%env%count
+                if (this%env%names(j) == name) then
+                    ! Deep copy the scheme
+                    scheme = this%env%schemes(j)%deep_copy()
+                    return
+                end if
+            end do
+        end block
 
     end function scope_lookup
 
@@ -107,7 +127,33 @@ contains
         character(len=*), intent(in) :: name
         type(poly_type_t), intent(in) :: scheme
 
-        call this%env%extend(name, scheme)
+        ! Direct implementation to avoid type-bound procedure issues
+        block
+            character(len=:), allocatable :: temp_names(:)
+            type(poly_type_t), allocatable :: temp_schemes(:)
+            integer :: new_capacity
+
+            ! Initialize or grow arrays if needed
+            if (this%env%capacity == 0) then
+                this%env%capacity = 10
+                allocate (character(len=256) :: this%env%names(this%env%capacity))
+                allocate (this%env%schemes(this%env%capacity))
+            else if (this%env%count >= this%env%capacity) then
+                new_capacity = this%env%capacity*2
+                allocate (character(len=256) :: temp_names(new_capacity))
+                allocate (temp_schemes(new_capacity))
+                temp_names(1:this%env%count) = this%env%names(1:this%env%count)
+                temp_schemes(1:this%env%count) = this%env%schemes(1:this%env%count)
+                call move_alloc(temp_names, this%env%names)
+                call move_alloc(temp_schemes, this%env%schemes)
+                this%env%capacity = new_capacity
+            end if
+
+            ! Add new binding
+            this%env%count = this%env%count + 1
+            this%env%names(this%env%count) = name
+            this%env%schemes(this%env%count) = scheme
+        end block
 
     end subroutine scope_define
 
@@ -126,15 +172,51 @@ contains
             if (new_capacity == 0) new_capacity = 10
             allocate (temp_scopes(new_capacity))
             if (this%depth > 0) then
-                temp_scopes(1:this%depth) = this%scopes(1:this%depth)
+                ! Deep copy each scope to preserve type-bound procedures
+                block
+                    integer :: i
+                    do i = 1, this%depth
+                        temp_scopes(i)%scope_type = this%scopes(i)%scope_type
+                        if (allocated(this%scopes(i)%name)) then
+                            temp_scopes(i)%name = this%scopes(i)%name
+                        end if
+                        ! Deep copy env to avoid shallow copy issues
+                        temp_scopes(i)%env%count = this%scopes(i)%env%count
+                        temp_scopes(i)%env%capacity = this%scopes(i)%env%capacity
+                        if (allocated(this%scopes(i)%env%names)) then
+  allocate (character(len=256) :: temp_scopes(i)%env%names(this%scopes(i)%env%capacity))
+                            temp_scopes(i)%env%names(1:this%scopes(i)%env%count) = this%scopes(i)%env%names(1:this%scopes(i)%env%count)
+                        end if
+                        if (allocated(this%scopes(i)%env%schemes)) then
+                      allocate (temp_scopes(i)%env%schemes(this%scopes(i)%env%capacity))
+                            temp_scopes(i)%env%schemes(1:this%scopes(i)%env%count) = this%scopes(i)%env%schemes(1:this%scopes(i)%env%count)
+                        end if
+                    end do
+                end block
             end if
-            this%scopes = temp_scopes
+            ! Use move_alloc to safely transfer ownership
+            call move_alloc(temp_scopes, this%scopes)
             this%capacity = new_capacity
         end if
 
         ! Push new scope onto stack
         this%depth = this%depth + 1
-        this%scopes(this%depth) = new_scope
+        ! Deep copy scope to ensure type-bound procedures are preserved
+        this%scopes(this%depth)%scope_type = new_scope%scope_type
+        if (allocated(new_scope%name)) then
+            this%scopes(this%depth)%name = new_scope%name
+        end if
+        ! Deep copy env to avoid shallow copy issues
+        this%scopes(this%depth)%env%count = new_scope%env%count
+        this%scopes(this%depth)%env%capacity = new_scope%env%capacity
+        if (allocated(new_scope%env%names)) then
+            allocate(character(len=256) :: this%scopes(this%depth)%env%names(new_scope%env%capacity))
+            this%scopes(this%depth)%env%names(1:new_scope%env%count) = new_scope%env%names(1:new_scope%env%count)
+        end if
+        if (allocated(new_scope%env%schemes)) then
+            allocate (this%scopes(this%depth)%env%schemes(new_scope%env%capacity))
+            this%scopes(this%depth)%env%schemes(1:new_scope%env%count) = new_scope%env%schemes(1:new_scope%env%count)
+        end if
 
     end subroutine stack_push_scope
 
@@ -159,7 +241,9 @@ contains
 
         ! Walk down the stack from current scope to global scope
         do i = this%depth, 1, -1
-            scheme = this%scopes(i)%lookup(name)
+  print *, "stack_lookup: checking scope", i, "of", this%depth, "for '", trim(name), "'"
+            ! Use direct scope_lookup to avoid type-bound procedure issues with arrays
+            scheme = scope_lookup(this%scopes(i), name)
             if (allocated(scheme)) return
         end do
 
@@ -172,7 +256,8 @@ contains
         type(poly_type_t), intent(in) :: scheme
 
         if (this%depth > 0) then
-            call this%scopes(this%depth)%define(name, scheme)
+            ! Use direct scope_define to avoid type-bound procedure issues with arrays
+            call scope_define(this%scopes(this%depth), name, scheme)
         else
             error stop "No current scope"
         end if

@@ -9,7 +9,7 @@ module codegen_core
     logical :: context_has_executable_before_contains = .false.
 
     ! Public interface for code generation
-public :: generate_code_from_arena, generate_code_polymorphic, generate_code_declaration
+    public :: generate_code_from_arena, generate_code_polymorphic
 
 contains
 
@@ -36,6 +36,22 @@ contains
             code = generate_code_program(arena, node, node_index)
         type is (function_call_node)
             code = generate_code_function_call(arena, node, node_index)
+        type is (function_def_node)
+            code = generate_code_function_def(arena, node, node_index)
+        type is (subroutine_def_node)
+            code = generate_code_subroutine_def(arena, node, node_index)
+        type is (print_statement_node)
+            code = generate_code_print_statement(arena, node, node_index)
+        type is (declaration_node)
+            code = generate_code_declaration(arena, node, node_index)
+        type is (if_node)
+            code = generate_code_if(arena, node, node_index)
+        type is (do_loop_node)
+            code = generate_code_do_loop(arena, node, node_index)
+        type is (do_while_node)
+            code = generate_code_do_while(arena, node, node_index)
+        type is (select_case_node)
+            code = generate_code_select_case(arena, node, node_index)
         class default
             code = "! Unknown node type"
         end select
@@ -212,13 +228,290 @@ contains
         code = generate_code_from_arena(arena, node_index)
     end function generate_code_polymorphic
 
-    ! Declaration code generation interface
-    function generate_code_declaration(arena, node_index) result(code)
+    ! Generate code for function definition
+    function generate_code_function_def(arena, node, node_index) result(code)
         type(ast_arena_t), intent(in) :: arena
+        type(function_def_node), intent(in) :: node
         integer, intent(in) :: node_index
         character(len=:), allocatable :: code
+        character(len=:), allocatable :: return_type_code, params_code, body_code
+        integer :: i
 
-        code = generate_variable_declarations(arena, node_index)
+        ! Start function definition with return type
+        if (allocated(node%return_type) .and. len_trim(node%return_type) > 0) then
+            code = node%return_type//" function "//node%name
+        else
+            code = "function "//node%name
+        end if
+
+        ! Generate parameters
+        if (allocated(node%param_indices) .and. size(node%param_indices) > 0) then
+            code = code//"("
+            do i = 1, size(node%param_indices)
+                if (i > 1) code = code//", "
+           if (node%param_indices(i) > 0 .and. node%param_indices(i) <= arena%size) then
+                    params_code = generate_code_from_arena(arena, node%param_indices(i))
+                    code = code//params_code
+                end if
+            end do
+            code = code//")"
+        else
+            code = code//"()"
+        end if
+        code = code//new_line('a')
+
+        ! Generate body
+        if (allocated(node%body_indices)) then
+            do i = 1, size(node%body_indices)
+             if (node%body_indices(i) > 0 .and. node%body_indices(i) <= arena%size) then
+                    body_code = generate_code_from_arena(arena, node%body_indices(i))
+                    code = code//"    "//body_code//new_line('a')
+                end if
+            end do
+        end if
+
+        ! End function
+        code = code//"end function "//node%name
+    end function generate_code_function_def
+
+    ! Generate code for subroutine definition
+    function generate_code_subroutine_def(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
+        type(subroutine_def_node), intent(in) :: node
+        integer, intent(in) :: node_index
+        character(len=:), allocatable :: code
+        character(len=:), allocatable :: params_code, body_code
+        integer :: i
+
+        ! Start subroutine definition
+        code = "subroutine "//node%name
+
+        ! Generate parameters
+        if (allocated(node%param_indices) .and. size(node%param_indices) > 0) then
+            code = code//"("
+            do i = 1, size(node%param_indices)
+                if (i > 1) code = code//", "
+           if (node%param_indices(i) > 0 .and. node%param_indices(i) <= arena%size) then
+                    params_code = generate_code_from_arena(arena, node%param_indices(i))
+                    code = code//params_code
+                end if
+            end do
+            code = code//")"
+        else
+            code = code//"()"
+        end if
+        code = code//new_line('a')
+
+        ! Generate body
+        if (allocated(node%body_indices)) then
+            do i = 1, size(node%body_indices)
+             if (node%body_indices(i) > 0 .and. node%body_indices(i) <= arena%size) then
+                    body_code = generate_code_from_arena(arena, node%body_indices(i))
+                    code = code//"    "//body_code//new_line('a')
+                end if
+            end do
+        end if
+
+        ! End subroutine
+        code = code//"end subroutine "//node%name
+    end function generate_code_subroutine_def
+
+    ! Generate code for print statement
+    function generate_code_print_statement(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
+        type(print_statement_node), intent(in) :: node
+        integer, intent(in) :: node_index
+        character(len=:), allocatable :: code
+        character(len=:), allocatable :: arg_code
+        integer :: i
+
+        ! Start print statement
+        code = "print "//node%format_spec
+
+        ! Generate arguments
+        if (allocated(node%arg_indices) .and. size(node%arg_indices) > 0) then
+            do i = 1, size(node%arg_indices)
+                code = code//", "
+               if (node%arg_indices(i) > 0 .and. node%arg_indices(i) <= arena%size) then
+                    arg_code = generate_code_from_arena(arena, node%arg_indices(i))
+                    code = code//arg_code
+                end if
+            end do
+        end if
+    end function generate_code_print_statement
+
+    ! Generate code for declaration
+    function generate_code_declaration(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
+        type(declaration_node), intent(in) :: node
+        integer, intent(in) :: node_index
+        character(len=:), allocatable :: code
+        character(len=:), allocatable :: init_code
+
+        ! Generate basic declaration
+        code = node%type_name
+
+        ! Add kind if present
+        if (node%has_kind) then
+            code = code//"("//trim(adjustl(int_to_string(node%kind_value)))//")"
+        end if
+
+        code = code//" :: "//node%var_name
+
+        ! Add array dimensions if present
+        if (node%is_array .and. allocated(node%dimension_indices)) then
+            ! TODO: Generate dimension expressions
+            code = code//"(:)"
+        end if
+
+        ! Add initializer if present
+        if (node%initializer_index > 0 .and. node%initializer_index <= arena%size) then
+            init_code = generate_code_from_arena(arena, node%initializer_index)
+            code = code//" = "//init_code
+        end if
     end function generate_code_declaration
+
+    ! Generate code for if statement
+    function generate_code_if(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
+        type(if_node), intent(in) :: node
+        integer, intent(in) :: node_index
+        character(len=:), allocatable :: code
+        character(len=:), allocatable :: cond_code, body_code
+        integer :: i
+
+        ! Generate if condition
+        if (node%condition_index > 0 .and. node%condition_index <= arena%size) then
+            cond_code = generate_code_from_arena(arena, node%condition_index)
+        else
+            cond_code = ".true."
+        end if
+
+        code = "if ("//cond_code//") then"//new_line('a')
+
+        ! Generate then body
+        if (allocated(node%then_body_indices)) then
+            do i = 1, size(node%then_body_indices)
+   if (node%then_body_indices(i) > 0 .and. node%then_body_indices(i) <= arena%size) then
+                  body_code = generate_code_from_arena(arena, node%then_body_indices(i))
+                    code = code//"    "//body_code//new_line('a')
+                end if
+            end do
+        end if
+
+        ! TODO: Generate elseif blocks
+        ! TODO: Generate else block
+
+        code = code//"end if"
+    end function generate_code_if
+
+    ! Generate code for do loop
+    function generate_code_do_loop(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
+        type(do_loop_node), intent(in) :: node
+        integer, intent(in) :: node_index
+        character(len=:), allocatable :: code
+        character(len=:), allocatable :: start_code, end_code, step_code, body_code
+        integer :: i
+
+        ! Generate loop variable and bounds
+        code = "do "//node%var_name//" = "
+
+        if (node%start_expr_index > 0 .and. node%start_expr_index <= arena%size) then
+            start_code = generate_code_from_arena(arena, node%start_expr_index)
+            code = code//start_code
+        else
+            code = code//"1"
+        end if
+
+        code = code//", "
+
+        if (node%end_expr_index > 0 .and. node%end_expr_index <= arena%size) then
+            end_code = generate_code_from_arena(arena, node%end_expr_index)
+            code = code//end_code
+        else
+            code = code//"1"
+        end if
+
+        if (node%step_expr_index > 0 .and. node%step_expr_index <= arena%size) then
+            step_code = generate_code_from_arena(arena, node%step_expr_index)
+            code = code//", "//step_code
+        end if
+
+        code = code//new_line('a')
+
+        ! Generate body
+        if (allocated(node%body_indices)) then
+            do i = 1, size(node%body_indices)
+             if (node%body_indices(i) > 0 .and. node%body_indices(i) <= arena%size) then
+                    body_code = generate_code_from_arena(arena, node%body_indices(i))
+                    code = code//"    "//body_code//new_line('a')
+                end if
+            end do
+        end if
+
+        code = code//"end do"
+    end function generate_code_do_loop
+
+    ! Generate code for do while loop
+    function generate_code_do_while(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
+        type(do_while_node), intent(in) :: node
+        integer, intent(in) :: node_index
+        character(len=:), allocatable :: code
+        character(len=:), allocatable :: cond_code, body_code
+        integer :: i
+
+        ! Generate condition
+        if (node%condition_index > 0 .and. node%condition_index <= arena%size) then
+            cond_code = generate_code_from_arena(arena, node%condition_index)
+        else
+            cond_code = ".true."
+        end if
+
+        code = "do while ("//cond_code//")"//new_line('a')
+
+        ! Generate body
+        if (allocated(node%body_indices)) then
+            do i = 1, size(node%body_indices)
+             if (node%body_indices(i) > 0 .and. node%body_indices(i) <= arena%size) then
+                    body_code = generate_code_from_arena(arena, node%body_indices(i))
+                    code = code//"    "//body_code//new_line('a')
+                end if
+            end do
+        end if
+
+        code = code//"end do"
+    end function generate_code_do_while
+
+    ! Generate code for select case
+    function generate_code_select_case(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
+        type(select_case_node), intent(in) :: node
+        integer, intent(in) :: node_index
+        character(len=:), allocatable :: code
+        character(len=:), allocatable :: expr_code
+
+        ! Generate select expression
+        if (allocated(node%expr)) then
+            ! TODO: Handle legacy node pointer - for now just use placeholder
+            expr_code = "???"
+        else
+            expr_code = "???"
+        end if
+
+        code = "select case ("//expr_code//")"//new_line('a')
+
+        ! TODO: Generate case blocks
+
+        code = code//"end select"
+    end function generate_code_select_case
+
+    ! Helper function to convert integer to string
+    function int_to_string(num) result(str)
+        integer, intent(in) :: num
+        character(len=20) :: str
+        write (str, '(I0)') num
+    end function int_to_string
 
 end module codegen_core

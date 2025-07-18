@@ -3,6 +3,7 @@ module parser_statements_module
     use lexer_core
     use parser_state_module
     use parser_expressions_module
+    use parser_declarations_module, only: parse_declaration
     use ast_core
     use ast_factory
     implicit none
@@ -576,7 +577,7 @@ contains
                     stmt_tokens(i - stmt_start + 1)%line = parser%tokens(i - 1)%line
                 stmt_tokens(i - stmt_start + 1)%column = parser%tokens(i - 1)%column + 1
 
-                    ! Parse the statement properly
+                    ! Parse the statement
                     stmt_index = parse_basic_statement(stmt_tokens, arena)
 
                     ! Only add to body if statement was successfully parsed
@@ -700,9 +701,75 @@ contains
             end if
         end do
 
-        ! Create subroutine node with collected parameters
-        ! Body parsing still needs implementation
-        allocate (body_indices(0))
+        ! Parse subroutine body (collect all statements until "end subroutine")
+        block
+            integer :: stmt_index
+            integer :: body_count, i, stmt_start
+            type(token_t), allocatable :: stmt_tokens(:)
+
+            body_count = 0
+            allocate (body_indices(0))
+
+            ! Parse statements until we hit "end subroutine"
+            do while (.not. parser%is_at_end())
+                token = parser%peek()
+
+                ! Check for "end subroutine"
+                if (token%kind == TK_KEYWORD .and. token%text == "end") then
+                    ! Look ahead for "subroutine"
+                    if (parser%current_token + 1 <= size(parser%tokens)) then
+                        block
+                            type(token_t) :: next_token
+                            next_token = parser%tokens(parser%current_token + 1)
+           if (next_token%kind == TK_KEYWORD .and. next_token%text == "subroutine") then
+                                ! Consume "end subroutine"
+                                token = parser%consume()
+                                token = parser%consume()
+                                exit
+                            end if
+                        end block
+                    end if
+                end if
+
+                ! Collect tokens for the current statement (until newline or end of line)
+                stmt_start = parser%current_token
+                i = stmt_start
+                do while (i <= size(parser%tokens))
+                    if (parser%tokens(i)%line /= token%line) exit
+                    i = i + 1
+                end do
+
+                ! Extract statement tokens
+                if (i > stmt_start) then
+                    allocate (stmt_tokens(i - stmt_start + 1))
+                    stmt_tokens(1:i - stmt_start) = parser%tokens(stmt_start:i - 1)
+                    ! Add EOF token
+                    stmt_tokens(i - stmt_start + 1)%kind = TK_EOF
+                    stmt_tokens(i - stmt_start + 1)%text = ""
+                    stmt_tokens(i - stmt_start + 1)%line = parser%tokens(i - 1)%line
+                stmt_tokens(i - stmt_start + 1)%column = parser%tokens(i - 1)%column + 1
+
+                    ! Parse the statement
+                    stmt_index = parse_basic_statement(stmt_tokens, arena)
+
+                    ! Only add to body if statement was successfully parsed
+                    if (stmt_index > 0) then
+                        body_indices = [body_indices, stmt_index]
+                        body_count = body_count + 1
+                    end if
+
+                    deallocate (stmt_tokens)
+
+                    ! Advance parser to next statement
+                    parser%current_token = i
+                else
+                    ! Skip to next token if we can't parse this statement
+                    token = parser%consume()
+                end if
+            end do
+        end block
+
+        ! Create subroutine node with collected parameters and body
         sub_index = push_subroutine_def(arena, sub_name, param_indices, body_indices, line, column)
 
     end function parse_subroutine_definition
@@ -909,6 +976,16 @@ contains
         parser = create_parser_state(tokens)
         first_token = parser%peek()
         stmt_index = 0
+
+        ! Try to parse declaration first
+        if (first_token%kind == TK_KEYWORD) then
+            if (first_token%text == "real" .or. first_token%text == "integer" .or. &
+                first_token%text == "logical" .or. first_token%text == "character") then
+                ! Parse declaration
+                stmt_index = parse_declaration(parser, arena)
+                return
+            end if
+        end if
 
         ! Simple assignment statement: identifier = expression
         if (first_token%kind == TK_IDENTIFIER) then

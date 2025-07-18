@@ -5,14 +5,14 @@ program test_frontend_parser_json
     use parser_core, only: parse_statement
     use ast_core, only: ast_node, assignment_node, identifier_node, literal_node
     implicit none
-    
+
     logical :: all_tests_passed
-    
+
     all_tests_passed = .true.
-    
+
     ! Test 1: Parse assignment from JSON tokens
     call test_parse_from_json_tokens()
-    
+
     if (all_tests_passed) then
         print *, "All parser JSON tests passed!"
         stop 0
@@ -20,9 +20,9 @@ program test_frontend_parser_json
         print *, "Some parser JSON tests failed!"
         stop 1
     end if
-    
+
 contains
-    
+
     subroutine test_parse_from_json_tokens()
         type(json_file) :: json
         type(token_t), allocatable :: tokens(:)
@@ -34,30 +34,30 @@ contains
             '  {"type": "number", "text": "42", "line": 1, "column": 5},' // &
             '  {"type": "eof", "text": "", "line": 1, "column": 7}' // &
             ']}'
-        
+
         print *, "Testing: Parse assignment from JSON tokens"
-        
+
         ! Load JSON from string
         call json%initialize()
         call json%deserialize(json_str)
-        
+
         ! Convert JSON to tokens
         tokens = json_to_tokens(json)
-        
+
         ! Parse tokens to AST
         ast = parse_statement(tokens)
-        
+
         ! Check result
         if (.not. allocated(ast)) then
             print *, "FAIL: No AST created from JSON tokens"
             all_tests_passed = .false.
             return
         end if
-        
+
         select type (ast)
         type is (assignment_node)
             print *, "PASS: Got assignment node from JSON tokens"
-            
+
             ! Check target
             if (allocated(ast%target)) then
                 select type (target => ast%target)
@@ -73,7 +73,7 @@ contains
                     all_tests_passed = .false.
                 end select
             end if
-            
+
             ! Check value
             if (allocated(ast%value)) then
                 select type (value => ast%value)
@@ -89,15 +89,15 @@ contains
                     all_tests_passed = .false.
                 end select
             end if
-            
+
         class default
             print *, "FAIL: Expected assignment node from JSON"
             all_tests_passed = .false.
         end select
-        
+
         ! Clean up
         call json%destroy()
-        
+
     end subroutine test_parse_from_json_tokens
-    
+
 end program test_frontend_parser_json

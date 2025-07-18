@@ -42,6 +42,12 @@ contains
         ! Initialize hierarchical scope stack
         ctx%scopes = create_scope_stack()
 
+        ! Initialize legacy flat environment
+        ctx%env%count = 0
+        ctx%env%capacity = 10
+        allocate (character(len=256) :: ctx%env%names(ctx%env%capacity))
+        allocate (ctx%env%schemes(ctx%env%capacity))
+
         ! Initialize environment with builtin functions
         ctx%next_var_id = 1
 
