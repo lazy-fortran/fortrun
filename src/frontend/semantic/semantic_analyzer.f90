@@ -26,6 +26,9 @@ module semantic_analyzer
         procedure :: apply_subst_to_type => apply_current_substitution
         procedure :: get_builtin_function_type
         procedure :: compose_with_subst
+        procedure :: deep_copy => semantic_context_deep_copy
+        procedure :: assign => semantic_context_assign
+        generic :: assignment(=) => assign
     end type semantic_context_t
 
 contains
@@ -1135,5 +1138,26 @@ contains
         ! Do while loops have unit type
         typ = create_mono_type(TINT)  ! Unit type
     end function analyze_do_while
+
+    ! Deep copy procedures for semantic_context_t
+    function semantic_context_deep_copy(this) result(copy)
+        class(semantic_context_t), intent(in) :: this
+        type(semantic_context_t) :: copy
+        
+        copy%env = this%env              ! Uses type_env_t assignment (deep copy)
+        copy%scopes = this%scopes        ! Uses scope_stack_t assignment (deep copy)
+        copy%next_var_id = this%next_var_id
+        copy%subst = this%subst          ! Uses substitution_t assignment (deep copy)
+    end function semantic_context_deep_copy
+    
+    subroutine semantic_context_assign(lhs, rhs)
+        class(semantic_context_t), intent(out) :: lhs
+        type(semantic_context_t), intent(in) :: rhs
+        
+        lhs%env = rhs%env                ! Uses type_env_t assignment (deep copy)
+        lhs%scopes = rhs%scopes          ! Uses scope_stack_t assignment (deep copy)
+        lhs%next_var_id = rhs%next_var_id
+        lhs%subst = rhs%subst            ! Uses substitution_t assignment (deep copy)
+    end subroutine semantic_context_assign
 
 end module semantic_analyzer
