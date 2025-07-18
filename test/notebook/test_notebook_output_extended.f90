@@ -193,15 +193,13 @@ contains
         logical :: passed
         character(len=:), allocatable :: cell_results(:)
         character(len=256) :: test_file
+        type(temp_dir_manager) :: temp_mgr
 
         print *, "Test 5: File I/O operations"
         passed = .true.
 
-        block
-            type(temp_dir_manager) :: temp_mgr
-            call temp_mgr%create('notebook_output_test')
-            test_file = temp_mgr%get_file_path('test_notebook_output.dat')
-        end block
+        call temp_mgr%create('notebook_output_test')
+        test_file = temp_mgr%get_file_path('test_notebook_output.dat')
 
         ! Create some outputs
         call init_output_capture(3)
@@ -244,7 +242,6 @@ contains
         end if
 
         ! Clean up
-        call execute_command_line("rm -f "//trim(test_file))
         call finalize_output_capture()
 
         if (passed) print *, "  PASS: File I/O operations"

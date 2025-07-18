@@ -10,6 +10,7 @@ module temp_utils
         logical :: cleanup_on_destroy = .true.
     contains
         procedure :: create => temp_dir_create
+        procedure :: get_path => temp_dir_get_path
         procedure :: get_file_path => temp_dir_get_file_path
         procedure :: cleanup => temp_dir_cleanup
         final :: temp_dir_destroy
@@ -115,6 +116,18 @@ contains
         this%path = create_temp_dir(prefix)
 
     end subroutine temp_dir_create
+
+    function temp_dir_get_path(this) result(path)
+        class(temp_dir_manager), intent(in) :: this
+        character(len=:), allocatable :: path
+
+        if (allocated(this%path)) then
+            path = this%path
+        else
+            error stop 'temp_dir_manager: directory not created'
+        end if
+
+    end function temp_dir_get_path
 
     function temp_dir_get_file_path(this, filename) result(file_path)
         class(temp_dir_manager), intent(in) :: this

@@ -241,14 +241,12 @@ contains
         logical :: test_pass
         integer :: unit
         type(string_t) :: modules(1)
+        type(temp_dir_manager) :: temp_mgr
 
         print '(a)', 'Test 3: Cache invalidation on source change'
 
-        block
-            type(temp_dir_manager) :: temp_mgr
-            call temp_mgr%create('fortran_inval_test_'//get_timestamp())
-            test_dir = temp_mgr%path
-        end block
+        call temp_mgr%create('fortran_inval_test_'//get_timestamp())
+        test_dir = temp_mgr%path
 
         src_file = trim(test_dir)//'/changing.f90'
 
@@ -289,9 +287,6 @@ contains
             print '(a)', '  ✗ Cache key unchanged after source modification'
             all_pass = .false.
         end if
-
-        ! Cleanup
-        call cleanup_test_dir(test_dir)
 
     end subroutine test_cache_invalidation
 

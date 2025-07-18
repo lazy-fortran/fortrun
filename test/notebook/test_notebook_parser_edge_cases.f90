@@ -267,7 +267,9 @@ contains
         type(notebook_t) :: notebook
         character(len=:), allocatable :: content
         character(len=256) :: test_file
+        character(len=:), allocatable :: temp_dir
         integer :: unit, iostat
+        type(temp_dir_manager) :: temp_mgr
 
         print *, "Test 6: Mixed content and file operations"
         passed = .true.
@@ -291,13 +293,13 @@ contains
 
         call free_notebook(notebook)
 
+        ! Create a temp directory for file tests
+        call temp_mgr%create('parser_edge_test')
+        temp_dir = temp_mgr%get_path()
+
         ! Test file parsing with non-existent file
-        block
-            type(temp_dir_manager) :: temp_mgr
-            call temp_mgr%create('parser_edge_test')
-            test_file = temp_mgr%get_file_path('definitely_does_not_exist_notebook.f90')
-            call parse_notebook_file(test_file, notebook)
-        end block
+        test_file = temp_mgr%get_file_path('definitely_does_not_exist_notebook.f90')
+        call parse_notebook_file(test_file, notebook)
 
         ! Should handle gracefully (likely empty notebook)
         if (notebook%num_cells /= 0) then
@@ -307,11 +309,7 @@ contains
         call free_notebook(notebook)
 
         ! Test with actual file
-        block
-            type(temp_dir_manager) :: temp_mgr
-            call temp_mgr%create('parser_edge_test')
-            test_file = temp_mgr%get_file_path('test_notebook_parser_edge.f90')
-        end block
+        test_file = temp_mgr%get_file_path('test_notebook_parser_edge.f90')
         open (newunit=unit, file=test_file, status='replace')
         write (unit, '(a)') "! %% [markdown]"
         write (unit, '(a)') "# Test"
@@ -333,7 +331,6 @@ contains
         end if
 
         call free_notebook(notebook)
-        call execute_command_line("rm -f "//trim(test_file))
 
         if (passed) print *, "  PASS: Mixed content"
 

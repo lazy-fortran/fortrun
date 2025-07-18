@@ -7,20 +7,19 @@ program test_fmp_version_generation
     implicit none
 
     character(len=256) :: test_registry_path, project_dir, fpm_toml_path
+    character(len=256) :: config_dir
     character(len=512) :: line
     type(module_info), dimension(2) :: test_modules
     integer :: unit, iostat
     logical :: found_with_version, found_without_version
+    type(temp_dir_manager) :: temp_mgr1, temp_mgr2
 
     print *, '=== FPM Version Generation Tests ===\'
 
     ! Create a temporary registry file with version constraints
-    block
-        type(temp_dir_manager) :: temp_mgr
-        call temp_mgr%create('fpm_version_test')
-        test_registry_path = temp_mgr%get_file_path('registry.toml')
-        call create_test_registry_with_versions(test_registry_path)
-    end block
+    call temp_mgr1%create('fpm_version_test')
+    test_registry_path = temp_mgr1%get_file_path('registry.toml')
+    call create_test_registry_with_versions(test_registry_path)
 
     ! Load the test registry
     call load_registry_from_path(test_registry_path)
@@ -30,14 +29,12 @@ program test_fmp_version_generation
     test_modules(2)%name = 'fortplot_test'
 
     ! Create temporary project directory
-    block
-        type(temp_dir_manager) :: temp_mgr
-        call temp_mgr%create('test_fpm_version_project')
-        project_dir = temp_mgr%path
+    call temp_mgr2%create('test_fpm_version_project')
+    project_dir = temp_mgr2%path
+    config_dir = temp_mgr1%path
 
-        ! Generate FPM file using custom config directory
-    call generate_fpm_with_deps_from_config(project_dir, 'test_project', test_modules, 2, temp_mgr%path, .false., '')
-    end block
+    ! Generate FPM file using custom config directory
+    call generate_fpm_with_deps_from_config(project_dir, 'test_project', test_modules, 2, config_dir, .false., '')
 
     ! Check the generated fpm.toml
     fpm_toml_path = trim(project_dir)//'/fpm.toml'

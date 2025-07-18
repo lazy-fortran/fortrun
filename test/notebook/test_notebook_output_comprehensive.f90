@@ -284,8 +284,8 @@ contains
 
         block
             type(temp_dir_manager) :: temp_mgr
-            temp_mgr = temp_dir_manager("test_notebook_output")
-            test_file = trim(temp_mgr%get_path())//"/test_notebook_output.dat"
+            call temp_mgr%create("test_notebook_output")
+            test_file = temp_mgr%get_file_path("test_notebook_output.dat")
 
             call init_output_capture(3)
 

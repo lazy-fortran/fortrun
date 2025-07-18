@@ -138,12 +138,16 @@ test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_runner_emp
         logical :: passed
         integer :: exit_code, unit
         character(len=256) :: test_file, custom_cache, custom_config
+        character(len=256) :: base_temp_dir, cache_check_file
 
         print *, "Test 4: Custom directory handling"
         passed = .true.
 
+        ! Create a single base temp directory
+        base_temp_dir = create_temp_dir('fortran_test')
+
         ! Create test file
-        test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_runner_custom_dirs.f90')
+        test_file = get_temp_file_path(base_temp_dir, 'test_runner_custom_dirs.f90')
         open (newunit=unit, file=test_file, status='replace')
         write (unit, '(a)') "program test_custom"
         write (unit, '(a)') "  print *, 'Hello from custom dirs'"
@@ -162,15 +166,16 @@ test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_runner_emp
                        custom_config_dir=custom_config, parallel_jobs=1, no_wait=.true.)
 
         ! Check if custom directories were used (via existence of any cache files)
-        call execute_command_line("ls " // trim(custom_cache) // " > /dev/null 2>&1; echo $? > "//get_temp_file_path(create_temp_dir('fortran_test'), 'cache_check'))
-        open(newunit=unit, file=get_temp_file_path(create_temp_dir('fortran_test'), 'cache_check'), status='old', action='read')
+        cache_check_file = get_temp_file_path(base_temp_dir, 'cache_check')
+        call execute_command_line("ls " // trim(custom_cache) // " > /dev/null 2>&1; echo $? > "//cache_check_file)
+        open (newunit=unit, file=cache_check_file, status='old', action='read')
         read (unit, *) exit_code
         close (unit)
-        call execute_command_line("rm -f "//get_temp_file_path(create_temp_dir('fortran_test'), 'cache_check'))
+        call execute_command_line("rm -f "//cache_check_file)
         passed = (exit_code == 0)
 
         ! Clean up
-        call execute_command_line("rm -f "//trim(test_file))
+        call execute_command_line("rm -rf "//trim(base_temp_dir))
         call execute_command_line("rm -rf "//trim(custom_cache))
         call execute_command_line("rm -rf "//trim(custom_config))
 
