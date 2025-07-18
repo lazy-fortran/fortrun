@@ -14,23 +14,6 @@ module ast_core
         procedure(to_json_interface), deferred :: to_json
     end type ast_node
 
-    ! Abstract interfaces for visitor pattern and JSON serialization
-    abstract interface
-        subroutine visit_interface(this, visitor)
-            import :: ast_node
-            class(ast_node), intent(in) :: this
-            class(*), intent(inout) :: visitor
-        end subroutine visit_interface
-
-        subroutine to_json_interface(this, json, parent)
-            use json_module
-            import :: ast_node
-            class(ast_node), intent(in) :: this
-            type(json_core), intent(inout) :: json
-            type(json_value), pointer, intent(in) :: parent
-        end subroutine to_json_interface
-    end interface
-
     ! Stack entry for AST nodes
     type :: ast_entry_t
         class(ast_node), allocatable :: node    ! The AST node itself
@@ -64,6 +47,23 @@ module ast_core
         procedure :: add_child => ast_arena_add_child
         procedure :: shrink_arena
     end type ast_arena_t
+
+    ! Abstract interfaces for visitor pattern and JSON serialization
+    abstract interface
+        subroutine visit_interface(this, visitor)
+            import :: ast_node
+            class(ast_node), intent(in) :: this
+            class(*), intent(inout) :: visitor
+        end subroutine visit_interface
+
+        subroutine to_json_interface(this, json, parent)
+            use json_module
+            import :: ast_node
+            class(ast_node), intent(in) :: this
+            type(json_core), intent(inout) :: json
+            type(json_value), pointer, intent(in) :: parent
+        end subroutine to_json_interface
+    end interface
 
     ! Statistics for performance monitoring
     type, public :: ast_arena_stats_t
