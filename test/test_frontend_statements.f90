@@ -1,5 +1,6 @@
 program test_frontend_statements
     use iso_fortran_env, only: error_unit
+    use temp_utils, only: create_temp_dir, get_temp_file_path
     implicit none
 
     integer :: test_count, pass_count
@@ -17,12 +18,10 @@ program test_frontend_statements
 
     write (*, '(a)') ''
     write(*, '(a,i0,a,i0,a)') 'Frontend statement tests: ', pass_count, '/', test_count, ' passed'
-    write(*, '(a)') '(All tests currently skipped - frontend statement handling not yet implemented)'
 
-    ! For now, consider the test suite as passing since all tests are skipped
-    ! if (pass_count /= test_count) then
-    !     error stop 'Some frontend statement tests failed!'
-    ! end if
+    if (pass_count /= test_count) then
+        error stop 'Some frontend statement tests failed!'
+    end if
 
 contains
 
@@ -32,19 +31,15 @@ contains
         write (*, '(a)') 'Test 1: Use statement'
         test_count = test_count + 1
 
-        ! For now, skip this test - frontend doesn't handle bare statements yet
-        write (*, '(a)') '  ⚠ SKIP: Use statement test (not implemented)'
-        if (.false.) then
-            if (compile_and_check("use iso_fortran_env", &
-                                  'program main'//new_line('a')// &
-                                  '    use iso_fortran_env'//new_line('a')// &
-                                  '    implicit none'//new_line('a')// &
-                                  'end program main')) then
-                write (*, '(a)') '  ✓ PASS: Use statement parsed correctly'
-                pass_count = pass_count + 1
-            else
-                write (*, '(a)') '  ✗ FAIL: Use statement parsing failed'
-            end if
+        if (compile_and_check("use iso_fortran_env", &
+                              'program main'//new_line('a')// &
+                              '    use iso_fortran_env'//new_line('a')// &
+                              '    implicit none'//new_line('a')// &
+                              'end program main')) then
+            write (*, '(a)') '  ✓ PASS: Use statement parsed correctly'
+            pass_count = pass_count + 1
+        else
+            write (*, '(a)') '  ✗ FAIL: Use statement parsing failed'
         end if
 
     end subroutine test_use_statement
@@ -55,19 +50,15 @@ contains
         write (*, '(a)') 'Test 2: Print statement'
         test_count = test_count + 1
 
-        ! For now, skip this test - frontend doesn't handle bare statements yet
-        write (*, '(a)') '  ⚠ SKIP: Print statement test (not implemented)'
-        if (.false.) then
-            if (compile_and_check('print *, "Hello"', &
-                                  'program main'//new_line('a')// &
-                                  '    implicit none'//new_line('a')// &
-                                  '    print *, "Hello"'//new_line('a')// &
-                                  'end program main')) then
-                write (*, '(a)') '  ✓ PASS: Print statement parsed correctly'
-                pass_count = pass_count + 1
-            else
-                write (*, '(a)') '  ✗ FAIL: Print statement parsing failed'
-            end if
+        if (compile_and_check('print *, "Hello"', &
+                              'program main'//new_line('a')// &
+                              '    implicit none'//new_line('a')// &
+                              '    print *, "Hello"'//new_line('a')// &
+                              'end program main')) then
+            write (*, '(a)') '  ✓ PASS: Print statement parsed correctly'
+            pass_count = pass_count + 1
+        else
+            write (*, '(a)') '  ✗ FAIL: Print statement parsing failed'
         end if
 
     end subroutine test_print_statement
@@ -78,22 +69,18 @@ contains
         write (*, '(a)') 'Test 3: Multiple statements'
         test_count = test_count + 1
 
-        ! For now, skip this test - frontend doesn't handle bare statements yet
-        write (*, '(a)') '  ⚠ SKIP: Multiple statements test (not implemented)'
-        if (.false.) then
-            if (compile_and_check('x = 42'//new_line('a')//'print *, x', &
-                                  'program main'//new_line('a')// &
-                                  '    implicit none'//new_line('a')// &
-                                  '    integer :: x'//new_line('a')// &
-                                  ''//new_line('a')// &
-                                  '    x = 42'//new_line('a')// &
-                                  '    print *, x'//new_line('a')// &
-                                  'end program main')) then
-                write (*, '(a)') '  ✓ PASS: Multiple statements parsed correctly'
-                pass_count = pass_count + 1
-            else
-                write (*, '(a)') '  ✗ FAIL: Multiple statements parsing failed'
-            end if
+        if (compile_and_check('x = 42'//new_line('a')//'print *, x', &
+                              'program main'//new_line('a')// &
+                              '    implicit none'//new_line('a')// &
+                              '    integer :: x'//new_line('a')// &
+                              ''//new_line('a')// &
+                              '    x = 42'//new_line('a')// &
+                              '    print *, x'//new_line('a')// &
+                              'end program main')) then
+            write (*, '(a)') '  ✓ PASS: Multiple statements parsed correctly'
+            pass_count = pass_count + 1
+        else
+            write (*, '(a)') '  ✗ FAIL: Multiple statements parsing failed'
         end if
 
     end subroutine test_multiple_statements
@@ -104,29 +91,25 @@ contains
         write (*, '(a)') 'Test 4: Do while statement'
         test_count = test_count + 1
 
-        ! For now, skip this test - frontend doesn't handle bare statements yet
-        write (*, '(a)') '  ⚠ SKIP: Do while statement test (not implemented)'
-        if (.false.) then
-            if (compile_and_check('i = 0'//new_line('a')// &
-                                  'do while (i < 3)'//new_line('a')// &
-                                  '    print *, i'//new_line('a')// &
-                                  '    i = i + 1'//new_line('a')// &
-                                  'end do', &
-                                  'program main'//new_line('a')// &
-                                  '    implicit none'//new_line('a')// &
-                                  '    integer :: i'//new_line('a')// &
-                                  ''//new_line('a')// &
-                                  '    i = 0'//new_line('a')// &
-                                  '    do while (i < 3)'//new_line('a')// &
-                                  '    print *, i'//new_line('a')// &
-                                  '    i = i + 1'//new_line('a')// &
-                                  'end do'//new_line('a')// &
-                                  'end program main')) then
-                write (*, '(a)') '  ✓ PASS: Do while statement parsed correctly'
-                pass_count = pass_count + 1
-            else
-                write (*, '(a)') '  ✗ FAIL: Do while statement parsing failed'
-            end if
+        if (compile_and_check('i = 0'//new_line('a')// &
+                              'do while (i < 3)'//new_line('a')// &
+                              '    print *, i'//new_line('a')// &
+                              '    i = i + 1'//new_line('a')// &
+                              'end do', &
+                              'program main'//new_line('a')// &
+                              '    implicit none'//new_line('a')// &
+                              '    integer :: i'//new_line('a')// &
+                              ''//new_line('a')// &
+                              '    i = 0'//new_line('a')// &
+                              '    do while (i < 3)'//new_line('a')// &
+                              '    print *, i'//new_line('a')// &
+                              '    i = i + 1'//new_line('a')// &
+                              'end do'//new_line('a')// &
+                              'end program main')) then
+            write (*, '(a)') '  ✓ PASS: Do while statement parsed correctly'
+            pass_count = pass_count + 1
+        else
+            write (*, '(a)') '  ✗ FAIL: Do while statement parsing failed'
         end if
 
     end subroutine test_do_while_statement
@@ -144,13 +127,13 @@ contains
         success = .false.
 
         ! Create temporary input file
-        temp_input = "/tmp/test_frontend_stmt.f"
+temp_input = get_temp_file_path(create_temp_dir('fortran_test'), 'test_frontend_stmt.f')
         open (newunit=unit, file=temp_input, status='replace', action='write')
         write (unit, '(a)') input_code
         close (unit)
 
         ! Set up compilation options
-        temp_output = "/tmp/test_frontend_stmt_out.f90"
+        temp_output = get_temp_file_path(create_temp_dir('fortran_test'), 'test_frontend_stmt_out.f90')
         options%backend = BACKEND_FORTRAN
         options%output_file = temp_output
 

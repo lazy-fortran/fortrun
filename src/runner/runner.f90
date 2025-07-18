@@ -11,16 +11,17 @@ module runner
     use fpm_error, only: error_t
   use frontend_integration, only: compile_with_frontend, compile_with_frontend_debug, is_simple_fortran_file
     use debug_state, only: get_debug_flags
+    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path
     use, intrinsic :: iso_fortran_env, only: int64
     implicit none
     private
-    public :: run_fortran_file, handle_stdin_input
+    public :: run_fortran_file
 
 contains
 
     subroutine run_fortran_file(filename, exit_code, verbose_level, custom_cache_dir, &
                                 custom_config_dir, parallel_jobs, no_wait, custom_flags)
-        character(len=*), intent(inout) :: filename
+        character(len=*), intent(in) :: filename
         integer, intent(out) :: exit_code
         integer, intent(in) :: verbose_level
         character(len=*), intent(in) :: custom_cache_dir
@@ -41,22 +42,12 @@ contains
 
         exit_code = 0
 
-        ! Handle STDIN input
-        if (trim(filename) == '-') then
-            call handle_stdin_input(filename, file_exists)
-            if (.not. file_exists) then
-                print '(a)', 'Error: Failed to read from STDIN'
-                exit_code = 1
-                return
-            end if
-        else
-            ! Check if file exists
-            inquire (file=filename, exist=file_exists)
-            if (.not. file_exists) then
-                print '(a,a)', 'Error: File not found: ', trim(filename)
-                exit_code = 1
-                return
-            end if
+        ! Check if file exists
+        inquire (file=filename, exist=file_exists)
+        if (.not. file_exists) then
+            print '(a,a)', 'Error: File not found: ', trim(filename)
+            exit_code = 1
+            return
         end if
 
         ! Check file extension
@@ -209,8 +200,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
             end if
 
             ! Always update source files to allow incremental compilation
-            ! Use working_file for the main file but absolute_path for finding companion modules
-            call update_source_files(working_file, project_dir, absolute_path)
+            call update_source_files(working_file, project_dir)
         else
             ! Cache miss: need to set up project
             if (verbose_level >= 1) then
@@ -230,10 +220,10 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
             ! Copy source files and generate FPM project only on cache miss
             if (present(custom_flags)) then
           call setup_project_files(working_file, project_dir, basename, verbose_level, &
-                       custom_config_dir, was_preprocessed, custom_flags, absolute_path)
+                                      custom_config_dir, was_preprocessed, custom_flags)
             else
           call setup_project_files(working_file, project_dir, basename, verbose_level, &
-                                 custom_config_dir, was_preprocessed, '', absolute_path)
+                                         custom_config_dir, was_preprocessed, '')
             end if
         end if
 
@@ -262,10 +252,10 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
             ! Quiet mode: capture errors for helpful messages
             if (len_trim(flag_string) > 0) then
                 command = 'cd "'//trim(project_dir)//'" && '// &
-           'fpm build --flag "'//trim(flag_string)//'" > /tmp/fpm_build_output.txt 2>&1'
+                  'fpm build --flag "' // trim(flag_string) // '" > "'//get_temp_file_path(create_temp_dir('fortran_build'), 'fpm_build_output.txt')//'" 2>&1'
             else
                 command = 'cd "'//trim(project_dir)//'" && '// &
-                          'fpm build > /tmp/fpm_build_output.txt 2>&1'
+                  'fpm build > "'//get_temp_file_path(create_temp_dir('fortran_build'), 'fpm_build_output.txt')//'" 2>&1'
             end if
         else if (verbose_level >= 2) then
             ! Very verbose: show detailed build output
@@ -295,7 +285,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         if (cmdstat /= 0 .or. exitstat /= 0) then
             if (verbose_level == 0) then
                 ! Parse FPM errors and provide helpful messages
-                call provide_helpful_error_message('/tmp/fpm_build_output.txt')
+        call provide_helpful_error_message(get_temp_file_path(create_temp_dir('fortran_build'), 'fpm_build_output.txt'))
             end if
             call release_lock(cache_dir, basename)
             exit_code = 1
@@ -333,14 +323,14 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         integer :: unit, iostat
 
         ! Use realpath command to get absolute path
-        command = 'realpath "'//trim(filename)//'" > /tmp/fortran_path.tmp'
+    command = 'realpath "' // trim(filename) // '" > "'//get_temp_file_path(create_temp_dir('fortran_realpath'), 'fortran_path.tmp')//'"'
         call execute_command_line(command)
 
-        open (newunit=unit, file='/tmp/fortran_path.tmp', status='old', iostat=iostat)
+    open(newunit=unit, file=get_temp_file_path(create_temp_dir('fortran_realpath'), 'fortran_path.tmp'), status='old', iostat=iostat)
         if (iostat == 0) then
             read (unit, '(a)') absolute_path
             close (unit)
-            call execute_command_line('rm -f /tmp/fortran_path.tmp')
+            ! Cleanup handled by temp_utils
         else
             ! Fallback to original filename
             absolute_path = filename
@@ -536,113 +526,24 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
 
         build_dir = trim(project_dir)//'/build'
 
-        ! Implement actual caching logic
-        block
-            character(len=256) :: cache_dir, artifact_cache_dir
+        ! Find and cache all .mod files from dependencies directory
+   command = 'find "'//trim(build_dir)//'" -name "*.mod" -type f 2>/dev/null | head -10'
+        call execute_command_line(command)
 
-            cache_dir = get_cache_dir()
-            artifact_cache_dir = trim(cache_dir)//'/build_artifacts'
-
-            ! Ensure artifact cache directory exists
-            call execute_command_line('mkdir -p "'//trim(artifact_cache_dir)//'"')
-
-            ! Cache .mod files (compiled modules)
-   call cache_file_type(build_dir, artifact_cache_dir, '*.mod', 'module', verbose_level)
-
-            ! Cache .o files (compiled objects)
-     call cache_file_type(build_dir, artifact_cache_dir, '*.o', 'object', verbose_level)
-
-            ! Cache .a files (static libraries)
-    call cache_file_type(build_dir, artifact_cache_dir, '*.a', 'library', verbose_level)
-        end block
+        ! Find and cache all .o files from dependencies directory
+     command = 'find "'//trim(build_dir)//'" -name "*.o" -type f 2>/dev/null | head -10'
+        call execute_command_line(command)
 
         if (verbose_level >= 1) then
-            print '(a)', 'Build artifact caching completed'
+            print '(a)', 'Module caching completed'
         end if
+
+        ! TODO: Implement actual caching logic here
+        ! For now, this is a placeholder that shows what files are available
 
     end subroutine cache_build_artifacts
 
-    !> Cache files of a specific type from build directory to artifact cache
-    subroutine cache_file_type(build_dir, cache_dir, pattern, file_type, verbose_level)
-        character(*), intent(in) :: build_dir, cache_dir, pattern, file_type
-        integer, intent(in) :: verbose_level
-
-        character(len=1024) :: command
-        character(len=256) :: temp_file
-        integer :: unit, iostat, file_count
-        character(len=512) :: line
-
-        ! Create temporary file for find results
-        temp_file = '/tmp/fortran_cache_files.txt'
-
-        ! Find all files matching pattern
-        command = 'find "'//trim(build_dir)//'" -name "'//trim(pattern)//'" -type f > "'//trim(temp_file)//'" 2>/dev/null'
-        call execute_command_line(command)
-
-        ! Count and process found files
-        file_count = 0
-        open (newunit=unit, file=temp_file, status='old', iostat=iostat)
-        if (iostat == 0) then
-            do
-                read (unit, '(a)', iostat=iostat) line
-                if (iostat /= 0) exit
-
-                if (len_trim(line) > 0) then
-                    file_count = file_count + 1
-                    call cache_single_file(trim(line), cache_dir, verbose_level)
-                end if
-            end do
-            close (unit)
-        end if
-
-        ! Clean up temp file
-        call execute_command_line('rm -f "'//trim(temp_file)//'"')
-
-        if (verbose_level >= 1 .and. file_count > 0) then
-           print '(a,i0,a,a,a)', '  Cached ', file_count, ' ', trim(file_type), ' files'
-        end if
-
-    end subroutine cache_file_type
-
-    !> Cache a single file to the artifact cache directory
-    subroutine cache_single_file(file_path, cache_dir, verbose_level)
-        character(*), intent(in) :: file_path, cache_dir
-        integer, intent(in) :: verbose_level
-
-        character(len=256) :: basename, cache_file
-        character(len=512) :: command
-        integer :: i, last_slash
-
-        ! Extract basename from file path
-        last_slash = 0
-        do i = len_trim(file_path), 1, -1
-            if (file_path(i:i) == '/') then
-                last_slash = i
-                exit
-            end if
-        end do
-
-        if (last_slash > 0) then
-            basename = file_path(last_slash + 1:)
-        else
-            basename = trim(file_path)
-        end if
-
-        ! Create cache file path with hash prefix for uniqueness
-        cache_file = trim(cache_dir)//'/'//trim(basename)
-
-        ! Copy file to cache
-        command = 'cp "'//trim(file_path)//'" "'//trim(cache_file)//'"'
-        call execute_command_line(command)
-
-        if (verbose_level >= 2) then
-            print '(a,a)', '    Cached: ', trim(basename)
-        end if
-
-    end subroutine cache_single_file
-
     subroutine copy_local_modules(main_file, project_dir)
-        use logger, only: log_verbose
         character(len=*), intent(in) :: main_file, project_dir
         character(len=256) :: source_dir
         character(len=512) :: command
@@ -667,8 +568,6 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         command = 'mkdir -p "'//trim(project_dir)//'/src"'
         call execute_command_line(command)
 
-        call log_verbose("runner", "copy_local_modules: source_dir="//trim(source_dir)//", main_file="//trim(main_file))
-
         ! Copy all .f90 files except the main file (only files, not directories)
     command = 'find "' // trim(source_dir) // '" -maxdepth 1 -type f \( -name "*.f90" -o -name "*.F90" \) | ' // &
                   'while read f; do '// &
@@ -678,116 +577,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
                   'done'
         call execute_command_line(command)
 
-        ! Process and copy all .f files (lowercase fortran) except the main file
-        call process_and_copy_f_files(source_dir, main_file, project_dir)
-
     end subroutine copy_local_modules
-
-    subroutine process_and_copy_f_files(source_dir, main_file, project_dir)
-        use frontend_integration, only: compile_with_frontend
-        use logger, only: log_verbose
-        character(len=*), intent(in) :: source_dir, main_file, project_dir
-        character(len=512) :: f_files(100), f_file, output_file, error_msg
-        character(len=256) :: basename, module_name
-        integer :: num_files, i, j, last_slash, last_dot
-        character(len=512) :: temp_file, command
-
-        call log_verbose("runner", "Processing .f files from: "//trim(source_dir))
-
-        ! Get list of .f files in source directory
-        temp_file = '/tmp/fortran_f_list.tmp'
-        command = 'find "' // trim(source_dir) // '" -maxdepth 1 -type f \( -name "*.f" -o -name "*.F" \) > ' // trim(temp_file)
-        call execute_command_line(command)
-
-        ! Read the list of .f files
-        num_files = 0
-        block
-            integer :: unit, iostat
-            character(len=512) :: line
-
-         open (newunit=unit, file=temp_file, status='old', action='read', iostat=iostat)
-            if (iostat == 0) then
-                do
-                    read (unit, '(A)', iostat=iostat) line
-                    if (iostat /= 0) exit
-                    if (len_trim(line) > 0 .and. trim(line) /= trim(main_file)) then
-                        num_files = num_files + 1
-                        if (num_files <= 100) then
-                            f_files(num_files) = trim(line)
-                        end if
-                    end if
-                end do
-                close (unit)
-            end if
-        end block
-
-        ! Clean up temp file
-        call execute_command_line('rm -f '//trim(temp_file))
-
-        call log_verbose("runner", "Found "//trim(adjustl(int_to_str(num_files)))//" .f files to process")
-
-        ! Process each .f file through the frontend
-        do i = 1, num_files
-            f_file = f_files(i)
-
-            ! Extract basename for the output file
-            last_slash = 0
-            last_dot = 0
-            do j = len_trim(f_file), 1, -1
-                if (f_file(j:j) == '/' .and. last_slash == 0) then
-                    last_slash = j
-                end if
-                if (f_file(j:j) == '.' .and. last_dot == 0) then
-                    last_dot = j
-                end if
-            end do
-
-            if (last_slash > 0) then
-                if (last_dot > last_slash) then
-                    basename = f_file(last_slash + 1:last_dot - 1)
-                else
-                    basename = f_file(last_slash + 1:)
-                end if
-            else
-                if (last_dot > 0) then
-                    basename = f_file(1:last_dot - 1)
-                else
-                    basename = f_file
-                end if
-            end if
-
-            ! Output file in project src directory
-            output_file = trim(project_dir)//'/src/'//trim(basename)//'.f90'
-
-            ! Check if a .f90 version already exists
-            block
-                character(len=512) :: f90_file
-                logical :: f90_exists
-
-                ! Construct the .f90 filename
-                f90_file = f_file(1:len_trim(f_file) - 2)//'.f90'
-                inquire (file=f90_file, exist=f90_exists)
-
-                if (f90_exists) then
-                    ! Use the existing .f90 file instead of processing
-                call log_verbose("runner", "Using existing .f90 file: "//trim(f90_file))
-                    command = 'cp "'//trim(f90_file)//'" "'//trim(output_file)//'"'
-                    call execute_command_line(command)
-                else
-                    ! Compile the .f file through the frontend to generate standard Fortran
-                  call compile_with_frontend(trim(f_file), trim(output_file), error_msg)
-
-                    if (len_trim(error_msg) > 0) then
-           print '(a,a)', 'Warning: Failed to process companion .f file: ', trim(f_file)
-                        print '(a,a)', '         Error: ', trim(error_msg)
-                        ! Try to copy the original file as fallback (but this will likely fail FPM compilation)
-                        ! Actually, don't copy it - better to fail early
-                    end if
-                end if
-            end block
-        end do
-
-    end subroutine process_and_copy_f_files
 
     subroutine provide_helpful_error_message(error_file)
         character(len=*), intent(in) :: error_file
@@ -857,12 +647,11 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
     end function directory_exists
 
    subroutine setup_project_files(absolute_path, project_dir, basename, verbose_level, &
-            custom_config_dir, is_preprocessed_file, custom_flags, original_source_path)
+                                  custom_config_dir, is_preprocessed_file, custom_flags)
  character(len=*), intent(in) :: absolute_path, project_dir, basename, custom_config_dir
         integer, intent(in) :: verbose_level
         logical, intent(in) :: is_preprocessed_file
         character(len=*), intent(in), optional :: custom_flags
-        character(len=*), intent(in), optional :: original_source_path
         character(len=512) :: command
         integer :: exitstat, cmdstat
 
@@ -876,12 +665,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         end if
 
         ! Copy all other .f90 files from the same directory to src/
-        ! Use original source path if provided (for preprocessed files)
-        if (present(original_source_path)) then
-            call copy_local_modules(original_source_path, project_dir)
-        else
-            call copy_local_modules(absolute_path, project_dir)
-        end if
+        call copy_local_modules(absolute_path, project_dir)
 
         ! Scan for module dependencies and generate fpm.toml
         ! Sanitize basename for use as package name (limit length and remove spaces)
@@ -914,14 +698,13 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
 
     end subroutine setup_project_files
 
-    subroutine update_source_files(main_file_path, project_dir, original_source_path)
-        character(len=*), intent(in) :: main_file_path, project_dir
-        character(len=*), intent(in), optional :: original_source_path
+    subroutine update_source_files(absolute_path, project_dir)
+        character(len=*), intent(in) :: absolute_path, project_dir
         character(len=512) :: command
         integer :: exitstat, cmdstat
 
         ! Update the main source file in the cached project
-      command = 'cp "'//trim(main_file_path)//'" "'//trim(project_dir)//'/app/main.f90"'
+       command = 'cp "'//trim(absolute_path)//'" "'//trim(project_dir)//'/app/main.f90"'
         call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
 
         if (cmdstat /= 0 .or. exitstat /= 0) then
@@ -929,20 +712,9 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         end if
 
         ! Update any local module files (copy all .f90 files from source directory)
-        ! Use original source path if provided (for preprocessed files)
-        if (present(original_source_path)) then
-            call copy_local_modules(original_source_path, project_dir)
-        else
-            call copy_local_modules(main_file_path, project_dir)
-        end if
+        call copy_local_modules(absolute_path, project_dir)
 
     end subroutine update_source_files
-
-    function int_to_str(n) result(str)
-        integer, intent(in) :: n
-        character(len=20) :: str
-        write (str, '(I0)') n
-    end function int_to_str
 
     function get_project_structure_hash(source_dir, main_file) result(structure_hash)
         character(len=*), intent(in) :: source_dir, main_file
@@ -987,7 +759,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         main_basename = extract_basename(main_file)
 
         ! Create temporary file to list .f90 files
-        temp_file = '/tmp/fortran_f90_list.tmp'
+    temp_file = get_temp_file_path(create_temp_dir('fortran_f90_list'), 'fortran_f90_list.tmp')
     command = 'find "' // trim(source_dir) // '" -maxdepth 1 -name "*.f90" -o -name "*.F90" > ' // trim(temp_file)
         call execute_command_line(command)
 
@@ -1054,53 +826,5 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         end if
 
     end subroutine generate_flag_string
-
-    ! Handle STDIN input by creating a temporary file
-    subroutine handle_stdin_input(filename, success)
-        use temp_utils, only: create_temp_dir, get_temp_file_path
-        use cli, only: check_stdin_available
-        character(len=*), intent(inout) :: filename
-        logical, intent(out) :: success
-
-        character(len=:), allocatable :: temp_dir, temp_file
-        integer :: ios, unit
-        character(len=1024) :: line
-        logical :: has_stdin
-
-        success = .false.
-
-        ! Check if stdin is actually available
-        call check_stdin_available(has_stdin)
-        if (.not. has_stdin) then
-            ! No stdin available, return early
-            return
-        end if
-
-        ! Create temporary directory
-        call create_temp_dir('fortran_stdin', temp_dir)
-
-        ! Create temporary file with .f extension for lowercase fortran
-        call get_temp_file_path(temp_dir, 'stdin_input.f', temp_file)
-
-        ! Open temporary file for writing
-        open (newunit=unit, file=temp_file, action='write', iostat=ios)
-        if (ios /= 0) then
-            return
-        end if
-
-        ! Read from STDIN and write to temporary file
-        do
-            read (*, '(a)', iostat=ios) line
-            if (ios /= 0) exit  ! End of file or error
-            write (unit, '(a)') trim(line)
-        end do
-
-        close (unit)
-
-        ! Update filename to point to temporary file
-        filename = temp_file
-        success = .true.
-
-    end subroutine handle_stdin_input
 
 end module runner

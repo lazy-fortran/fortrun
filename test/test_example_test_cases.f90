@@ -1,6 +1,7 @@
 program test_example_test_cases
     use iso_fortran_env, only: error_unit
     use frontend, only: compile_source, compilation_options_t, BACKEND_FORTRAN
+    use temp_utils, only: get_temp_file_path, get_system_temp_dir
     implicit none
 
     integer :: test_count, pass_count
@@ -13,8 +14,7 @@ program test_example_test_cases
 
     call test_case("use_statement", test_count, pass_count)
     call test_case("print_statement", test_count, pass_count)
-    ! Skip multi_statement - requires type inference (semantic analysis disabled)
-    ! call test_case("multi_statement", test_count, pass_count)
+    call test_case("multi_statement", test_count, pass_count)
 
     write (*, '(a)') ''
 write(*, '(a,i0,a,i0,a)') 'Example test cases: ', pass_count, '/', test_count, ' passed'
@@ -40,7 +40,7 @@ contains
         ! Set file paths (updated for reorganized structure)
 input_file = "example/frontend_test_cases/"//trim(case_name)//"/"//trim(case_name)//".f"
         expected_file = "example/frontend_test_cases/" // trim(case_name) // "/" // trim(case_name) // ".f90"
-        output_file = "/tmp/"//trim(case_name)//"_out.f90"
+    output_file = get_temp_file_path(get_system_temp_dir(), trim(case_name)//"_out.f90")
 
         ! Read expected output
         call read_file(expected_file, expected_code)
@@ -109,43 +109,9 @@ input_file = "example/frontend_test_cases/"//trim(case_name)//"/"//trim(case_nam
         character(len=*), intent(in) :: str1, str2
         logical :: equal
 
-        ! Normalize whitespace by removing extra spaces and comparing
-        block
-            character(len=:), allocatable :: norm1, norm2
-            integer :: i, j
-
-            ! Remove extra whitespace from str1
-            norm1 = ""
-            j = 0
-            do i = 1, len_trim(str1)
-                if (str1(i:i) /= ' ') then
-                    j = j + 1
-                    norm1 = norm1//str1(i:i)
-                else if (j == 0) then
-                    ! Skip leading spaces
-                else if (j > 0 .and. norm1(j:j) /= ' ') then
-                    j = j + 1
-                    norm1 = norm1//str1(i:i)
-                end if
-            end do
-
-            ! Remove extra whitespace from str2
-            norm2 = ""
-            j = 0
-            do i = 1, len_trim(str2)
-                if (str2(i:i) /= ' ') then
-                    j = j + 1
-                    norm2 = norm2//str2(i:i)
-                else if (j == 0) then
-                    ! Skip leading spaces
-                else if (j > 0 .and. norm2(j:j) /= ' ') then
-                    j = j + 1
-                    norm2 = norm2//str2(i:i)
-                end if
-            end do
-
-            equal = (trim(norm1) == trim(norm2))
-        end block
+        ! For now, just do a simple comparison
+        ! TODO: Implement proper whitespace normalization
+        equal = (trim(adjustl(str1)) == trim(adjustl(str2)))
     end function compare_normalized
 
 end program test_example_test_cases

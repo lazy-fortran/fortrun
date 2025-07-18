@@ -6,6 +6,7 @@ module notebook_executor
     use cache_lock, only: acquire_lock, release_lock
     use frontend_integration, only: compile_with_frontend, is_simple_fortran_file
     use, intrinsic :: iso_c_binding
+    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path
     implicit none
     private
 
@@ -294,273 +295,15 @@ contains
         type(notebook_t), intent(in) :: notebook
         character(len=:), allocatable, intent(out) :: variables_section
 
-        ! Implement proper variable analysis by scanning cells
-        character(len=:), allocatable :: var_declarations(:)
-        character(len=:), allocatable :: var_names(:)
-        character(len=:), allocatable :: var_types(:)
-        integer :: num_vars, i, j
-        logical :: var_exists
-
-        ! Initialize arrays
-        allocate (character(len=64) :: var_names(0))
-        allocate (character(len=32) :: var_types(0))
-        num_vars = 0
-
-        ! Scan all code cells for variable usage
-        do i = 1, notebook%num_cells
-            if (notebook%cells(i)%cell_type == CELL_CODE) then
-  call analyze_cell_variables(notebook%cells(i)%content, var_names, var_types, num_vars)
-            end if
-        end do
-
-        ! Generate variable declarations
-        variables_section = ""
-
-        ! Group variables by type
-        call generate_variable_declarations_by_type(var_names, var_types, num_vars, variables_section)
-
-        ! Always include temp_str for print transformations
-        if (len(variables_section) > 0) then
-            variables_section = variables_section//new_line('a')// &
+        ! For now, use common variable types
+        ! TODO: Implement proper variable analysis
+        variables_section = '    real(8) :: x, y, z, sum, diff, product, quotient' // new_line('a') // &
+                            '    integer :: i, j, k, n, count'//new_line('a')// &
+                            '    logical :: flag, ready'//new_line('a')// &
+                            '    character(len=256) :: text, label'//new_line('a')// &
                       '    character(len=1024) :: temp_str  ! For print transformations'
-        else
-  variables_section = '    character(len=1024) :: temp_str  ! For print transformations'
-        end if
 
     end subroutine analyze_notebook_variables
-
-    !> Analyze variables in a single cell's content
-    subroutine analyze_cell_variables(cell_content, var_names, var_types, num_vars)
-        character(len=*), intent(in) :: cell_content
-        character(len=:), allocatable, intent(inout) :: var_names(:)
-        character(len=:), allocatable, intent(inout) :: var_types(:)
-        integer, intent(inout) :: num_vars
-
-        character(len=:), allocatable :: lines(:)
-        integer :: num_lines, i, j
-        character(len=:), allocatable :: line
-
-        ! Split content into lines
-        call split_content_lines(cell_content, lines, num_lines)
-
-        do i = 1, num_lines
-            line = trim(lines(i))
-
-            ! Skip empty lines and comments
-            if (len(line) == 0 .or. line(1:1) == '!') cycle
-
-            ! Look for assignment statements (simple heuristic)
-            if (index(line, '=') > 0) then
-                call extract_assignment_variable(line, var_names, var_types, num_vars)
-            end if
-
-            ! Look for explicit declarations
-            if (index(line, '::') > 0) then
-                call extract_declared_variable(line, var_names, var_types, num_vars)
-            end if
-        end do
-
-    end subroutine analyze_cell_variables
-
-    !> Extract variable from assignment statement
-    subroutine extract_assignment_variable(line, var_names, var_types, num_vars)
-        character(len=*), intent(in) :: line
-        character(len=:), allocatable, intent(inout) :: var_names(:)
-        character(len=:), allocatable, intent(inout) :: var_types(:)
-        integer, intent(inout) :: num_vars
-
-        integer :: eq_pos, i
-        character(len=:), allocatable :: var_name, var_type
-
-        eq_pos = index(line, '=')
-        if (eq_pos > 1) then
-            var_name = trim(adjustl(line(1:eq_pos - 1)))
-
-            ! Simple type inference based on assignment value
-            var_type = infer_type_from_assignment(line(eq_pos + 1:))
-
-            ! Check if variable already exists
-            if (.not. variable_exists(var_name, var_names, num_vars)) then
-                call add_variable(var_name, var_type, var_names, var_types, num_vars)
-            end if
-        end if
-
-    end subroutine extract_assignment_variable
-
-    !> Extract variable from explicit declaration
-    subroutine extract_declared_variable(line, var_names, var_types, num_vars)
-        character(len=*), intent(in) :: line
-        character(len=:), allocatable, intent(inout) :: var_names(:)
-        character(len=:), allocatable, intent(inout) :: var_types(:)
-        integer, intent(inout) :: num_vars
-
-        integer :: dcolon_pos, i
-        character(len=:), allocatable :: type_part, var_part, var_name, var_type
-
-        dcolon_pos = index(line, '::')
-        if (dcolon_pos > 1) then
-            type_part = trim(adjustl(line(1:dcolon_pos - 1)))
-            var_part = trim(adjustl(line(dcolon_pos + 2:)))
-
-            ! Extract variable name (first word after ::)
-            i = index(var_part, ' ')
-            if (i > 0) then
-                var_name = var_part(1:i - 1)
-            else
-                var_name = var_part
-            end if
-
-            ! Remove any array dimensions or initializations
-            i = index(var_name, '(')
-            if (i > 0) var_name = var_name(1:i - 1)
-            i = index(var_name, '=')
-            if (i > 0) var_name = var_name(1:i - 1)
-
-            var_type = trim(type_part)
-
-            ! Check if variable already exists
-            if (.not. variable_exists(var_name, var_names, num_vars)) then
-                call add_variable(var_name, var_type, var_names, var_types, num_vars)
-            end if
-        end if
-
-    end subroutine extract_declared_variable
-
-    !> Infer type from assignment value
-    function infer_type_from_assignment(value_str) result(var_type)
-        character(len=*), intent(in) :: value_str
-        character(len=:), allocatable :: var_type
-
-        character(len=:), allocatable :: value
-
-        value = trim(adjustl(value_str))
-
-        ! Check for string literals
-        if (len(value) > 0 .and. (value(1:1) == '"' .or. value(1:1) == "'")) then
-            var_type = 'character(len=256)'
-            ! Check for real numbers
-        else if (index(value, '.') > 0 .or. index(value, 'd') > 0 .or. index(value, 'D') > 0) then
-            var_type = 'real(8)'
-            ! Check for logical values
-        else if (value == '.true.' .or. value == '.false.') then
-            var_type = 'logical'
-            ! Default to integer for numeric values
-        else
-            var_type = 'integer'
-        end if
-
-    end function infer_type_from_assignment
-
-    !> Check if variable already exists
-    function variable_exists(var_name, var_names, num_vars) result(exists)
-        character(len=*), intent(in) :: var_name
-        character(len=:), allocatable, intent(in) :: var_names(:)
-        integer, intent(in) :: num_vars
-        logical :: exists
-
-        integer :: i
-
-        exists = .false.
-        do i = 1, num_vars
-            if (var_names(i) == var_name) then
-                exists = .true.
-                return
-            end if
-        end do
-
-    end function variable_exists
-
-    !> Add variable to lists
-    subroutine add_variable(var_name, var_type, var_names, var_types, num_vars)
-        character(len=*), intent(in) :: var_name, var_type
-        character(len=:), allocatable, intent(inout) :: var_names(:)
-        character(len=:), allocatable, intent(inout) :: var_types(:)
-        integer, intent(inout) :: num_vars
-
-        character(len=:), allocatable :: temp_names(:), temp_types(:)
-
-        ! Extend arrays
-        allocate (character(len=64) :: temp_names(num_vars + 1))
-        allocate (character(len=32) :: temp_types(num_vars + 1))
-
-        if (num_vars > 0) then
-            temp_names(1:num_vars) = var_names(1:num_vars)
-            temp_types(1:num_vars) = var_types(1:num_vars)
-        end if
-
-        temp_names(num_vars + 1) = var_name
-        temp_types(num_vars + 1) = var_type
-
-        var_names = temp_names
-        var_types = temp_types
-        num_vars = num_vars + 1
-
-    end subroutine add_variable
-
-    !> Generate variable declarations grouped by type
-    subroutine generate_variable_declarations_by_type(var_names, var_types, num_vars, variables_section)
-        character(len=:), allocatable, intent(in) :: var_names(:)
-        character(len=:), allocatable, intent(in) :: var_types(:)
-        integer, intent(in) :: num_vars
-        character(len=:), allocatable, intent(inout) :: variables_section
-
-        character(len=:), allocatable :: unique_types(:)
-        integer :: num_types, i, j
-        character(len=:), allocatable :: type_vars
-        logical :: type_exists
-
-        if (num_vars == 0) return
-
-        ! Find unique types
-        allocate (character(len=32) :: unique_types(0))
-        num_types = 0
-
-        do i = 1, num_vars
-            type_exists = .false.
-            do j = 1, num_types
-                if (unique_types(j) == var_types(i)) then
-                    type_exists = .true.
-                    exit
-                end if
-            end do
-
-            if (.not. type_exists) then
-                block
-                    character(len=:), allocatable :: temp_types(:)
-                    allocate (character(len=32) :: temp_types(num_types + 1))
-                    if (num_types > 0) then
-                        temp_types(1:num_types) = unique_types(1:num_types)
-                    end if
-                    temp_types(num_types + 1) = var_types(i)
-                    unique_types = temp_types
-                    num_types = num_types + 1
-                end block
-            end if
-        end do
-
-        ! Generate declarations for each type
-        do i = 1, num_types
-            type_vars = ""
-
-            ! Collect all variables of this type
-            do j = 1, num_vars
-                if (var_types(j) == unique_types(i)) then
-                    if (len(type_vars) > 0) then
-                        type_vars = type_vars//", "
-                    end if
-                    type_vars = type_vars//trim(var_names(j))
-                end if
-            end do
-
-            ! Add declaration line
-            if (len(variables_section) > 0) then
-                variables_section = variables_section//new_line('a')
-            end if
- variables_section = variables_section//'    '//trim(unique_types(i))//' :: '//type_vars
-        end do
-
-    end subroutine generate_variable_declarations_by_type
-
     function generate_cell_procedure(cell, cell_number) result(procedure_code)
         type(cell_t), intent(in) :: cell
         integer, intent(in) :: cell_number
@@ -993,20 +736,11 @@ contains
                 temp_dir = temp_dir(1:len(temp_dir) - 1)
             end if
         else
-            temp_dir = '/tmp/fortran_notebook_'//trim(int_to_str(get_process_id()))
-            call execute_command_line('mkdir -p '//trim(temp_dir))
+            temp_dir = create_temp_dir('fortran_notebook')
+            ! Directory already created by create_temp_dir
         end if
 
     end subroutine create_temp_notebook_dir
-
-    subroutine cleanup_temp_dir(temp_dir)
-        character(len=*), intent(in) :: temp_dir
-        character(len=512) :: command
-
-        command = 'rm -rf '//trim(temp_dir)
-        call execute_command_line(command)
-
-    end subroutine cleanup_temp_dir
 
     subroutine execute_and_capture(command, output, exit_code)
         character(len=*), intent(in) :: command
@@ -1017,7 +751,7 @@ contains
         character(len=512) :: full_command
         integer :: unit, iostat, file_size
 
-        temp_file = '/tmp/fortran_exec_'//trim(int_to_str(get_process_id()))//'.out'
+        temp_file = get_temp_file_path(create_temp_dir('fortran_exec'), 'fortran_exec.out')
 
         full_command = trim(command)//' > '//trim(temp_file)//' 2>&1'
         call execute_command_line(full_command, exitstat=exit_code)

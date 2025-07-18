@@ -9,6 +9,7 @@ program main
     use notebook_parser
     use notebook_executor
     use notebook_renderer
+    use temp_utils, only: create_temp_dir, get_temp_file_path
     implicit none
 
   character(len=256) :: filename, custom_cache_dir, custom_config_dir, notebook_output, custom_flags
@@ -140,7 +141,7 @@ print '(a)', '                    (.f90: user flags only, .f: opinionated + user
         is_lazy_fortran = is_simple_fortran_file(input_file)
 
         ! Create temporary output file
-        temp_output = trim(input_file)//'.tmp.f90'
+        temp_output = get_temp_file_path(create_temp_dir('fortran_main'), 'output.f90')
 
         ! Process based on file type
         if (is_lazy_fortran) then
@@ -255,15 +256,11 @@ call execute_command_line('cp '//trim(input_file)//' '//trim(temp_output), exits
                 if (verbose_level > 0) then
                     print '(a)', 'Running file with cleared cache...'
                 end if
-                block
-                    character(len=:), allocatable :: filename_copy
-                    filename_copy = filename
-      call run_fortran_file(filename_copy, exit_code, verbose_level, custom_cache_dir, &
-                                          '', 0, .false., '')
-                    if (exit_code /= 0) then
-                        stop 1
-                    end if
-                end block
+                call run_fortran_file(filename, exit_code, verbose_level, custom_cache_dir, &
+                                      '', 0, .false., '')
+                if (exit_code /= 0) then
+                    stop 1
+                end if
             end if
         else
             print '(a)', 'Error: Failed to clear cache'

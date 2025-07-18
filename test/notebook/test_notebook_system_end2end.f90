@@ -1,4 +1,5 @@
 program test_notebook_system
+    use temp_utils, only: temp_dir_manager
     implicit none
 
     logical :: all_tests_passed
@@ -77,11 +78,17 @@ contains
         print *, 'Test 2: Notebook CLI execution'
 
         ! Clean up any existing test output
-        call execute_command_line('rm -f /tmp/test_system_notebook.md')
+        block
+            type(temp_dir_manager) :: temp_mgr
+            character(len=:), allocatable :: output_file
 
-        ! Execute notebook command
-        command = 'fpm run fortran -- --notebook '// &
-             'example/scientific/notebook/simple_math.f -o /tmp/test_system_notebook.md'
+            call temp_mgr%create('notebook_test')
+            output_file = temp_mgr%get_file_path('test_system_notebook.md')
+
+            ! Execute notebook command
+            command = 'fpm run fortran -- --notebook '// &
+                      'example/notebook/simple_math.f -o "'//output_file//'"'
+        end block
         call execute_and_capture(command, output, exit_code)
 
         ! Check command succeeded
@@ -93,7 +100,14 @@ contains
         end if
 
         ! Check output file was created
-        inquire (file='/tmp/test_system_notebook.md', exist=file_exists)
+        block
+            type(temp_dir_manager) :: temp_mgr
+            character(len=:), allocatable :: output_file
+
+            call temp_mgr%create('notebook_test')
+            output_file = temp_mgr%get_file_path('test_system_notebook.md')
+            inquire (file=output_file, exist=file_exists)
+        end block
         if (.not. file_exists) then
             print *, '  FAIL: Output file not created'
             passed = .false.
@@ -111,7 +125,14 @@ contains
         print *, 'Test 3: Output file content validation'
 
         ! Read the output file
-        call read_file_content('/tmp/test_system_notebook.md', content)
+        block
+            type(temp_dir_manager) :: temp_mgr
+            character(len=:), allocatable :: output_file
+
+            call temp_mgr%create('notebook_test')
+            output_file = temp_mgr%get_file_path('test_system_notebook.md')
+            call read_file_content(output_file, content)
+        end block
 
         if (len(content) == 0) then
             print *, '  FAIL: Output file is empty'
@@ -153,17 +174,31 @@ contains
 
         ! First run (cache miss)
         call cpu_time(start_time)
-        command = 'fpm run fortran -- --notebook '// &
-                'example/scientific/notebook/arrays_loops.f -o /tmp/test_cache_perf1.md'
-        call execute_and_capture(command, output1, exit_code1)
+        block
+            type(temp_dir_manager) :: temp_mgr
+            character(len=:), allocatable :: output_file
+
+            call temp_mgr%create('cache_perf_test')
+            output_file = temp_mgr%get_file_path('test_cache_perf1.md')
+            command = 'fpm run fortran -- --notebook '// &
+                      'example/notebook/arrays_loops.f -o "'//output_file//'"'
+            call execute_and_capture(command, output1, exit_code1)
+        end block
         call cpu_time(end_time)
         time1 = end_time - start_time
 
         ! Second run (cache hit)
         call cpu_time(start_time)
-        command = 'fpm run fortran -- --notebook '// &
-                'example/scientific/notebook/arrays_loops.f -o /tmp/test_cache_perf2.md'
-        call execute_and_capture(command, output2, exit_code2)
+        block
+            type(temp_dir_manager) :: temp_mgr
+            character(len=:), allocatable :: output_file
+
+            call temp_mgr%create('cache_perf_test')
+            output_file = temp_mgr%get_file_path('test_cache_perf2.md')
+            command = 'fpm run fortran -- --notebook '// &
+                      'example/notebook/arrays_loops.f -o "'//output_file//'"'
+            call execute_and_capture(command, output2, exit_code2)
+        end block
         call cpu_time(end_time)
         time2 = end_time - start_time
 
@@ -192,8 +227,10 @@ contains
         character(len=256) :: temp_file
         character(len=512) :: full_command
         integer :: unit, iostat, file_size
+        type(temp_dir_manager) :: temp_mgr
 
-        temp_file = '/tmp/fortran_system_test.out'
+        call temp_mgr%create('fortran_system_test')
+        temp_file = temp_mgr%get_file_path('fortran_system_test.out')
 
         full_command = trim(command)//' > '//trim(temp_file)//' 2>&1'
         call execute_command_line(full_command, exitstat=exit_code)
@@ -214,8 +251,6 @@ contains
         else
             output = ""
         end if
-
-        call execute_command_line('rm -f '//trim(temp_file))
 
     end subroutine execute_and_capture
 
