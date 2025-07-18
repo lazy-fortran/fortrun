@@ -227,15 +227,17 @@ contains
         ! Deep copy env to avoid shallow copy issues
         this%scopes(this%depth)%env%count = new_scope%env%count
         this%scopes(this%depth)%env%capacity = new_scope%env%capacity
-        if (allocated(new_scope%env%names)) then
+        if (allocated(new_scope%env%names) .and. new_scope%env%capacity > 0) then
             allocate(character(len=256) :: this%scopes(this%depth)%env%names(new_scope%env%capacity))
             do j = 1, new_scope%env%count
                 this%scopes(this%depth)%env%names(j) = new_scope%env%names(j)
             end do
         end if
-        if (allocated(new_scope%env%schemes)) then
+        if (allocated(new_scope%env%schemes) .and. new_scope%env%capacity > 0) then
             allocate (this%scopes(this%depth)%env%schemes(new_scope%env%capacity))
-            this%scopes(this%depth)%env%schemes(1:new_scope%env%count) = new_scope%env%schemes(1:new_scope%env%count)
+            if (new_scope%env%count > 0) then
+                this%scopes(this%depth)%env%schemes(1:new_scope%env%count) = new_scope%env%schemes(1:new_scope%env%count)
+            end if
         end if
 
     end subroutine stack_push_scope

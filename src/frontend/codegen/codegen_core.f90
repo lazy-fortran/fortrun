@@ -649,12 +649,29 @@ contains
 
         code = "use "//node%module_name
 
-        if (node%has_only .and. allocated(node%only_list)) then
+        if (node%has_only) then
             code = code//", only: "
-            do i = 1, size(node%only_list)
-                if (i > 1) code = code//", "
-                code = code//trim(node%only_list(i))
-            end do
+
+            ! Add rename list items first
+            if (allocated(node%rename_list)) then
+                do i = 1, size(node%rename_list)
+                    if (i > 1) code = code//", "
+                    code = code//trim(node%rename_list(i))
+                end do
+                if (allocated(node%only_list) .and. size(node%only_list) > 0) then
+                    code = code//", "
+                end if
+            end if
+
+            ! Add only list items
+            if (allocated(node%only_list)) then
+                do i = 1, size(node%only_list)
+     if (i > 1 .or. (allocated(node%rename_list) .and. size(node%rename_list) > 0)) then
+                        code = code//", "
+                    end if
+                    code = code//trim(node%only_list(i))
+                end do
+            end if
         end if
     end function generate_code_use_statement
 
