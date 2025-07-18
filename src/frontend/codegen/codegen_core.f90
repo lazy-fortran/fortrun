@@ -52,6 +52,8 @@ contains
             code = generate_code_do_while(arena, node, node_index)
         type is (select_case_node)
             code = generate_code_select_case(arena, node, node_index)
+        type is (use_statement_node)
+            code = generate_code_use_statement(node)
         class default
             code = "! Unknown node type"
         end select
@@ -158,26 +160,52 @@ contains
         type(program_node), intent(in) :: node
         integer, intent(in) :: node_index
         character(len=:), allocatable :: code
-        character(len=:), allocatable :: declarations, body_code
+        character(len=:), allocatable :: use_statements, declarations, body_code
         integer, allocatable :: child_indices(:)
         integer :: i
+        character(len=:), allocatable :: stmt_code
 
         ! Generate variable declarations
         declarations = generate_variable_declarations(arena, node_index)
 
-        ! Generate body code
+        ! First pass: collect use statements
+        use_statements = ""
         body_code = ""
-        child_indices = arena%get_children(node_index)
+        ! Use body_indices from program_node, not get_children
+        if (allocated(node%body_indices)) then
+            allocate (child_indices(size(node%body_indices)))
+            child_indices = node%body_indices
+        else
+            allocate (child_indices(0))
+        end if
 
         do i = 1, size(child_indices)
-            if (len(body_code) > 0) then
-                body_code = body_code//new_line('A')
+            if (child_indices(i) > 0 .and. child_indices(i) <= arena%size) then
+                if (allocated(arena%entries(child_indices(i))%node)) then
+                    select type (child_node => arena%entries(child_indices(i))%node)
+                    type is (use_statement_node)
+                        if (len(use_statements) > 0) then
+                            use_statements = use_statements//new_line('A')
+                        end if
+        use_statements = use_statements//"    "//generate_code_use_statement(child_node)
+                    class default
+                        stmt_code = generate_code_from_arena(arena, child_indices(i))
+                        if (len(stmt_code) > 0) then
+                            if (len(body_code) > 0) then
+                                body_code = body_code//new_line('A')
+                            end if
+                            body_code = body_code//"    "//stmt_code
+                        end if
+                    end select
+                end if
             end if
-        body_code = body_code//"    "//generate_code_from_arena(arena, child_indices(i))
         end do
 
         ! Combine everything
         code = "program "//node%name//new_line('A')
+        if (len(use_statements) > 0) then
+            code = code//use_statements//new_line('A')
+        end if
         code = code//"    implicit none"//new_line('A')
 
         if (len(declarations) > 0) then
@@ -614,6 +642,23 @@ contains
 
         code = code//"end select"
     end function generate_code_select_case
+
+    ! Generate code for use statement
+    function generate_code_use_statement(node) result(code)
+        type(use_statement_node), intent(in) :: node
+        character(len=:), allocatable :: code
+        integer :: i
+
+        code = "use "//node%module_name
+
+        if (node%has_only .and. allocated(node%only_list)) then
+            code = code//" , only: "
+            do i = 1, size(node%only_list)
+                if (i > 1) code = code//", "
+                code = code//node%only_list(i)
+            end do
+        end if
+    end function generate_code_use_statement
 
     ! Helper function to convert integer to string
     function int_to_string(num) result(str)

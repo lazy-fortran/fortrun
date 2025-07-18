@@ -29,7 +29,8 @@ contains
         type(token_t), allocatable :: tokens(:)
         type(ast_arena_t) :: arena
         integer :: expr_index
-        character(len=:), allocatable :: generated, error_msg
+        character(len=:), allocatable :: generated
+        character(len=256) :: error_msg
 
         test_round_trip_literal = .true.
         print '(a)', "Testing literal round trip..."
@@ -63,7 +64,8 @@ contains
         type(token_t), allocatable :: tokens(:)
         type(ast_arena_t) :: arena
         integer :: prog_index
-        character(len=:), allocatable :: generated, error_msg
+        character(len=:), allocatable :: generated
+        character(len=256) :: error_msg
 
         test_round_trip_assignment = .true.
         print '(a)', "Testing assignment round trip..."
