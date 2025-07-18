@@ -39,11 +39,22 @@ contains
                 call json%get(root_test)
                 if (.not. associated(root_test)) then
                     json_valid = .false.
+                else
+                    ! Check if JSON has expected structure for tokens
+                    block
+                        type(json_value), pointer :: tokens_test
+                        logical :: found_tokens
+                        call json%get('tokens', tokens_test, found_tokens)
+                        if (.not. found_tokens) then
+                            ! Not a valid tokens JSON file
+                            json_valid = .false.
+                        end if
+                    end block
                 end if
             end block
 
             if (.not. json_valid) then
-                error stop "Invalid JSON format: could not parse JSON file"
+                error stop "Invalid JSON format: expected tokens JSON structure"
             end if
         end block
 
