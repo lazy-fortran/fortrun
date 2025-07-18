@@ -185,11 +185,13 @@ contains
                         temp_scopes(i)%env%capacity = this%scopes(i)%env%capacity
                         if (allocated(this%scopes(i)%env%names)) then
   allocate (character(len=256) :: temp_scopes(i)%env%names(this%scopes(i)%env%capacity))
-                            temp_scopes(i)%env%names(1:this%scopes(i)%env%count) = this%scopes(i)%env%names(1:this%scopes(i)%env%count)
+                            temp_scopes(i)%env%names(1:this%scopes(i)%env%count) = &
+                                this%scopes(i)%env%names(1:this%scopes(i)%env%count)
                         end if
                         if (allocated(this%scopes(i)%env%schemes)) then
                       allocate (temp_scopes(i)%env%schemes(this%scopes(i)%env%capacity))
-                            temp_scopes(i)%env%schemes(1:this%scopes(i)%env%count) = this%scopes(i)%env%schemes(1:this%scopes(i)%env%count)
+                            temp_scopes(i)%env%schemes(1:this%scopes(i)%env%count) = &
+                                this%scopes(i)%env%schemes(1:this%scopes(i)%env%count)
                         end if
                     end do
                 end block

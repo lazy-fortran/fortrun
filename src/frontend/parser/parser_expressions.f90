@@ -375,7 +375,8 @@ contains
                 end block
             else
                 ! Unrecognized operator - create error node
-      expr_index = push_literal(arena, "!ERROR: Unrecognized operator '"//current%text//"'", LITERAL_STRING, current%line, current%column)
+expr_index = push_literal(arena, "!ERROR: Unrecognized operator '"//current%text//"'", &
+                                          LITERAL_STRING, current%line, current%column)
                 current = parser%consume()
             end if
 
@@ -386,7 +387,8 @@ contains
       expr_index = push_literal(arena, current%text, LITERAL_LOGICAL, current%line, current%column)
             else
                 ! Other keywords - create error node
-      expr_index = push_literal(arena, "!ERROR: Unexpected keyword '"//current%text//"' in expression", LITERAL_STRING, current%line, current%column)
+      expr_index = push_literal(arena, "!ERROR: Unexpected keyword '"//current%text//"' in expression", &
+                                          LITERAL_STRING, current%line, current%column)
             end if
 
         case default

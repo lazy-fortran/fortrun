@@ -501,7 +501,8 @@ contains
         integer :: interface_index
         type(interface_block_node) :: interface_block
 
-        interface_block = create_interface_block(interface_name, "interface", procedure_indices=procedure_indices, line=line, column=column)
+        interface_block = create_interface_block(interface_name, "interface", &
+                          procedure_indices=procedure_indices, line=line, column=column)
         call arena%push(interface_block, "interface_block", parent_index)
         interface_index = arena%size
     end function push_interface_block
