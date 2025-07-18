@@ -87,10 +87,12 @@ contains
     end function create_scope_stack
 
     ! Scope lookup (local only)
-    function scope_lookup(this, name) result(scheme)
+    subroutine scope_lookup(this, name, scheme)
         class(scope_t), intent(in) :: this
         character(len=*), intent(in) :: name
-        type(poly_type_t), allocatable :: scheme
+        type(poly_type_t), allocatable, intent(out) :: scheme
+
+        ! intent(out) automatically deallocates scheme on entry
 
         ! Safety check: ensure env is properly initialized
         if (this%env%count < 0 .or. this%env%capacity < 0) then
@@ -101,11 +103,6 @@ contains
         if (.not. allocated(this%env%names) .or. .not. allocated(this%env%schemes)) then
             return
         end if
-
-        ! Debug info
-        ! print *, "scope_lookup: name='", trim(name), "', count=", this%env%count, &
-        !          ", allocated names=", allocated(this%env%names), &
-        !          ", allocated schemes=", allocated(this%env%schemes)"
 
         ! Direct implementation to avoid type-bound procedure issues
         block
@@ -119,7 +116,7 @@ contains
             end do
         end block
 
-    end function scope_lookup
+    end subroutine scope_lookup
 
     ! Scope define (add to local scope)
     subroutine scope_define(this, name, scheme)
@@ -131,7 +128,7 @@ contains
         block
             character(len=:), allocatable :: temp_names(:)
             type(poly_type_t), allocatable :: temp_schemes(:)
-            integer :: new_capacity
+            integer :: new_capacity, j
 
             ! Initialize or grow arrays if needed
             if (this%env%capacity == 0) then
@@ -142,8 +139,10 @@ contains
                 new_capacity = this%env%capacity*2
                 allocate (character(len=256) :: temp_names(new_capacity))
                 allocate (temp_schemes(new_capacity))
-                temp_names(1:this%env%count) = this%env%names(1:this%env%count)
-                temp_schemes(1:this%env%count) = this%env%schemes(1:this%env%count)
+                do j = 1, this%env%count
+                    temp_names(j) = this%env%names(j)
+                    temp_schemes(j) = this%env%schemes(j)
+                end do
                 call move_alloc(temp_names, this%env%names)
                 call move_alloc(temp_schemes, this%env%schemes)
                 this%env%capacity = new_capacity
@@ -164,7 +163,7 @@ contains
         class(scope_stack_t), intent(inout) :: this
         type(scope_t), intent(in) :: new_scope
         type(scope_t), allocatable :: temp_scopes(:)
-        integer :: new_capacity
+        integer :: new_capacity, j
 
         ! Grow array if needed (following CLAUDE.md safe array extension)
         if (this%depth >= this%capacity) then
@@ -174,7 +173,7 @@ contains
             if (this%depth > 0) then
                 ! Deep copy each scope to preserve type-bound procedures
                 block
-                    integer :: i
+                    integer :: i, j
                     do i = 1, this%depth
                         temp_scopes(i)%scope_type = this%scopes(i)%scope_type
                         if (allocated(this%scopes(i)%name)) then
@@ -185,8 +184,9 @@ contains
                         temp_scopes(i)%env%capacity = this%scopes(i)%env%capacity
                         if (allocated(this%scopes(i)%env%names)) then
   allocate (character(len=256) :: temp_scopes(i)%env%names(this%scopes(i)%env%capacity))
-                            temp_scopes(i)%env%names(1:this%scopes(i)%env%count) = &
-                                this%scopes(i)%env%names(1:this%scopes(i)%env%count)
+                            do j = 1, this%scopes(i)%env%count
+                               temp_scopes(i)%env%names(j) = this%scopes(i)%env%names(j)
+                            end do
                         end if
                         if (allocated(this%scopes(i)%env%schemes)) then
                       allocate (temp_scopes(i)%env%schemes(this%scopes(i)%env%capacity))
@@ -213,7 +213,9 @@ contains
         this%scopes(this%depth)%env%capacity = new_scope%env%capacity
         if (allocated(new_scope%env%names)) then
             allocate(character(len=256) :: this%scopes(this%depth)%env%names(new_scope%env%capacity))
-            this%scopes(this%depth)%env%names(1:new_scope%env%count) = new_scope%env%names(1:new_scope%env%count)
+            do j = 1, new_scope%env%count
+                this%scopes(this%depth)%env%names(j) = new_scope%env%names(j)
+            end do
         end if
         if (allocated(new_scope%env%schemes)) then
             allocate (this%scopes(this%depth)%env%schemes(new_scope%env%capacity))
@@ -235,21 +237,24 @@ contains
     end subroutine stack_pop_scope
 
     ! Stack: lookup with hierarchical search (walk down the stack)
-    function stack_lookup(this, name) result(scheme)
+    subroutine stack_lookup(this, name, scheme)
         class(scope_stack_t), intent(in) :: this
         character(len=*), intent(in) :: name
-        type(poly_type_t), allocatable :: scheme
+        type(poly_type_t), allocatable, intent(out) :: scheme
         integer :: i
+
+        ! intent(out) automatically deallocates scheme on entry
 
         ! Walk down the stack from current scope to global scope
         do i = this%depth, 1, -1
-            ! print *, "stack_lookup: checking scope", i, "of", this%depth, "for '", trim(name), "'"
             ! Use direct scope_lookup to avoid type-bound procedure issues with arrays
-            scheme = scope_lookup(this%scopes(i), name)
-            if (allocated(scheme)) return
+            call scope_lookup(this%scopes(i), name, scheme)
+            if (allocated(scheme)) then
+                return
+            end if
         end do
 
-    end function stack_lookup
+    end subroutine stack_lookup
 
     ! Stack: define in current scope (top of stack)
     subroutine stack_define(this, name, scheme)

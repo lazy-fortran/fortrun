@@ -208,7 +208,7 @@ contains
                 var_name = target%name
 
                 ! Check if variable already exists
-                existing_scheme = ctx%scopes%lookup(var_name)
+                call ctx%scopes%lookup(var_name, existing_scheme)
 
                 if (allocated(existing_scheme)) then
                     ! Variable exists - check assignment compatibility
@@ -326,7 +326,7 @@ contains
         end if
 
         ! Look up identifier in hierarchical scopes
-        scheme = ctx%scopes%lookup(ident%name)
+        call ctx%scopes%lookup(ident%name, scheme)
 
         if (allocated(scheme)) then
             ! Found in environment - instantiate the type scheme
@@ -371,15 +371,15 @@ contains
                     call ctx%compose_with_subst(s1)
 
                     ! Apply s1 to right_typ before unifying
-                    right_typ = s1%apply(right_typ)
-                    result_typ = s1%apply(result_typ)
+                    call s1%apply(right_typ, right_typ)
+                    call s1%apply(result_typ, result_typ)
 
                     ! Unify right with result
                     s2 = ctx%unify(right_typ, result_typ)
                     call ctx%compose_with_subst(s2)
 
                     ! Final result type
-                    result_typ = s2%apply(result_typ)
+                    call s2%apply(result_typ, result_typ)
                 end if
             else
                 ! Type error - for now, return real as default
@@ -460,7 +460,7 @@ contains
                     call ctx%compose_with_subst(s)
 
                     ! Update result type
-                    result_typ = s%apply(new_result_typ)
+                    call s%apply(new_result_typ, result_typ)
                 end block
             end do
 
@@ -585,7 +585,7 @@ contains
         end if
 
         ! Apply substitution to get instance
-        typ = subst%apply(scheme%mono)
+        call subst%apply(scheme%mono, typ)
     end function instantiate_type_scheme
 
     ! Generalize a type to a type scheme
@@ -598,7 +598,7 @@ contains
         logical :: in_env
 
         ! Get free variables in type
-        free_vars = free_type_vars(typ)
+        call free_type_vars(typ, free_vars)
 
         if (size(free_vars) == 0) then
             ! No free variables - monomorphic type
@@ -607,7 +607,7 @@ contains
         end if
 
         ! Get free variables in environment
-        env_vars = get_env_free_vars(this%env)
+        call get_env_free_vars(this%env, env_vars)
 
         ! Find variables to generalize (in type but not in env)
         allocate (gen_vars(size(free_vars)))
@@ -651,7 +651,7 @@ contains
         type(mono_type_t), intent(in) :: typ
         type(mono_type_t) :: result_typ
 
-        result_typ = this%subst%apply(typ)
+        call this%subst%apply(typ, result_typ)
     end function apply_current_substitution
 
     ! Compose a substitution with the current one
@@ -714,9 +714,10 @@ contains
     end function get_builtin_function_type
 
     ! Get free type variables in environment
-    function get_env_free_vars(env) result(vars)
+    subroutine get_env_free_vars(env, vars)
         type(type_env_t), intent(in) :: env
-        type(type_var_t), allocatable :: vars(:), temp_vars(:), scheme_vars(:)
+        type(type_var_t), allocatable, intent(out) :: vars(:)
+        type(type_var_t), allocatable :: temp_vars(:), scheme_vars(:)
         integer :: i, j, k, count
         logical :: found
 
@@ -725,7 +726,7 @@ contains
 
         ! Collect all free variables from all schemes
         do i = 1, env%count
-            scheme_vars = get_scheme_free_vars(env%schemes(i))
+            call get_scheme_free_vars(env%schemes(i), scheme_vars)
 
             do j = 1, size(scheme_vars)
                 ! Check if already collected
@@ -751,17 +752,18 @@ contains
         else
             allocate (vars(0))
         end if
-    end function get_env_free_vars
+    end subroutine get_env_free_vars
 
     ! Get free variables in a type scheme
-    function get_scheme_free_vars(scheme) result(vars)
+    subroutine get_scheme_free_vars(scheme, vars)
         type(poly_type_t), intent(in) :: scheme
-        type(type_var_t), allocatable :: vars(:), mono_vars(:)
+        type(type_var_t), allocatable, intent(out) :: vars(:)
+        type(type_var_t), allocatable :: mono_vars(:)
         integer :: i, j, count
         logical :: quantified
 
         ! Get free variables in monotype
-        mono_vars = free_type_vars(scheme%mono)
+        call free_type_vars(scheme%mono, mono_vars)
 
         if (.not. allocated(scheme%forall) .or. size(scheme%forall) == 0) then
             vars = mono_vars
@@ -794,7 +796,7 @@ contains
             ! Automatic cleanup - no manual deallocate needed
             allocate (vars(0))
         end if
-    end function get_scheme_free_vars
+    end subroutine get_scheme_free_vars
 
     ! Analyze module node
     function analyze_module(ctx, arena, mod_node, mod_index) result(typ)

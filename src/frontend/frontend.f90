@@ -10,7 +10,7 @@ module frontend
   use parser_control_flow_module, only: parse_do_loop, parse_do_while, parse_select_case
     use ast_core
     use ast_factory, only: push_program, push_literal
-    ! use semantic_analyzer, only: semantic_context_t, create_semantic_context, analyze_program  ! Temporarily disabled
+    ! use semantic_analyzer, only: semantic_context_t, create_semantic_context, analyze_program  ! DISABLED
     use codegen_core, only: generate_code_from_arena, generate_code_polymorphic
     use logger, only: log_debug, log_verbose, set_verbose_level
 
@@ -56,7 +56,7 @@ contains
         type(token_t), allocatable :: tokens(:)
         type(ast_arena_t) :: arena
         integer :: prog_index
-        ! type(semantic_context_t) :: sem_ctx  ! Commented out to avoid memory corruption
+        ! type(semantic_context_t) :: sem_ctx  ! DISABLED: Memory issues
         character(len=:), allocatable :: code, source
         integer :: unit, iostat
 
@@ -97,8 +97,7 @@ contains
         ! if (options%debug_ast) call debug_output_ast(input_file, arena, prog_index)
 
         ! Phase 3: Semantic Analysis (only for lazy fortran)
-        ! TODO: Add proper cleanup for semantic context to avoid memory corruption
-        ! For now, skip semantic analysis to prevent crashes
+        ! DISABLED: Memory corruption issues with gfortran and allocatable types
         ! sem_ctx = create_semantic_context()
         ! call analyze_program(sem_ctx, arena, prog_index)
         ! if (options%debug_semantic) call debug_output_semantic(input_file, arena, prog_index)
@@ -123,7 +122,7 @@ contains
         type(token_t), allocatable :: tokens(:)
         type(ast_arena_t) :: arena
         integer :: prog_index
-        ! type(semantic_context_t) :: sem_ctx  ! Commented out to avoid memory corruption
+        ! type(semantic_context_t) :: sem_ctx  ! DISABLED: Memory issues
         character(len=:), allocatable :: code
 
         error_msg = ""
@@ -139,8 +138,8 @@ contains
         ! if (options%debug_ast) call debug_output_ast(tokens_json_file, arena, prog_index)
 
         ! Phase 3: Semantic Analysis (only for lazy fortran)
-        ! TODO: Add proper cleanup for semantic context to avoid memory corruption
-        ! For now, skip semantic analysis to prevent crashes
+        ! Phase 3: Semantic Analysis (only for lazy fortran)
+        ! DISABLED: Memory corruption issues with gfortran and allocatable types
         ! sem_ctx = create_semantic_context()
         ! call analyze_program(sem_ctx, arena, prog_index)
         ! if (options%debug_semantic) call debug_output_semantic(tokens_json_file, arena, prog_index)
@@ -164,7 +163,7 @@ contains
 
         type(ast_arena_t) :: arena
         integer :: prog_index
-        ! type(semantic_context_t) :: sem_ctx  ! Commented out to avoid memory corruption
+        ! type(semantic_context_t) :: sem_ctx  ! DISABLED: Memory issues
         character(len=:), allocatable :: code
 
         error_msg = ""
@@ -174,9 +173,10 @@ contains
 prog_index = push_literal(arena, "! JSON loading not implemented", LITERAL_STRING, 1, 1)
         ! if (options%debug_ast) call debug_output_ast(ast_json_file, arena, prog_index)
 
-        ! Phase 3: Semantic Analysis - skip for now
+        ! Phase 3: Semantic Analysis
+        ! DISABLED: Memory corruption issues with gfortran and allocatable types
         ! sem_ctx = create_semantic_context()
-        ! call analyze_program_arena(sem_ctx, arena, prog_index)
+        ! call analyze_program(sem_ctx, arena, prog_index)
         ! if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, prog_index)
 
         ! Phase 4: Code Generation
@@ -198,7 +198,7 @@ prog_index = push_literal(arena, "! JSON loading not implemented", LITERAL_STRIN
 
         type(ast_arena_t) :: arena
         integer :: prog_index
-        ! type(semantic_context_t) :: sem_ctx  ! Commented out to avoid memory corruption
+        ! type(semantic_context_t) :: sem_ctx  ! DISABLED: Memory issues
         character(len=:), allocatable :: code
 
         error_msg = ""

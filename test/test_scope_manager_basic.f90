@@ -73,7 +73,7 @@ contains
         write (*, '(A,L1)') "Names allocated: ", allocated(scope%env%names)
         write (*, '(A,L1)') "Schemes allocated: ", allocated(scope%env%schemes)
 
-        result = scope%lookup("nonexistent")
+        call scope%lookup("nonexistent", result)
 
         write (*, '(A)') "Successfully called scope%lookup"
 

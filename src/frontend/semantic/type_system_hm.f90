@@ -392,11 +392,13 @@ contains
     end subroutine subst_add
 
     ! Lookup a type variable in substitution
-    function subst_lookup(this, var) result(typ)
+    subroutine subst_lookup(this, var, typ)
         class(substitution_t), intent(in) :: this
         type(type_var_t), intent(in) :: var
-        type(mono_type_t), allocatable :: typ
+        type(mono_type_t), allocatable, intent(out) :: typ
         integer :: i
+
+        ! intent(out) automatically deallocates typ on entry
 
         ! Safety check
         if (var%id < 0) then
@@ -410,13 +412,13 @@ contains
                 return
             end if
         end do
-    end function subst_lookup
+    end subroutine subst_lookup
 
     ! Apply substitution to monomorphic type
-    function subst_apply_to_mono(this, typ) result(result_typ)
+    subroutine subst_apply_to_mono(this, typ, result_typ)
         class(substitution_t), intent(in) :: this
         type(mono_type_t), intent(in) :: typ
-        type(mono_type_t) :: result_typ
+        type(mono_type_t), intent(out) :: result_typ
         type(mono_type_t), allocatable :: lookup_result
         integer :: i
 
@@ -426,7 +428,7 @@ contains
         select case (typ%kind)
         case (TVAR)
             ! Apply substitution to type variable
-            lookup_result = this%lookup(typ%var)
+            call this%lookup(typ%var, lookup_result)
             if (allocated(lookup_result)) then
                 result_typ = lookup_result
             end if
@@ -441,7 +443,7 @@ contains
                             type(mono_type_t), allocatable :: lookup_result
                             ! Defensive check: ensure var is properly initialized
    if (allocated(result_typ%args(i)%var%name) .and. result_typ%args(i)%var%id >= 0) then
-                                lookup_result = this%lookup(result_typ%args(i)%var)
+                                call this%lookup(result_typ%args(i)%var, lookup_result)
                                 if (allocated(lookup_result)) then
                                     result_typ%args(i) = lookup_result
                                 end if
@@ -454,13 +456,13 @@ contains
         case default
             ! Already deep copied, nothing more to do
         end select
-    end function subst_apply_to_mono
+    end subroutine subst_apply_to_mono
 
     ! Apply substitution to polymorphic type
-    function subst_apply_to_poly(this, scheme) result(result_scheme)
+    subroutine subst_apply_to_poly(this, scheme, result_scheme)
         class(substitution_t), intent(in) :: this
         type(poly_type_t), intent(in) :: scheme
-        type(poly_type_t) :: result_scheme
+        type(poly_type_t), intent(out) :: result_scheme
         type(substitution_t) :: filtered_subst
         integer :: i, j
         logical :: should_include
@@ -487,8 +489,8 @@ contains
             allocate (result_scheme%forall(size(scheme%forall)))
             result_scheme%forall = scheme%forall
         end if
-        result_scheme%mono = filtered_subst%apply(scheme%mono)
-    end function subst_apply_to_poly
+        call filtered_subst%apply(scheme%mono, result_scheme%mono)
+    end subroutine subst_apply_to_poly
 
     ! Apply substitution (general interface)
     function apply_substitution(subst, typ) result(result_typ)
@@ -498,7 +500,7 @@ contains
 
         select type (typ)
         type is (mono_type_t)
-            result_typ = subst%apply(typ)
+            call subst%apply(typ, result_typ)
         class default
             error stop "apply_substitution: unsupported type"
         end select
@@ -512,7 +514,11 @@ contains
 
         ! First apply s1 to all types in s2
         do i = 1, s2%count
-            call comp%add(s2%vars(i), s1%apply(s2%types(i)))
+            block
+                type(mono_type_t) :: applied_type
+                call s1%apply(s2%types(i), applied_type)
+                call comp%add(s2%vars(i), applied_type)
+            end block
         end do
 
         ! Then add all mappings from s1 that are not in s2
@@ -559,12 +565,14 @@ contains
     end function occurs_check
 
     ! Get free type variables in a type
-    function free_type_vars(typ) result(vars)
+    subroutine free_type_vars(typ, vars)
         type(mono_type_t), intent(in) :: typ
-        type(type_var_t), allocatable :: vars(:)
+        type(type_var_t), allocatable, intent(out) :: vars(:)
         type(type_var_t), allocatable :: temp_vars(:)
         integer :: count, i, j
         logical :: found
+
+        ! intent(out) automatically deallocates vars on entry
 
         allocate (temp_vars(100))  ! Temporary storage
         count = 0
@@ -620,14 +628,16 @@ contains
                 end if
             end select
         end subroutine collect_vars
-    end function free_type_vars
+    end subroutine free_type_vars
 
     ! Type environment lookup
-    function env_lookup(this, name) result(scheme)
+    subroutine env_lookup(this, name, scheme)
         class(type_env_t), intent(in) :: this
         character(len=*), intent(in) :: name
-        type(poly_type_t), allocatable :: scheme
+        type(poly_type_t), allocatable, intent(out) :: scheme
         integer :: i
+
+        ! intent(out) automatically deallocates scheme on entry
 
         ! Safety check: ensure arrays are allocated
         if (.not. allocated(this%names) .or. .not. allocated(this%schemes)) then
@@ -640,16 +650,14 @@ contains
         end if
 
         do i = 1, this%count
-            ! print *, "env_lookup: checking names(", i, ") = '", trim(this%names(i)), "'"
             if (this%names(i) == name) then
-                ! print *, "env_lookup: found match, calling deep_copy"
                 scheme = this%schemes(i)%deep_copy()
                 return
             end if
         end do
 
-        ! Scheme not found - return unallocated
-    end function env_lookup
+        ! Scheme not found - scheme remains unallocated
+    end subroutine env_lookup
 
     ! Extend type environment with single binding
     subroutine env_extend(this, name, scheme)
@@ -658,7 +666,7 @@ contains
         type(poly_type_t), intent(in) :: scheme
         character(len=:), allocatable :: temp_names(:)
         type(poly_type_t), allocatable :: temp_schemes(:)
-        integer :: new_capacity
+        integer :: new_capacity, i
 
         ! Initialize or grow arrays if needed
         if (this%capacity == 0) then
@@ -669,8 +677,10 @@ contains
             new_capacity = this%capacity*2
             allocate (character(len=256) :: temp_names(new_capacity))
             allocate (temp_schemes(new_capacity))
-            temp_names(1:this%count) = this%names(1:this%count)
-            temp_schemes(1:this%count) = this%schemes(1:this%count)
+            do i = 1, this%count
+                temp_names(i) = this%names(i)
+                temp_schemes(i) = this%schemes(i)
+            end do
             call move_alloc(temp_names, this%names)
             call move_alloc(temp_schemes, this%schemes)
             this%capacity = new_capacity
@@ -695,10 +705,10 @@ contains
     end subroutine env_extend_many
 
     ! Remove binding from environment
-    function env_remove(this, name) result(new_env)
+    subroutine env_remove(this, name, new_env)
         class(type_env_t), intent(in) :: this
         character(len=*), intent(in) :: name
-        type(type_env_t) :: new_env
+        type(type_env_t), intent(out) :: new_env
         integer :: i
 
         new_env%capacity = this%capacity
@@ -715,13 +725,13 @@ contains
                 new_env%schemes(new_env%count) = this%schemes(i)
             end if
         end do
-    end function env_remove
+    end subroutine env_remove
 
     ! Apply substitution to environment
-    function env_apply_subst(this, subst) result(new_env)
+    subroutine env_apply_subst(this, subst, new_env)
         class(type_env_t), intent(in) :: this
         type(substitution_t), intent(in) :: subst
-        type(type_env_t) :: new_env
+        type(type_env_t), intent(out) :: new_env
         integer :: i
 
         new_env%capacity = this%capacity
@@ -733,9 +743,9 @@ contains
 
             do i = 1, this%count
                 new_env%names(i) = this%names(i)
-                new_env%schemes(i) = subst%apply_to_poly(this%schemes(i))
+                call subst%apply_to_poly(this%schemes(i), new_env%schemes(i))
             end do
         end if
-    end function env_apply_subst
+    end subroutine env_apply_subst
 
 end module type_system_hm
