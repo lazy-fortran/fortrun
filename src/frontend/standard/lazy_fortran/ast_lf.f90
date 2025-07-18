@@ -125,25 +125,33 @@ contains
     subroutine lf_program_accept(this, visitor)
         class(lf_program_node), intent(in) :: this
         class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
+        ! Implement visitor pattern for lazy Fortran program nodes
+        ! This would be extended to handle specific visitor types
+        ! For now, basic implementation
     end subroutine lf_program_accept
 
     subroutine inferred_var_accept(this, visitor)
         class(inferred_var_node), intent(in) :: this
         class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
+        ! Implement visitor pattern for type-inferred variable nodes
+        ! This would be extended to handle specific visitor types
+        ! For now, basic implementation
     end subroutine inferred_var_accept
 
     subroutine list_comp_accept(this, visitor)
         class(list_comp_node), intent(in) :: this
         class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
+        ! Implement visitor pattern for list comprehension nodes
+        ! This would be extended to handle specific visitor types
+        ! For now, basic implementation
     end subroutine list_comp_accept
 
     subroutine fstring_accept(this, visitor)
         class(fstring_node), intent(in) :: this
         class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
+        ! Implement visitor pattern for F-string nodes
+        ! This would be extended to handle specific visitor types
+        ! For now, basic implementation
     end subroutine fstring_accept
 
     ! lf_assignment_accept removed - core assignment_accept handles type inference

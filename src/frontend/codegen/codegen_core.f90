@@ -347,6 +347,7 @@ contains
         integer, intent(in) :: node_index
         character(len=:), allocatable :: code
         character(len=:), allocatable :: init_code
+        integer :: i
 
         ! Generate basic declaration
         code = node%type_name
@@ -360,8 +361,17 @@ contains
 
         ! Add array dimensions if present
         if (node%is_array .and. allocated(node%dimension_indices)) then
-            ! TODO: Generate dimension expressions
-            code = code//"(:)"
+            ! Generate dimension expressions
+            code = code//"("
+            do i = 1, size(node%dimension_indices)
+                if (i > 1) code = code//","
+   if (node%dimension_indices(i) > 0 .and. node%dimension_indices(i) <= arena%size) then
+                 code = code//generate_code_from_arena(arena, node%dimension_indices(i))
+                else
+                    code = code//":"  ! Default for unspecified dimensions
+                end if
+            end do
+            code = code//")"
         end if
 
         ! Add initializer if present
@@ -582,8 +592,16 @@ contains
                             type is (literal_node)
                                 body_code = generate_code_literal(stmt)
                             type is (assignment_node)
-                                ! Need to get arena index for this - for now use placeholder
-                                body_code = "! case body statement"
+                                ! Find arena index for this assignment node
+                                block
+                                    integer :: arena_index
+                                    arena_index = find_node_index_in_arena(arena, stmt)
+                                    if (arena_index > 0) then
+                                body_code = generate_code_from_arena(arena, arena_index)
+                                    else
+                                        body_code = "! unknown assignment"
+                                    end if
+                                end block
                             class default
                                 body_code = "! unknown case body"
                             end select
@@ -603,5 +621,51 @@ contains
         character(len=20) :: str
         write (str, '(I0)') num
     end function int_to_string
+
+    ! Helper function to find a node's index in the arena
+    function find_node_index_in_arena(arena, target_node) result(index)
+        type(ast_arena_t), intent(in) :: arena
+        class(ast_node), intent(in) :: target_node
+        integer :: index
+        integer :: i
+
+        index = 0
+        do i = 1, arena%size
+            if (allocated(arena%entries(i)%node)) then
+                if (same_node(arena%entries(i)%node, target_node)) then
+                    index = i
+                    return
+                end if
+            end if
+        end do
+    end function find_node_index_in_arena
+
+    ! Helper function to compare if two nodes are the same
+    function same_node(node1, node2) result(is_same)
+        class(ast_node), intent(in) :: node1, node2
+        logical :: is_same
+
+        is_same = .false.
+
+        select type (n1 => node1)
+        type is (assignment_node)
+            select type (n2 => node2)
+            type is (assignment_node)
+                ! Compare assignment nodes by their target and value indices
+                is_same = (n1%target_index == n2%target_index .and. &
+                           n1%value_index == n2%value_index)
+            end select
+        type is (identifier_node)
+            select type (n2 => node2)
+            type is (identifier_node)
+                is_same = (n1%name == n2%name)
+            end select
+        type is (literal_node)
+            select type (n2 => node2)
+            type is (literal_node)
+               is_same = (n1%value == n2%value .and. n1%literal_kind == n2%literal_kind)
+            end select
+        end select
+    end function same_node
 
 end module codegen_core

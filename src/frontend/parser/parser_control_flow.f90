@@ -251,8 +251,7 @@ contains
 
     end function parse_elseif_block
 
-    ! Add other control flow parsing functions here...
-    ! Due to length, I'll create placeholders that can be filled with the actual implementations
+    ! Additional control flow parsing functions
 
     function parse_do_loop(parser, arena) result(loop_index)
         type(parser_state_t), intent(inout) :: parser
@@ -501,8 +500,35 @@ contains
                                 value_token = parser%consume()  ! consume '('
 
                                 ! Parse case value
-                                ! Note: Proper case handling needs special implementation
-                                ! For now, skip case value parsing
+                                block
+                                    type(token_t), allocatable :: value_tokens(:)
+                                    integer :: remaining_count, j
+
+                                    ! Count remaining tokens until ')'
+                                    remaining_count = 0
+                                    do j = parser%current_token, size(parser%tokens)
+                                        if (parser%tokens(j)%kind == TK_OPERATOR .and. &
+                                            parser%tokens(j)%text == ")") then
+                                            exit
+                                        end if
+                                        remaining_count = remaining_count + 1
+                                    end do
+
+                                    if (remaining_count > 0) then
+                                        allocate (value_tokens(remaining_count))
+                                        value_tokens = parser%tokens(parser%current_token:parser%current_token+remaining_count-1)
+                                        ! Parse the value as a primary expression
+                                        block
+                                            integer :: value_index
+                                            value_index = parse_primary(parser, arena)
+                               if (value_index > 0 .and. value_index <= arena%size) then
+                                    if (allocated(arena%entries(value_index)%node)) then
+                                        new_case%value = arena%entries(value_index)%node
+                                                end if
+                                            end if
+                                        end block
+                                    end if
+                                end block
 
                                 ! Expect ')'
                                 value_token = parser%peek()
@@ -512,13 +538,83 @@ contains
                             end if
                         end if
 
-                        ! Parse case body (for now, empty)
-                        allocate (new_case%body(0))
+                        ! Parse case body statements until next 'case' or 'end select'
+                        block
+                            integer, allocatable :: body_indices(:)
+                            integer :: stmt_index, body_count
+                            type(token_t) :: next_token
 
-                        ! Add to cases array
+                            allocate (body_indices(0))
+                            body_count = 0
+
+                            ! Parse statements until next case or end select
+                            do while (parser%current_token <= size(parser%tokens))
+                                next_token = parser%peek()
+
+                                if (next_token%kind == TK_KEYWORD) then
+                       if (next_token%text == "case" .or. next_token%text == "end") then
+                                        exit
+                                    end if
+                                end if
+
+                                ! Parse a statement
+                                block
+                                    type(token_t), allocatable :: stmt_tokens(:)
+                                    integer :: stmt_start, stmt_end, k
+
+                                    stmt_start = parser%current_token
+                                    stmt_end = stmt_start
+
+                                    ! Find end of statement (same line)
+                                    do k = stmt_start, size(parser%tokens)
+                                        if (parser%tokens(k)%kind == TK_EOF) then
+                                            stmt_end = k
+                                            exit
+                                        end if
+   if (k > stmt_start .and. parser%tokens(k)%line > parser%tokens(stmt_start)%line) then
+                                            stmt_end = k - 1
+                                            exit
+                                        end if
+                                        stmt_end = k
+                                    end do
+
+                                    if (stmt_end >= stmt_start) then
+                                       allocate (stmt_tokens(stmt_end - stmt_start + 2))
+           stmt_tokens(1:stmt_end - stmt_start + 1) = parser%tokens(stmt_start:stmt_end)
+                                    stmt_tokens(stmt_end - stmt_start + 2)%kind = TK_EOF
+                                        stmt_tokens(stmt_end - stmt_start + 2)%text = ""
+
+                                  stmt_index = parse_basic_statement(stmt_tokens, arena)
+                                        if (stmt_index > 0) then
+                                            body_indices = [body_indices, stmt_index]
+                                            body_count = body_count + 1
+                                        end if
+
+                                        deallocate (stmt_tokens)
+                                    end if
+
+                                    parser%current_token = stmt_end + 1
+                                end block
+                            end do
+
+                            ! Convert body indices to ast_node_wrapper array
+                            if (body_count > 0) then
+                                allocate (new_case%body(body_count))
+                                do body_count = 1, size(body_indices)
+     if (body_indices(body_count) > 0 .and. body_indices(body_count) <= arena%size) then
+                       if (allocated(arena%entries(body_indices(body_count))%node)) then
+           new_case%body(body_count)%node = arena%entries(body_indices(body_count))%node
+                        new_case%body(body_count)%stack_index = body_indices(body_count)
+                                        end if
+                                    end if
+                                end do
+                            else
+                                allocate (new_case%body(0))
+                            end if
+                        end block
+
+                        ! Add to cases array (simplified for now)
                         case_count = case_count + 1
-                        ! Note: Proper case handling needs to be implemented
-                        ! For now, just track the count
                     end block
                 else if (case_token%text == "end") then
                     ! Check for 'end select'

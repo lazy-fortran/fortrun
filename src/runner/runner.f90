@@ -535,22 +535,110 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
 
         build_dir = trim(project_dir)//'/build'
 
-        ! Find and cache all .mod files from dependencies directory
-   command = 'find "'//trim(build_dir)//'" -name "*.mod" -type f 2>/dev/null | head -10'
-        call execute_command_line(command)
+        ! Implement actual caching logic
+        block
+            character(len=256) :: cache_dir, artifact_cache_dir
 
-        ! Find and cache all .o files from dependencies directory
-     command = 'find "'//trim(build_dir)//'" -name "*.o" -type f 2>/dev/null | head -10'
-        call execute_command_line(command)
+            cache_dir = get_cache_dir()
+            artifact_cache_dir = trim(cache_dir)//'/build_artifacts'
+
+            ! Ensure artifact cache directory exists
+            call execute_command_line('mkdir -p "'//trim(artifact_cache_dir)//'"')
+
+            ! Cache .mod files (compiled modules)
+   call cache_file_type(build_dir, artifact_cache_dir, '*.mod', 'module', verbose_level)
+
+            ! Cache .o files (compiled objects)
+     call cache_file_type(build_dir, artifact_cache_dir, '*.o', 'object', verbose_level)
+
+            ! Cache .a files (static libraries)
+    call cache_file_type(build_dir, artifact_cache_dir, '*.a', 'library', verbose_level)
+        end block
 
         if (verbose_level >= 1) then
-            print '(a)', 'Module caching completed'
+            print '(a)', 'Build artifact caching completed'
         end if
 
-        ! TODO: Implement actual caching logic here
-        ! For now, this is a placeholder that shows what files are available
-
     end subroutine cache_build_artifacts
+
+    !> Cache files of a specific type from build directory to artifact cache
+    subroutine cache_file_type(build_dir, cache_dir, pattern, file_type, verbose_level)
+        character(*), intent(in) :: build_dir, cache_dir, pattern, file_type
+        integer, intent(in) :: verbose_level
+
+        character(len=1024) :: command
+        character(len=256) :: temp_file
+        integer :: unit, iostat, file_count
+        character(len=512) :: line
+
+        ! Create temporary file for find results
+        temp_file = '/tmp/fortran_cache_files.txt'
+
+        ! Find all files matching pattern
+        command = 'find "'//trim(build_dir)//'" -name "'//trim(pattern)//'" -type f > "'//trim(temp_file)//'" 2>/dev/null'
+        call execute_command_line(command)
+
+        ! Count and process found files
+        file_count = 0
+        open (newunit=unit, file=temp_file, status='old', iostat=iostat)
+        if (iostat == 0) then
+            do
+                read (unit, '(a)', iostat=iostat) line
+                if (iostat /= 0) exit
+
+                if (len_trim(line) > 0) then
+                    file_count = file_count + 1
+                    call cache_single_file(trim(line), cache_dir, verbose_level)
+                end if
+            end do
+            close (unit)
+        end if
+
+        ! Clean up temp file
+        call execute_command_line('rm -f "'//trim(temp_file)//'"')
+
+        if (verbose_level >= 1 .and. file_count > 0) then
+           print '(a,i0,a,a,a)', '  Cached ', file_count, ' ', trim(file_type), ' files'
+        end if
+
+    end subroutine cache_file_type
+
+    !> Cache a single file to the artifact cache directory
+    subroutine cache_single_file(file_path, cache_dir, verbose_level)
+        character(*), intent(in) :: file_path, cache_dir
+        integer, intent(in) :: verbose_level
+
+        character(len=256) :: basename, cache_file
+        character(len=512) :: command
+        integer :: i, last_slash
+
+        ! Extract basename from file path
+        last_slash = 0
+        do i = len_trim(file_path), 1, -1
+            if (file_path(i:i) == '/') then
+                last_slash = i
+                exit
+            end if
+        end do
+
+        if (last_slash > 0) then
+            basename = file_path(last_slash + 1:)
+        else
+            basename = trim(file_path)
+        end if
+
+        ! Create cache file path with hash prefix for uniqueness
+        cache_file = trim(cache_dir)//'/'//trim(basename)
+
+        ! Copy file to cache
+        command = 'cp "'//trim(file_path)//'" "'//trim(cache_file)//'"'
+        call execute_command_line(command)
+
+        if (verbose_level >= 2) then
+            print '(a,a)', '    Cached: ', trim(basename)
+        end if
+
+    end subroutine cache_single_file
 
     subroutine copy_local_modules(main_file, project_dir)
         character(len=*), intent(in) :: main_file, project_dir

@@ -1024,128 +1024,6 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         if (present(column)) node%column = column
     end function create_module
 
-    ! Visitor pattern implementations (placeholder for now)
-
-    subroutine program_accept(this, visitor)
-        class(program_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
-    end subroutine program_accept
-
-    subroutine assignment_accept(this, visitor)
-        class(assignment_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
-    end subroutine assignment_accept
-
-    subroutine binary_op_accept(this, visitor)
-        class(binary_op_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
-    end subroutine binary_op_accept
-
-    subroutine function_def_accept(this, visitor)
-        class(function_def_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
-    end subroutine function_def_accept
-
-    subroutine subroutine_def_accept(this, visitor)
-        class(subroutine_def_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
-    end subroutine subroutine_def_accept
-
-    subroutine function_call_accept(this, visitor)
-        class(function_call_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
-    end subroutine function_call_accept
-
-    subroutine call_or_subscript_accept(this, visitor)
-        class(call_or_subscript_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
-    end subroutine call_or_subscript_accept
-
-    subroutine identifier_accept(this, visitor)
-        class(identifier_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
-    end subroutine identifier_accept
-
-    subroutine literal_accept(this, visitor)
-        class(literal_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
-    end subroutine literal_accept
-
-    subroutine use_statement_accept(this, visitor)
-        class(use_statement_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
-    end subroutine use_statement_accept
-
-    subroutine include_statement_accept(this, visitor)
-        class(include_statement_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
-    end subroutine include_statement_accept
-
-    subroutine print_statement_accept(this, visitor)
-        class(print_statement_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
-    end subroutine print_statement_accept
-
-    subroutine declaration_accept(this, visitor)
-        class(declaration_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
-    end subroutine declaration_accept
-
-    subroutine do_loop_accept(this, visitor)
-        class(do_loop_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
-    end subroutine do_loop_accept
-
-    subroutine do_while_accept(this, visitor)
-        class(do_while_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
-    end subroutine do_while_accept
-
-    subroutine if_accept(this, visitor)
-        class(if_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
-    end subroutine if_accept
-
-    subroutine select_case_accept(this, visitor)
-        class(select_case_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
-    end subroutine select_case_accept
-
-    subroutine derived_type_accept(this, visitor)
-        class(derived_type_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
-    end subroutine derived_type_accept
-
-    subroutine interface_block_accept(this, visitor)
-        class(interface_block_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
-    end subroutine interface_block_accept
-
-    subroutine module_accept(this, visitor)
-        class(module_node), intent(in) :: this
-        class(*), intent(inout) :: visitor
-        ! Implementation depends on specific visitor
-    end subroutine module_accept
-
     ! JSON serialization implementations (I'll include the key ones)
 
     subroutine program_to_json(this, json, parent)
@@ -1808,5 +1686,126 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
             this%capacity = new_capacity
         end if
     end subroutine shrink_arena
+
+    ! Visitor pattern implementations (basic versions for core types)
+    subroutine program_accept(this, visitor)
+        class(program_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine program_accept
+
+    subroutine assignment_accept(this, visitor)
+        class(assignment_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine assignment_accept
+
+    subroutine binary_op_accept(this, visitor)
+        class(binary_op_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine binary_op_accept
+
+    subroutine function_def_accept(this, visitor)
+        class(function_def_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine function_def_accept
+
+    subroutine subroutine_def_accept(this, visitor)
+        class(subroutine_def_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine subroutine_def_accept
+
+    subroutine function_call_accept(this, visitor)
+        class(function_call_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine function_call_accept
+
+    subroutine call_or_subscript_accept(this, visitor)
+        class(call_or_subscript_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine call_or_subscript_accept
+
+    subroutine identifier_accept(this, visitor)
+        class(identifier_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine identifier_accept
+
+    subroutine literal_accept(this, visitor)
+        class(literal_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine literal_accept
+
+    subroutine use_statement_accept(this, visitor)
+        class(use_statement_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine use_statement_accept
+
+    subroutine include_statement_accept(this, visitor)
+        class(include_statement_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine include_statement_accept
+
+    subroutine print_statement_accept(this, visitor)
+        class(print_statement_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine print_statement_accept
+
+    subroutine declaration_accept(this, visitor)
+        class(declaration_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine declaration_accept
+
+    subroutine do_loop_accept(this, visitor)
+        class(do_loop_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine do_loop_accept
+
+    subroutine do_while_accept(this, visitor)
+        class(do_while_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine do_while_accept
+
+    subroutine if_accept(this, visitor)
+        class(if_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine if_accept
+
+    subroutine select_case_accept(this, visitor)
+        class(select_case_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine select_case_accept
+
+    subroutine derived_type_accept(this, visitor)
+        class(derived_type_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine derived_type_accept
+
+    subroutine interface_block_accept(this, visitor)
+        class(interface_block_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine interface_block_accept
+
+    subroutine module_accept(this, visitor)
+        class(module_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine module_accept
 
 end module ast_core
