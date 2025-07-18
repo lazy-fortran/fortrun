@@ -264,7 +264,7 @@ contains
             call json%create_array(only_array, 'only_list')
             call json%add(obj, only_array)
             do i = 1, size(this%only_list)
-                call json%add(only_array, '', this%only_list(i))
+                call json%add(only_array, '', this%only_list(i)%s)
             end do
         end if
 
@@ -272,7 +272,7 @@ contains
             call json%create_array(rename_array, 'rename_list')
             call json%add(obj, rename_array)
             do i = 1, size(this%rename_list)
-                call json%add(rename_array, '', this%rename_list(i))
+                call json%add(rename_array, '', this%rename_list(i)%s)
             end do
         end if
 
