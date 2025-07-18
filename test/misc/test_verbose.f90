@@ -94,7 +94,7 @@ contains
         ! Use temporary cache to ensure fresh builds
         temp_cache = './test_verbose_cache'
         call execute_command_line('rm -rf '//trim(temp_cache))
-        
+
         ! Create temp directory and file path
         temp_dir = create_temp_dir('fortran_test')
         temp_output_file = get_temp_file_path(temp_dir, 'test_output.tmp')
