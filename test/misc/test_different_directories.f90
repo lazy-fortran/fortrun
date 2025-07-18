@@ -1,5 +1,6 @@
 program test_different_directories
   use, intrinsic :: iso_fortran_env, only: error_unit
+  use temp_utils, only: create_temp_dir, get_temp_file_path
   implicit none
   
   character(len=512) :: command
@@ -9,7 +10,7 @@ program test_different_directories
   print *, '=== Different Directories Tests ===\'
   
   ! Create test directory structure
-  test_dir = '/tmp/test_different_dirs'
+  test_dir = create_temp_dir('fortran_test_different_dirs')
   sub_dir = trim(test_dir) // '/subdir'
   
   call execute_command_line('mkdir -p ' // trim(sub_dir))
@@ -55,16 +56,23 @@ contains
     abs_path = trim(sub_dir) // '/hello.f90'
     
     ! Change to parent directory and run with absolute path
-    command = 'ORIGINAL_DIR=$(pwd) && cd ' // trim(test_dir) // ' && cd $ORIGINAL_DIR && fpm run fortran -- "' // &
-              trim(abs_path) // '" > /tmp/abs_output.txt 2>&1; echo $? > /tmp/abs_exit.txt'
-    call execute_command_line(command)
-    
-    ! Check that it succeeded
-    call check_exit_code('/tmp/abs_exit.txt', 0)
-    call check_output_contains('/tmp/abs_output.txt', 'Hello from subdirectory!')
-    
-    ! Clean up
-    call execute_command_line('rm -f /tmp/abs_output.txt /tmp/abs_exit.txt')
+    block
+      character(len=:), allocatable :: temp_dir, abs_output_file, abs_exit_file
+      temp_dir = create_temp_dir('fortran_test')
+      abs_output_file = get_temp_file_path(temp_dir, 'abs_output.txt')
+      abs_exit_file = get_temp_file_path(temp_dir, 'abs_exit.txt')
+      
+      command = 'ORIGINAL_DIR=$(pwd) && cd ' // trim(test_dir) // ' && cd $ORIGINAL_DIR && fpm run fortran -- "' // &
+                trim(abs_path) // '" > ' // abs_output_file // ' 2>&1; echo $? > ' // abs_exit_file
+      call execute_command_line(command)
+      
+      ! Check that it succeeded
+      call check_exit_code(abs_exit_file, 0)
+      call check_output_contains(abs_output_file, 'Hello from subdirectory!')
+      
+      ! Clean up
+      call execute_command_line('rm -f ' // abs_output_file // ' ' // abs_exit_file)
+    end block
     
     print *, 'PASS: Absolute path works from different directory'
     print *
@@ -77,17 +85,24 @@ contains
     print *, 'Test 2: Run from parent directory using relative path'
     
     ! Change to parent directory and run with relative path  
-    command = 'ORIGINAL_DIR=$(pwd) && cd ' // trim(test_dir) // &
-              ' && cd $ORIGINAL_DIR && fpm run fortran -- ' // trim(test_dir) // '/subdir/hello.f90 ' // &
-              '> /tmp/rel_output.txt 2>&1; echo $? > /tmp/rel_exit.txt'
-    call execute_command_line(command)
-    
-    ! Check that it succeeded
-    call check_exit_code('/tmp/rel_exit.txt', 0)
-    call check_output_contains('/tmp/rel_output.txt', 'Hello from subdirectory!')
-    
-    ! Clean up
-    call execute_command_line('rm -f /tmp/rel_output.txt /tmp/rel_exit.txt')
+    block
+      character(len=:), allocatable :: temp_dir, rel_output_file, rel_exit_file
+      temp_dir = create_temp_dir('fortran_test')
+      rel_output_file = get_temp_file_path(temp_dir, 'rel_output.txt')
+      rel_exit_file = get_temp_file_path(temp_dir, 'rel_exit.txt')
+      
+      command = 'ORIGINAL_DIR=$(pwd) && cd ' // trim(test_dir) // &
+                ' && cd $ORIGINAL_DIR && fpm run fortran -- ' // trim(test_dir) // '/subdir/hello.f90 ' // &
+                '> ' // rel_output_file // ' 2>&1; echo $? > ' // rel_exit_file
+      call execute_command_line(command)
+      
+      ! Check that it succeeded
+      call check_exit_code(rel_exit_file, 0)
+      call check_output_contains(rel_output_file, 'Hello from subdirectory!')
+      
+      ! Clean up
+      call execute_command_line('rm -f ' // rel_output_file // ' ' // rel_exit_file)
+    end block
     
     print *, 'PASS: Relative path works from different directory'
     print *
@@ -102,17 +117,25 @@ contains
     
     abs_path = trim(sub_dir) // '/hello.f90'
     
-    ! Change to /tmp and run with absolute path
-    command = 'ORIGINAL_DIR=$(pwd) && cd /tmp && cd $ORIGINAL_DIR && fpm run fortran -- "' // &
-              trim(abs_path) // '" > /tmp/diff_output.txt 2>&1; echo $? > /tmp/diff_exit.txt'
-    call execute_command_line(command)
-    
-    ! Check that it succeeded
-    call check_exit_code('/tmp/diff_exit.txt', 0)
-    call check_output_contains('/tmp/diff_output.txt', 'Hello from subdirectory!')
-    
-    ! Clean up
-    call execute_command_line('rm -f /tmp/diff_output.txt /tmp/diff_exit.txt')
+    ! Change to system temp and run with absolute path
+    block
+      character(len=:), allocatable :: temp_dir, diff_output_file, diff_exit_file, system_temp
+      temp_dir = create_temp_dir('fortran_test')
+      diff_output_file = get_temp_file_path(temp_dir, 'diff_output.txt')
+      diff_exit_file = get_temp_file_path(temp_dir, 'diff_exit.txt')
+      system_temp = create_temp_dir('system_temp')
+      
+      command = 'ORIGINAL_DIR=$(pwd) && cd ' // system_temp // ' && cd $ORIGINAL_DIR && fpm run fortran -- "' // &
+                trim(abs_path) // '" > ' // diff_output_file // ' 2>&1; echo $? > ' // diff_exit_file
+      call execute_command_line(command)
+      
+      ! Check that it succeeded
+      call check_exit_code(diff_exit_file, 0)
+      call check_output_contains(diff_output_file, 'Hello from subdirectory!')
+      
+      ! Clean up
+      call execute_command_line('rm -f ' // diff_output_file // ' ' // diff_exit_file)
+    end block
     
     print *, 'PASS: Works from completely different directory'
     print *

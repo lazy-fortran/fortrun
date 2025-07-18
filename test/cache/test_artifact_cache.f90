@@ -1,6 +1,7 @@
 program test_artifact_cache
   use cache, only: get_content_hash, store_build_artifacts, retrieve_build_artifacts, &
                    cache_exists, invalidate_cache, get_cache_dir, ensure_cache_structure
+  use temp_utils, only: create_temp_dir, get_temp_file_path
   use, intrinsic :: iso_fortran_env, only: error_unit
   implicit none
   
@@ -29,7 +30,7 @@ contains
     end if
     
     ! Create test directory with source
-    test_dir = '/tmp/hash_test'
+    test_dir = create_temp_dir('fortran_hash_test')
     call execute_command_line('mkdir -p ' // trim(test_dir))
     
     test_file = trim(test_dir) // '/test.f90'
@@ -78,9 +79,9 @@ contains
     print *, 'Test 2: Store/retrieve cycle'
     
     ! Create mock source and build directories
-    test_dir = '/tmp/store_test_src'
-    build_dir = '/tmp/store_test_build'
-    target_dir = '/tmp/store_test_target'
+    test_dir = create_temp_dir('fortran_store_test_src')
+    build_dir = create_temp_dir('fortran_store_test_build')
+    target_dir = create_temp_dir('fortran_store_test_target')
     
     call execute_command_line('mkdir -p ' // trim(test_dir))
     call execute_command_line('mkdir -p ' // trim(build_dir))

@@ -1,4 +1,5 @@
 program test_main_coverage
+    use temp_utils, only: create_temp_dir, get_temp_file_path
     implicit none
     
     logical :: all_tests_passed
@@ -74,7 +75,7 @@ contains
         passed = .true.
         
         ! Create test file
-        test_file = '/tmp/test_main_normal.f90'
+        test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_main_normal.f90')
         call create_simple_program(test_file)
         
         ! Test normal execution
@@ -108,8 +109,8 @@ contains
         passed = .true.
         
         ! Create test notebook file
-        test_file = '/tmp/test_main_notebook.f'
-        output_file = '/tmp/test_main_notebook.md'
+        test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_main_notebook.f')
+        output_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_main_notebook.md')
         call create_simple_notebook(test_file)
         
         ! Test notebook execution
@@ -145,7 +146,7 @@ contains
         passed = .true.
         
         ! Create test file
-        test_file = '/tmp/test_main_verbose.f90'
+        test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_main_verbose.f90')
         call create_simple_program(test_file)
         
         ! Test -v verbose mode
@@ -165,7 +166,7 @@ contains
         end if
         
         ! Test notebook with verbose
-        test_file = '/tmp/test_main_verbose_notebook.f'
+        test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_main_verbose_notebook.f')
         call create_simple_notebook(test_file)
         
         command = 'fpm run fortran -- --notebook -v ' // trim(test_file)
@@ -184,9 +185,9 @@ contains
         end if
         
         ! Clean up
-        call delete_file('/tmp/test_main_verbose.f90')
-        call delete_file('/tmp/test_main_verbose_notebook.f')
-        call delete_file('/tmp/test_main_verbose_notebook.md')
+        call delete_file(get_temp_file_path(create_temp_dir('fortran_test'), 'test_main_verbose.f90'))
+        call delete_file(get_temp_file_path(create_temp_dir('fortran_test'), 'test_main_verbose_notebook.f'))
+        call delete_file(get_temp_file_path(create_temp_dir('fortran_test'), 'test_main_verbose_notebook.md'))
         
         print *, "  PASS: Verbose modes"
         
@@ -203,7 +204,7 @@ contains
         passed = .true.
         
         ! Create file with compilation error
-        test_file = '/tmp/test_main_error.f90'
+        test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_main_error.f90')
         call create_error_program(test_file)
         
         ! Test error handling in normal mode
@@ -215,7 +216,7 @@ contains
         end if
         
         ! Test non-existent file
-        command = 'fpm run fortran -- /tmp/definitely_nonexistent_file.f90 2>/dev/null'
+        command = 'fpm run fortran -- '//get_temp_file_path(create_temp_dir('fortran_test'), 'definitely_nonexistent_file.f90')//' 2>/dev/null'
         call execute_and_capture(command, output, exit_code)
         
         if (exit_code == 0) then
@@ -289,7 +290,7 @@ contains
         character(len=512) :: full_command
         integer :: unit, iostat, file_size
         
-        temp_file = '/tmp/fortran_main_test.out'
+        temp_file = get_temp_file_path(create_temp_dir('fortran_test'), 'fortran_main_test.out')
         
         full_command = trim(command) // ' > ' // trim(temp_file) // ' 2>&1'
         call execute_command_line(full_command, exitstat=exit_code)

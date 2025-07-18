@@ -1,4 +1,5 @@
 program test_cli_comprehensive
+  use temp_utils, only: create_temp_dir, get_temp_file_path
   implicit none
   
   logical :: all_tests_passed
@@ -276,32 +277,37 @@ contains
     print *, "Test 4: Directory arguments"
     
     ! Test --cache-dir
-    call setup_test_command_line('--cache-dir /tmp/mycache test.f90')
-    call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
-                        custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
-                        notebook_output, preprocess_only, custom_flags, clear_cache, cache_info)
+    block
+      character(len=:), allocatable :: temp_cache_dir
+      temp_cache_dir = create_temp_dir('fortran_test_mycache')
+      call setup_test_command_line('--cache-dir ' // temp_cache_dir // ' test.f90')
+      call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
+                          custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
+                          notebook_output, preprocess_only, custom_flags, clear_cache, cache_info)
+      
+      if (trim(custom_cache_dir) /= temp_cache_dir) then
+        print *, "  FAIL: --cache-dir should set custom_cache_dir, got: '", &
+                 trim(custom_cache_dir), "'"
+        passed = .false.
+        return
+      end if
     
-    if (trim(custom_cache_dir) /= '/tmp/mycache') then
-      print *, "  FAIL: --cache-dir should set custom_cache_dir, got: '", &
-               trim(custom_cache_dir), "'"
-      passed = .false.
-      return
-    end if
-    
-    ! Test --config-dir
-    call setup_test_command_line('--config-dir /tmp/myconfig test.f90')
-    call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
-                        custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
-                        notebook_output, preprocess_only, custom_flags, clear_cache, cache_info)
-    
-    if (trim(custom_config_dir) == '/tmp/myconfig') then
-      print *, "  PASS: Directory arguments work correctly"
-      passed = .true.
-    else
-      print *, "  FAIL: --config-dir should set custom_config_dir, got: '", &
-               trim(custom_config_dir), "'"
-      passed = .false.
-    end if
+      ! Test --config-dir
+      temp_cache_dir = create_temp_dir('fortran_test_myconfig')
+      call setup_test_command_line('--config-dir ' // temp_cache_dir // ' test.f90')
+      call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
+                          custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
+                          notebook_output, preprocess_only, custom_flags, clear_cache, cache_info)
+      
+      if (trim(custom_config_dir) == temp_cache_dir) then
+        print *, "  PASS: Directory arguments work correctly"
+        passed = .true.
+      else
+        print *, "  FAIL: --config-dir should set custom_config_dir, got: '", &
+                 trim(custom_config_dir), "'"
+        passed = .false.
+      end if
+    end block
     
   end function test_directory_arguments
 
@@ -399,10 +405,13 @@ contains
     print *, "Test 7: Complex argument combinations"
     
     ! Test multiple flags together
-    call setup_test_command_line('-vv --cache-dir /tmp/cache --jobs 4 --no-wait test.f90')
-    call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
-                        custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
-                        notebook_output, preprocess_only, custom_flags, clear_cache, cache_info)
+    block
+      character(len=:), allocatable :: temp_cache_dir
+      temp_cache_dir = create_temp_dir('fortran_test_cache')
+      call setup_test_command_line('-vv --cache-dir ' // temp_cache_dir // ' --jobs 4 --no-wait test.f90')
+      call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
+                          custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
+                          notebook_output, preprocess_only, custom_flags, clear_cache, cache_info)
     
     if (verbose_level /= 2) then
       print *, "  FAIL: Complex combination failed on verbose_level, got", verbose_level
@@ -410,11 +419,11 @@ contains
       return
     end if
     
-    if (trim(custom_cache_dir) /= '/tmp/cache') then
-      print *, "  FAIL: Complex combination failed on cache_dir"
-      passed = .false.
-      return
-    end if
+      if (trim(custom_cache_dir) /= temp_cache_dir) then
+        print *, "  FAIL: Complex combination failed on cache_dir"
+        passed = .false.
+        return
+      end if
     
     if (parallel_jobs /= 4) then
       print *, "  FAIL: Complex combination failed on parallel_jobs, got", parallel_jobs
@@ -428,13 +437,14 @@ contains
       return
     end if
     
-    if (trim(filename) == 'test.f90') then
-      print *, "  PASS: Complex argument combinations work correctly"
-      passed = .true.
-    else
-      print *, "  FAIL: Complex combination failed on filename, got: '", trim(filename), "'"
-      passed = .false.
-    end if
+      if (trim(filename) == 'test.f90') then
+        print *, "  PASS: Complex argument combinations work correctly"
+        passed = .true.
+      else
+        print *, "  FAIL: Complex combination failed on filename, got: '", trim(filename), "'"
+        passed = .false.
+      end if
+    end block
     
   end function test_complex_combinations
 
@@ -459,16 +469,20 @@ contains
     end if
     
     ! Test very long directory path
-    call setup_test_command_line('--cache-dir /very/long/path/to/cache/directory/that/might/cause/issues test.f90')
-    call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
-                        custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
-                        notebook_output, preprocess_only, custom_flags, clear_cache, cache_info)
-    
-    if (index(custom_cache_dir, '/very/long/path') == 0) then
-      print *, "  FAIL: Long directory path failed"
-      passed = .false.
-      return
-    end if
+    block
+      character(len=:), allocatable :: temp_very_long_dir
+      temp_very_long_dir = create_temp_dir('fortran_test_very_long_path_to_cache_directory_that_might_cause_issues')
+      call setup_test_command_line('--cache-dir ' // temp_very_long_dir // ' test.f90')
+      call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
+                          custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
+                          notebook_output, preprocess_only, custom_flags, clear_cache, cache_info)
+      
+      if (index(custom_cache_dir, 'very_long_path') == 0) then
+        print *, "  FAIL: Long directory path failed"
+        passed = .false.
+        return
+      end if
+    end block
     
     ! Test zero parallel jobs
     call setup_test_command_line('--jobs 0 test.f90')

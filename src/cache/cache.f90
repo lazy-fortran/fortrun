@@ -7,6 +7,7 @@ module cache
     use fpm_filesystem, only: list_files, read_lines, mkdir, join_path, exists, run
     use fpm_environment, only: get_os_type, OS_WINDOWS
     use fpm_strings, only: string_t, fnv_1a
+    use temp_utils, only: create_temp_dir, get_temp_file_path
     implicit none
     private
   public :: get_cache_dir, ensure_cache_dir, ensure_cache_structure, get_cache_subdir, &
@@ -467,17 +468,17 @@ command = 'xcopy /E /I /Y "'//trim(cache_path)//'\*" "'//trim(target_dir)//'" >n
 #endif
 
         ! Execute command and capture output
-    call execute_command_line(command // ' > cache_size.tmp', exitstat=exitstat, cmdstat=cmdstat)
+    call execute_command_line(command // ' > '//get_temp_file_path(create_temp_dir('fortran_cache'), 'cache_size.tmp'), exitstat=exitstat, cmdstat=cmdstat)
 
         size_output = "unknown"
         if (cmdstat == 0 .and. exitstat == 0) then
-     open (newunit=unit, file='cache_size.tmp', status='old', action='read', iostat=ios)
+     open (newunit=unit, file=get_temp_file_path(create_temp_dir('fortran_cache'), 'cache_size.tmp'), status='old', action='read', iostat=ios)
             if (ios == 0) then
                 read (unit, '(A)', iostat=ios) size_output
                 close (unit)
             end if
             ! Clean up temp file
-            open (newunit=unit, file='cache_size.tmp', status='old', iostat=ios)
+            open (newunit=unit, file=get_temp_file_path(create_temp_dir('fortran_cache'), 'cache_size.tmp'), status='old', iostat=ios)
             if (ios == 0) close (unit, status='delete')
         end if
 
@@ -488,17 +489,17 @@ command = 'xcopy /E /I /Y "'//trim(cache_path)//'\*" "'//trim(target_dir)//'" >n
         command = 'find "'//trim(cache_dir)//'" -type f 2>/dev/null | wc -l'
 #endif
 
-    call execute_command_line(command // ' > cache_count.tmp', exitstat=exitstat, cmdstat=cmdstat)
+    call execute_command_line(command // ' > '//get_temp_file_path(create_temp_dir('fortran_cache'), 'cache_count.tmp'), exitstat=exitstat, cmdstat=cmdstat)
 
         num_files = 0
         if (cmdstat == 0 .and. exitstat == 0) then
-    open (newunit=unit, file='cache_count.tmp', status='old', action='read', iostat=ios)
+    open (newunit=unit, file=get_temp_file_path(create_temp_dir('fortran_cache'), 'cache_count.tmp'), status='old', action='read', iostat=ios)
             if (ios == 0) then
                 read (unit, *, iostat=ios) num_files
                 close (unit)
             end if
             ! Clean up temp file
-            open (newunit=unit, file='cache_count.tmp', status='old', iostat=ios)
+            open (newunit=unit, file=get_temp_file_path(create_temp_dir('fortran_cache'), 'cache_count.tmp'), status='old', iostat=ios)
             if (ios == 0) close (unit, status='delete')
         end if
 

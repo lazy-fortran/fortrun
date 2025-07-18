@@ -1,6 +1,7 @@
 program test_registry_enhancement
   use, intrinsic :: iso_fortran_env, only: error_unit
   use cache, only: get_cache_dir
+  use temp_utils, only: create_temp_dir, get_temp_file_path
   implicit none
   
   print *, '=== Registry Enhancement Tests ===\'
@@ -116,20 +117,21 @@ contains
   end subroutine check_output_contains
 
   subroutine check_generated_fpm_toml()
-    character(len=512) :: cache_dir, fpm_toml_path
+    character(len=512) :: fpm_toml_path
     character(len=512) :: line
     integer :: unit, iostat
     logical :: found_pyplot
+    character(len=:), allocatable :: temp_dir, fpm_path_file
+    character(len=256) :: cache_dir
     
     ! Find the generated fpm.toml in cache directory
-    block
-      character(len=256) :: cache_dir
-      cache_dir = get_cache_dir()
-      call execute_command_line('find "' // trim(cache_dir) // '" -name "fpm.toml" -newer /tmp/multiple_output.txt ' // &
-                                '2>/dev/null | head -1 > /tmp/fpm_path.txt')
-    end block
-    
-    open(newunit=unit, file='/tmp/fpm_path.txt', status='old', iostat=iostat)
+    temp_dir = create_temp_dir('fortran_test')
+    fpm_path_file = get_temp_file_path(temp_dir, 'fpm_path.txt')
+    cache_dir = get_cache_dir()
+    call execute_command_line('find "' // trim(cache_dir) // '" -name "fpm.toml" ' // &
+                              '2>/dev/null | head -1 > ' // fpm_path_file)
+      
+    open(newunit=unit, file=fpm_path_file, status='old', iostat=iostat)
     if (iostat /= 0) then
       ! Can't find the exact path, just check that the test validates basic functionality
       print *, 'Note: Could not verify fpm.toml contents (cache cleaned up)'
@@ -138,7 +140,7 @@ contains
     
     read(unit, '(a)', iostat=iostat) fpm_toml_path
     close(unit)
-    call execute_command_line('rm -f /tmp/fpm_path.txt')
+    call execute_command_line('rm -f ' // fpm_path_file)
     
     if (len_trim(fpm_toml_path) == 0) then
       print *, 'Note: Could not find generated fpm.toml (cache cleaned up)'

@@ -1,5 +1,6 @@
 program test_benchmarks
   use, intrinsic :: iso_fortran_env, only: int64
+  use temp_utils, only: create_temp_dir, get_temp_file_path
   implicit none
   
   integer :: n_passed, n_failed
@@ -42,19 +43,24 @@ contains
     print '(a)', '-------------------------------------------'
     
     ! Create test file
-    test_file = '/tmp/bench_simple.f90'
+    test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'bench_simple.f90')
     call create_simple_test_file(test_file)
     
     ! Use temporary cache
-    cache_dir = '/tmp/bench_cache_simple'
+    cache_dir = create_temp_dir('fortran_test_bench_cache_simple')
     call execute_command_line('rm -rf "' // trim(cache_dir) // '"')
     
     ! First run - should compile
-    command = 'fpm run fortran -- --cache-dir "' // trim(cache_dir) // '" -v "' // &
-              trim(test_file) // '" > /tmp/bench1_output.txt 2>&1'
-    call execute_command_line(command, exitstat=exit_code)
-    
-    call read_file_content('/tmp/bench1_output.txt', output1)
+    block
+      character(len=:), allocatable :: temp_dir, bench1_output
+      temp_dir = create_temp_dir('fortran_test')
+      bench1_output = get_temp_file_path(temp_dir, 'bench1_output.txt')
+      
+      command = 'fpm run fortran -- --cache-dir "' // trim(cache_dir) // '" -v "' // &
+                trim(test_file) // '" > ' // bench1_output // ' 2>&1'
+      call execute_command_line(command, exitstat=exit_code)
+      
+      call read_file_content(bench1_output, output1)
     first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  done.') > 0
     
     print '(a)', 'First run (cold cache):'
@@ -64,12 +70,14 @@ contains
       print '(a)', '  ✗ Expected compilation but none detected'
     end if
     
-    ! Second run - should use cache
-    command = 'fpm run fortran -- --cache-dir "' // trim(cache_dir) // '" -v "' // &
-              trim(test_file) // '" > /tmp/bench2_output.txt 2>&1'
-    call execute_command_line(command, exitstat=exit_code)
-    
-    call read_file_content('/tmp/bench2_output.txt', output2)
+      ! Second run - should use cache
+      bench1_output = get_temp_file_path(temp_dir, 'bench2_output.txt')
+      command = 'fpm run fortran -- --cache-dir "' // trim(cache_dir) // '" -v "' // &
+                trim(test_file) // '" > ' // bench1_output // ' 2>&1'
+      call execute_command_line(command, exitstat=exit_code)
+      
+      call read_file_content(bench1_output, output2)
+    end block
     second_cached = index(output2, 'Cache hit') > 0 .or. index(output2, 'Project is up to date') > 0
     
     print '(a)', 'Second run (warm cache):'
@@ -104,19 +112,24 @@ contains
     print '(a)', '------------------------------------------'
     
     ! Create test directory with modules
-    test_dir = '/tmp/bench_modules'
+    test_dir = create_temp_dir('fortran_test_bench_modules')
     call create_modules_test_files(test_dir)
     
     ! Use temporary cache
-    cache_dir = '/tmp/bench_cache_modules'
+    cache_dir = create_temp_dir('fortran_test_bench_cache_modules')
     call execute_command_line('rm -rf "' // trim(cache_dir) // '"')
     
     ! First run - should compile modules
-    command = 'fpm run fortran -- --cache-dir "' // trim(cache_dir) // '" -v "' // &
-              trim(test_dir) // '/main.f90" > /tmp/bench_mod1_output.txt 2>&1'
-    call execute_command_line(command, exitstat=exit_code)
-    
-    call read_file_content('/tmp/bench_mod1_output.txt', output1)
+    block
+      character(len=:), allocatable :: temp_dir, bench_mod1_output
+      temp_dir = create_temp_dir('fortran_test')
+      bench_mod1_output = get_temp_file_path(temp_dir, 'bench_mod1_output.txt')
+      
+      command = 'fpm run fortran -- --cache-dir "' // trim(cache_dir) // '" -v "' // &
+                trim(test_dir) // '/main.f90" > ' // bench_mod1_output // ' 2>&1'
+      call execute_command_line(command, exitstat=exit_code)
+      
+      call read_file_content(bench_mod1_output, output1)
     modules_compiled = index(output1, 'Cache miss') > 0 .and. &
                       (index(output1, '.f90  done.') > 0 .or. index(output1, 'libmain.a') > 0)
     
@@ -127,12 +140,14 @@ contains
       print '(a)', '  ✗ Expected module compilation but none detected'
     end if
     
-    ! Second run - should use cache
-    command = 'fpm run fortran -- --cache-dir "' // trim(cache_dir) // '" -v "' // &
-              trim(test_dir) // '/main.f90" > /tmp/bench_mod2_output.txt 2>&1'
-    call execute_command_line(command, exitstat=exit_code)
-    
-    call read_file_content('/tmp/bench_mod2_output.txt', output2)
+      ! Second run - should use cache
+      bench_mod1_output = get_temp_file_path(temp_dir, 'bench_mod2_output.txt')
+      command = 'fpm run fortran -- --cache-dir "' // trim(cache_dir) // '" -v "' // &
+                trim(test_dir) // '/main.f90" > ' // bench_mod1_output // ' 2>&1'
+      call execute_command_line(command, exitstat=exit_code)
+      
+      call read_file_content(bench_mod1_output, output2)
+    end block
     cached_properly = index(output2, 'Cache hit') > 0 .or. index(output2, 'Project is up to date') > 0
     
     print '(a)', 'Second run (should use cache):'
@@ -167,19 +182,24 @@ contains
     print '(a)', '----------------------------------------'
     
     ! Create test directory
-    test_dir = '/tmp/bench_incremental'
+    test_dir = create_temp_dir('fortran_test_bench_incremental')
     call create_modules_test_files(test_dir)
     
     ! Use temporary cache
-    cache_dir = '/tmp/bench_cache_incremental'
+    cache_dir = create_temp_dir('fortran_test_bench_cache_incremental')
     call execute_command_line('rm -rf "' // trim(cache_dir) // '"')
     
     ! Initial build (establish cache)
-    command = 'fpm run fortran -- --cache-dir "' // trim(cache_dir) // '" -v "' // &
-              trim(test_dir) // '/main.f90" > /tmp/bench_inc1_output.txt 2>&1'
-    call execute_command_line(command, exitstat=exit_code)
-    
-    call read_file_content('/tmp/bench_inc1_output.txt', output1)
+    block
+      character(len=:), allocatable :: temp_dir, bench_inc1_output
+      temp_dir = create_temp_dir('fortran_test')
+      bench_inc1_output = get_temp_file_path(temp_dir, 'bench_inc1_output.txt')
+      
+      command = 'fpm run fortran -- --cache-dir "' // trim(cache_dir) // '" -v "' // &
+                trim(test_dir) // '/main.f90" > ' // bench_inc1_output // ' 2>&1'
+      call execute_command_line(command, exitstat=exit_code)
+      
+      call read_file_content(bench_inc1_output, output1)
     initial_compiled = index(output1, 'Cache miss') > 0 .and. index(output1, '.f90  done.') > 0
     
     print '(a)', 'Initial build:'
@@ -192,12 +212,14 @@ contains
     ! Modify main file only
     call modify_main_file(trim(test_dir) // '/main.f90')
     
-    ! Incremental build - should recompile main but cache modules
-    command = 'fpm run fortran -- --cache-dir "' // trim(cache_dir) // '" -v "' // &
-              trim(test_dir) // '/main.f90" > /tmp/bench_inc2_output.txt 2>&1'
-    call execute_command_line(command, exitstat=exit_code)
-    
-    call read_file_content('/tmp/bench_inc2_output.txt', output2)
+      ! Incremental build - should recompile main but cache modules
+      bench_inc1_output = get_temp_file_path(temp_dir, 'bench_inc2_output.txt')
+      command = 'fpm run fortran -- --cache-dir "' // trim(cache_dir) // '" -v "' // &
+                trim(test_dir) // '/main.f90" > ' // bench_inc1_output // ' 2>&1'
+      call execute_command_line(command, exitstat=exit_code)
+      
+      call read_file_content(bench_inc1_output, output2)
+    end block
     incremental_cached = index(output2, 'Cache hit') > 0 .and. index(output2, 'main.f90  done.') > 0
     
     print '(a)', 'Incremental build:'

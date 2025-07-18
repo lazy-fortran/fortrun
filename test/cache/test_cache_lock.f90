@@ -1,5 +1,6 @@
 program test_cache_lock
   use cache_lock
+  use temp_utils, only: create_temp_dir, get_temp_file_path
   implicit none
   
   character(len=256) :: temp_cache_dir
@@ -7,7 +8,7 @@ program test_cache_lock
   integer :: i, unit
   
   ! Create temporary directory for testing
-  temp_cache_dir = '/tmp/fortran_cache_lock_test_' // get_timestamp_str()
+  temp_cache_dir = create_temp_dir('fortran_cache_lock_test')
   call system('mkdir -p ' // trim(temp_cache_dir))
   
   print '(a)', 'Testing cache lock functionality...'
@@ -123,12 +124,12 @@ contains
     character(len=*), intent(out) :: dir
     integer :: unit, iostat, last_char
     
-    call system('mktemp -d > /tmp/fortran_test_dir.tmp')
-    open(newunit=unit, file='/tmp/fortran_test_dir.tmp', status='old', iostat=iostat)
+    call system('mktemp -d > '//get_temp_file_path(create_temp_dir('fortran_test'), 'fortran_test_dir.tmp'))
+    open(newunit=unit, file=get_temp_file_path(create_temp_dir('fortran_test'), 'fortran_test_dir.tmp'), status='old', iostat=iostat)
     if (iostat == 0) then
       read(unit, '(a)') dir
       close(unit)
-      call system('rm -f /tmp/fortran_test_dir.tmp')
+      call system('rm -f '//get_temp_file_path(create_temp_dir('fortran_test'), 'fortran_test_dir.tmp'))
       ! Remove trailing newline if present
       last_char = len_trim(dir)
       if (last_char > 0) then

@@ -1,5 +1,6 @@
 program test_frontend_statements
     use iso_fortran_env, only: error_unit
+    use temp_utils, only: create_temp_dir, get_temp_file_path
     implicit none
     
     integer :: test_count, pass_count
@@ -126,13 +127,13 @@ contains
         success = .false.
         
         ! Create temporary input file
-        temp_input = "/tmp/test_frontend_stmt.f"
+        temp_input = get_temp_file_path(create_temp_dir('fortran_test'), 'test_frontend_stmt.f')
         open(newunit=unit, file=temp_input, status='replace', action='write')
         write(unit, '(a)') input_code
         close(unit)
         
         ! Set up compilation options
-        temp_output = "/tmp/test_frontend_stmt_out.f90"
+        temp_output = get_temp_file_path(create_temp_dir('fortran_test'), 'test_frontend_stmt_out.f90')
         options%backend = BACKEND_FORTRAN
         options%output_file = temp_output
         

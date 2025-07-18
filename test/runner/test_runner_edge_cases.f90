@@ -1,5 +1,6 @@
 program test_runner_edge_cases
     use runner, only: run_fortran_file
+    use temp_utils, only: create_temp_dir, get_temp_file_path
     implicit none
     
     logical :: all_tests_passed
@@ -36,7 +37,7 @@ contains
         passed = .true.
         
         ! Test with file that doesn't exist
-        call run_fortran_file("/tmp/definitely_does_not_exist_12345.f90", exit_code, &
+        call run_fortran_file(get_temp_file_path(create_temp_dir('fortran_test'), 'definitely_does_not_exist_12345.f90'), exit_code, &
                              verbose_level=0, custom_cache_dir="", &
                              custom_config_dir="", parallel_jobs=1, no_wait=.true.)
         
@@ -68,7 +69,7 @@ contains
         passed = .true.
         
         ! Create test file with wrong extension
-        test_file = "/tmp/test_runner_edge.txt"
+        test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_runner_edge.txt')
         open(newunit=unit, file=test_file, status='replace')
         write(unit, '(a)') "program test"
         write(unit, '(a)') "end program"
@@ -86,7 +87,7 @@ contains
         call execute_command_line("rm -f " // trim(test_file))
         
         ! Test with no extension
-        test_file = "/tmp/test_runner_edge_noext"
+        test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_runner_edge_noext')
         open(newunit=unit, file=test_file, status='replace')
         write(unit, '(a)') "program test"
         write(unit, '(a)') "end program"
@@ -116,7 +117,7 @@ contains
         passed = .true.
         
         ! Create empty .f90 file
-        test_file = "/tmp/test_runner_empty.f90"
+        test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_runner_empty.f90')
         open(newunit=unit, file=test_file, status='replace')
         close(unit)
         
@@ -142,7 +143,7 @@ contains
         passed = .true.
         
         ! Create test file
-        test_file = "/tmp/test_runner_custom_dirs.f90"
+        test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_runner_custom_dirs.f90')
         open(newunit=unit, file=test_file, status='replace')
         write(unit, '(a)') "program test_custom"
         write(unit, '(a)') "  print *, 'Hello from custom dirs'"
@@ -150,8 +151,8 @@ contains
         close(unit)
         
         ! Test with custom cache directory
-        custom_cache = "/tmp/test_runner_custom_cache"
-        custom_config = "/tmp/test_runner_custom_config"
+        custom_cache = create_temp_dir('fortran_test_runner_custom_cache')
+        custom_config = create_temp_dir('fortran_test_runner_custom_config')
         
         call execute_command_line("mkdir -p " // trim(custom_cache))
         call execute_command_line("mkdir -p " // trim(custom_config))
@@ -161,11 +162,11 @@ contains
                              custom_config_dir=custom_config, parallel_jobs=1, no_wait=.true.)
         
         ! Check if custom directories were used (via existence of any cache files)
-        call execute_command_line("ls " // trim(custom_cache) // " > /dev/null 2>&1; echo $? > /tmp/cache_check")
-        open(newunit=unit, file="/tmp/cache_check", status='old', action='read')
+        call execute_command_line("ls " // trim(custom_cache) // " > /dev/null 2>&1; echo $? > "//get_temp_file_path(create_temp_dir('fortran_test'), 'cache_check'))
+        open(newunit=unit, file=get_temp_file_path(create_temp_dir('fortran_test'), 'cache_check'), status='old', action='read')
         read(unit, *) exit_code
         close(unit)
-        call execute_command_line("rm -f /tmp/cache_check")
+        call execute_command_line("rm -f "//get_temp_file_path(create_temp_dir('fortran_test'), 'cache_check'))
         passed = (exit_code == 0)
         
         ! Clean up
@@ -186,7 +187,7 @@ contains
         passed = .true.
         
         ! Create .f file that might cause preprocessing issues
-        test_file = "/tmp/test_runner_preprocess.f"
+        test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_runner_preprocess.f')
         open(newunit=unit, file=test_file, status='replace')
         write(unit, '(a)') "c This is an old-style comment"
         write(unit, '(a)') "      program test_preprocess"
@@ -218,7 +219,7 @@ contains
         passed = .true.
         
         ! Create test file
-        test_file = "/tmp/test_runner_parallel.f90"
+        test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_runner_parallel.f90')
         open(newunit=unit, file=test_file, status='replace')
         write(unit, '(a)') "program test_parallel"
         write(unit, '(a)') "  implicit none"

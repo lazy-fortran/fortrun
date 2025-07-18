@@ -9,6 +9,7 @@ program main
   use notebook_parser
   use notebook_executor
   use notebook_renderer
+  use temp_utils, only: create_temp_dir, get_temp_file_path
   implicit none
   
   character(len=256) :: filename, custom_cache_dir, custom_config_dir, notebook_output, custom_flags
@@ -140,7 +141,7 @@ contains
     is_lazy_fortran = is_simple_fortran_file(input_file)
     
     ! Create temporary output file
-    temp_output = trim(input_file) // '.tmp.f90'
+    temp_output = get_temp_file_path(create_temp_dir('fortran_main'), 'output.f90')
     
     ! Process based on file type
     if (is_lazy_fortran) then

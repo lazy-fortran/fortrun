@@ -1,5 +1,6 @@
 program test_cache
     use, intrinsic :: iso_fortran_env, only: error_unit
+    use temp_utils, only: create_temp_dir, get_temp_file_path
     implicit none
 
     character(len=256) :: test_cache_dir, test_program
@@ -103,14 +104,14 @@ contains
 
         ! Build command with custom cache
         command = 'fpm run fortran -- --cache-dir '//trim(cache_dir)// &
-                  ' '//trim(flags)//' '//trim(filename)//' > /tmp/test_output.tmp 2>&1'
+                  ' '//trim(flags)//' '//trim(filename)//' > '//get_temp_file_path(create_temp_dir('fortran_test'), 'test_output.tmp')//' 2>&1'
 
         ! Run command
         call execute_command_line(trim(command), exitstat=exit_code)
 
         ! Read output
         output = ''
-        open (newunit=unit, file='/tmp/test_output.tmp', status='old', iostat=iostat)
+        open (newunit=unit, file=get_temp_file_path(create_temp_dir('fortran_test'), 'test_output.tmp'), status='old', iostat=iostat)
         if (iostat == 0) then
             do
                 read (unit, '(a)', iostat=iostat) line
@@ -121,7 +122,7 @@ contains
         end if
 
         ! Clean up
-        call execute_command_line('rm -f /tmp/test_output.tmp')
+        call execute_command_line('rm -f '//get_temp_file_path(create_temp_dir('fortran_test'), 'test_output.tmp'))
 
     end subroutine run_with_cache
 
