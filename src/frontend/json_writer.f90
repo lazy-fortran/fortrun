@@ -1,9 +1,5 @@
 module json_writer
-#ifdef _WIN32
-    use simple_json
-#else
     use json_module
-#endif
     implicit none
     private
 
@@ -15,38 +11,7 @@ module json_writer
 
 contains
 
-#ifdef _WIN32
-    ! Windows implementation using simple_json
-    subroutine json_write_tokens_to_file(tokens, filename)
-        use lexer_core, only: token_t
-        type(token_t), intent(in) :: tokens(:)
-        character(len=*), intent(in) :: filename
-        call simple_json_write_tokens_to_file(tokens, filename)
-    end subroutine json_write_tokens_to_file
-
-    function json_write_tokens_to_string(tokens) result(json_str)
-        use lexer_core, only: token_t
-        type(token_t), intent(in) :: tokens(:)
-        character(len=:), allocatable :: json_str
-        json_str = simple_json_write_tokens_to_string(tokens)
-    end function json_write_tokens_to_string
-
-    subroutine json_write_ast_to_file(ast, filename)
-        use ast_core, only: ast_node
-        class(ast_node), intent(in) :: ast
-        character(len=*), intent(in) :: filename
-        call simple_json_write_ast_to_file(ast, filename)
-    end subroutine json_write_ast_to_file
-
-    function json_write_ast_to_string(ast) result(json_str)
-        use ast_core, only: ast_node
-        class(ast_node), intent(in) :: ast
-        character(len=:), allocatable :: json_str
-        json_str = simple_json_write_ast_to_string(ast)
-    end function json_write_ast_to_string
-
-#else
-    ! Unix implementation using json-fortran
+    ! Write tokens array to JSON file
     subroutine json_write_tokens_to_file(tokens, filename)
         use lexer_core, only: token_t, token_type_name
         type(token_t), intent(in) :: tokens(:)
@@ -175,7 +140,5 @@ contains
         ! Clean up
         call json%destroy(root)
     end function json_write_ast_to_string
-
-#endif
 
 end module json_writer
