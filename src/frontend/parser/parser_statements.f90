@@ -190,12 +190,15 @@ contains
         character(len=100) :: temp_only(50)
         character(len=100) :: temp_rename(50)
         type(token_t) :: token
-        integer :: count
+        integer :: only_count, rename_count, i
         character(len=:), allocatable :: item_name, old_name
 
-        count = 0
-        temp_only = ""
-        temp_rename = ""
+        only_count = 0
+        rename_count = 0
+        do i = 1, 50
+            temp_only(i) = repeat(' ', 100)
+            temp_rename(i) = repeat(' ', 100)
+        end do
 
         ! Parse first item
         token = parser%peek()
@@ -218,14 +221,14 @@ contains
                         old_name = token%text
 
                         ! Store rename: "new_name => old_name"
-                        count = count + 1
-                        temp_rename(count) = item_name//" => "//old_name
+                        rename_count = rename_count + 1
+                        temp_rename(rename_count) = item_name//" => "//old_name
                     end if
                 end if
             else
                 ! Regular only item
-                count = count + 1
-                temp_only(count) = item_name
+                only_count = only_count + 1
+                temp_only(only_count) = item_name
             end if
         end if
 
@@ -256,14 +259,14 @@ contains
                                 old_name = token%text
 
                                 ! Store rename: "new_name => old_name"
-                                count = count + 1
-                                temp_rename(count) = item_name//" => "//old_name
+                                rename_count = rename_count + 1
+                                temp_rename(rename_count) = item_name//" => "//old_name
                             end if
                         end if
                     else
                         ! Regular only item
-                        count = count + 1
-                        temp_only(count) = item_name
+                        only_count = only_count + 1
+                        temp_only(only_count) = item_name
                     end if
                 else
                     ! No more items
@@ -276,40 +279,23 @@ contains
         end do
 
         ! Copy to output arrays with proper size
-        block
-            integer :: only_count, rename_count, i
-
-            ! Count actual items
-            only_count = 0
-            rename_count = 0
-            do i = 1, count
-                if (len_trim(temp_only(i)) > 0) only_count = only_count + 1
-                if (len_trim(temp_rename(i)) > 0) rename_count = rename_count + 1
+        if (only_count > 0) then
+            allocate (character(len=100) :: only_list(only_count))
+            do i = 1, only_count
+                only_list(i) = trim(adjustl(temp_only(i)))
             end do
+        else
+            allocate (character(len=100) :: only_list(0))
+        end if
 
-            ! Allocate output arrays
-            if (only_count > 0) then
-                allocate (character(len=100) :: only_list(only_count))
-                only_count = 0
-                do i = 1, count
-                    if (len_trim(temp_only(i)) > 0) then
-                        only_count = only_count + 1
-                        only_list(only_count) = trim(temp_only(i))
-                    end if
-                end do
-            end if
-
-            if (rename_count > 0) then
-                allocate (character(len=100) :: rename_list(rename_count))
-                rename_count = 0
-                do i = 1, count
-                    if (len_trim(temp_rename(i)) > 0) then
-                        rename_count = rename_count + 1
-                        rename_list(rename_count) = trim(temp_rename(i))
-                    end if
-                end do
-            end if
-        end block
+        if (rename_count > 0) then
+            allocate (character(len=100) :: rename_list(rename_count))
+            do i = 1, rename_count
+                rename_list(i) = trim(temp_rename(i))
+            end do
+        else
+            allocate (character(len=100) :: rename_list(0))
+        end if
 
     end subroutine parse_only_list
 
