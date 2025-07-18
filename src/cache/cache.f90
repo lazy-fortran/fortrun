@@ -468,19 +468,22 @@ command = 'xcopy /E /I /Y "'//trim(cache_path)//'\*" "'//trim(target_dir)//'" >n
 #endif
 
         ! Execute command and capture output
-    call execute_command_line(command // ' > '//get_temp_file_path(create_temp_dir('fortran_cache'), 'cache_size.tmp'), exitstat=exitstat, cmdstat=cmdstat)
-
-        size_output = "unknown"
-        if (cmdstat == 0 .and. exitstat == 0) then
-     open (newunit=unit, file=get_temp_file_path(create_temp_dir('fortran_cache'), 'cache_size.tmp'), status='old', action='read', iostat=ios)
-            if (ios == 0) then
-                read (unit, '(A)', iostat=ios) size_output
-                close (unit)
+        block
+            character(len=256) :: temp_file
+            temp_file = get_temp_file_path(create_temp_dir('fortran_cache'), 'cache_size.tmp')
+            call execute_command_line(command // ' > '//trim(temp_file), &
+                                      exitstat=exitstat, cmdstat=cmdstat)
+            
+            size_output = "unknown"
+            if (cmdstat == 0 .and. exitstat == 0) then
+                open (newunit=unit, file=temp_file, status='old', action='read', iostat=ios)
+                if (ios == 0) then
+                    read (unit, '(A)', iostat=ios) size_output
+                    close (unit)
+                end if
+                ! Clean up temp file is handled by temp_utils
             end if
-            ! Clean up temp file
-            open (newunit=unit, file=get_temp_file_path(create_temp_dir('fortran_cache'), 'cache_size.tmp'), status='old', iostat=ios)
-            if (ios == 0) close (unit, status='delete')
-        end if
+        end block
 
         ! Count files and directories
 #ifdef _WIN32
@@ -489,19 +492,22 @@ command = 'xcopy /E /I /Y "'//trim(cache_path)//'\*" "'//trim(target_dir)//'" >n
         command = 'find "'//trim(cache_dir)//'" -type f 2>/dev/null | wc -l'
 #endif
 
-    call execute_command_line(command // ' > '//get_temp_file_path(create_temp_dir('fortran_cache'), 'cache_count.tmp'), exitstat=exitstat, cmdstat=cmdstat)
+        block
+            character(len=256) :: temp_file
+            temp_file = get_temp_file_path(create_temp_dir('fortran_cache'), 'cache_count.tmp')
+            call execute_command_line(command // ' > '//trim(temp_file), &
+                                      exitstat=exitstat, cmdstat=cmdstat)
 
-        num_files = 0
-        if (cmdstat == 0 .and. exitstat == 0) then
-    open (newunit=unit, file=get_temp_file_path(create_temp_dir('fortran_cache'), 'cache_count.tmp'), status='old', action='read', iostat=ios)
-            if (ios == 0) then
-                read (unit, *, iostat=ios) num_files
-                close (unit)
+            num_files = 0
+            if (cmdstat == 0 .and. exitstat == 0) then
+                open (newunit=unit, file=temp_file, status='old', action='read', iostat=ios)
+                if (ios == 0) then
+                    read (unit, *, iostat=ios) num_files
+                    close (unit)
+                end if
+                ! Clean up temp file is handled by temp_utils
             end if
-            ! Clean up temp file
-            open (newunit=unit, file=get_temp_file_path(create_temp_dir('fortran_cache'), 'cache_count.tmp'), status='old', iostat=ios)
-            if (ios == 0) close (unit, status='delete')
-        end if
+        end block
 
         ! Build info string
         write (info, '(A)') "Fortran Cache Information:"

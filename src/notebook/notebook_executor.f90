@@ -751,7 +751,7 @@ contains
         character(len=512) :: full_command
         integer :: unit, iostat, file_size
 
-        temp_file = get_temp_file_path(create_temp_dir('fortran_exec'), 'fortran_exec.out')
+     temp_file = get_temp_file_path(create_temp_dir('fortran_exec'), 'fortran_exec.out')
 
         full_command = trim(command)//' > '//trim(temp_file)//' 2>&1'
         call execute_command_line(full_command, exitstat=exit_code)

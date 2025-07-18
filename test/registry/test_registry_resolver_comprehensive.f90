@@ -271,7 +271,11 @@ contains
         ! Validation result depends on implementation - we just check it doesn't crash
 
         ! Test non-existent registry
-    call validate_registry(get_temp_file_path(get_system_temp_dir(), 'definitely_nonexistent_registry.toml'), is_valid, error_message)
+        block
+            character(len=256) :: nonexistent_file
+            nonexistent_file = get_temp_file_path(get_system_temp_dir(), 'definitely_nonexistent_registry.toml')
+            call validate_registry(nonexistent_file, is_valid, error_message)
+        end block
         if (is_valid) then
             print *, "  FAIL: Non-existent registry should be invalid"
             passed = .false.
@@ -475,7 +479,11 @@ contains
         end if
 
         ! Test validation of non-existent file
-    call validate_registry(get_temp_file_path(get_system_temp_dir(), 'definitely_nonexistent_registry.toml'), is_valid, error_message)
+        block
+            character(len=256) :: nonexistent_file
+            nonexistent_file = get_temp_file_path(get_system_temp_dir(), 'definitely_nonexistent_registry.toml')
+            call validate_registry(nonexistent_file, is_valid, error_message)
+        end block
         if (is_valid) then
             print *, "  FAIL: Non-existent registry should be invalid"
             passed = .false.

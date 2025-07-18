@@ -37,9 +37,13 @@ contains
         passed = .true.
 
         ! Test with file that doesn't exist
-        call run_fortran_file(get_temp_file_path(create_temp_dir('fortran_test'), 'definitely_does_not_exist_12345.f90'), exit_code, &
-                              verbose_level=0, custom_cache_dir="", &
-                              custom_config_dir="", parallel_jobs=1, no_wait=.true.)
+        block
+            character(len=256) :: nonexistent_file
+            nonexistent_file = get_temp_file_path(create_temp_dir('fortran_test'), 'definitely_does_not_exist_12345.f90')
+            call run_fortran_file(nonexistent_file, exit_code, &
+                                  verbose_level=0, custom_cache_dir="", &
+                                  custom_config_dir="", parallel_jobs=1, no_wait=.true.)
+        end block
 
         if (exit_code == 0) then
             print *, "  FAILED: Should fail for non-existent file"

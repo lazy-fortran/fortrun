@@ -250,13 +250,17 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
 
         if (verbose_level == 0) then
             ! Quiet mode: capture errors for helpful messages
-            if (len_trim(flag_string) > 0) then
-                command = 'cd "'//trim(project_dir)//'" && '// &
-                  'fpm build --flag "' // trim(flag_string) // '" > "'//get_temp_file_path(create_temp_dir('fortran_build'), 'fpm_build_output.txt')//'" 2>&1'
-            else
-                command = 'cd "'//trim(project_dir)//'" && '// &
-                  'fpm build > "'//get_temp_file_path(create_temp_dir('fortran_build'), 'fpm_build_output.txt')//'" 2>&1'
-            end if
+            block
+                character(len=256) :: output_file
+                output_file = get_temp_file_path(create_temp_dir('fortran_build'), 'fpm_build_output.txt')
+                if (len_trim(flag_string) > 0) then
+                    command = 'cd "'//trim(project_dir)//'" && '// &
+                      'fpm build --flag "' // trim(flag_string) // '" > "'//trim(output_file)//'" 2>&1'
+                else
+                    command = 'cd "'//trim(project_dir)//'" && '// &
+                      'fpm build > "'//trim(output_file)//'" 2>&1'
+                end if
+            end block
         else if (verbose_level >= 2) then
             ! Very verbose: show detailed build output
             if (len_trim(flag_string) > 0) then
@@ -285,7 +289,11 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         if (cmdstat /= 0 .or. exitstat /= 0) then
             if (verbose_level == 0) then
                 ! Parse FPM errors and provide helpful messages
-        call provide_helpful_error_message(get_temp_file_path(create_temp_dir('fortran_build'), 'fpm_build_output.txt'))
+                block
+                    character(len=256) :: output_file
+                    output_file = get_temp_file_path(create_temp_dir('fortran_build'), 'fpm_build_output.txt')
+                    call provide_helpful_error_message(output_file)
+                end block
             end if
             call release_lock(cache_dir, basename)
             exit_code = 1
@@ -323,10 +331,14 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         integer :: unit, iostat
 
         ! Use realpath command to get absolute path
-    command = 'realpath "' // trim(filename) // '" > "'//get_temp_file_path(create_temp_dir('fortran_realpath'), 'fortran_path.tmp')//'"'
-        call execute_command_line(command)
+        block
+            character(len=256) :: temp_file
+            temp_file = get_temp_file_path(create_temp_dir('fortran_realpath'), 'fortran_path.tmp')
+            command = 'realpath "' // trim(filename) // '" > "'//trim(temp_file)//'"'
+            call execute_command_line(command)
 
-    open(newunit=unit, file=get_temp_file_path(create_temp_dir('fortran_realpath'), 'fortran_path.tmp'), status='old', iostat=iostat)
+            open(newunit=unit, file=temp_file, status='old', iostat=iostat)
+        end block
         if (iostat == 0) then
             read (unit, '(a)') absolute_path
             close (unit)

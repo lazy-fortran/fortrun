@@ -124,23 +124,28 @@ contains
         character(len=*), intent(out) :: dir
         integer :: unit, iostat, last_char
 
-    call system('mktemp -d > '//get_temp_file_path(create_temp_dir('fortran_test'), 'fortran_test_dir.tmp'))
-    open(newunit=unit, file=get_temp_file_path(create_temp_dir('fortran_test'), 'fortran_test_dir.tmp'), status='old', iostat=iostat)
-        if (iostat == 0) then
-            read (unit, '(a)') dir
-            close (unit)
-      call system('rm -f '//get_temp_file_path(create_temp_dir('fortran_test'), 'fortran_test_dir.tmp'))
-            ! Remove trailing newline if present
-            last_char = len_trim(dir)
-            if (last_char > 0) then
-                if (iachar(dir(last_char:last_char)) == 10 .or. &
-                    iachar(dir(last_char:last_char)) == 13) then
-                    dir = dir(1:last_char - 1)
+        block
+            character(len=256) :: temp_file
+            temp_file = get_temp_file_path(create_temp_dir('fortran_test'), 'fortran_test_dir.tmp')
+            call system('mktemp -d > '//trim(temp_file))
+            open(newunit=unit, file=temp_file, status='old', iostat=iostat)
+            if (iostat == 0) then
+                read (unit, '(a)') dir
+                close (unit)
+                ! Cleanup handled by temp_utils
+                
+                ! Remove trailing newline if present
+                last_char = len_trim(dir)
+                if (last_char > 0) then
+                    if (iachar(dir(last_char:last_char)) == 10 .or. &
+                        iachar(dir(last_char:last_char)) == 13) then
+                        dir = dir(1:last_char - 1)
+                    end if
                 end if
+            else
+                dir = create_temp_dir('fortran_cache_lock_test')
             end if
-        else
-            dir = create_temp_dir('fortran_cache_lock_test')
-        end if
+        end block
     end subroutine get_temp_dir
 
     subroutine create_stale_lock(cache_dir, project_name)

@@ -216,7 +216,11 @@ test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_main_verbo
         end if
 
         ! Test non-existent file
-        command = 'fpm run fortran -- '//get_temp_file_path(create_temp_dir('fortran_test'), 'definitely_nonexistent_file.f90')//' 2>/dev/null'
+        block
+            character(len=256) :: test_file
+            test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'definitely_nonexistent_file.f90')
+            command = 'fpm run fortran -- '//trim(test_file)//' 2>/dev/null'
+        end block
         call execute_and_capture(command, output, exit_code)
 
         if (exit_code == 0) then

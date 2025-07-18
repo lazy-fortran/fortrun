@@ -37,7 +37,11 @@ contains
             integer :: unit
 
             ! Create a simple .f file (lazy fortran)
-            open(newunit=unit, file=get_temp_file_path(create_temp_dir('fortran_test'), 'test_simple.f'), action='write', iostat=iostat)
+            block
+                character(len=256) :: test_file
+                test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_simple.f')
+                open(newunit=unit, file=test_file, action='write', iostat=iostat)
+            end block
             if (iostat /= 0) then
                 print *, 'FAIL: Could not create test file'
                 test_basic_file_processing = .false.
@@ -49,8 +53,13 @@ contains
             close (unit)
 
             ! Test processing the file
-            call execute_command_line('fpm run fortran -- '//get_temp_file_path(create_temp_dir('fortran_test'), 'test_simple.f')//' > ' // &
-                                     get_temp_file_path(create_temp_dir('fortran_test'), 'test_output.f90')//' 2>/dev/null', exitstat=iostat)
+            block
+                character(len=256) :: test_file, output_file, cmd
+                test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_simple.f')
+                output_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_output.f90')
+                cmd = 'fpm run fortran -- '//trim(test_file)//' > '//trim(output_file)//' 2>/dev/null'
+                call execute_command_line(cmd, exitstat=iostat)
+            end block
 
             if (iostat == 0) then
                 print *, '  PASS: Basic file processing works'
@@ -60,8 +69,7 @@ contains
             end if
 
             ! Clean up
-            call execute_command_line('rm -f '//get_temp_file_path(create_temp_dir('fortran_test'), 'test_simple.f')//' '//get_temp_file_path(create_temp_dir('fortran_test'), 'test_output.f90'), &
-                                      exitstat=iostat)
+            ! Cleanup handled by temp_utils
         end block
 
     end function test_basic_file_processing
@@ -76,7 +84,11 @@ contains
             integer :: unit
 
             ! Create a simple .f file
-            open(newunit=unit, file=get_temp_file_path(create_temp_dir('fortran_test'), 'test_debug.f'), action='write', iostat=iostat)
+            block
+                character(len=256) :: test_file
+                test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_debug.f')
+                open(newunit=unit, file=test_file, action='write', iostat=iostat)
+            end block
             if (iostat /= 0) then
                 print *, 'FAIL: Could not create debug test file'
                 test_debug_output_pipeline = .false.
@@ -87,9 +99,13 @@ contains
             close (unit)
 
             ! Test --debug-tokens
-            call execute_command_line('fpm run fortran -- '//get_temp_file_path(create_temp_dir('fortran_test'), 'test_debug.f')//' ' // &
-                                     '--debug-tokens > '//get_temp_file_path(create_temp_dir('fortran_test'), 'debug_tokens.json')//' 2>/dev/null', &
-                                      exitstat=iostat)
+            block
+                character(len=256) :: test_file, output_file, cmd
+                test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_debug.f')
+                output_file = get_temp_file_path(create_temp_dir('fortran_test'), 'debug_tokens.json')
+                cmd = 'fpm run fortran -- '//trim(test_file)//' --debug-tokens > '//trim(output_file)//' 2>/dev/null'
+                call execute_command_line(cmd, exitstat=iostat)
+            end block
             if (iostat /= 0) then
                 print *, '  FAIL: --debug-tokens failed'
                 test_debug_output_pipeline = .false.
@@ -97,9 +113,13 @@ contains
             end if
 
             ! Test --debug-ast
-            call execute_command_line('fpm run fortran -- '//get_temp_file_path(create_temp_dir('fortran_test'), 'test_debug.f')//' '// &
-                                      '--debug-ast > '//get_temp_file_path(create_temp_dir('fortran_test'), 'debug_ast.json')//' 2>/dev/null', &
-                                      exitstat=iostat)
+            block
+                character(len=256) :: test_file, output_file, cmd
+                test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_debug.f')
+                output_file = get_temp_file_path(create_temp_dir('fortran_test'), 'debug_ast.json')
+                cmd = 'fpm run fortran -- '//trim(test_file)//' --debug-ast > '//trim(output_file)//' 2>/dev/null'
+                call execute_command_line(cmd, exitstat=iostat)
+            end block
             if (iostat /= 0) then
                 print *, '  FAIL: --debug-ast failed'
                 test_debug_output_pipeline = .false.
@@ -107,9 +127,13 @@ contains
             end if
 
             ! Test --debug-semantic
-            call execute_command_line('fpm run fortran -- '//get_temp_file_path(create_temp_dir('fortran_test'), 'test_debug.f')//' '// &
-                            '--debug-semantic > '//get_temp_file_path(create_temp_dir('fortran_test'), 'debug_semantic.json')//' 2>/dev/null', &
-                                      exitstat=iostat)
+            block
+                character(len=256) :: test_file, output_file, cmd
+                test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_debug.f')
+                output_file = get_temp_file_path(create_temp_dir('fortran_test'), 'debug_semantic.json')
+                cmd = 'fpm run fortran -- '//trim(test_file)//' --debug-semantic > '//trim(output_file)//' 2>/dev/null'
+                call execute_command_line(cmd, exitstat=iostat)
+            end block
             if (iostat /= 0) then
                 print *, '  FAIL: --debug-semantic failed'
                 test_debug_output_pipeline = .false.
@@ -117,9 +141,13 @@ contains
             end if
 
             ! Test --debug-codegen
-            call execute_command_line('fpm run fortran -- '//get_temp_file_path(create_temp_dir('fortran_test'), 'test_debug.f')//' '// &
-                              '--debug-codegen > '//get_temp_file_path(create_temp_dir('fortran_test'), 'debug_codegen.json')//' 2>/dev/null', &
-                                      exitstat=iostat)
+            block
+                character(len=256) :: test_file, output_file, cmd
+                test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_debug.f')
+                output_file = get_temp_file_path(create_temp_dir('fortran_test'), 'debug_codegen.json')
+                cmd = 'fpm run fortran -- '//trim(test_file)//' --debug-codegen > '//trim(output_file)//' 2>/dev/null'
+                call execute_command_line(cmd, exitstat=iostat)
+            end block
             if (iostat /= 0) then
                 print *, '  FAIL: --debug-codegen failed'
                 test_debug_output_pipeline = .false.
@@ -129,9 +157,7 @@ contains
             print *, '  PASS: All debug output flags work'
 
             ! Clean up
-            call execute_command_line('rm -f '//get_temp_file_path(create_temp_dir('fortran_test'), 'test_debug.f')//' '// &
-                  get_temp_file_path(create_temp_dir('fortran_test'), 'debug_*.json'), &
-                                      exitstat=iostat)
+            ! Cleanup handled by temp_utils
         end block
 
     end function test_debug_output_pipeline
@@ -146,8 +172,11 @@ contains
             integer :: unit
 
             ! Create minimal tokens JSON
-            open(newunit=unit, file=get_temp_file_path(create_temp_dir('fortran_test'), 'pipeline_tokens.json'), action='write', &
-                 iostat=iostat)
+            block
+                character(len=256) :: json_file
+                json_file = get_temp_file_path(create_temp_dir('fortran_test'), 'pipeline_tokens.json')
+                open(newunit=unit, file=json_file, action='write', iostat=iostat)
+            end block
             if (iostat /= 0) then
                 print *, 'FAIL: Could not create tokens JSON'
                 test_json_pipeline_workflow = .false.
@@ -158,8 +187,12 @@ contains
             close (unit)
 
             ! Test --from-tokens
-            call execute_command_line('fpm run fortran -- '//get_temp_file_path(create_temp_dir('fortran_test'), 'pipeline_tokens.json')//' ' // &
-                                      '--from-tokens > /dev/null 2>&1', exitstat=iostat)
+            block
+                character(len=256) :: json_file, cmd
+                json_file = get_temp_file_path(create_temp_dir('fortran_test'), 'pipeline_tokens.json')
+                cmd = 'fpm run fortran -- '//trim(json_file)//' --from-tokens > /dev/null 2>&1'
+                call execute_command_line(cmd, exitstat=iostat)
+            end block
             if (iostat == 0) then
                 print *, '  PASS: --from-tokens pipeline works'
             else
@@ -168,14 +201,21 @@ contains
             end if
 
             ! Create minimal AST JSON
-            open(newunit=unit, file=get_temp_file_path(create_temp_dir('fortran_test'), 'pipeline_ast.json'), action='write', &
-                 iostat=iostat)
+            block
+                character(len=256) :: json_file
+                json_file = get_temp_file_path(create_temp_dir('fortran_test'), 'pipeline_ast.json')
+                open(newunit=unit, file=json_file, action='write', iostat=iostat)
+            end block
             write (unit, '(a)') '{"type": "program", "name": "test"}'
             close (unit)
 
             ! Test --from-ast
-            call execute_command_line('fpm run fortran -- '//get_temp_file_path(create_temp_dir('fortran_test'), 'pipeline_ast.json')//' ' // &
-                                      '--from-ast > /dev/null 2>&1', exitstat=iostat)
+            block
+                character(len=256) :: json_file, cmd
+                json_file = get_temp_file_path(create_temp_dir('fortran_test'), 'pipeline_ast.json')
+                cmd = 'fpm run fortran -- '//trim(json_file)//' --from-ast > /dev/null 2>&1'
+                call execute_command_line(cmd, exitstat=iostat)
+            end block
             if (iostat == 0) then
                 print *, '  PASS: --from-ast pipeline works'
             else
@@ -184,7 +224,7 @@ contains
             end if
 
             ! Clean up
-            call execute_command_line('rm -f '//get_temp_file_path(create_temp_dir('fortran_test'), 'pipeline_*.json'), exitstat=iostat)
+            ! Cleanup handled by temp_utils
         end block
 
     end function test_json_pipeline_workflow
@@ -197,8 +237,12 @@ contains
         block
             integer :: iostat
 
-            call execute_command_line('fpm run fortran -- '//get_temp_file_path(create_temp_dir('fortran_test'), 'nonexistent.f')//' > ' // &
-                                      '/dev/null 2>&1', exitstat=iostat)
+            block
+                character(len=256) :: test_file, cmd
+                test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'nonexistent.f')
+                cmd = 'fpm run fortran -- '//trim(test_file)//' > /dev/null 2>&1'
+                call execute_command_line(cmd, exitstat=iostat)
+            end block
             if (iostat /= 0) then
                 print *, '  PASS: Non-existent file properly handled'
             else
@@ -212,12 +256,20 @@ contains
             integer :: iostat
             integer :: unit
 
-            open(newunit=unit, file=get_temp_file_path(create_temp_dir('fortran_test'), 'invalid.json'), action='write', iostat=iostat)
+            block
+                character(len=256) :: json_file
+                json_file = get_temp_file_path(create_temp_dir('fortran_test'), 'invalid.json')
+                open(newunit=unit, file=json_file, action='write', iostat=iostat)
+            end block
             write (unit, '(a)') 'invalid json content'
             close (unit)
 
-            call execute_command_line('fpm run fortran -- '//get_temp_file_path(create_temp_dir('fortran_test'), 'invalid.json')//' ' // &
-                                      '--from-tokens > /dev/null 2>&1', exitstat=iostat)
+            block
+                character(len=256) :: json_file, cmd
+                json_file = get_temp_file_path(create_temp_dir('fortran_test'), 'invalid.json')
+                cmd = 'fpm run fortran -- '//trim(json_file)//' --from-tokens > /dev/null 2>&1'
+                call execute_command_line(cmd, exitstat=iostat)
+            end block
             if (iostat /= 0) then
                 print *, '  PASS: Invalid JSON properly handled'
             else
@@ -226,7 +278,7 @@ contains
             end if
 
             ! Clean up
-            call execute_command_line('rm -f '//get_temp_file_path(create_temp_dir('fortran_test'), 'invalid.json'), exitstat=iostat)
+            ! Cleanup handled by temp_utils
         end block
 
     end function test_error_handling

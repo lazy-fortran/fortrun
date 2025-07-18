@@ -256,7 +256,7 @@ call execute_command_line('cp '//trim(input_file)//' '//trim(temp_output), exits
                 if (verbose_level > 0) then
                     print '(a)', 'Running file with cleared cache...'
                 end if
-                call run_fortran_file(filename, exit_code, verbose_level, custom_cache_dir, &
+           call run_fortran_file(filename, exit_code, verbose_level, custom_cache_dir, &
                                       '', 0, .false., '')
                 if (exit_code /= 0) then
                     stop 1
