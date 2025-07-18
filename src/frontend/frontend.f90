@@ -42,6 +42,10 @@ module frontend
         logical :: debug_codegen = .false.
         logical :: optimize = .false.
         character(len=:), allocatable :: output_file
+    contains
+        procedure :: deep_copy => compilation_options_deep_copy
+        procedure :: assign => compilation_options_assign
+        generic :: assignment(=) => assign
     end type compilation_options_t
 
 contains
@@ -721,5 +725,38 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
             end if
         end if
     end function is_end_select
+
+    ! Deep copy procedures for compilation_options_t
+    function compilation_options_deep_copy(this) result(copy)
+        class(compilation_options_t), intent(in) :: this
+        type(compilation_options_t) :: copy
+        
+        copy%backend = this%backend
+        copy%debug_tokens = this%debug_tokens
+        copy%debug_ast = this%debug_ast
+        copy%debug_semantic = this%debug_semantic
+        copy%debug_codegen = this%debug_codegen
+        copy%optimize = this%optimize
+        
+        if (allocated(this%output_file)) then
+            copy%output_file = this%output_file
+        end if
+    end function compilation_options_deep_copy
+    
+    subroutine compilation_options_assign(lhs, rhs)
+        class(compilation_options_t), intent(out) :: lhs
+        type(compilation_options_t), intent(in) :: rhs
+        
+        lhs%backend = rhs%backend
+        lhs%debug_tokens = rhs%debug_tokens
+        lhs%debug_ast = rhs%debug_ast
+        lhs%debug_semantic = rhs%debug_semantic
+        lhs%debug_codegen = rhs%debug_codegen
+        lhs%optimize = rhs%optimize
+        
+        if (allocated(rhs%output_file)) then
+            lhs%output_file = rhs%output_file
+        end if
+    end subroutine compilation_options_assign
 
 end module frontend
