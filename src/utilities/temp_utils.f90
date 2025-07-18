@@ -1,7 +1,8 @@
 module temp_utils
     implicit none
     private
-    public :: create_temp_dir, cleanup_temp_dir, get_temp_file_path, temp_dir_manager
+    public :: create_temp_dir, cleanup_temp_dir, get_temp_file_path, temp_dir_manager, &
+              get_system_temp_dir
 
     ! Type for managing temporary directories with automatic cleanup
     type :: temp_dir_manager
@@ -30,11 +31,7 @@ contains
             if (ios /= 0) then
                 call get_environment_variable('TEMP', base_temp_dir, status=ios)
                 if (ios /= 0) then
-#ifdef _WIN32
-                    base_temp_dir = 'C:\Windows\Temp'
-#else
-                    base_temp_dir = '/tmp'
-#endif
+                    base_temp_dir = get_system_temp_dir()
                 end if
             end if
         end if
@@ -150,5 +147,16 @@ contains
         end if
 
     end subroutine temp_dir_destroy
+
+    function get_system_temp_dir() result(temp_dir)
+        character(len=:), allocatable :: temp_dir
+
+#ifdef _WIN32
+        temp_dir = 'C:\Windows\Temp'
+#else
+        temp_dir = '/tmp'
+#endif
+
+    end function get_system_temp_dir
 
 end module temp_utils
