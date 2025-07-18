@@ -67,4 +67,4 @@ When you run a `.f` file, the tool:
 6. Generates a proper `.f90` file in the cache directory
 7. Compiles and runs the generated file
 
-This allows for much cleaner, more script-like Fortran code!
+This allows for much cleaner, more concise Fortran code!

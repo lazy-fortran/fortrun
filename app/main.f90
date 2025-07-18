@@ -92,7 +92,7 @@ contains
         print '(a)', 'Arguments:'
         print '(a)', '  <file>        Path to Fortran source file'
         print '(a)', '                .f90/.F90 = Standard Fortran (no preprocessing)'
-print '(a)', '                .f/.F     = Simple Fortran (frontend with type inference)'
+print '(a)', '                .f/.F     = Lowercase Fortran (frontend with type inference)'
         print '(a)', ''
         print '(a)', 'Options:'
         print '(a)', '  -h, --help        Show this help message'
@@ -136,7 +136,7 @@ print '(a)', '                    (.f90: user flags only, .f: opinionated + user
         integer :: unit, ios
         logical :: is_lazy_fortran
 
-        ! Check if input is a .f file (lazy fortran)
+        ! Check if input is a .f file (lowercase fortran)
         is_lazy_fortran = is_simple_fortran_file(input_file)
 
         ! Create temporary output file

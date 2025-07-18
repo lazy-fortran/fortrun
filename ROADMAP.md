@@ -36,7 +36,7 @@ Currently implementing complete type inference for all Fortran 95 features:
 #### **Key Architectural Decisions** 📐
 
 1. **Unified AST Structure**: The semantic analyzer augments the existing AST with type information rather than creating a new structure. This allows the code generator to work with both:
-   - **Typed AST**: From semantic analysis (lazy fortran with inferred types)
+   - **Typed AST**: From semantic analysis (lowercase fortran with inferred types)
    - **Untyped AST**: From parser (standard Fortran with explicit types)
 
 2. **Unified JSON Serialization**: Both parser and semantic analyzer use the same json_writer/json_reader modules:
@@ -106,7 +106,7 @@ This architecture eliminates duplication and ensures consistency across the pipe
 
 ### Next Priority: Registry Integration & Language Evolution
 1. **Official FPM Registry Integration**: Complete module database system
-2. **Enhanced Language Features**: Advanced lazy fortran syntax extensions
+2. **Enhanced Language Features**: Advanced lowercase fortran syntax extensions
 3. **Performance Optimization**: Faster compilation and execution
 4. **Extended Type System**: More sophisticated inference patterns
 
@@ -129,7 +129,7 @@ This architecture eliminates duplication and ensures consistency across the pipe
 ### Short-term (AST Implementation) - **COMPLETE** ✅
 - ✅ Working lexer with comprehensive tokenization
 - ✅ Complete AST node definitions with visitor pattern
-- ✅ Full parser for Simple Fortran (expressions, statements, functions)
+- ✅ Full parser for Lowercase Fortran (expressions, statements, functions)
 - ✅ Code generator producing valid Fortran 90 with modern defaults
 - ✅ All regression tests passing (30+ test files)
 - ✅ Advanced type inference with Hindley-Milner system
@@ -150,7 +150,7 @@ This architecture eliminates duplication and ensures consistency across the pipe
 
 - **✅ Complete**: Production AST frontend with Hindley-Milner type inference
 - **🎯 Current**: FPM Registry integration & Module database system
-- **Following**: Advanced lazy fortran syntax & Fortran 2003 support
+- **Following**: Advanced lowercase fortran syntax & Fortran 2003 support
 - **Later**: LLVM IR generation & Compiler integration
 - **Future**: Multiple dispatch & Advanced language features
 

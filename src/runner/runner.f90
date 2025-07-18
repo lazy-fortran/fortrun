@@ -79,7 +79,7 @@ contains
 
         if (is_simple_fortran_file(filename)) then
             if (verbose_level >= 1) then
-                print '(a)', 'Processing Simple Fortran file with frontend...'
+                print '(a)', 'Processing Lowercase Fortran file with frontend...'
             end if
 
             ! Get content-based cache directory first
@@ -948,7 +948,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         ! Create temporary directory
         temp_dir = create_temp_dir('fortran_stdin')
 
-        ! Create temporary file with .f extension for lazy fortran
+        ! Create temporary file with .f extension for lowercase fortran
         temp_file = get_temp_file_path(temp_dir, 'stdin_input.f')
 
         ! Open temporary file for writing

@@ -1043,7 +1043,7 @@ contains
         line = token%line
         column = token%column
 
-        ! Get program name (optional in lazy fortran, required in standard)
+        ! Get program name (optional in lowercase fortran, required in standard)
         name_token = parser%peek()
         if (name_token%kind == TK_IDENTIFIER) then
             name_token = parser%consume()

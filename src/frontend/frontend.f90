@@ -1,5 +1,5 @@
 module frontend
-    ! lazy fortran compiler frontend
+    ! lowercase fortran compiler frontend
     ! Clean coordinator module - delegates to extracted specialized modules
     ! Architecture: Lexer → Parser → Semantic → Codegen with FALLBACK support
 
@@ -96,7 +96,7 @@ contains
         if (error_msg /= "") return
         ! if (options%debug_ast) call debug_output_ast(input_file, arena, prog_index)
 
-        ! Phase 3: Semantic Analysis (only for lazy fortran)
+        ! Phase 3: Semantic Analysis (only for lowercase fortran)
         sem_ctx = create_semantic_context()
         call analyze_program(sem_ctx, arena, prog_index)
    if (options%debug_semantic) call debug_output_semantic(input_file, arena, prog_index)
@@ -136,8 +136,8 @@ contains
         if (error_msg /= "") return
         ! if (options%debug_ast) call debug_output_ast(tokens_json_file, arena, prog_index)
 
-        ! Phase 3: Semantic Analysis (only for lazy fortran)
-        ! Phase 3: Semantic Analysis (only for lazy fortran)
+        ! Phase 3: Semantic Analysis (only for lowercase fortran)
+        ! Phase 3: Semantic Analysis (only for lowercase fortran)
         sem_ctx = create_semantic_context()
         call analyze_program(sem_ctx, arena, prog_index)
         if (options%debug_semantic) call debug_output_semantic(tokens_json_file, arena, prog_index)

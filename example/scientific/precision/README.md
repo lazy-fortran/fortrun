@@ -24,7 +24,7 @@ The Fortran CLI tool handles precision differently for different file types:
 - No special compiler flags applied
 - `implicit none` enforced only through fpm.toml configuration
 
-### Script-style (.f files)  
+### Lowercase Fortran (.f files)  
 - Uses opinionated modern defaults
 - `real` variables default to `real(8)` (double precision)
 - Compiler flags: `-fdefault-real-8 -fdefault-double-8`

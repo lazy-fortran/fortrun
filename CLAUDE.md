@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with this repository.
 
 ## Project Purpose
 
-This project develops a command-line tool called `fortran` that **Makes Python Fortran again**. The tool enables running Fortran programs directly without manual compilation, automatically resolving and building module dependencies using FPM, with opinionated modern defaults and zero configuration. Our *lazy fortran* dialect pushes beyond all alternative scientific computing languages to combine Fortran's performance with modern expressiveness.
+This project develops a command-line tool called `fortran` that **Makes Python Fortran again**. The tool enables running Fortran programs directly without manual compilation, automatically resolving and building module dependencies using FPM, with opinionated modern defaults and zero configuration. Our *lowercase fortran* dialect pushes beyond all alternative scientific computing languages to combine Fortran's performance with modern expressiveness.
 
 ## Test-Driven Development (CRITICAL)
 
@@ -66,12 +66,12 @@ Clean organized directory structure:
 ## CRITICAL: No Shortcuts in Frontend ⚠️
 
 **All code MUST go through the AST pipeline**:
-- **Lazy Fortran**: Lexer → Parser → AST → Semantic Analysis → Code Generation
+- **Lowercase Fortran**: Lexer → Parser → AST → Semantic Analysis → Code Generation
 - **Standard Fortran**: Lexer → Parser → AST → Code Generation
 
 - ❌ NO direct token-to-code shortcuts
 - ✅ ALL processing through proper AST pipeline
-- ✅ Semantic analysis only for type inference (lazy fortran)
+- ✅ Semantic analysis only for type inference (lowercase fortran)
 
 ## Current Status
 
@@ -80,7 +80,7 @@ Clean organized directory structure:
 - Hindley-Milner type inference with Algorithm W
 - Comprehensive test suite (30+ frontend tests)
 
-## *Lazy Fortran* Dialect
+## *Lowercase Fortran* Dialect
 
 Experimental dialect features:
 1. **Implicit program wrapping** - No need for `program`/`end program`
