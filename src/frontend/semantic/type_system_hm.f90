@@ -21,6 +21,9 @@ module type_system_hm
     type :: type_var_t
         integer :: id
         character(len=:), allocatable :: name  ! e.g., 'a, 'b
+    contains
+        procedure :: assign => type_var_assign
+        generic :: assignment(=) => assign
     end type type_var_t
 
     ! Monomorphic type - simplified to avoid circular dependency
@@ -81,6 +84,17 @@ module type_system_hm
     end type type_env_t
 
 contains
+
+    ! Assignment operator for type_var_t (deep copy)
+    subroutine type_var_assign(lhs, rhs)
+        class(type_var_t), intent(out) :: lhs
+        type(type_var_t), intent(in) :: rhs
+
+        lhs%id = rhs%id
+        if (allocated(rhs%name)) then
+            lhs%name = rhs%name
+        end if
+    end subroutine type_var_assign
 
     ! Constructor for type variable
     function create_type_var(id, name) result(tv)
