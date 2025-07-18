@@ -53,8 +53,12 @@ contains
                 if (then_token%kind == TK_KEYWORD) then
                  if (then_token%text == "elseif" .or. then_token%text == "else if") then
                         ! Parse elseif block
-                        elseif_count = elseif_count + 1
-                        ! Note: elseif handling needs special treatment - skipping for now
+                        block
+                            integer :: elseif_pair(2)
+                            elseif_pair = parse_elseif_block(parser, arena)
+                            elseif_indices = [elseif_indices, elseif_pair]
+                            elseif_count = elseif_count + 1
+                        end block
                     else if (then_token%text == "else") then
                         ! Parse else block
                         then_token = parser%consume()  ! consume 'else'
@@ -76,6 +80,7 @@ contains
 
             ! Create if node
             if_index = push_if(arena, condition_index, then_body_indices, &
+                               elseif_indices=elseif_indices, &
                                else_body_indices=else_body_indices, &
                                line=if_token%line, column=if_token%column)
         else
@@ -109,6 +114,7 @@ contains
             allocate (elseif_indices(0))
             allocate (else_body_indices(0))
             if_index = push_if(arena, condition_index, then_body_indices, &
+                               elseif_indices=elseif_indices, &
                                else_body_indices=else_body_indices, &
                                line=if_token%line, column=if_token%column)
         end if
@@ -233,8 +239,15 @@ contains
         end if
 
         ! Parse body
-        ! Note: This would need special handling for body indices
-        ! For now, we'll skip proper elseif implementation
+        block
+            integer, allocatable :: body_indices(:)
+            body_indices = parse_if_body(parser, arena)
+            if (allocated(body_indices) .and. size(body_indices) > 0) then
+                elseif_indices(2) = body_indices(1)  ! Store first body statement index
+            else
+                elseif_indices(2) = 0
+            end if
+        end block
 
     end function parse_elseif_block
 

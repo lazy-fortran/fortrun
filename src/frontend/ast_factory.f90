@@ -215,8 +215,20 @@ contains
             end if
         end if
 
-        ! Note: elseif blocks need special handling as they contain condition+body pairs
-        ! For now we'll skip elseif support and handle it separately if needed
+        ! Handle elseif blocks
+        if (present(elseif_indices)) then
+            if (size(elseif_indices) > 0) then
+                ! For now, treat elseif_indices as pairs: condition, body, condition, body, ...
+                ! Each pair becomes one elseif_wrapper
+                if (mod(size(elseif_indices), 2) == 0) then
+                    allocate (if_stmt%elseif_blocks(size(elseif_indices)/2))
+                    do i = 1, size(elseif_indices)/2
+                      if_stmt%elseif_blocks(i)%condition_index = elseif_indices(2*i - 1)
+                        if_stmt%elseif_blocks(i)%body_indices = [elseif_indices(2*i)]
+                    end do
+                end if
+            end if
+        end if
 
         if (present(line)) if_stmt%line = line
         if (present(column)) if_stmt%column = column
@@ -307,6 +319,7 @@ contains
         integer, intent(in), optional :: line, column, parent_index
         integer :: select_index
         type(select_case_node) :: select_node
+        integer :: i
 
         ! Set expression
         if (expr_index > 0 .and. expr_index <= arena%size) then
@@ -315,8 +328,38 @@ contains
             end if
         end if
 
-        ! Note: case blocks need special handling as they are case_wrapper types
-        ! For now we'll skip case support and handle it separately if needed
+        ! Handle case blocks
+        if (present(case_indices)) then
+            if (size(case_indices) > 0) then
+                ! For now, treat case_indices as triplets: case_type, value, body
+                ! Each triplet becomes one case_wrapper
+                if (mod(size(case_indices), 3) == 0) then
+                    allocate (select_node%cases(size(case_indices)/3))
+                    do i = 1, size(case_indices)/3
+                        ! Case type stored as literal in arena
+           if (case_indices(3*i - 2) > 0 .and. case_indices(3*i - 2) <= arena%size) then
+               select type (case_type_node => arena%entries(case_indices(3*i - 2))%node)
+                            type is (literal_node)
+                                select_node%cases(i)%case_type = case_type_node%value
+                            end select
+                        end if
+                        ! Case value
+           if (case_indices(3*i - 1) > 0 .and. case_indices(3*i - 1) <= arena%size) then
+                          if (allocated(arena%entries(case_indices(3*i - 1))%node)) then
+ allocate (select_node%cases(i)%value, source=arena%entries(case_indices(3*i - 1))%node)
+                            end if
+                        end if
+                        ! Case body (simplified - just store single statement)
+                   if (case_indices(3*i) > 0 .and. case_indices(3*i) <= arena%size) then
+                            allocate (select_node%cases(i)%body(1))
+                            if (allocated(arena%entries(case_indices(3*i))%node)) then
+                                allocate (select_node%cases(i)%body(1)%node, source=arena%entries(case_indices(3*i))%node)
+                            end if
+                        end if
+                    end do
+                end if
+            end if
+        end if
 
         if (present(line)) select_node%line = line
         if (present(column)) select_node%column = column

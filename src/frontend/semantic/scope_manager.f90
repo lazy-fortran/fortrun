@@ -241,7 +241,7 @@ contains
 
         ! Walk down the stack from current scope to global scope
         do i = this%depth, 1, -1
-  print *, "stack_lookup: checking scope", i, "of", this%depth, "for '", trim(name), "'"
+            ! print *, "stack_lookup: checking scope", i, "of", this%depth, "for '", trim(name), "'"
             ! Use direct scope_lookup to avoid type-bound procedure issues with arrays
             scheme = scope_lookup(this%scopes(i), name)
             if (allocated(scheme)) return

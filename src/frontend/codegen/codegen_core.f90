@@ -399,8 +399,45 @@ contains
             end do
         end if
 
-        ! TODO: Generate elseif blocks
-        ! TODO: Generate else block
+        ! Generate elseif blocks
+        if (allocated(node%elseif_blocks)) then
+            do i = 1, size(node%elseif_blocks)
+                ! Generate elseif condition
+                if (node%elseif_blocks(i)%condition_index > 0 .and. &
+                    node%elseif_blocks(i)%condition_index <= arena%size) then
+      cond_code = generate_code_from_arena(arena, node%elseif_blocks(i)%condition_index)
+                else
+                    cond_code = ".true."
+                end if
+
+                code = code//"else if ("//cond_code//") then"//new_line('a')
+
+                ! Generate elseif body
+                if (allocated(node%elseif_blocks(i)%body_indices)) then
+                    block
+                        integer :: j
+                        do j = 1, size(node%elseif_blocks(i)%body_indices)
+                            if (node%elseif_blocks(i)%body_indices(j) > 0 .and. &
+                               node%elseif_blocks(i)%body_indices(j) <= arena%size) then
+      body_code = generate_code_from_arena(arena, node%elseif_blocks(i)%body_indices(j))
+                                code = code//"    "//body_code//new_line('a')
+                            end if
+                        end do
+                    end block
+                end if
+            end do
+        end if
+
+        ! Generate else block
+        if (allocated(node%else_body_indices)) then
+            code = code//"else"//new_line('a')
+            do i = 1, size(node%else_body_indices)
+   if (node%else_body_indices(i) > 0 .and. node%else_body_indices(i) <= arena%size) then
+                  body_code = generate_code_from_arena(arena, node%else_body_indices(i))
+                    code = code//"    "//body_code//new_line('a')
+                end if
+            end do
+        end if
 
         code = code//"end if"
     end function generate_code_if
@@ -490,19 +527,72 @@ contains
         type(select_case_node), intent(in) :: node
         integer, intent(in) :: node_index
         character(len=:), allocatable :: code
-        character(len=:), allocatable :: expr_code
+        character(len=:), allocatable :: expr_code, case_code, body_code
+        integer :: i, j
 
         ! Generate select expression
         if (allocated(node%expr)) then
-            ! TODO: Handle legacy node pointer - for now just use placeholder
-            expr_code = "???"
+            ! Generate code for the expression
+            select type (expr => node%expr)
+            type is (identifier_node)
+                expr_code = expr%name
+            type is (literal_node)
+                expr_code = generate_code_literal(expr)
+            class default
+                expr_code = "???"
+            end select
         else
             expr_code = "???"
         end if
 
         code = "select case ("//expr_code//")"//new_line('a')
 
-        ! TODO: Generate case blocks
+        ! Generate case blocks
+        if (allocated(node%cases)) then
+            do i = 1, size(node%cases)
+                ! Generate case statement
+                if (allocated(node%cases(i)%case_type)) then
+                    if (node%cases(i)%case_type == "case_default") then
+                        code = code//"case default"//new_line('a')
+                    else
+                        ! Generate case value
+                        if (allocated(node%cases(i)%value)) then
+                            select type (value => node%cases(i)%value)
+                            type is (identifier_node)
+                                case_code = value%name
+                            type is (literal_node)
+                                case_code = generate_code_literal(value)
+                            class default
+                                case_code = "???"
+                            end select
+                        else
+                            case_code = "???"
+                        end if
+                        code = code//"case ("//case_code//")"//new_line('a')
+                    end if
+                end if
+
+                ! Generate case body
+                if (allocated(node%cases(i)%body)) then
+                    do j = 1, size(node%cases(i)%body)
+                        if (allocated(node%cases(i)%body(j)%node)) then
+                            select type (stmt => node%cases(i)%body(j)%node)
+                            type is (identifier_node)
+                                body_code = stmt%name
+                            type is (literal_node)
+                                body_code = generate_code_literal(stmt)
+                            type is (assignment_node)
+                                ! Need to get arena index for this - for now use placeholder
+                                body_code = "! case body statement"
+                            class default
+                                body_code = "! unknown case body"
+                            end select
+                            code = code//"    "//body_code//new_line('a')
+                        end if
+                    end do
+                end if
+            end do
+        end if
 
         code = code//"end select"
     end function generate_code_select_case

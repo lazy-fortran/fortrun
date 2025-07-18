@@ -26,6 +26,7 @@ module frontend
     ! Debug functions for unit testing
     public :: find_program_unit_boundary, is_function_start, is_end_function, parse_program_unit
     public :: is_do_loop_start, is_do_while_start, is_select_case_start, is_end_do, is_end_select
+    public :: lex_file, parse_tokens
 
     ! Backend target enumeration
     integer, parameter :: BACKEND_FORTRAN = 1  ! Standard Fortran (current IR)
@@ -96,10 +97,9 @@ contains
         ! if (options%debug_ast) call debug_output_ast(input_file, arena, prog_index)
 
         ! Phase 3: Semantic Analysis
-        ! TODO: Fix segfault in scope lookup before re-enabling
-        ! sem_ctx = create_semantic_context()
-        ! call analyze_program(sem_ctx, arena, prog_index)
-        ! if (options%debug_semantic) call debug_output_semantic(input_file, arena, prog_index)
+        sem_ctx = create_semantic_context()
+        call analyze_program(sem_ctx, arena, prog_index)
+   if (options%debug_semantic) call debug_output_semantic(input_file, arena, prog_index)
 
         ! Phase 4: Code Generation
         call generate_fortran_code(arena, prog_index, code)
@@ -137,10 +137,9 @@ contains
         ! if (options%debug_ast) call debug_output_ast(tokens_json_file, arena, prog_index)
 
         ! Phase 3: Semantic Analysis
-        ! TODO: Fix segfault in scope lookup before re-enabling
-        ! sem_ctx = create_semantic_context()
-        ! call analyze_program(sem_ctx, arena, prog_index)
-        ! if (options%debug_semantic) call debug_output_semantic(tokens_json_file, arena, prog_index)
+        sem_ctx = create_semantic_context()
+        call analyze_program(sem_ctx, arena, prog_index)
+        if (options%debug_semantic) call debug_output_semantic(tokens_json_file, arena, prog_index)
 
         ! Phase 4: Code Generation
         call generate_fortran_code(arena, prog_index, code)
@@ -406,9 +405,13 @@ prog_index = push_literal(arena, "! JSON loading not implemented", LITERAL_STRIN
             ! Single line construct - find end of current line
             current_line = tokens(start_pos)%line
             i = start_pos
-            do while (i <= size(tokens) .and. tokens(i)%line == current_line)
-                unit_end = i
-                i = i + 1
+            do while (i <= size(tokens))
+                if (tokens(i)%line == current_line) then
+                    unit_end = i
+                    i = i + 1
+                else
+                    exit
+                end if
             end do
 
             ! Skip empty lines (single EOF token on its own line)
