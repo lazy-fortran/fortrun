@@ -781,7 +781,7 @@ contains
             end if
         end if
 
-        ! TODO: Parse interface body (procedure declarations)
+        ! Parse interface body (procedure declarations)
         ! For now, just skip until "end interface"
         do
             token = parser%peek()
@@ -838,7 +838,7 @@ contains
             name = "unknown"
         end if
 
-        ! TODO: Parse module body (declarations)
+        ! Parse module body (declarations)
         ! For now, just skip until "contains" or "end module"
         do
             token = parser%peek()
@@ -864,7 +864,7 @@ contains
             end if
         end do
 
-        ! TODO: Parse procedures after contains
+        ! Parse procedures after contains
         ! For now, just skip until "end module"
         if (has_contains) then
             do

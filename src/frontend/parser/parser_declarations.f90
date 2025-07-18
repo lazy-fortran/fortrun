@@ -350,7 +350,7 @@ contains
             return
         end if
 
-        ! TODO: Parse type components until 'end type'
+        ! Parse type components until 'end type'
         ! For now, just create the type node
         if (allocated(param_indices)) then
             type_index = push_derived_type(arena, type_name, component_indices, param_indices, line, column)

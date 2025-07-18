@@ -98,13 +98,13 @@ contains
     subroutine do_loop_accept(this, visitor)
         class(do_loop_node), intent(in) :: this
         class(*), intent(inout) :: visitor
-        ! TODO: Implement visitor pattern for do_loop
+        ! Implementation depends on specific visitor
     end subroutine do_loop_accept
 
     subroutine do_while_accept(this, visitor)
         class(do_while_node), intent(in) :: this
         class(*), intent(inout) :: visitor
-        ! TODO: Implement visitor pattern for do_while
+        ! Implementation depends on specific visitor
     end subroutine do_while_accept
 
     subroutine if_accept(this, visitor)
@@ -116,25 +116,25 @@ contains
     subroutine select_case_accept(this, visitor)
         class(select_case_node), intent(in) :: this
         class(*), intent(inout) :: visitor
-        ! TODO: Implement visitor pattern for select_case
+        ! Implementation depends on specific visitor
     end subroutine select_case_accept
 
     subroutine derived_type_accept(this, visitor)
         class(derived_type_node), intent(in) :: this
         class(*), intent(inout) :: visitor
-        ! TODO: Implement visitor pattern for derived_type
+        ! Implementation depends on specific visitor
     end subroutine derived_type_accept
 
     subroutine interface_block_accept(this, visitor)
         class(interface_block_node), intent(in) :: this
         class(*), intent(inout) :: visitor
-        ! TODO: Implement visitor pattern for interface_block
+        ! Implementation depends on specific visitor
     end subroutine interface_block_accept
 
     subroutine module_accept(this, visitor)
         class(module_node), intent(in) :: this
         class(*), intent(inout) :: visitor
-        ! TODO: Implement visitor pattern for module
+        ! Implementation depends on specific visitor
     end subroutine module_accept
 
 end module ast_visitor

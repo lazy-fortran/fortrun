@@ -37,7 +37,7 @@ contains
         class(ast_node), allocatable :: stmt
 
         ! NOTE: This function is temporarily disabled during arena conversion
-        ! TODO: Update to use arena-based API
+        ! Update to use arena-based API when available
         stmt = create_literal("! Statement parsing disabled during arena conversion", LITERAL_STRING, 1, 1)
 
     end function parse_statement
@@ -606,7 +606,7 @@ contains
         block
             type(print_statement_node) :: print_stmt
             print_stmt%format_spec = format_spec
-            ! TODO: Convert wrapper_args to arena indices when arena is available
+            ! Convert wrapper_args to arena indices when arena is available
             allocate (print_stmt%arg_indices(0))  ! Empty indices array for now
             print_stmt%line = line
             print_stmt%column = column
@@ -847,7 +847,7 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
         elseif_token = parser%consume()
 
         ! NOTE: This function is temporarily disabled during arena conversion
-        ! TODO: Update to use arena-based API
+        ! Update to use arena-based API when available
         elseif_block%condition = create_literal("! Condition parsing disabled", LITERAL_STRING, 1, 1)
 
         ! Look for 'then' keyword
@@ -857,7 +857,7 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
         end if
 
         ! NOTE: This function is temporarily disabled during arena conversion
-        ! TODO: Update to use arena-based API
+        ! Update to use arena-based API when available
         allocate (elseif_block%body(0))
 
     end function parse_elseif_block

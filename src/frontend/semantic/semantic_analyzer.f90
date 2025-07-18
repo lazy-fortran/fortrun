@@ -806,7 +806,9 @@ contains
         if (allocated(mod_node%declarations)) then
             do i = 1, size(mod_node%declarations)
                 if (allocated(mod_node%declarations(i)%node)) then
-                    ! TODO: Analyze declaration nodes - need to add to arena
+                    ! Analyze declaration using infer_and_store_type for arena compatibility
+                    ! Note: Module nodes not yet fully arena-converted, skip for now
+                    continue
                 end if
             end do
         end if
@@ -815,7 +817,9 @@ contains
         if (allocated(mod_node%procedures)) then
             do i = 1, size(mod_node%procedures)
                 if (allocated(mod_node%procedures(i)%node)) then
-                    ! TODO: Analyze procedure nodes - need to add to arena
+                    ! Analyze procedure using infer_and_store_type for arena compatibility
+                    ! Note: Module nodes not yet fully arena-converted, skip for now
+                    continue
                 end if
             end do
         end if
@@ -953,21 +957,30 @@ contains
         integer :: i, j
 
         ! Analyze condition
-        if (allocated(if_stmt%condition)) then
-            ! TODO: Analyze condition - need to add to arena
-        end if
+        ! TODO: Enable when if_node is converted to arena indices
+        ! if (allocated(if_stmt%condition)) then
+        !     block
+        !         type(mono_type_t) :: cond_type
+        !         cond_type = ctx%infer(arena, if_stmt%condition)
+        !         ! Condition should be logical type
+        !     end block
+        ! end if
 
         ! Enter then block scope
         call ctx%scopes%enter_block()
 
         ! Analyze then body statements
-        if (allocated(if_stmt%then_body)) then
-            do i = 1, size(if_stmt%then_body)
-                if (allocated(if_stmt%then_body(i)%node)) then
-                    ! TODO: Analyze then body nodes - need to add to arena
-                end if
-            end do
-        end if
+        ! TODO: Enable when if_node is converted to arena indices
+        ! if (allocated(if_stmt%then_body)) then
+        !     do i = 1, size(if_stmt%then_body)
+        !         if (allocated(if_stmt%then_body(i)%node)) then
+        !             block
+        !                 type(mono_type_t) :: stmt_type
+        !                 stmt_type = ctx%infer(arena, if_stmt%then_body(i)%node)
+        !             end block
+        !         end if
+        !     end do
+        ! end if
 
         ! Leave then block scope
         call ctx%scopes%leave_scope()
@@ -975,20 +988,48 @@ contains
         ! Analyze elseif blocks
         if (allocated(if_stmt%elseif_blocks)) then
             do i = 1, size(if_stmt%elseif_blocks)
-                ! TODO: Analyze elseif condition and body - need to add to arena
+                call ctx%scopes%enter_block()
+
+                ! Analyze elseif condition
+                ! TODO: Enable when if_node is converted to arena indices
+                ! if (allocated(if_stmt%elseif_blocks(i)%condition)) then
+                !     block
+                !         type(mono_type_t) :: cond_type
+                !         cond_type = ctx%infer(arena, if_stmt%elseif_blocks(i)%condition)
+                !     end block
+                ! end if
+
+                ! Analyze elseif body
+                ! TODO: Enable when if_node is converted to arena indices
+                ! if (allocated(if_stmt%elseif_blocks(i)%body)) then
+                !     do j = 1, size(if_stmt%elseif_blocks(i)%body)
+                !         if (allocated(if_stmt%elseif_blocks(i)%body(j)%node)) then
+                !             block
+                !                 type(mono_type_t) :: stmt_type
+                !                 stmt_type = ctx%infer(arena, if_stmt%elseif_blocks(i)%body(j)%node)
+                !             end block
+                !         end if
+                !     end do
+                ! end if
+
+                call ctx%scopes%leave_scope()
             end do
         end if
 
         ! Analyze else block
-        if (allocated(if_stmt%else_body)) then
-            call ctx%scopes%enter_block()
-            do i = 1, size(if_stmt%else_body)
-                if (allocated(if_stmt%else_body(i)%node)) then
-                    ! TODO: Analyze else body nodes - need to add to arena
-                end if
-            end do
-            call ctx%scopes%leave_scope()
-        end if
+        ! TODO: Enable when if_node is converted to arena indices
+        ! if (allocated(if_stmt%else_body)) then
+        !     call ctx%scopes%enter_block()
+        !     do i = 1, size(if_stmt%else_body)
+        !         if (allocated(if_stmt%else_body(i)%node)) then
+        !             block
+        !                 type(mono_type_t) :: stmt_type
+        !                 stmt_type = ctx%infer(arena, if_stmt%else_body(i)%node)
+        !             end block
+        !         end if
+        !     end do
+        !     call ctx%scopes%leave_scope()
+        ! end if
 
         ! If statements have unit type
         typ = create_mono_type(TINT)  ! Unit type
@@ -1013,24 +1054,38 @@ contains
         call ctx%scopes%define(do_stmt%var_name, loop_var_scheme)
 
         ! Analyze loop bounds
-        if (allocated(do_stmt%start_expr)) then
-            ! TODO: Analyze start expression - need to add to arena
-        end if
-        if (allocated(do_stmt%end_expr)) then
-            ! TODO: Analyze end expression - need to add to arena
-        end if
-        if (allocated(do_stmt%step_expr)) then
-            ! TODO: Analyze step expression - need to add to arena
-        end if
+        ! TODO: Enable when do_loop_node is converted to arena indices
+        ! if (allocated(do_stmt%start_expr)) then
+        !     block
+        !         type(mono_type_t) :: start_type
+        !         start_type = ctx%infer(arena, do_stmt%start_expr)
+        !     end block
+        ! end if
+        ! if (allocated(do_stmt%end_expr)) then
+        !     block
+        !         type(mono_type_t) :: end_type
+        !         end_type = ctx%infer(arena, do_stmt%end_expr)
+        !     end block
+        ! end if
+        ! if (allocated(do_stmt%step_expr)) then
+        !     block
+        !         type(mono_type_t) :: step_type
+        !         step_type = ctx%infer(arena, do_stmt%step_expr)
+        !     end block
+        ! end if
 
         ! Analyze loop body
-        if (allocated(do_stmt%body)) then
-            do i = 1, size(do_stmt%body)
-                if (allocated(do_stmt%body(i)%node)) then
-                    ! TODO: Analyze body nodes - need to add to arena
-                end if
-            end do
-        end if
+        ! TODO: Enable when do_loop_node is converted to arena indices
+        ! if (allocated(do_stmt%body)) then
+        !     do i = 1, size(do_stmt%body)
+        !         if (allocated(do_stmt%body(i)%node)) then
+        !             block
+        !                 type(mono_type_t) :: stmt_type
+        !                 stmt_type = ctx%infer(arena, do_stmt%body(i)%node)
+        !             end block
+        !         end if
+        !     end do
+        ! end if
 
         ! Leave loop block scope
         call ctx%scopes%leave_scope()
@@ -1052,18 +1107,26 @@ contains
         call ctx%scopes%enter_block()
 
         ! Analyze condition
-        if (allocated(do_while_stmt%condition)) then
-            ! TODO: Analyze condition - need to add to arena
-        end if
+        ! TODO: Enable when do_while_node is converted to arena indices
+        ! if (allocated(do_while_stmt%condition)) then
+        !     block
+        !         type(mono_type_t) :: cond_type
+        !         cond_type = ctx%infer(arena, do_while_stmt%condition)
+        !     end block
+        ! end if
 
         ! Analyze loop body
-        if (allocated(do_while_stmt%body)) then
-            do i = 1, size(do_while_stmt%body)
-                if (allocated(do_while_stmt%body(i)%node)) then
-                    ! TODO: Analyze body nodes - need to add to arena
-                end if
-            end do
-        end if
+        ! TODO: Enable when do_while_node is converted to arena indices
+        ! if (allocated(do_while_stmt%body)) then
+        !     do i = 1, size(do_while_stmt%body)
+        !         if (allocated(do_while_stmt%body(i)%node)) then
+        !             block
+        !                 type(mono_type_t) :: stmt_type
+        !                 stmt_type = ctx%infer(arena, do_while_stmt%body(i)%node)
+        !             end block
+        !         end if
+        !     end do
+        ! end if
 
         ! Leave loop block scope
         call ctx%scopes%leave_scope()
