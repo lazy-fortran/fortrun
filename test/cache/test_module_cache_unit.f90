@@ -8,6 +8,7 @@ program test_module_cache_unit
     use fpm_strings, only: string_t
     use fpm_error, only: error_t
     use fpm_filesystem, only: delete_file, exists, mkdir, join_path
+    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path
     implicit none
 
     ! Note: setenv/unsetenv C bindings removed for Windows compatibility
@@ -141,10 +142,8 @@ contains
         cache = new_module_cache(compiler, '13.0.0')
 
         ! Create test directories
-        test_build_dir = '/tmp/fortran_test_build_'//trim(get_timestamp())
-        test_target_dir = '/tmp/fortran_test_target_'//trim(get_timestamp())
-        call mkdir(test_build_dir)
-        call mkdir(test_target_dir)
+        test_build_dir = create_temp_dir('fortran_test_build')
+        test_target_dir = create_temp_dir('fortran_test_target')
 
         ! Setup source file
         srcfile%file_name = 'test_module.f90'
@@ -178,8 +177,7 @@ contains
             all_pass = .false.
         end if
 
-        ! Ensure target directory exists
-        call execute_command_line('mkdir -p '//trim(test_target_dir))
+        ! Target directory already exists from create_temp_dir
 
         ! Retrieve module
         call cache%retrieve_module(cache_key, test_target_dir, srcfile, found, error)
@@ -202,7 +200,8 @@ contains
         end if
 
         ! Cleanup
-        call execute_command_line('rm -rf '//test_build_dir//' '//test_target_dir)
+        call cleanup_temp_dir(test_build_dir)
+        call cleanup_temp_dir(test_target_dir)
 
     end subroutine test_module_storage_retrieval
 
@@ -221,8 +220,7 @@ contains
         print '(a)', 'Test 4: Cache hit detection'
 
         ! Setup with unique cache directory
-        test_cache_dir = '/tmp/fortran_cache_hit_'//trim(get_timestamp())
-        call mkdir(test_cache_dir)
+        test_cache_dir = create_temp_dir('fortran_cache_hit')
 
         call new_compiler(compiler, 'gfortran', 'gcc', 'g++', .true., .false.)
         compiler%id = id_gcc
@@ -230,8 +228,7 @@ contains
         ! Override cache directory to use test-specific one
         cache%cache_dir = test_cache_dir
 
-        test_build_dir = '/tmp/fortran_test_hit_'//trim(get_timestamp())
-        call mkdir(test_build_dir)
+        test_build_dir = create_temp_dir('fortran_test_hit')
 
         ! Create dummy module files for testing
         open (newunit=unit, file=join_path(test_build_dir, 'hit_test.mod'), &
@@ -278,7 +275,8 @@ contains
         end if
 
         ! Cleanup
-        call execute_command_line('rm -rf '//test_build_dir//' '//test_cache_dir)
+        call cleanup_temp_dir(test_build_dir)
+        call cleanup_temp_dir(test_cache_dir)
 
     end subroutine test_cache_hit_detection
 
@@ -324,7 +322,7 @@ contains
         end if
 
         ! Try operations with current cache state
-        test_build_dir = '/tmp/fortran_test_disabled_'//trim(get_timestamp())
+        test_build_dir = create_temp_dir('fortran_test_disabled')
         srcfile%file_name = 'disabled_test.f90'
         srcfile%digest = 22222_int64
         cache_key = cache%get_cache_key(srcfile)
@@ -337,6 +335,9 @@ contains
 
         ! Results depend on cache state
         print '(a)', '  ✓ Cache operations completed without error'
+
+        ! Cleanup
+        call cleanup_temp_dir(test_build_dir)
 
     end subroutine test_disabled_cache
 
