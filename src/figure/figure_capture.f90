@@ -1,5 +1,4 @@
 module figure_capture
-    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path
     implicit none
     private
 
@@ -34,7 +33,8 @@ contains
         if (present(custom_dir)) then
             temp_figure_dir = trim(custom_dir)
         else
-            temp_figure_dir = create_temp_dir('fortran_figures')
+            temp_figure_dir = './fortran_figures'
+            call execute_command_line('mkdir -p '//trim(temp_figure_dir))
         end if
 
         ! Create temporary directory for figures (if not already created)
@@ -164,7 +164,7 @@ contains
         character(len=512) :: full_command
         integer :: unit, iostat, file_size
 
-        temp_file = get_temp_file_path(create_temp_dir('fortran_fig_cmd'), 'fortran_fig_cmd.out')
+        temp_file = './fortran_fig_cmd.out'
 
         full_command = trim(command)//' > '//trim(temp_file)//' 2>&1'
         call execute_command_line(full_command, exitstat=exit_code)

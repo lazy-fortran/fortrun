@@ -450,18 +450,21 @@ contains
         character(len=*), intent(out) :: output
         integer, intent(out) :: exit_code
 
-        character(len=512) :: command
+        character(len=512) :: command, temp_output_file
         integer :: unit, iostat
         character(len=1024) :: line
 
+        ! Create temp output file path
+        temp_output_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_cache_output.tmp')
+
         ! Run with verbose flag and custom cache directory
         command = 'fpm run fortran -- -v --cache-dir "'//trim(cache_dir)// &
-                  '" '//trim(filename)//' > "'//get_temp_file_path(create_temp_dir('fortran_test'), 'test_cache_output.tmp')//'" 2>&1'
+                  '" '//trim(filename)//' > "'//trim(temp_output_file)//'" 2>&1'
         call execute_command_line(trim(command), exitstat=exit_code)
 
         ! Read full output including verbose messages
         output = ''
-     open (newunit=unit, file='/tmp/test_cache_output.tmp', status='old', iostat=iostat)
+        open (newunit=unit, file=trim(temp_output_file), status='old', iostat=iostat)
         if (iostat == 0) then
             do
                 read (unit, '(a)', iostat=iostat) line
@@ -476,7 +479,7 @@ contains
         end if
 
         ! Clean up
-        call execute_command_line('rm -f /tmp/test_cache_output.tmp')
+        call execute_command_line('rm -f "'//trim(temp_output_file)//'"')
 
     end subroutine run_example_with_cache
 
