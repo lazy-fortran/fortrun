@@ -848,7 +848,7 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
 
         ! NOTE: This function is temporarily disabled during arena conversion
         ! Update to use arena-based API when available
-        elseif_block%condition = create_literal("! Condition parsing disabled", LITERAL_STRING, 1, 1)
+        elseif_block%condition_index = 0  ! Disabled during arena conversion
 
         ! Look for 'then' keyword
         elseif_token = parser%peek()
@@ -858,7 +858,7 @@ stmt = create_use_statement(module_name, only_list=only_list, rename_list=rename
 
         ! NOTE: This function is temporarily disabled during arena conversion
         ! Update to use arena-based API when available
-        allocate (elseif_block%body(0))
+        allocate (elseif_block%body_indices(0))  ! Empty indices array
 
     end function parse_elseif_block
 

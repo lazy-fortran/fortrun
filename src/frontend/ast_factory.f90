@@ -194,38 +194,22 @@ contains
         type(if_node) :: if_stmt
         integer :: i
 
-        ! Set condition using allocatable
+        ! Set condition index
         if (condition_index > 0 .and. condition_index <= arena%size) then
-            if (allocated(arena%entries(condition_index)%node)) then
-                allocate (if_stmt%condition, source=arena%entries(condition_index)%node)
-            end if
+            if_stmt%condition_index = condition_index
         end if
 
-        ! Set then body
+        ! Set then body indices
         if (present(then_body_indices)) then
             if (size(then_body_indices) > 0) then
-                allocate (if_stmt%then_body(size(then_body_indices)))
-                do i = 1, size(then_body_indices)
-             if (then_body_indices(i) > 0 .and. then_body_indices(i) <= arena%size) then
-                        if (allocated(arena%entries(then_body_indices(i))%node)) then
-   allocate (if_stmt%then_body(i)%node, source=arena%entries(then_body_indices(i))%node)
-                        end if
-                    end if
-                end do
+                if_stmt%then_body_indices = then_body_indices
             end if
         end if
 
-        ! Set else body
+        ! Set else body indices
         if (present(else_body_indices)) then
             if (size(else_body_indices) > 0) then
-                allocate (if_stmt%else_body(size(else_body_indices)))
-                do i = 1, size(else_body_indices)
-             if (else_body_indices(i) > 0 .and. else_body_indices(i) <= arena%size) then
-                        if (allocated(arena%entries(else_body_indices(i))%node)) then
-   allocate (if_stmt%else_body(i)%node, source=arena%entries(else_body_indices(i))%node)
-                        end if
-                    end if
-                end do
+                if_stmt%else_body_indices = else_body_indices
             end if
         end if
 
@@ -254,39 +238,26 @@ contains
 
         loop_node%var_name = var_name
 
-        ! Set start and end expressions
+        ! Set start and end expression indices
         if (start_index > 0 .and. start_index <= arena%size) then
-            if (allocated(arena%entries(start_index)%node)) then
-                allocate (loop_node%start_expr, source=arena%entries(start_index)%node)
-            end if
+            loop_node%start_expr_index = start_index
         end if
 
         if (end_index > 0 .and. end_index <= arena%size) then
-            if (allocated(arena%entries(end_index)%node)) then
-                allocate (loop_node%end_expr, source=arena%entries(end_index)%node)
-            end if
+            loop_node%end_expr_index = end_index
         end if
 
-        ! Set optional step expression
+        ! Set optional step expression index
         if (present(step_index)) then
             if (step_index > 0) then
-                if (allocated(arena%entries(step_index)%node)) then
-                   allocate (loop_node%step_expr, source=arena%entries(step_index)%node)
-                end if
+                loop_node%step_expr_index = step_index
             end if
         end if
 
-        ! Set body
+        ! Set body indices
         if (present(body_indices)) then
             if (size(body_indices) > 0) then
-                allocate (loop_node%body(size(body_indices)))
-                do i = 1, size(body_indices)
-                    if (body_indices(i) > 0 .and. body_indices(i) <= arena%size) then
-                        if (allocated(arena%entries(body_indices(i))%node)) then
-           allocate (loop_node%body(i)%node, source=arena%entries(body_indices(i))%node)
-                        end if
-                    end if
-                end do
+                loop_node%body_indices = body_indices
             end if
         end if
 
@@ -307,24 +278,15 @@ contains
         type(do_while_node) :: while_node
         integer :: i
 
-        ! Set condition
+        ! Set condition index
         if (condition_index > 0 .and. condition_index <= arena%size) then
-            if (allocated(arena%entries(condition_index)%node)) then
-             allocate (while_node%condition, source=arena%entries(condition_index)%node)
-            end if
+            while_node%condition_index = condition_index
         end if
 
-        ! Set body
+        ! Set body indices
         if (present(body_indices)) then
             if (size(body_indices) > 0) then
-                allocate (while_node%body(size(body_indices)))
-                do i = 1, size(body_indices)
-                    if (body_indices(i) > 0 .and. body_indices(i) <= arena%size) then
-                        if (allocated(arena%entries(body_indices(i))%node)) then
-          allocate (while_node%body(i)%node, source=arena%entries(body_indices(i))%node)
-                        end if
-                    end if
-                end do
+                while_node%body_indices = body_indices
             end if
         end if
 

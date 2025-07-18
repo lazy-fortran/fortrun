@@ -957,30 +957,28 @@ contains
         integer :: i, j
 
         ! Analyze condition
-        ! TODO: Enable when if_node is converted to arena indices
-        ! if (allocated(if_stmt%condition)) then
-        !     block
-        !         type(mono_type_t) :: cond_type
-        !         cond_type = ctx%infer(arena, if_stmt%condition)
-        !         ! Condition should be logical type
-        !     end block
-        ! end if
+        if (if_stmt%condition_index > 0) then
+            block
+                type(mono_type_t) :: cond_type
+                cond_type = ctx%infer(arena, if_stmt%condition_index)
+                ! Condition should be logical type
+            end block
+        end if
 
         ! Enter then block scope
         call ctx%scopes%enter_block()
 
         ! Analyze then body statements
-        ! TODO: Enable when if_node is converted to arena indices
-        ! if (allocated(if_stmt%then_body)) then
-        !     do i = 1, size(if_stmt%then_body)
-        !         if (allocated(if_stmt%then_body(i)%node)) then
-        !             block
-        !                 type(mono_type_t) :: stmt_type
-        !                 stmt_type = ctx%infer(arena, if_stmt%then_body(i)%node)
-        !             end block
-        !         end if
-        !     end do
-        ! end if
+        if (allocated(if_stmt%then_body_indices)) then
+            do i = 1, size(if_stmt%then_body_indices)
+                if (if_stmt%then_body_indices(i) > 0) then
+                    block
+                        type(mono_type_t) :: stmt_type
+                        stmt_type = ctx%infer(arena, if_stmt%then_body_indices(i))
+                    end block
+                end if
+            end do
+        end if
 
         ! Leave then block scope
         call ctx%scopes%leave_scope()
@@ -991,45 +989,42 @@ contains
                 call ctx%scopes%enter_block()
 
                 ! Analyze elseif condition
-                ! TODO: Enable when if_node is converted to arena indices
-                ! if (allocated(if_stmt%elseif_blocks(i)%condition)) then
-                !     block
-                !         type(mono_type_t) :: cond_type
-                !         cond_type = ctx%infer(arena, if_stmt%elseif_blocks(i)%condition)
-                !     end block
-                ! end if
+                if (if_stmt%elseif_blocks(i)%condition_index > 0) then
+                    block
+                        type(mono_type_t) :: cond_type
+                  cond_type = ctx%infer(arena, if_stmt%elseif_blocks(i)%condition_index)
+                    end block
+                end if
 
                 ! Analyze elseif body
-                ! TODO: Enable when if_node is converted to arena indices
-                ! if (allocated(if_stmt%elseif_blocks(i)%body)) then
-                !     do j = 1, size(if_stmt%elseif_blocks(i)%body)
-                !         if (allocated(if_stmt%elseif_blocks(i)%body(j)%node)) then
-                !             block
-                !                 type(mono_type_t) :: stmt_type
-                !                 stmt_type = ctx%infer(arena, if_stmt%elseif_blocks(i)%body(j)%node)
-                !             end block
-                !         end if
-                !     end do
-                ! end if
+                if (allocated(if_stmt%elseif_blocks(i)%body_indices)) then
+                    do j = 1, size(if_stmt%elseif_blocks(i)%body_indices)
+                        if (if_stmt%elseif_blocks(i)%body_indices(j) > 0) then
+                            block
+                                type(mono_type_t) :: stmt_type
+                  stmt_type = ctx%infer(arena, if_stmt%elseif_blocks(i)%body_indices(j))
+                            end block
+                        end if
+                    end do
+                end if
 
                 call ctx%scopes%leave_scope()
             end do
         end if
 
         ! Analyze else block
-        ! TODO: Enable when if_node is converted to arena indices
-        ! if (allocated(if_stmt%else_body)) then
-        !     call ctx%scopes%enter_block()
-        !     do i = 1, size(if_stmt%else_body)
-        !         if (allocated(if_stmt%else_body(i)%node)) then
-        !             block
-        !                 type(mono_type_t) :: stmt_type
-        !                 stmt_type = ctx%infer(arena, if_stmt%else_body(i)%node)
-        !             end block
-        !         end if
-        !     end do
-        !     call ctx%scopes%leave_scope()
-        ! end if
+        if (allocated(if_stmt%else_body_indices)) then
+            call ctx%scopes%enter_block()
+            do i = 1, size(if_stmt%else_body_indices)
+                if (if_stmt%else_body_indices(i) > 0) then
+                    block
+                        type(mono_type_t) :: stmt_type
+                        stmt_type = ctx%infer(arena, if_stmt%else_body_indices(i))
+                    end block
+                end if
+            end do
+            call ctx%scopes%leave_scope()
+        end if
 
         ! If statements have unit type
         typ = create_mono_type(TINT)  ! Unit type
@@ -1054,38 +1049,36 @@ contains
         call ctx%scopes%define(do_stmt%var_name, loop_var_scheme)
 
         ! Analyze loop bounds
-        ! TODO: Enable when do_loop_node is converted to arena indices
-        ! if (allocated(do_stmt%start_expr)) then
-        !     block
-        !         type(mono_type_t) :: start_type
-        !         start_type = ctx%infer(arena, do_stmt%start_expr)
-        !     end block
-        ! end if
-        ! if (allocated(do_stmt%end_expr)) then
-        !     block
-        !         type(mono_type_t) :: end_type
-        !         end_type = ctx%infer(arena, do_stmt%end_expr)
-        !     end block
-        ! end if
-        ! if (allocated(do_stmt%step_expr)) then
-        !     block
-        !         type(mono_type_t) :: step_type
-        !         step_type = ctx%infer(arena, do_stmt%step_expr)
-        !     end block
-        ! end if
+        if (do_stmt%start_expr_index > 0) then
+            block
+                type(mono_type_t) :: start_type
+                start_type = ctx%infer(arena, do_stmt%start_expr_index)
+            end block
+        end if
+        if (do_stmt%end_expr_index > 0) then
+            block
+                type(mono_type_t) :: end_type
+                end_type = ctx%infer(arena, do_stmt%end_expr_index)
+            end block
+        end if
+        if (do_stmt%step_expr_index > 0) then
+            block
+                type(mono_type_t) :: step_type
+                step_type = ctx%infer(arena, do_stmt%step_expr_index)
+            end block
+        end if
 
         ! Analyze loop body
-        ! TODO: Enable when do_loop_node is converted to arena indices
-        ! if (allocated(do_stmt%body)) then
-        !     do i = 1, size(do_stmt%body)
-        !         if (allocated(do_stmt%body(i)%node)) then
-        !             block
-        !                 type(mono_type_t) :: stmt_type
-        !                 stmt_type = ctx%infer(arena, do_stmt%body(i)%node)
-        !             end block
-        !         end if
-        !     end do
-        ! end if
+        if (allocated(do_stmt%body_indices)) then
+            do i = 1, size(do_stmt%body_indices)
+                if (do_stmt%body_indices(i) > 0) then
+                    block
+                        type(mono_type_t) :: stmt_type
+                        stmt_type = ctx%infer(arena, do_stmt%body_indices(i))
+                    end block
+                end if
+            end do
+        end if
 
         ! Leave loop block scope
         call ctx%scopes%leave_scope()
@@ -1107,26 +1100,24 @@ contains
         call ctx%scopes%enter_block()
 
         ! Analyze condition
-        ! TODO: Enable when do_while_node is converted to arena indices
-        ! if (allocated(do_while_stmt%condition)) then
-        !     block
-        !         type(mono_type_t) :: cond_type
-        !         cond_type = ctx%infer(arena, do_while_stmt%condition)
-        !     end block
-        ! end if
+        if (do_while_stmt%condition_index > 0) then
+            block
+                type(mono_type_t) :: cond_type
+                cond_type = ctx%infer(arena, do_while_stmt%condition_index)
+            end block
+        end if
 
         ! Analyze loop body
-        ! TODO: Enable when do_while_node is converted to arena indices
-        ! if (allocated(do_while_stmt%body)) then
-        !     do i = 1, size(do_while_stmt%body)
-        !         if (allocated(do_while_stmt%body(i)%node)) then
-        !             block
-        !                 type(mono_type_t) :: stmt_type
-        !                 stmt_type = ctx%infer(arena, do_while_stmt%body(i)%node)
-        !             end block
-        !         end if
-        !     end do
-        ! end if
+        if (allocated(do_while_stmt%body_indices)) then
+            do i = 1, size(do_while_stmt%body_indices)
+                if (do_while_stmt%body_indices(i) > 0) then
+                    block
+                        type(mono_type_t) :: stmt_type
+                        stmt_type = ctx%infer(arena, do_while_stmt%body_indices(i))
+                    end block
+                end if
+            end do
+        end if
 
         ! Leave loop block scope
         call ctx%scopes%leave_scope()

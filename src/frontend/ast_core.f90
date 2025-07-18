@@ -213,10 +213,10 @@ module ast_core
     ! Do loop node
     type, extends(ast_node), public :: do_loop_node
         character(len=:), allocatable :: var_name     ! Loop variable
-        class(ast_node), allocatable :: start_expr    ! Start expression
-        class(ast_node), allocatable :: end_expr      ! End expression
-        class(ast_node), allocatable :: step_expr     ! Step expression (optional)
-        type(ast_node_wrapper), allocatable :: body(:) ! Loop body
+        integer :: start_expr_index = 0               ! Start expression arena index
+        integer :: end_expr_index = 0                 ! End expression arena index
+        integer :: step_expr_index = 0                ! Step expression arena index (optional)
+        integer, allocatable :: body_indices(:)       ! Loop body arena indices
     contains
         procedure :: accept => do_loop_accept
         procedure :: to_json => do_loop_to_json
@@ -224,8 +224,8 @@ module ast_core
 
     ! Do while loop node
     type, extends(ast_node), public :: do_while_node
-        class(ast_node), allocatable :: condition     ! While condition
-        type(ast_node_wrapper), allocatable :: body(:) ! Loop body
+        integer :: condition_index = 0                ! While condition arena index
+        integer, allocatable :: body_indices(:)       ! Loop body arena indices
     contains
         procedure :: accept => do_while_accept
         procedure :: to_json => do_while_to_json
@@ -233,10 +233,10 @@ module ast_core
 
     ! If statement node
     type, extends(ast_node), public :: if_node
-        class(ast_node), allocatable :: condition      ! If condition
-        type(ast_node_wrapper), allocatable :: then_body(:)  ! Then body
+        integer :: condition_index = 0                ! If condition arena index
+        integer, allocatable :: then_body_indices(:) ! Then body arena indices
         type(elseif_wrapper), allocatable :: elseif_blocks(:) ! Elseif blocks (optional)
-        type(ast_node_wrapper), allocatable :: else_body(:)  ! Else body (optional)
+        integer, allocatable :: else_body_indices(:) ! Else body arena indices (optional)
     contains
         procedure :: accept => if_accept
         procedure :: to_json => if_to_json
@@ -244,8 +244,8 @@ module ast_core
 
     ! Elseif wrapper (not an AST node itself)
     type, public :: elseif_wrapper
-        class(ast_node), allocatable :: condition     ! Elseif condition
-        type(ast_node_wrapper), allocatable :: body(:) ! Elseif body
+        integer :: condition_index = 0                ! Elseif condition arena index
+        integer, allocatable :: body_indices(:)       ! Elseif body arena indices
     end type elseif_wrapper
 
     ! Derived type definition node
@@ -856,26 +856,22 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         if (present(column)) node%column = column
     end function create_print_statement
 
-    function create_do_loop(var_name, start_expr, end_expr, step_expr, body, line, column) result(node)
+    function create_do_loop(var_name, start_expr_index, end_expr_index, step_expr_index, body_indices, line, column) result(node)
         character(len=*), intent(in) :: var_name
-        class(ast_node), intent(in) :: start_expr, end_expr
-        class(ast_node), intent(in), optional :: step_expr
-        class(ast_node), intent(in), optional :: body(:)
+        integer, intent(in) :: start_expr_index, end_expr_index
+        integer, intent(in), optional :: step_expr_index
+        integer, intent(in), optional :: body_indices(:)
         integer, intent(in), optional :: line, column
         type(do_loop_node) :: node
-        integer :: i
 
         node%var_name = var_name
-        allocate (node%start_expr, source=start_expr)
-        allocate (node%end_expr, source=end_expr)
-        if (present(step_expr)) allocate (node%step_expr, source=step_expr)
+        node%start_expr_index = start_expr_index
+        node%end_expr_index = end_expr_index
+        if (present(step_expr_index)) node%step_expr_index = step_expr_index
 
-        if (present(body)) then
-            if (size(body) > 0) then
-                allocate (node%body(size(body)))
-                do i = 1, size(body)
-                    allocate (node%body(i)%node, source=body(i))
-                end do
+        if (present(body_indices)) then
+            if (size(body_indices) > 0) then
+                node%body_indices = body_indices
             end if
         end if
 
@@ -883,21 +879,17 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         if (present(column)) node%column = column
     end function create_do_loop
 
-    function create_do_while(condition, body, line, column) result(node)
-        class(ast_node), intent(in) :: condition
-        class(ast_node), intent(in), optional :: body(:)
+    function create_do_while(condition_index, body_indices, line, column) result(node)
+        integer, intent(in) :: condition_index
+        integer, intent(in), optional :: body_indices(:)
         integer, intent(in), optional :: line, column
         type(do_while_node) :: node
-        integer :: i
 
-        allocate (node%condition, source=condition)
+        node%condition_index = condition_index
 
-        if (present(body)) then
-            if (size(body) > 0) then
-                allocate (node%body(size(body)))
-                do i = 1, size(body)
-                    allocate (node%body(i)%node, source=body(i))
-                end do
+        if (present(body_indices)) then
+            if (size(body_indices) > 0) then
+                node%body_indices = body_indices
             end if
         end if
 
@@ -905,26 +897,26 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         if (present(column)) node%column = column
     end function create_do_while
 
-    function create_if(condition, then_body, elseif_blocks, else_body, line, column) result(node)
-        class(ast_node), intent(in) :: condition
-        type(ast_node_wrapper), intent(in), optional :: then_body(:)
+    function create_if(condition_index, then_body_indices, elseif_blocks, else_body_indices, line, column) result(node)
+        integer, intent(in) :: condition_index
+        integer, intent(in), optional :: then_body_indices(:)
         type(elseif_wrapper), intent(in), optional :: elseif_blocks(:)
-        type(ast_node_wrapper), intent(in), optional :: else_body(:)
+        integer, intent(in), optional :: else_body_indices(:)
         integer, intent(in), optional :: line, column
         type(if_node) :: node
 
-        allocate (node%condition, source=condition)
+        node%condition_index = condition_index
 
-        if (present(then_body) .and. size(then_body) > 0) then
-            allocate (node%then_body, source=then_body)
+        if (present(then_body_indices) .and. size(then_body_indices) > 0) then
+            node%then_body_indices = then_body_indices
         end if
 
         if (present(elseif_blocks) .and. size(elseif_blocks) > 0) then
             allocate (node%elseif_blocks, source=elseif_blocks)
         end if
 
-        if (present(else_body) .and. size(else_body) > 0) then
-            allocate (node%else_body, source=else_body)
+        if (present(else_body_indices) .and. size(else_body_indices) > 0) then
+            node%else_body_indices = else_body_indices
         end if
 
         if (present(line)) node%line = line
@@ -1583,53 +1575,43 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
 
-        ! Add condition
-        if (allocated(this%condition)) then
-            block
-                type(json_value), pointer :: cond_obj
-                call json%create_object(cond_obj, 'condition')
-                call this%condition%to_json(json, cond_obj)
-                call json%add(obj, cond_obj)
-            end block
-        end if
+        ! Add condition index
+        call json%add(obj, 'condition_index', this%condition_index)
 
-        ! Add then body
-        if (allocated(this%then_body)) then
-            call json%create_array(then_array, 'then_body')
+        ! Add then body indices
+        if (allocated(this%then_body_indices)) then
+            call json%create_array(then_array, 'then_body_indices')
             call json%add(obj, then_array)
-            do i = 1, size(this%then_body)
-                if (allocated(this%then_body(i)%node)) then
-                    call this%then_body(i)%node%to_json(json, then_array)
-                end if
+            do i = 1, size(this%then_body_indices)
+                block
+                    type(json_value), pointer :: stmt_obj
+                    call json%create_object(stmt_obj, '')
+                    call json%add(stmt_obj, 'stack_index', this%then_body_indices(i))
+                    call json%add(then_array, stmt_obj)
+                end block
             end do
         end if
 
-        ! Add elseif blocks
+        ! Add elseif blocks (simplified arena-based)
         if (allocated(this%elseif_blocks)) then
             call json%create_array(elseif_array, 'elseif_blocks')
             call json%add(obj, elseif_array)
             do i = 1, size(this%elseif_blocks)
                 call json%create_object(elseif_obj, '')
-                ! Add elseif condition
-                if (allocated(this%elseif_blocks(i)%condition)) then
-                    block
-                        type(json_value), pointer :: cond_obj
-                        call json%create_object(cond_obj, 'condition')
-                        call this%elseif_blocks(i)%condition%to_json(json, cond_obj)
-                        call json%add(elseif_obj, cond_obj)
-                    end block
-                end if
-                ! Add elseif body
-                if (allocated(this%elseif_blocks(i)%body)) then
+     call json%add(elseif_obj, 'condition_index', this%elseif_blocks(i)%condition_index)
+                if (allocated(this%elseif_blocks(i)%body_indices)) then
                     block
                         type(json_value), pointer :: body_array
                         integer :: j
-                        call json%create_array(body_array, 'body')
+                        call json%create_array(body_array, 'body_indices')
                         call json%add(elseif_obj, body_array)
-                        do j = 1, size(this%elseif_blocks(i)%body)
-                            if (allocated(this%elseif_blocks(i)%body(j)%node)) then
-                       call this%elseif_blocks(i)%body(j)%node%to_json(json, body_array)
-                            end if
+                        do j = 1, size(this%elseif_blocks(i)%body_indices)
+                            block
+                                type(json_value), pointer :: stmt_obj
+                                call json%create_object(stmt_obj, '')
+           call json%add(stmt_obj, 'stack_index', this%elseif_blocks(i)%body_indices(j))
+                                call json%add(body_array, stmt_obj)
+                            end block
                         end do
                     end block
                 end if
@@ -1637,14 +1619,17 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
             end do
         end if
 
-        ! Add else body
-        if (allocated(this%else_body)) then
-            call json%create_array(else_array, 'else_body')
+        ! Add else body indices
+        if (allocated(this%else_body_indices)) then
+            call json%create_array(else_array, 'else_body_indices')
             call json%add(obj, else_array)
-            do i = 1, size(this%else_body)
-                if (allocated(this%else_body(i)%node)) then
-                    call this%else_body(i)%node%to_json(json, else_array)
-                end if
+            do i = 1, size(this%else_body_indices)
+                block
+                    type(json_value), pointer :: stmt_obj
+                    call json%create_object(stmt_obj, '')
+                    call json%add(stmt_obj, 'stack_index', this%else_body_indices(i))
+                    call json%add(else_array, stmt_obj)
+                end block
             end do
         end if
 

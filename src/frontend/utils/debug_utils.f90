@@ -68,7 +68,8 @@ contains
   print *, "DEBUG: Semantic analysis completed (arena-based output not implemented yet)"
         print *, "DEBUG: Would write to: ", trim(json_file)
 
-        ! TODO: Implement arena-based JSON serialization
+        ! For now, write arena summary since semantic analysis is disabled
+        call write_arena_summary(arena, prog_index, json_file)
     end subroutine debug_output_semantic
 
     subroutine debug_output_codegen(input_file, code)
@@ -126,5 +127,37 @@ contains
         write (unit, '(a)') '}'
         close (unit)
     end subroutine debug_output_codegen
+
+    ! Helper subroutine to write arena summary
+    subroutine write_arena_summary(arena, prog_index, filename)
+        use ast_core, only: ast_arena_t
+        type(ast_arena_t), intent(in) :: arena
+        integer, intent(in) :: prog_index
+        character(len=*), intent(in) :: filename
+        integer :: unit, i
+
+        open (newunit=unit, file=filename, status='replace')
+        write (unit, '(a)') '{'
+        write (unit, '(a,i0,a)') '  "arena_size": ', arena%size, ','
+        write (unit, '(a,i0,a)') '  "program_index": ', prog_index, ','
+        write (unit, '(a)') '  "nodes": ['
+
+        do i = 1, arena%size
+            if (allocated(arena%entries(i)%node)) then
+                write (unit, '(a)') '    {'
+                write (unit, '(a,i0,a)') '      "index": ', i, ','
+        write (unit, '(a,a,a)') '      "type": "', trim(arena%entries(i)%node_type), '"'
+                if (i < arena%size) then
+                    write (unit, '(a)') '    },'
+                else
+                    write (unit, '(a)') '    }'
+                end if
+            end if
+        end do
+
+        write (unit, '(a)') '  ]'
+        write (unit, '(a)') '}'
+        close (unit)
+    end subroutine write_arena_summary
 
 end module debug_utils
