@@ -1,7 +1,11 @@
-[  0%] test_notebook_output_extended.
-[ 50%] test_notebook_output_extended.  done.
-[ 50%]  test_notebook_output_extended
-[100%]  test_notebook_output_extended  done.
+[  0%]     test_runner_edge_cases.f90
+[ 25%]     test_runner_edge_cases.f90  done.
+[ 25%]                 test_cache.f90
+[ 50%]                 test_cache.f90  done.
+[ 50%]         test_runner_edge_cases
+[ 75%]         test_runner_edge_cases  done.
+[ 75%]                     test_cache
+[100%]                     test_cache  done.
 [100%] Project compiled successfully.
 === Frontend Statement Tests ===
 
@@ -99,13 +103,13 @@ Module cache enabled for dependency optimization
 [100%]                 test_cache_hit  done.
 [100%] Project compiled successfully.
 Caching newly compiled dependency modules...
-/tmp/test_runner_cache_3A2655/test_cache_hit_simple_test_cache_hit.f90/build/gfortran_E34ED9D522D08DD2/test_cache_hit/app_main.f90.o
+/tmp/test_runner_cache_A459A9/test_cache_hit_simple_test_cache_hit.f90/build/gfortran_E34ED9D522D08DD2/test_cache_hit/app_main.f90.o
 Module caching completed
  Cache test
 Cache hit: Using existing build
 Project is up to date
 Caching newly compiled dependency modules...
-/tmp/test_runner_cache_3A2655/test_cache_hit_simple_test_cache_hit.f90/build/gfortran_E34ED9D522D08DD2/test_cache_hit/app_main.f90.o
+/tmp/test_runner_cache_A459A9/test_cache_hit_simple_test_cache_hit.f90/build/gfortran_E34ED9D522D08DD2/test_cache_hit/app_main.f90.o
 Module caching completed
  Cache test
    PASS: Cache hit scenario successful
@@ -145,13 +149,13 @@ Module cache enabled for dependency optimization
 [100%]              test_custom_cache  done.
 [100%] Project compiled successfully.
 Caching newly compiled dependency modules...
-/tmp/my_custom_cache_339D2C/test_custom_cache_simple_test_custom_cache.f90/build/gfortran_E34ED9D522D08DD2/test_custom_cache/app_main.f90.o
+/tmp/my_custom_cache_9E70D1/test_custom_cache_simple_test_custom_cache.f90/build/gfortran_E34ED9D522D08DD2/test_custom_cache/app_main.f90.o
 Module caching completed
  Custom cache test
    PASS: Custom cache directory successful
  Test 8: Custom config directory
 Cache miss: Setting up new build
- Created default registry at: /tmp/my_custom_config_3639CF/registry.toml
+ Created default registry at: /tmp/my_custom_config_A26975/registry.toml
 Module cache enabled for dependency optimization
  + mkdir -p build/dependencies
 [  0%]                       main.f90
@@ -237,7 +241,7 @@ STOP 1
  === Runner Module Edge Case Tests ===
 
  Test 1: Non-existent file handling
-Error: File not found: /tmp/fortran_test_353FF2/definitely_does_not_exist_12345.f90
+Error: File not found: /tmp/fortran_test_A17F3C/definitely_does_not_exist_12345.f90
 Error: File not found:
    PASS: Non-existent file handling
  Test 2: Invalid file extensions
@@ -282,7 +286,7 @@ STOP 1
    PASS: Empty file handling
  Test 4: Custom directory handling
 Cache miss: Setting up new build
- Created default registry at: /tmp/fortran_test_runner_custom_config_37E467/registry.toml
+ Created default registry at: /tmp/fortran_test_runner_custom_config_A446E2/registry.toml
 Module cache enabled for dependency optimization
 Note: Parallel builds requested (1 jobs) but current FPM version does not support --jobs flag
  + mkdir -p build/dependencies
@@ -292,7 +296,7 @@ Note: Parallel builds requested (1 jobs) but current FPM version does not suppor
 [100%]        test_runner_custom_dirs  done.
 [100%] Project compiled successfully.
 Caching newly compiled dependency modules...
-/tmp/fortran_test_runner_custom_cache_37D8AC/test_runner_custom_dirs_simple_test_runner_custom_dirs.f/build/gfortran_E34ED9D522D08DD2/test_runner_custom_dirs/app_main.f90.o
+/tmp/fortran_test_runner_custom_cache_A43B27/test_runner_custom_dirs_simple_test_runner_custom_dirs.f/build/gfortran_E34ED9D522D08DD2/test_runner_custom_dirs/app_main.f90.o
 Module caching completed
  Hello from custom dirs
    PASS: Custom directories
@@ -348,10 +352,11 @@ STOP 0
 
  All runner edge case tests passed!
  === FPM Version Generation Tests ===\
- Warning: Cannot open registry at /tmp/fpm_version_test_3270DD/registry.toml
- Warning: Cannot open registry at /tmp/test_fpm_version_project_328C3C/registry.toml
-STOP 1
- Error: Cannot open generated fpm.toml
+  Module pyplot_module -> package pyplot-fortran
+  Module fortplot_test -> package fortplotlib
+ PASS: pyplot-fortran with version v1.0.0 found in fpm.toml
+ PASS: fortplotlib without version found in fpm.toml
+ All FPM version generation tests passed!
  === FPM Generator Tests ===
 
  Test 1: Generate fpm.toml with pyplot dependency
@@ -407,7 +412,7 @@ STOP 0
  Test 1: Basic rendering
    PASS: Basic rendering
  Test 2: Save markdown
- Error: Could not write to file:/tmp/renderer_simple_test_2E36E9/test_renderer_save.md
+ Error: Could not write to file:/tmp/renderer_simple_test_A2FC74/test_renderer_save.md
    FAILED: Saved file does not exist
 STOP 1
 
@@ -506,17 +511,17 @@ STOP 0
  === Notebook System Tests ===
 
  Test 1: CLI help includes notebook options
-sh: line 1: /tmp/fortran_system_test_37427F/fortran_system_test.out: No such file or directory
+sh: line 1: /tmp/fortran_system_test_A039E0/fortran_system_test.out: No such file or directory
    FAIL: --notebook flag not found in help
  Test 2: Notebook CLI execution
-sh: line 1: /tmp/fortran_system_test_3788E1/fortran_system_test.out: No such file or directory
+sh: line 1: /tmp/fortran_system_test_A07C59/fortran_system_test.out: No such file or directory
    FAIL: Notebook execution failed with exit code           1
    Output:
  Test 3: Output file content validation
    FAIL: Output file is empty
  Test 4: Cache performance verification
-sh: line 1: /tmp/fortran_system_test_37D32C/fortran_system_test.out: No such file or directory
-sh: line 1: /tmp/fortran_system_test_3811BC/fortran_system_test.out: No such file or directory
+sh: line 1: /tmp/fortran_system_test_A0CA8D/fortran_system_test.out: No such file or directory
+sh: line 1: /tmp/fortran_system_test_A11CAA/fortran_system_test.out: No such file or directory
 STOP 1
    FAIL: One of the executions failed
 
@@ -557,7 +562,7 @@ STOP 0
  === Multiple Modules from Same Package Test ===\
 STOP 1
  Error: pyplot_module not found in registry
- Warning: Cannot open registry at /tmp/multiple_modules_test_3CB2E6/test_multiple_registry.toml
+ Warning: Cannot open registry at /tmp/multiple_modules_test_A6B042/test_multiple_registry.toml
  === Different Directories Tests ===\
  Test 1: Run from parent directory using absolute path
  PASS: Absolute path works from different directory
@@ -570,8 +575,8 @@ STOP 1
 
  All different directory tests passed!
  === Conflicting Dependencies Tests ===\
- Warning: Cannot open registry at /tmp/conflicting_deps_test_30B24A/registry.toml
- Warning: Cannot open registry at /tmp/test_conflict_project_30CDA9/registry.toml
+ Warning: Cannot open registry at /tmp/conflicting_deps_test_9BB1B8/registry.toml
+ Warning: Cannot open registry at /tmp/test_conflict_project_9BCD17/registry.toml
 STOP 1
  Error: Cannot open generated fpm.toml
 PASS: Function signature enhancement (real → real(8))
@@ -582,21 +587,19 @@ PASS: Mixed explicit and implicit types
 PASS: Nested function calls
 Tests: 6/6 passed
 Files before test:
--rw-r--r-- 1 ert ert  89 Jul 18 23:55 test_cache_hello.f90
--rw-r--r-- 1 ert ert  70 Jul 18 23:55 test_simple_func.f
--rw-r--r-- 1 ert ert 181 Jul 18 23:55 test_simple_func.f90
+-rw-r--r-- 1 ert ert  70 Jul 19 00:03 test_simple_func.f
+-rw-r--r-- 1 ert ert 181 Jul 19 00:03 test_simple_func.f90
 
 Running preprocessor test...
 
 Files after test:
--rw-r--r-- 1 ert ert  89 Jul 18 23:55 test_cache_hello.f90
--rw-r--r-- 1 ert ert  70 Jul 18 23:55 test_simple_func.f
--rw-r--r-- 1 ert ert 181 Jul 18 23:55 test_simple_func.f90
-/tmp/test_file_isolation_3562B5/file1.txt:
+-rw-r--r-- 1 ert ert  70 Jul 19 00:03 test_simple_func.f
+-rw-r--r-- 1 ert ert 181 Jul 19 00:03 test_simple_func.f90
+/tmp/test_file_isolation_A0893D/file1.txt:
 Content from test 1
-/tmp/test_file_isolation_3562B5/file2.txt:
+/tmp/test_file_isolation_A0893D/file2.txt:
 Content from test 2
-/tmp/test_file_isolation_3562B5/file3.txt:
+/tmp/test_file_isolation_A0893D/file3.txt:
 Content from test 3
  Test 1: Default quiet mode
  PASS: Quiet mode suppresses FPM output
@@ -701,9 +704,16 @@ STOP 0
 
  All extended figure capture tests passed!
  Test 1: First run with custom cache directory
-STOP 1
- FAIL: No build output in first run
  PASS: Cache directory created
+ PASS: First run shows build output
+
+ Test 2: Second run should use cache
+ PASS: Second run appears to use cache (less output)
+
+ Test 3: Verify program output is consistent
+ PASS: Program output consistent across runs
+
+ All cache tests passed!
  === Notebook Caching Tests ===
 
  Test 1: Cache directory creation
@@ -725,16 +735,16 @@ STOP 0
  All Windows compatibility tests passed!
  === FPM Cache Integration Tests ===\
  Test 1: FPM source discovery
- Creating test directory: /tmp/fpm_test_sources_20250719000329_3D23DD
- Creating file: /tmp/fpm_test_sources_20250719000329_3D23DD/app/test.f90
- Test file exists: /tmp/fpm_test_sources_20250719000329_3D23DD/app/test.f90
+ Creating test directory: /tmp/fpm_test_sources_20250719001045_99E893
+ Creating file: /tmp/fpm_test_sources_20250719001045_99E893/app/test.f90
+ Test file exists: /tmp/fpm_test_sources_20250719001045_99E893/app/test.f90
  Testing Fortran CLI tool with long path...
  Test 1 passed: Fortran CLI tool works with long paths
  PASS: FPM source discovery works, found           1 sources
 
  Test 2: Source file information access
  PASS: Can access source file path length:          50
- PASS: Can access source file path:/tmp/fpm_test_info_20250719000330_3507F5/hello.f90
+ PASS: Can access source file path:/tmp/fpm_test_info_20250719001045_A13D73/hello.f90
  PASS: Fortran CLI tool works with long paths
  PASS: Test file exists and is accessible
 
@@ -768,9 +778,9 @@ All integration tests passed!
 Testing cache lock functionality...
 
 Test 1: Basic lock acquisition and release
-Using cache dir: /tmp/fortran_cache_lock_test_300DA2
+Using cache dir: /tmp/fortran_cache_lock_test_9CC429
   ✓ Lock acquired successfully
--rw-r--r-- 1 ert ert 23 Jul 19 00:03 /tmp/fortran_cache_lock_test_300DA2/test_project.lock
+-rw-r--r-- 1 ert ert 23 Jul 19 00:10 /tmp/fortran_cache_lock_test_9CC429/test_project.lock
   ✓ Lock is detected as locked
   ✓ Lock released successfully
 
@@ -804,7 +814,7 @@ Test 3: Module storage and retrieval
   ✓ Module file (.mod) retrieved correctly
 Test 4: Cache hit detection
   ✓ Cache miss detected correctly before storing
- + mkdir -p /tmp/fortran_cache_hit_31EAAC/gfortran/13.0.0/0000000000002B67
+ + mkdir -p /tmp/fortran_cache_hit_9EB8A9/gfortran/13.0.0/0000000000002B67
   ✓ Cache hit detected correctly after storing
 Test 5: Disabled cache behavior
   ✓ Cache enabled (no disable env var)
@@ -860,22 +870,22 @@ STOP 0
  === Frontend Test Cases ===
  Found          15 test cases inexample/frontend_test_cases
 
- FAIL: example - Cannot create output file: /tmp/frontend_test_33237C/test_example_actual.f90
- FAIL: function_call_inference - Cannot create output file: /tmp/frontend_test_333EDB/test_function_call_inference_actual.f90
- FAIL: function_def - Cannot create output file: /tmp/frontend_test_335651/test_function_def_actual.f90
- FAIL: function_with_param - Cannot create output file: /tmp/frontend_test_336DC7/test_function_with_param_actual.f90
- FAIL: json_workflow - Cannot create output file: /tmp/frontend_test_33853D/test_json_workflow_actual.f90
- FAIL: multi_statement - Cannot create output file: /tmp/frontend_test_339CB3/test_multi_statement_actual.f90
- FAIL: multiple_functions - Cannot create output file: /tmp/frontend_test_33B429/test_multiple_functions_actual.f90
- FAIL: multiple_statements - Cannot create output file: /tmp/frontend_test_33CB9F/test_multiple_statements_actual.f90
- FAIL: nested_function_calls - Cannot create output file: /tmp/frontend_test_33E315/test_nested_function_calls_actual.f90
- FAIL: print_statement - Cannot create output file: /tmp/frontend_test_33FA8B/test_print_statement_actual.f90
- FAIL: simple_assignment - Cannot create output file: /tmp/frontend_test_341201/test_simple_assignment_actual.f90
- FAIL: single_assignment - Cannot create output file: /tmp/frontend_test_342977/test_single_assignment_actual.f90
- FAIL: single_function_in_program - Cannot create output file: /tmp/frontend_test_3440ED/test_single_function_in_program_actual.f90
- FAIL: single_real_declaration - Cannot create output file: /tmp/frontend_test_345863/test_single_real_declaration_actual.f90
+ FAIL: example - Cannot create output file: /tmp/frontend_test_9FFD34/test_example_actual.f90
+ FAIL: function_call_inference - Cannot create output file: /tmp/frontend_test_A01893/test_function_call_inference_actual.f90
+ FAIL: function_def - Cannot create output file: /tmp/frontend_test_A033F2/test_function_def_actual.f90
+ FAIL: function_with_param - Cannot create output file: /tmp/frontend_test_A04B68/test_function_with_param_actual.f90
+ FAIL: json_workflow - Cannot create output file: /tmp/frontend_test_A062DE/test_json_workflow_actual.f90
+ FAIL: multi_statement - Cannot create output file: /tmp/frontend_test_A07A54/test_multi_statement_actual.f90
+ FAIL: multiple_functions - Cannot create output file: /tmp/frontend_test_A095B3/test_multiple_functions_actual.f90
+ FAIL: multiple_statements - Cannot create output file: /tmp/frontend_test_A0A940/test_multiple_statements_actual.f90
+ FAIL: nested_function_calls - Cannot create output file: /tmp/frontend_test_A0C0B6/test_nested_function_calls_actual.f90
+ FAIL: print_statement - Cannot create output file: /tmp/frontend_test_A0D82C/test_print_statement_actual.f90
+ FAIL: simple_assignment - Cannot create output file: /tmp/frontend_test_A0EFA2/test_simple_assignment_actual.f90
+ FAIL: single_assignment - Cannot create output file: /tmp/frontend_test_A10B01/test_single_assignment_actual.f90
+ FAIL: single_function_in_program - Cannot create output file: /tmp/frontend_test_A12277/test_single_function_in_program_actual.f90
+ FAIL: single_real_declaration - Cannot create output file: /tmp/frontend_test_A139ED/test_single_real_declaration_actual.f90
 STOP 1
- FAIL: use_statement - Cannot create output file: /tmp/frontend_test_346FD9/test_use_statement_actual.f90
+ FAIL: use_statement - Cannot create output file: /tmp/frontend_test_A15163/test_use_statement_actual.f90
 
  === Summary ===
 Tests: 0/15 passed
@@ -1226,7 +1236,7 @@ PASS: --clear-cache with file (mock test - actual CLI functionality works)
 All CLI cache tests passed
  === System CLI Tests ===
 
- Created test file: /tmp/test_cli_sys_37144E/test_cli_system.f90
+ Created test file: /tmp/test_cli_sys_A41137/test_cli_system.f90
  Test 1: No arguments (should show help)
  PASS: No arguments shows help
 
@@ -1237,8 +1247,8 @@ All CLI cache tests passed
  PASS: -h flag works
 
  Test 4: Basic execution
- Executing command: fpm run fortran -- "/tmp/test_cli_sys_37144E/test_cli_system.f90" > "/tmp/test_basic_exec_34CE14/cli_test_output.txt" 2>&1; echo $? > "/tmp/test_basic_exec_34CE14/cli_test_exit.txt"
- DEBUG: Contents of output file: /tmp/test_basic_exec_34CE14/cli_test_output.txt
+ Executing command: fpm run fortran -- "/tmp/test_cli_sys_A41137/test_cli_system.f90" > "/tmp/test_basic_exec_A2098D/cli_test_output.txt" 2>&1; echo $? > "/tmp/test_basic_exec_A2098D/cli_test_exit.txt"
+ DEBUG: Contents of output file: /tmp/test_basic_exec_A2098D/cli_test_output.txt
  DEBUG: Project is up to date
  DEBUG: /home/ert/.cache/fortran/test_cli_system_simple_test_cli_system.f90/build/gfortran_E34ED9D522D08DD2/test_cli_system/app_main.f90.o
  DEBUG:  CLI System Test Output
@@ -1375,7 +1385,7 @@ Fortran 95 passthrough tests: 3/3 passed
  === Comprehensive Registry Resolver Tests ===
 
  Test 1: Registry creation
- Created default registry at: /tmp/test_registry_config_36C226/registry.toml
+ Created default registry at: /tmp/test_registry_config_A784DE/registry.toml
    PASS: Registry creation works correctly
  Test 2: Registry loading
    PASS: Registry loading works correctly
@@ -1596,7 +1606,7 @@ Running: example/plotting/plot_demo.f90...
 Testing Incremental Compilation (Caching)
 =============================================================
 
-Using temporary cache: /tmp/fortran_test_cache_3A6F40
+Using temporary cache: /tmp/fortran_test_cache_B4126C
 First run (should compile)...
   ✓ First run compiled files as expected
   ✓ Cache miss detected on first run
@@ -1611,8 +1621,8 @@ Cleaned up temporary cache directory
 Testing Source Modification with Cached Dependencies
 =============================================================
 
-Using temporary cache: /tmp/fortran_test_cache_3784CC
-Using temporary source: /tmp/fortran_test_source_37A414/main.f90
+Using temporary cache: /tmp/fortran_test_cache_B19D46
+Using temporary source: /tmp/fortran_test_source_B1A901/main.f90
 First run (should compile everything)...
   ✓ First run compiled files as expected
 Second run (should use cache completely)...
@@ -1630,8 +1640,8 @@ Cleaned up temporary files and cache directory
 Testing Complex Dependency Changes
 =============================================================
 
-Using temporary cache: /tmp/fortran_complex_dep_cache_4AD7CC
-Using temporary source: /tmp/fortran_complex_dep_source_4AE387
+Using temporary cache: /tmp/fortran_complex_dep_cache_A877DD
+Using temporary source: /tmp/fortran_complex_dep_source_A88398
 Test 1: Initial compilation with dependencies...
   ✓ Initial compilation successful
 Test 2: Modifying dependency module...
@@ -1645,7 +1655,7 @@ Cleaned up temporary directories
 Testing .f to .f90 Preprocessor Output Correctness
 =============================================================
 
-Using temporary cache: /tmp/fortran_preproc_test_437FC9
+Using temporary cache: /tmp/fortran_preproc_test_B04657
 Testing: example/hello/hello.f vs example/hello/hello.f90
   ✓ PASS: Outputs match
 Testing: example/calculator/calculator.f vs example/calculator/calculator.f90
@@ -1665,14 +1675,12 @@ Failed: 0
 Expected failures: 4
 
 OVERALL: PASSED (with expected failures in .f preprocessor)
-<ERROR> Execution for object " test_fpm_version_generation " returned exit code  1
 <ERROR> Execution for object " test_renderer_simple " returned exit code  1
 <ERROR> Execution for object " test_notebook_system_end2end " returned exit code  1
 <ERROR> Execution for object " test_multiple_modules " returned exit code  1
 <ERROR> Execution for object " test_conflicting_dependencies " returned exit code  1
 <ERROR> Execution for object " test_error_handling " returned exit code  1
 <ERROR> Execution for object " test_figure_capture " returned exit code  1
-<ERROR> Execution for object " test_cache " returned exit code  1
 <ERROR> Execution for object " test_artifact_cache " returned exit code  1
 <ERROR> Execution for object " test_frontend_test_cases " returned exit code  1
 <ERROR> Execution for object " test_cli_integration " returned exit code  1
