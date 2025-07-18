@@ -96,15 +96,18 @@ contains
 
     subroutine cleanup_stale_locks(cache_dir)
         character(len=*), intent(in) :: cache_dir
-        character(len=512) :: command
+        character(len=512) :: command, temp_locks_file
         integer :: unit, iostat
         character(len=512) :: lock_file
 
         ! Find all lock files in cache directory
-    command = 'find "' // trim(cache_dir) // '" -name "*.lock" -type f > "'//get_temp_file_path(create_temp_dir('fortran_locks'), 'fortran_locks.tmp')//'" 2>/dev/null'
+        temp_locks_file = get_temp_file_path(create_temp_dir('fortran_locks'), &
+                                             'fortran_locks.tmp')
+        command = 'find "'//trim(cache_dir)//'" -name "*.lock" -type f > "'// &
+                  trim(temp_locks_file)//'" 2>/dev/null'
         call execute_command_line(command)
 
-    open(newunit=unit, file=get_temp_file_path(create_temp_dir('fortran_locks'), 'fortran_locks.tmp'), status='old', iostat=iostat)
+        open (newunit=unit, file=trim(temp_locks_file), status='old', iostat=iostat)
         if (iostat == 0) then
             do
                 read (unit, '(a)', iostat=iostat) lock_file
