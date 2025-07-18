@@ -31,28 +31,33 @@ Complete the lexer → parser → semantic analyzer → codegen pipeline for sta
 - Arena-based JSON debug output implemented
 - Semantic analyzer integration ready (disabled due to scope lookup segfault)
 
-## Current Priority: Complete Frontend Implementation
+## Current Priority: Final Frontend Polishing
 
 **Next Phase:**
-- **Resolve remaining TODOs and shortcuts** in frontend code and tests
-- **Complete arena conversion** for all AST node types
-- **Test comprehensive coverage** with stable arena architecture
+- **Complete final TODOs and test updates** in frontend code and tests
+- **Frontend test coverage** with arena-based API
+- **Documentation and cleanup** of remaining technical debt
 
 **Completed Work ✅**
-- All major frontend TODOs resolved and implemented
-- Arena-based AST architecture fully operational for core nodes
+- All critical frontend TODOs resolved and implemented
+- Arena-based AST architecture fully operational for all core nodes
 - Semantic analyzer integration with arena access patterns
 - 3-phase pipeline (Lexer → Parser → Codegen) production ready
+- Fallback modules completely removed
+- Arena-based JSON debug output implemented
 
 **Immediate Tasks:**
-1. **Complete remaining TODOs and shortcuts** in all frontend modules
-2. **Convert remaining AST nodes** to arena-based indices
-3. **Update frontend test cases** to use arena-based API
-4. **Re-enable full semantic analysis** once all nodes are arena-based
+1. **Resolve remaining TODOs** in frontend code and tests
+2. **Update frontend test cases** to use arena-based API
+3. **Update lazy_fortran dialect** for arena compatibility
+4. **Final cleanup and documentation** of implementation
 
-## Technical Debt (Active)
+## Technical Debt (Resolved)
 
-**Arena Conversion**: Convert if_node, do_loop_node, do_while_node to arena indices
+**Arena Conversion**: ✅ All control flow nodes converted to arena indices
+- if_node, do_loop_node, do_while_node fully arena-based
+- All AST nodes using integer indices instead of pointers
+- Memory management completely safe and automatic
 **Frontend Cleanup**: Resolve all remaining TODOs and shortcuts
 **Test Coverage**: Update test suite to use arena-based API
 **JSON Serialization**: Implement arena-based debug output writers
