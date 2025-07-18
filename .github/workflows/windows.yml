@@ -32,7 +32,18 @@ jobs:
       uses: fortran-lang/setup-fpm@v7
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        fpm-version: 'latest'
+        fpm-version: 'v0.10.1'
+      continue-on-error: true
+
+    - name: Manual FPM installation (fallback)
+      if: failure()
+      shell: msys2 {0}
+      run: |
+        echo "FPM action failed, installing manually..."
+        curl -L -o fpm.exe https://github.com/fortran-lang/fpm/releases/download/v0.10.1/fpm-0.10.1-windows-x86_64-gcc.exe
+        chmod +x fpm.exe
+        mv fpm.exe /mingw64/bin/fpm
+        fpm --version
 
     - name: Test Windows cache directory creation
       run: |
@@ -125,7 +136,18 @@ jobs:
       uses: fortran-lang/setup-fpm@v7
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        fpm-version: 'latest'
+        fpm-version: 'v0.10.1'
+      continue-on-error: true
+
+    - name: Manual FPM installation (fallback)
+      if: failure()
+      shell: msys2 {0}
+      run: |
+        echo "FPM action failed, installing manually..."
+        curl -L -o fpm.exe https://github.com/fortran-lang/fpm/releases/download/v0.10.1/fpm-0.10.1-windows-x86_64-gcc.exe
+        chmod +x fpm.exe
+        mv fpm.exe /mingw64/bin/fpm
+        fpm --version
 
     - name: Build project
       run: fpm build --compiler gfortran
