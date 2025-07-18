@@ -827,10 +827,22 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
 
         node%module_name = module_name
         if (present(only_list)) then
-            node%only_list = only_list
+            allocate (character(len=100) :: node%only_list(size(only_list)))
+            block
+                integer :: i
+                do i = 1, size(only_list)
+                    node%only_list(i) = trim(only_list(i))
+                end do
+            end block
         end if
         if (present(rename_list)) then
-            node%rename_list = rename_list
+            allocate (character(len=100) :: node%rename_list(size(rename_list)))
+            block
+                integer :: i
+                do i = 1, size(rename_list)
+                    node%rename_list(i) = trim(rename_list(i))
+                end do
+            end block
         end if
         if (present(has_only)) then
             node%has_only = has_only

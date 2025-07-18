@@ -652,10 +652,10 @@ contains
         code = "use "//node%module_name
 
         if (node%has_only .and. allocated(node%only_list)) then
-            code = code//" , only: "
+            code = code//", only: "
             do i = 1, size(node%only_list)
                 if (i > 1) code = code//", "
-                code = code//node%only_list(i)
+                code = code//trim(node%only_list(i))
             end do
         end if
     end function generate_code_use_statement
