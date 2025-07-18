@@ -27,6 +27,7 @@ jobs:
         install: >-
           mingw-w64-x86_64-gcc-fortran
           mingw-w64-x86_64-gcc
+          git
 
     - name: Install FPM
       shell: msys2 {0}
@@ -123,6 +124,7 @@ jobs:
         install: >-
           mingw-w64-x86_64-gcc-fortran
           mingw-w64-x86_64-gcc
+          git
 
     - name: Install FPM
       shell: msys2 {0}
