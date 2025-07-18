@@ -28,19 +28,11 @@ jobs:
           mingw-w64-x86_64-gcc-fortran
           mingw-w64-x86_64-gcc
 
-    - name: Setup FPM
-      uses: fortran-lang/setup-fpm@v7
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        fpm-version: 'v0.10.1'
-      continue-on-error: true
-
-    - name: Manual FPM installation (fallback)
-      if: failure()
+    - name: Install FPM
       shell: msys2 {0}
       run: |
-        echo "FPM action failed, installing manually..."
-        curl -L -o fpm.exe https://github.com/fortran-lang/fpm/releases/download/v0.10.1/fpm-0.10.1-windows-x86_64-gcc.exe
+        echo "Installing FPM directly from GitHub releases..."
+        curl -L -o fpm.exe https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-windows-x86_64-gcc-12.exe
         chmod +x fpm.exe
         mv fpm.exe /mingw64/bin/fpm
         fpm --version
@@ -57,35 +49,12 @@ jobs:
         }
       shell: powershell
 
-    - name: Debug FPM installation
-      shell: msys2 {0}
-      run: |
-        echo "Checking FPM installation..."
-        which fpm || echo "FPM not found in PATH"
-        echo "PATH: $PATH"
-        echo "Looking for FPM executables..."
-        find /c/hostedtoolcache -name "fpm*" 2>/dev/null || echo "No FPM found in toolcache"
-
     - name: Build project
-      run: |
-        # Try to find and use FPM
-        if which fpm; then
-          fpm build --compiler gfortran
-        else
-          echo "FPM not found, trying with full path..."
-          /c/hostedtoolcache/fpm/*/x64/fpm build --compiler gfortran 2>/dev/null || echo "FPM not found"
-        fi
+      run: fpm build --compiler gfortran
       shell: msys2 {0}
 
     - name: Run unit tests
-      run: |
-        # Try to find and use FPM
-        if which fpm; then
-          fpm test --compiler gfortran
-        else
-          echo "FPM not found, trying with full path..."
-          /c/hostedtoolcache/fpm/*/x64/fpm test --compiler gfortran 2>/dev/null || echo "FPM not found"
-        fi
+      run: fpm test --compiler gfortran
       shell: msys2 {0}
 
     - name: Test cache functionality
@@ -155,19 +124,11 @@ jobs:
           mingw-w64-x86_64-gcc-fortran
           mingw-w64-x86_64-gcc
 
-    - name: Setup FPM
-      uses: fortran-lang/setup-fpm@v7
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        fpm-version: 'v0.10.1'
-      continue-on-error: true
-
-    - name: Manual FPM installation (fallback)
-      if: failure()
+    - name: Install FPM
       shell: msys2 {0}
       run: |
-        echo "FPM action failed, installing manually..."
-        curl -L -o fpm.exe https://github.com/fortran-lang/fpm/releases/download/v0.10.1/fpm-0.10.1-windows-x86_64-gcc.exe
+        echo "Installing FPM directly from GitHub releases..."
+        curl -L -o fpm.exe https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-windows-x86_64-gcc-12.exe
         chmod +x fpm.exe
         mv fpm.exe /mingw64/bin/fpm
         fpm --version
