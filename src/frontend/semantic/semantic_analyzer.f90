@@ -73,22 +73,7 @@ contains
     end function create_semantic_context
 
     ! Main entry point: analyze entire program
-    subroutine analyze_program(ctx, ast)
-        type(semantic_context_t), intent(inout) :: ctx
-        class(ast_node), intent(inout) :: ast
-
-        select type (ast)
-        type is (program_node)
-            call analyze_program_node(ctx, ast)
-        class default
-            ! Single statement/expression
-            ! NOTE: This function is temporarily disabled during arena conversion
-            ! TODO: Convert to use arena-based indexing
-        end select
-    end subroutine analyze_program
-
-    ! Analyze a program with stack-based AST
-    subroutine analyze_program_stack(ctx, arena, root_index)
+    subroutine analyze_program(ctx, arena, root_index)
         type(semantic_context_t), intent(inout) :: ctx
         type(ast_arena_t), intent(inout) :: arena
         integer, intent(in) :: root_index
@@ -98,15 +83,15 @@ contains
 
         select type (ast => arena%entries(root_index)%node)
         type is (program_node)
-            call analyze_program_node_stack(ctx, arena, ast, root_index)
+            call analyze_program_node_arena(ctx, arena, ast, root_index)
         class default
             ! Single statement/expression
             call infer_and_store_type(ctx, arena, root_index)
         end select
-    end subroutine analyze_program_stack
+    end subroutine analyze_program
 
-    ! Analyze a program node with stack-based AST
-    subroutine analyze_program_node_stack(ctx, arena, prog, prog_index)
+    ! Analyze a program node with arena-based AST
+    subroutine analyze_program_node_arena(ctx, arena, prog, prog_index)
         type(semantic_context_t), intent(inout) :: ctx
         type(ast_arena_t), intent(inout) :: arena
         type(program_node), intent(inout) :: prog
@@ -120,7 +105,7 @@ contains
                 end if
             end do
         end if
-    end subroutine analyze_program_node_stack
+    end subroutine analyze_program_node_arena
 
     ! Analyze a program node (legacy interface)
     subroutine analyze_program_node(ctx, prog)
@@ -129,8 +114,8 @@ contains
         integer :: i
 
         if (allocated(prog%body_indices)) then
-            ! This is a stack-based program node but called without stack
-            ! For now, skip analysis - this should be updated to use analyze_program_stack
+            ! This is an arena-based program node but called without arena
+            ! For now, skip analysis - this should be updated to use analyze_program_arena
             return
         end if
     end subroutine analyze_program_node
@@ -178,6 +163,18 @@ contains
             stmt%inferred_type_name = typ%to_string()
         type is (print_statement_node)
             typ = create_mono_type(TINT)  ! print returns unit/void, use int
+        type is (module_node)
+            typ = analyze_module(this, arena, stmt, stmt_index)
+        type is (function_def_node)
+            typ = analyze_function_def(this, arena, stmt, stmt_index)
+        type is (subroutine_def_node)
+            typ = analyze_subroutine_def(this, arena, stmt, stmt_index)
+        type is (if_node)
+            typ = analyze_if_node(this, arena, stmt, stmt_index)
+        type is (do_loop_node)
+            typ = analyze_do_loop(this, arena, stmt, stmt_index)
+        type is (do_while_node)
+            typ = analyze_do_while(this, arena, stmt, stmt_index)
         class default
             ! For expressions, use general inference
             typ = this%infer(arena, stmt_index)
@@ -794,18 +791,34 @@ contains
     end function get_scheme_free_vars
 
     ! Analyze module node
-    function analyze_module(ctx, mod_node) result(typ)
+    function analyze_module(ctx, arena, mod_node, mod_index) result(typ)
         type(semantic_context_t), intent(inout) :: ctx
+        type(ast_arena_t), intent(inout) :: arena
         type(module_node), intent(inout) :: mod_node
+        integer, intent(in) :: mod_index
         type(mono_type_t) :: typ
         integer :: i
 
         ! Enter module scope
         call ctx%scopes%enter_module(mod_node%name)
 
-        ! NOTE: This function is temporarily disabled during arena conversion
-        ! TODO: Convert to use arena-based indexing
-        ! Module declarations and procedures analysis would go here
+        ! Analyze module declarations
+        if (allocated(mod_node%declarations)) then
+            do i = 1, size(mod_node%declarations)
+                if (allocated(mod_node%declarations(i)%node)) then
+                    ! TODO: Analyze declaration nodes - need to add to arena
+                end if
+            end do
+        end if
+
+        ! Analyze module procedures
+        if (allocated(mod_node%procedures)) then
+            do i = 1, size(mod_node%procedures)
+                if (allocated(mod_node%procedures(i)%node)) then
+                    ! TODO: Analyze procedure nodes - need to add to arena
+                end if
+            end do
+        end if
 
         ! Leave module scope
         call ctx%scopes%leave_scope()
@@ -815,9 +828,11 @@ contains
     end function analyze_module
 
     ! Analyze function definition
-    function analyze_function_def(ctx, func_def) result(typ)
+    function analyze_function_def(ctx, arena, func_def, func_index) result(typ)
         type(semantic_context_t), intent(inout) :: ctx
+        type(ast_arena_t), intent(inout) :: arena
         type(function_def_node), intent(inout) :: func_def
+        integer, intent(in) :: func_index
         type(mono_type_t) :: typ, param_type, return_type
         type(mono_type_t), allocatable :: param_types(:)
         type(poly_type_t) :: func_scheme
@@ -827,15 +842,15 @@ contains
         call ctx%scopes%enter_function(func_def%name)
 
         ! Process parameters and add to local scope
-        if (allocated(func_def%params)) then
-            allocate (param_types(size(func_def%params)))
-            do i = 1, size(func_def%params)
-                if (allocated(func_def%params(i)%node)) then
-                    ! For now, assign fresh type variables to parameters
-                    param_types(i) = create_mono_type(TVAR, var=ctx%fresh_type_var())
+        if (allocated(func_def%param_indices)) then
+            allocate (param_types(size(func_def%param_indices)))
+            do i = 1, size(func_def%param_indices)
+                ! For now, assign fresh type variables to parameters
+                param_types(i) = create_mono_type(TVAR, var=ctx%fresh_type_var())
 
-                    ! Add parameter to local scope
-                    select type (param => func_def%params(i)%node)
+                ! Add parameter to local scope - get from arena
+                if (allocated(arena%entries(func_def%param_indices(i))%node)) then
+                    select type (param => arena%entries(func_def%param_indices(i))%node)
                     type is (identifier_node)
                         call ctx%scopes%define(param%name, &
                       create_poly_type(forall_vars=[type_var_t::], mono=param_types(i)))
@@ -846,9 +861,13 @@ contains
             allocate (param_types(0))
         end if
 
-        ! NOTE: This function is temporarily disabled during arena conversion
-        ! TODO: Convert to use arena-based indexing
-        ! Function body analysis would go here
+        ! Analyze function body statements
+        if (allocated(func_def%body_indices)) then
+            do i = 1, size(func_def%body_indices)
+                ! Analyze body statement using arena indexing
+                call infer_and_store_type(ctx, arena, func_def%body_indices(i))
+            end do
+        end if
 
         ! Infer return type (for now, use a fresh type variable)
         return_type = create_mono_type(TVAR, var=ctx%fresh_type_var())
@@ -877,9 +896,11 @@ contains
     end function analyze_function_def
 
     ! Analyze subroutine definition
-    function analyze_subroutine_def(ctx, sub_def) result(typ)
+    function analyze_subroutine_def(ctx, arena, sub_def, sub_index) result(typ)
         type(semantic_context_t), intent(inout) :: ctx
+        type(ast_arena_t), intent(inout) :: arena
         type(subroutine_def_node), intent(inout) :: sub_def
+        integer, intent(in) :: sub_index
         type(mono_type_t) :: typ
         type(poly_type_t) :: sub_scheme
         integer :: i
@@ -888,11 +909,11 @@ contains
         call ctx%scopes%enter_subroutine(sub_def%name)
 
         ! Process parameters and add to local scope
-        if (allocated(sub_def%params)) then
-            do i = 1, size(sub_def%params)
-                if (allocated(sub_def%params(i)%node)) then
-                    ! For now, assign fresh type variables to parameters
-                    select type (param => sub_def%params(i)%node)
+        if (allocated(sub_def%param_indices)) then
+            do i = 1, size(sub_def%param_indices)
+                ! For now, assign fresh type variables to parameters
+                if (allocated(arena%entries(sub_def%param_indices(i))%node)) then
+                    select type (param => arena%entries(sub_def%param_indices(i))%node)
                     type is (identifier_node)
                         call ctx%scopes%define(param%name, &
                                           create_poly_type(forall_vars=[type_var_t::], &
@@ -902,9 +923,13 @@ contains
             end do
         end if
 
-        ! NOTE: This function is temporarily disabled during arena conversion
-        ! TODO: Convert to use arena-based indexing
-        ! Subroutine body analysis would go here
+        ! Analyze subroutine body statements
+        if (allocated(sub_def%body_indices)) then
+            do i = 1, size(sub_def%body_indices)
+                ! Analyze body statement using arena indexing
+                call infer_and_store_type(ctx, arena, sub_def%body_indices(i))
+            end do
+        end if
 
         ! Leave subroutine scope
         call ctx%scopes%leave_scope()
@@ -919,42 +944,62 @@ contains
     end function analyze_subroutine_def
 
     ! Analyze if node with block scopes
-    function analyze_if_node(ctx, if_stmt) result(typ)
+    function analyze_if_node(ctx, arena, if_stmt, if_index) result(typ)
         type(semantic_context_t), intent(inout) :: ctx
+        type(ast_arena_t), intent(inout) :: arena
         type(if_node), intent(inout) :: if_stmt
+        integer, intent(in) :: if_index
         type(mono_type_t) :: typ
         integer :: i, j
 
-        ! NOTE: This function is temporarily disabled during arena conversion
-        ! TODO: Convert to use arena-based indexing
-        ! Condition analysis would go here
+        ! Analyze condition
+        if (allocated(if_stmt%condition)) then
+            ! TODO: Analyze condition - need to add to arena
+        end if
 
         ! Enter then block scope
         call ctx%scopes%enter_block()
 
-        ! NOTE: This function is temporarily disabled during arena conversion
-        ! TODO: Convert to use arena-based indexing
-        ! Then body analysis would go here
+        ! Analyze then body statements
+        if (allocated(if_stmt%then_body)) then
+            do i = 1, size(if_stmt%then_body)
+                if (allocated(if_stmt%then_body(i)%node)) then
+                    ! TODO: Analyze then body nodes - need to add to arena
+                end if
+            end do
+        end if
 
         ! Leave then block scope
         call ctx%scopes%leave_scope()
 
-        ! NOTE: This function is temporarily disabled during arena conversion
-        ! TODO: Convert to use arena-based indexing
-        ! Elseif blocks analysis would go here
+        ! Analyze elseif blocks
+        if (allocated(if_stmt%elseif_blocks)) then
+            do i = 1, size(if_stmt%elseif_blocks)
+                ! TODO: Analyze elseif condition and body - need to add to arena
+            end do
+        end if
 
-        ! NOTE: This function is temporarily disabled during arena conversion
-        ! TODO: Convert to use arena-based indexing
-        ! Else block analysis would go here
+        ! Analyze else block
+        if (allocated(if_stmt%else_body)) then
+            call ctx%scopes%enter_block()
+            do i = 1, size(if_stmt%else_body)
+                if (allocated(if_stmt%else_body(i)%node)) then
+                    ! TODO: Analyze else body nodes - need to add to arena
+                end if
+            end do
+            call ctx%scopes%leave_scope()
+        end if
 
         ! If statements have unit type
         typ = create_mono_type(TINT)  ! Unit type
     end function analyze_if_node
 
     ! Analyze do loop with block scope
-    function analyze_do_loop(ctx, do_stmt) result(typ)
+    function analyze_do_loop(ctx, arena, do_stmt, do_index) result(typ)
         type(semantic_context_t), intent(inout) :: ctx
+        type(ast_arena_t), intent(inout) :: arena
         type(do_loop_node), intent(inout) :: do_stmt
+        integer, intent(in) :: do_index
         type(mono_type_t) :: typ, loop_var_type
         type(poly_type_t) :: loop_var_scheme
         integer :: i
@@ -967,9 +1012,25 @@ contains
       loop_var_scheme = create_poly_type(forall_vars=[type_var_t::], mono=loop_var_type)
         call ctx%scopes%define(do_stmt%var_name, loop_var_scheme)
 
-        ! NOTE: This function is temporarily disabled during arena conversion
-        ! TODO: Convert to use arena-based indexing
-        ! Loop bounds and body analysis would go here
+        ! Analyze loop bounds
+        if (allocated(do_stmt%start_expr)) then
+            ! TODO: Analyze start expression - need to add to arena
+        end if
+        if (allocated(do_stmt%end_expr)) then
+            ! TODO: Analyze end expression - need to add to arena
+        end if
+        if (allocated(do_stmt%step_expr)) then
+            ! TODO: Analyze step expression - need to add to arena
+        end if
+
+        ! Analyze loop body
+        if (allocated(do_stmt%body)) then
+            do i = 1, size(do_stmt%body)
+                if (allocated(do_stmt%body(i)%node)) then
+                    ! TODO: Analyze body nodes - need to add to arena
+                end if
+            end do
+        end if
 
         ! Leave loop block scope
         call ctx%scopes%leave_scope()
@@ -979,14 +1040,33 @@ contains
     end function analyze_do_loop
 
     ! Analyze do while loop with block scope
-    function analyze_do_while(ctx, do_while_stmt) result(typ)
+    function analyze_do_while(ctx, arena, do_while_stmt, do_while_index) result(typ)
         type(semantic_context_t), intent(inout) :: ctx
+        type(ast_arena_t), intent(inout) :: arena
         type(do_while_node), intent(inout) :: do_while_stmt
+        integer, intent(in) :: do_while_index
         type(mono_type_t) :: typ
         integer :: i
 
-        ! NOTE: This function is temporarily disabled during arena conversion
-        ! TODO: Convert to use arena-based indexing
+        ! Enter loop block scope
+        call ctx%scopes%enter_block()
+
+        ! Analyze condition
+        if (allocated(do_while_stmt%condition)) then
+            ! TODO: Analyze condition - need to add to arena
+        end if
+
+        ! Analyze loop body
+        if (allocated(do_while_stmt%body)) then
+            do i = 1, size(do_while_stmt%body)
+                if (allocated(do_while_stmt%body(i)%node)) then
+                    ! TODO: Analyze body nodes - need to add to arena
+                end if
+            end do
+        end if
+
+        ! Leave loop block scope
+        call ctx%scopes%leave_scope()
 
         ! Do while loops have unit type
         typ = create_mono_type(TINT)  ! Unit type

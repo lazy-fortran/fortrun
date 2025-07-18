@@ -602,16 +602,12 @@ contains
             end block
         end if
 
-        ! Create print statement node with wrapper args
+        ! Create print statement node with arena-based args
         block
             type(print_statement_node) :: print_stmt
-            if (allocated(wrapper_args)) then
-                print_stmt%format_spec = format_spec
-                print_stmt%args = wrapper_args
-            else
-                print_stmt%format_spec = format_spec
-                allocate (print_stmt%args(0))  ! Empty wrapper array
-            end if
+            print_stmt%format_spec = format_spec
+            ! TODO: Convert wrapper_args to arena indices when arena is available
+            allocate (print_stmt%arg_indices(0))  ! Empty indices array for now
             print_stmt%line = line
             print_stmt%column = column
             allocate (print_node, source=print_stmt)

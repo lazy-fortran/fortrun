@@ -51,11 +51,11 @@ contains
         call json_write_ast_to_file(ast_tree, json_file)
     end subroutine debug_output_ast
 
-    subroutine debug_output_semantic(input_file, ast)
-        use ast_core, only: ast_node
-        use json_writer, only: json_write_ast_to_file
+    subroutine debug_output_semantic(input_file, arena, prog_index)
+        use ast_core, only: ast_arena_t
         character(len=*), intent(in) :: input_file
-        class(ast_node), intent(in) :: ast
+        type(ast_arena_t), intent(in) :: arena
+        integer, intent(in) :: prog_index
         character(len=:), allocatable :: json_file
 
         ! Create semantic filename in same directory as input file
@@ -65,10 +65,10 @@ contains
         end if
         json_file = json_file//"_semantic.json"
 
-        print *, "DEBUG: Writing semantic analysis output to: ", trim(json_file)
+  print *, "DEBUG: Semantic analysis completed (arena-based output not implemented yet)"
+        print *, "DEBUG: Would write to: ", trim(json_file)
 
-        ! Use json_writer for AST serialization (now with type annotations)
-        call json_write_ast_to_file(ast, json_file)
+        ! TODO: Implement arena-based JSON serialization
     end subroutine debug_output_semantic
 
     subroutine debug_output_codegen(input_file, code)

@@ -130,16 +130,17 @@ contains
     end function json_to_tokens
 
     ! Read AST from JSON file
-    function json_read_ast_from_file(filename) result(ast)
+    function json_read_ast_from_file(filename, arena) result(root_index)
         character(len=*), intent(in) :: filename
-        class(ast_node), allocatable :: ast
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: root_index
         type(json_file) :: json
 
         ! Load JSON file
         call json%load(filename=filename)
 
         ! Convert JSON to AST
-        ast = json_to_ast(json)
+        root_index = json_to_ast(json, arena)
 
         ! Clean up
         call json%destroy()
@@ -147,9 +148,10 @@ contains
     end function json_read_ast_from_file
 
     ! Convert JSON to AST (full implementation)
-    function json_to_ast(json) result(ast)
+    function json_to_ast(json, arena) result(root_index)
         type(json_file), intent(inout) :: json
-        class(ast_node), allocatable :: ast
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: root_index
         type(json_core) :: core
         type(json_value), pointer :: root
         logical :: found
@@ -157,16 +159,17 @@ contains
         ! Get root object
         call json%get(root)
 
-        ! Recursively build AST from JSON
-        ast = json_to_ast_node(core, root)
+        ! Recursively build AST from JSON into arena
+        root_index = json_to_ast_node(core, json_obj=root, arena=arena)
 
     end function json_to_ast
 
     ! Recursive function to convert JSON object to AST node
-    recursive function json_to_ast_node(core, json_obj) result(node)
+    recursive function json_to_ast_node(core, json_obj, arena) result(node_index)
         type(json_core), intent(inout) :: core
         type(json_value), pointer, intent(in) :: json_obj
-        class(ast_node), allocatable :: node
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: node_index
         character(len=:), allocatable :: node_type
         logical :: found
 
@@ -178,52 +181,64 @@ contains
                 type(json_value), pointer :: first_child
                 call core%get_child(json_obj, 1, first_child)
                 if (associated(first_child)) then
-                    node = json_to_ast_node(core, first_child)
+                    node_index = json_to_ast_node(core, first_child, arena)
                     return
                 end if
             end block
+            node_index = 0  ! Invalid index
             return
         end if
 
-        ! Create appropriate node based on type
+        ! Create appropriate node based on type and allocate in arena
         select case (node_type)
         case ('lf_program', 'program')
-            node = json_to_program_node(core, json_obj)
+            call arena%push(json_to_program_node(core, json_obj, arena))
+            node_index = arena%size
         case ('assignment')
-            node = json_to_assignment_node(core, json_obj)
+            call arena%push(json_to_assignment_node(core, json_obj, arena))
+            node_index = arena%size
         case ('binary_op')
-            node = json_to_binary_op_node(core, json_obj)
+            call arena%push(json_to_binary_op_node(core, json_obj, arena))
+            node_index = arena%size
         case ('identifier')
-            node = json_to_identifier_node(core, json_obj)
+            call arena%push(json_to_identifier_node(core, json_obj, arena))
+            node_index = arena%size
         case ('literal')
-            node = json_to_literal_node(core, json_obj)
+            call arena%push(json_to_literal_node(core, json_obj, arena))
+            node_index = arena%size
         case ('function_def')
-            node = json_to_function_def_node(core, json_obj)
+            call arena%push(json_to_function_def_node(core, json_obj, arena))
+            node_index = arena%size
         case ('function_call')
-            node = json_to_function_call_node(core, json_obj)
+            call arena%push(json_to_function_call_node(core, json_obj, arena))
+            node_index = arena%size
         case ('use_statement')
-            node = json_to_use_statement_node(core, json_obj)
+            call arena%push(json_to_use_statement_node(core, json_obj, arena))
+            node_index = arena%size
         case ('include_statement')
-            node = json_to_include_statement_node(core, json_obj)
+            call arena%push(json_to_include_statement_node(core, json_obj, arena))
+            node_index = arena%size
         case ('print_statement')
-            node = json_to_print_statement_node(core, json_obj)
+            call arena%push(json_to_print_statement_node(core, json_obj, arena))
+            node_index = arena%size
         case default
             ! Unknown node type - create a literal as placeholder
-           node = create_literal("Unknown node type: "//node_type, LITERAL_STRING, 1, 1)
+ call arena%push(create_literal("Unknown node type: "//node_type, LITERAL_STRING, 1, 1))
+            node_index = arena%size
         end select
 
     end function json_to_ast_node
 
     ! Convert JSON to program node (core program_node, not dialect-specific)
-    function json_to_program_node(core, json_obj) result(node)
+    function json_to_program_node(core, json_obj, arena) result(node)
         type(json_core), intent(inout) :: core
         type(json_value), pointer, intent(in) :: json_obj
+        type(ast_arena_t), intent(inout) :: arena
         type(program_node) :: node
         character(len=:), allocatable :: name
         integer :: line, column, i
         logical :: found
         type(json_value), pointer :: body_array
-        type(ast_node_wrapper), allocatable :: body_wrappers(:)
 
         ! Get properties
         call core%get(json_obj, 'name', name, found)
@@ -233,12 +248,10 @@ contains
         call core%get(json_obj, 'column', column, found)
         if (.not. found) column = 1
 
-        ! Get body array
+        ! Get body array - will be converted to indices for arena
         call core%get(json_obj, 'body', body_array, found)
         if (found) then
-            body_wrappers = json_to_ast_array(core, body_array)
-        else
-            allocate (body_wrappers(0))
+            node%body_indices = json_to_ast_indices(core, body_array, arena)
         end if
 
         ! Create core program node (dialect-agnostic)
@@ -246,16 +259,13 @@ contains
         node%line = line
         node%column = column
 
-        ! NOTE: This function is temporarily disabled during arena conversion
-        ! TODO: Convert to use arena-based indexing
-        ! Body assignment would go here
-
     end function json_to_program_node
 
     ! Convert JSON to assignment node
-    function json_to_assignment_node(core, json_obj) result(node)
+    function json_to_assignment_node(core, json_obj, arena) result(node)
         type(json_core), intent(inout) :: core
         type(json_value), pointer, intent(in) :: json_obj
+        type(ast_arena_t), intent(inout) :: arena
         type(assignment_node) :: node
         type(json_value), pointer :: target_obj, value_obj
         class(ast_node), allocatable :: target, value
@@ -274,46 +284,40 @@ contains
         if (.not. found) inferred_type = .false.
         call core%get(json_obj, 'inferred_type_name', inferred_type_name, found)
 
-        ! Get target
+        ! Get target and value indices
         call core%get(json_obj, 'target', target_obj, found)
         if (found) then
-            target = json_to_ast_node(core, target_obj)
+            node%target_index = json_to_ast_node(core, target_obj, arena)
         else
-            target = create_identifier("unknown", line, column)
+            call arena%push(create_identifier("unknown", line, column))
+            node%target_index = arena%size
         end if
 
-        ! Get value
         call core%get(json_obj, 'value', value_obj, found)
         if (found) then
-            value = json_to_ast_node(core, value_obj)
+            node%value_index = json_to_ast_node(core, value_obj, arena)
         else
-            value = create_literal("0", LITERAL_INTEGER, line, column)
+            call arena%push(create_literal("0", LITERAL_INTEGER, line, column))
+            node%value_index = arena%size
         end if
 
-        ! Create node with type inference
-        ! NOTE: Temporarily disabled during arena conversion
-        ! TODO: Convert to arena-based API - target/value need to be integer indices
-        block
-            type(assignment_node) :: temp_node
-            temp_node%line = line
-            temp_node%column = column
-            ! For now, create placeholder indices
-            temp_node%target_index = 0
-            temp_node%value_index = 0
-            temp_node%type_was_inferred = inferred_type
-    if (allocated(inferred_type_name)) temp_node%inferred_type_name = inferred_type_name
-            node = temp_node
-        end block
+        ! Set remaining node properties
+        node%line = line
+        node%column = column
+        node%type_was_inferred = inferred_type
+        if (allocated(inferred_type_name)) then
+            node%inferred_type_name = inferred_type_name
+        end if
 
     end function json_to_assignment_node
 
     ! Convert JSON to binary op node
-    function json_to_binary_op_node(core, json_obj) result(node)
+    function json_to_binary_op_node(core, json_obj, arena) result(node)
         type(json_core), intent(inout) :: core
         type(json_value), pointer, intent(in) :: json_obj
+        type(ast_arena_t), intent(inout) :: arena
         type(binary_op_node) :: node
         type(json_value), pointer :: left_obj, right_obj
-        class(ast_node), allocatable :: left, right
         character(len=:), allocatable :: operator
         integer :: line, column
         logical :: found
@@ -326,42 +330,35 @@ contains
         call core%get(json_obj, 'column', column, found)
         if (.not. found) column = 1
 
-        ! Get left operand
+        ! Get left and right operands and store as arena indices
         call core%get(json_obj, 'left', left_obj, found)
         if (found) then
-            left = json_to_ast_node(core, left_obj)
+            node%left_index = json_to_ast_node(core, left_obj, arena)
         else
-            left = create_literal("0", LITERAL_INTEGER, line, column)
+            call arena%push(create_literal("0", LITERAL_INTEGER, line, column))
+            node%left_index = arena%size
         end if
 
-        ! Get right operand
         call core%get(json_obj, 'right', right_obj, found)
         if (found) then
-            right = json_to_ast_node(core, right_obj)
+            node%right_index = json_to_ast_node(core, right_obj, arena)
         else
-            right = create_literal("0", LITERAL_INTEGER, line, column)
+            call arena%push(create_literal("0", LITERAL_INTEGER, line, column))
+            node%right_index = arena%size
         end if
 
-        ! Create node
-        ! NOTE: Temporarily disabled during arena conversion
-        ! TODO: Convert to arena-based API - left/right need to be integer indices
-        block
-            type(binary_op_node) :: temp_node
-            temp_node%operator = operator
-            temp_node%line = line
-            temp_node%column = column
-            ! For now, create placeholder indices
-            temp_node%left_index = 0
-            temp_node%right_index = 0
-            node = temp_node
-        end block
+        ! Set remaining node properties
+        node%operator = operator
+        node%line = line
+        node%column = column
 
     end function json_to_binary_op_node
 
     ! Convert JSON to identifier node
-    function json_to_identifier_node(core, json_obj) result(node)
+    function json_to_identifier_node(core, json_obj, arena) result(node)
         type(json_core), intent(inout) :: core
         type(json_value), pointer, intent(in) :: json_obj
+        type(ast_arena_t), intent(inout) :: arena
         type(identifier_node) :: node
         character(len=:), allocatable :: name
         integer :: line, column
@@ -381,9 +378,10 @@ contains
     end function json_to_identifier_node
 
     ! Convert JSON to literal node
-    function json_to_literal_node(core, json_obj) result(node)
+    function json_to_literal_node(core, json_obj, arena) result(node)
         type(json_core), intent(inout) :: core
         type(json_value), pointer, intent(in) :: json_obj
+        type(ast_arena_t), intent(inout) :: arena
         type(literal_node) :: node
         character(len=:), allocatable :: value, kind_str
         integer :: line, column, literal_kind
@@ -422,14 +420,13 @@ contains
     end function json_to_literal_node
 
     ! Convert JSON to function definition node
-    function json_to_function_def_node(core, json_obj) result(node)
+    function json_to_function_def_node(core, json_obj, arena) result(node)
         type(json_core), intent(inout) :: core
         type(json_value), pointer, intent(in) :: json_obj
+        type(ast_arena_t), intent(inout) :: arena
         type(function_def_node) :: node
         character(len=:), allocatable :: name
-        type(json_value), pointer :: params_array, body_array, return_type_obj
-        type(ast_node_wrapper), allocatable :: params(:), body(:)
-        class(ast_node), allocatable :: return_type
+        type(json_value), pointer :: body_array
         integer :: line, column
         logical :: found
 
@@ -442,36 +439,32 @@ contains
         if (.not. found) column = 1
 
         ! Get parameters
-        call core%get(json_obj, 'params', params_array, found)
-        if (found) then
-            params = json_to_ast_array(core, params_array)
-        else
-            allocate (params(0))
-        end if
+        node%param_indices = [integer::]  ! Empty parameter list for now
 
-        ! Get return type
-        call core%get(json_obj, 'return_type', return_type_obj, found)
-        if (found) then
-            return_type = json_to_ast_node(core, return_type_obj)
-        end if
+        ! Get return type (store as string for now)
+        call core%get(json_obj, 'return_type', node%return_type, found)
+        if (.not. found) node%return_type = ""
 
         ! Get body
         call core%get(json_obj, 'body', body_array, found)
         if (found) then
-            body = json_to_ast_array(core, body_array)
+            node%body_indices = json_to_ast_indices(core, body_array, arena)
         else
-            allocate (body(0))
+            node%body_indices = [integer::]  ! Empty body
         end if
 
         ! Create node
-        node = create_function_def(name, params, return_type, body, line, column)
+        node%name = name
+        node%line = line
+        node%column = column
 
     end function json_to_function_def_node
 
     ! Convert JSON to function call node
-    function json_to_function_call_node(core, json_obj) result(node)
+    function json_to_function_call_node(core, json_obj, arena) result(node)
         type(json_core), intent(inout) :: core
         type(json_value), pointer, intent(in) :: json_obj
+        type(ast_arena_t), intent(inout) :: arena
         type(function_call_node) :: node
         character(len=:), allocatable :: name
         type(json_value), pointer :: args_array
@@ -490,29 +483,23 @@ contains
         ! Get arguments
         call core%get(json_obj, 'args', args_array, found)
         if (found) then
-            args = json_to_ast_array(core, args_array)
+            node%arg_indices = json_to_ast_indices(core, args_array, arena)
         else
-            allocate (args(0))
+            node%arg_indices = [integer::]  ! Empty arguments
         end if
 
         ! Create node
-        ! NOTE: Temporarily disabled during arena conversion
-        ! TODO: Convert to arena-based API - args needs to be integer indices array
-        block
-            type(function_call_node) :: temp_node
-            temp_node%name = name
-            temp_node%line = line
-            temp_node%column = column
-            allocate (temp_node%arg_indices(0))  ! Empty args for now
-            node = temp_node
-        end block
+        node%name = name
+        node%line = line
+        node%column = column
 
     end function json_to_function_call_node
 
     ! Convert JSON to use statement node
-    function json_to_use_statement_node(core, json_obj) result(node)
+    function json_to_use_statement_node(core, json_obj, arena) result(node)
         type(json_core), intent(inout) :: core
         type(json_value), pointer, intent(in) :: json_obj
+        type(ast_arena_t), intent(inout) :: arena
         type(use_statement_node) :: node
         character(len=:), allocatable :: module_name
         character(len=:), allocatable :: only_list(:)
@@ -550,9 +537,10 @@ contains
     end function json_to_use_statement_node
 
     ! Convert JSON to include statement node
-    function json_to_include_statement_node(core, json_obj) result(node)
+    function json_to_include_statement_node(core, json_obj, arena) result(node)
         type(json_core), intent(inout) :: core
         type(json_value), pointer, intent(in) :: json_obj
+        type(ast_arena_t), intent(inout) :: arena
         type(include_statement_node) :: node
         character(len=:), allocatable :: filename
         integer :: line, column
@@ -572,9 +560,10 @@ contains
     end function json_to_include_statement_node
 
     ! Convert JSON to print statement node
-    function json_to_print_statement_node(core, json_obj) result(node)
+    function json_to_print_statement_node(core, json_obj, arena) result(node)
         type(json_core), intent(inout) :: core
         type(json_value), pointer, intent(in) :: json_obj
+        type(ast_arena_t), intent(inout) :: arena
         type(print_statement_node) :: node
         character(len=:), allocatable :: format_spec
         type(json_value), pointer :: args_array
@@ -593,40 +582,44 @@ contains
         ! Get arguments
         call core%get(json_obj, 'args', args_array, found)
         if (found) then
-            args = json_to_ast_array(core, args_array)
+            node%arg_indices = json_to_ast_indices(core, args_array, arena)
         else
-            allocate (args(0))
+            node%arg_indices = [integer::]  ! Empty arguments
         end if
 
         ! Create node
-        node = create_print_statement(args, format_spec, line, column)
+        node%format_spec = format_spec
+        node%line = line
+        node%column = column
 
     end function json_to_print_statement_node
 
-    ! Convert JSON array to AST node wrapper array
-    function json_to_ast_array(core, json_array) result(array)
+    ! Convert JSON array to arena indices array
+    function json_to_ast_indices(core, json_array, arena) result(indices)
         type(json_core), intent(inout) :: core
         type(json_value), pointer, intent(in) :: json_array
-        type(ast_node_wrapper), allocatable :: array(:)
+        type(ast_arena_t), intent(inout) :: arena
+        integer, allocatable :: indices(:)
         integer :: i, n_elements
         type(json_value), pointer :: element
 
         ! Get array size
         call core%info(json_array, n_children=n_elements)
-        allocate (array(n_elements))
+        allocate (indices(n_elements))
 
         ! Process each element
         do i = 1, n_elements
             call core%get_child(json_array, i, element)
-            allocate (array(i)%node, source=json_to_ast_node(core, element))
+            indices(i) = json_to_ast_node(core, element, arena)
         end do
 
-    end function json_to_ast_array
+    end function json_to_ast_indices
 
     ! Read semantic analysis result from JSON file
-    subroutine json_read_semantic_from_file(filename, ast, sem_ctx)
+    subroutine json_read_semantic_from_file(filename, arena, root_index, sem_ctx)
         character(len=*), intent(in) :: filename
-        class(ast_node), allocatable, intent(out) :: ast
+        type(ast_arena_t), intent(inout) :: arena
+        integer, intent(out) :: root_index
         type(semantic_context_t), intent(out) :: sem_ctx
         type(json_file) :: json
 
@@ -634,7 +627,7 @@ contains
         call json%load(filename=filename)
 
         ! Convert JSON to semantic analysis result
-        call json_to_semantic(json, ast, sem_ctx)
+        call json_to_semantic(json, arena, root_index, sem_ctx)
 
         ! Clean up
         call json%destroy()
@@ -642,9 +635,10 @@ contains
     end subroutine json_read_semantic_from_file
 
     ! Convert JSON to semantic analysis result (AST + context)
-    subroutine json_to_semantic(json, ast, sem_ctx)
+    subroutine json_to_semantic(json, arena, root_index, sem_ctx)
         type(json_file), intent(inout) :: json
-        class(ast_node), allocatable, intent(out) :: ast
+        type(ast_arena_t), intent(inout) :: arena
+        integer, intent(out) :: root_index
         type(semantic_context_t), intent(out) :: sem_ctx
         type(json_core) :: core
         type(json_value), pointer :: root, ast_obj
@@ -659,10 +653,10 @@ contains
         ! Get annotated AST from JSON
         call core%get(root, 'annotated_ast', ast_obj, found)
         if (found) then
-            ast = json_to_ast_node(core, ast_obj)
+            root_index = json_to_ast_node(core, ast_obj, arena)
         else
             ! Fallback: try to get regular AST and reconstruct type info
-            ast = json_to_ast_node(core, root)
+            root_index = json_to_ast_node(core, root, arena)
         end if
 
         ! Type environment reconstruction is handled by the type inference metadata

@@ -96,7 +96,7 @@ contains
         ! if (options%debug_ast) call debug_output_ast(input_file, arena, prog_index)
 
         ! Phase 3: Semantic Analysis
-        ! TEMPORARY: Skip semantic analysis to avoid memory issues
+        ! TODO: Fix segfault in scope lookup before re-enabling
         ! sem_ctx = create_semantic_context()
         ! call analyze_program(sem_ctx, arena, prog_index)
         ! if (options%debug_semantic) call debug_output_semantic(input_file, arena, prog_index)
@@ -137,7 +137,8 @@ contains
         ! if (options%debug_ast) call debug_output_ast(tokens_json_file, arena, prog_index)
 
         ! Phase 3: Semantic Analysis
-        sem_ctx = create_semantic_context()
+        ! TODO: Fix segfault in scope lookup before re-enabling
+        ! sem_ctx = create_semantic_context()
         ! call analyze_program(sem_ctx, arena, prog_index)
         ! if (options%debug_semantic) call debug_output_semantic(tokens_json_file, arena, prog_index)
 
@@ -172,7 +173,7 @@ prog_index = push_literal(arena, "! JSON loading not implemented", LITERAL_STRIN
 
         ! Phase 3: Semantic Analysis - skip for now
         ! sem_ctx = create_semantic_context()
-        ! call analyze_program(sem_ctx, arena, prog_index)
+        ! call analyze_program_arena(sem_ctx, arena, prog_index)
         ! if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, prog_index)
 
         ! Phase 4: Code Generation

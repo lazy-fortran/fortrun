@@ -110,9 +110,9 @@ module ast_core
     ! Function definition node
     type, extends(ast_node), public :: function_def_node
         character(len=:), allocatable :: name
-        type(ast_node_wrapper), allocatable :: params(:)
-        class(ast_node), allocatable :: return_type
-        type(ast_node_wrapper), allocatable :: body(:)
+        integer, allocatable :: param_indices(:)
+        character(len=:), allocatable :: return_type
+        integer, allocatable :: body_indices(:)
     contains
         procedure :: accept => function_def_accept
         procedure :: to_json => function_def_to_json
@@ -121,8 +121,8 @@ module ast_core
     ! Subroutine definition node
     type, extends(ast_node), public :: subroutine_def_node
         character(len=:), allocatable :: name
-        type(ast_node_wrapper), allocatable :: params(:)
-        type(ast_node_wrapper), allocatable :: body(:)
+        integer, allocatable :: param_indices(:)
+        integer, allocatable :: body_indices(:)
     contains
         procedure :: accept => subroutine_def_accept
         procedure :: to_json => subroutine_def_to_json
@@ -185,7 +185,7 @@ module ast_core
     ! Print statement node
     type, extends(ast_node), public :: print_statement_node
         character(len=:), allocatable :: format_spec  ! Optional format
-        type(ast_node_wrapper), allocatable :: args(:)
+        integer, allocatable :: arg_indices(:)
     contains
         procedure :: accept => print_statement_accept
         procedure :: to_json => print_statement_to_json
@@ -672,39 +672,39 @@ contains
         if (present(column)) node%column = column
     end function create_binary_op
 
-function create_function_def(name, params, return_type, body, line, column) result(node)
+function create_function_def(name, param_indices, return_type, body_indices, line, column) result(node)
         character(len=*), intent(in) :: name
-        type(ast_node_wrapper), intent(in) :: params(:)
-        class(ast_node), intent(in) :: return_type
-        type(ast_node_wrapper), intent(in) :: body(:)
+        integer, intent(in) :: param_indices(:)
+        character(len=*), intent(in) :: return_type
+        integer, intent(in) :: body_indices(:)
         integer, intent(in), optional :: line, column
         type(function_def_node) :: node
 
         node%name = name
-        if (size(params) > 0) then
-            allocate (node%params, source=params)
+        if (size(param_indices) > 0) then
+            node%param_indices = param_indices
         end if
-        allocate (node%return_type, source=return_type)
-        if (size(body) > 0) then
-            allocate (node%body, source=body)
+        node%return_type = return_type
+        if (size(body_indices) > 0) then
+            node%body_indices = body_indices
         end if
         if (present(line)) node%line = line
         if (present(column)) node%column = column
     end function create_function_def
 
-    function create_subroutine_def(name, params, body, line, column) result(node)
+    function create_subroutine_def(name, param_indices, body_indices, line, column) result(node)
         character(len=*), intent(in) :: name
-        type(ast_node_wrapper), intent(in) :: params(:)
-        type(ast_node_wrapper), intent(in) :: body(:)
+        integer, intent(in) :: param_indices(:)
+        integer, intent(in) :: body_indices(:)
         integer, intent(in), optional :: line, column
         type(subroutine_def_node) :: node
 
         node%name = name
-        if (size(params) > 0) then
-            allocate (node%params, source=params)
+        if (size(param_indices) > 0) then
+            node%param_indices = param_indices
         end if
-        if (size(body) > 0) then
-            allocate (node%body, source=body)
+        if (size(body_indices) > 0) then
+            node%body_indices = body_indices
         end if
         if (present(line)) node%line = line
         if (present(column)) node%column = column
@@ -842,18 +842,14 @@ function create_function_def(name, params, return_type, body, line, column) resu
         if (present(column)) node%column = column
     end function create_include_statement
 
-    function create_print_statement(args, format_spec, line, column) result(node)
-        type(ast_node_wrapper), intent(in) :: args(:)
+    function create_print_statement(arg_indices, format_spec, line, column) result(node)
+        integer, intent(in) :: arg_indices(:)
         character(len=*), intent(in), optional :: format_spec
         integer, intent(in), optional :: line, column
         type(print_statement_node) :: node
-        integer :: i
 
-        if (size(args) > 0) then
-            allocate (node%args(size(args)))
-            do i = 1, size(args)
-                allocate (node%args(i)%node, source=args(i)%node)
-            end do
+        if (size(arg_indices) > 0) then
+            node%arg_indices = arg_indices
         end if
         if (present(format_spec)) node%format_spec = format_spec
         if (present(line)) node%line = line
@@ -1242,24 +1238,33 @@ function create_function_def(name, params, return_type, body, line, column) resu
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
 
-        call json%create_array(params_array, 'params')
+        call json%create_array(params_array, 'param_indices')
         call json%add(obj, params_array)
-        do i = 1, size(this%params)
-            call this%params(i)%node%to_json(json, params_array)
-        end do
+        if (allocated(this%param_indices)) then
+            do i = 1, size(this%param_indices)
+                block
+                    type(json_value), pointer :: param_obj
+                    call json%create_object(param_obj, '')
+                    call json%add(param_obj, 'stack_index', this%param_indices(i))
+                    call json%add(params_array, param_obj)
+                end block
+            end do
+        end if
 
-        block
-            type(json_value), pointer :: return_type_obj
-            call json%create_object(return_type_obj, 'return_type')
-            call this%return_type%to_json(json, return_type_obj)
-            call json%add(obj, return_type_obj)
-        end block
+        call json%add(obj, 'return_type', this%return_type)
 
-        call json%create_array(body_array, 'body')
+        call json%create_array(body_array, 'body_indices')
         call json%add(obj, body_array)
-        do i = 1, size(this%body)
-            call this%body(i)%node%to_json(json, body_array)
-        end do
+        if (allocated(this%body_indices)) then
+            do i = 1, size(this%body_indices)
+                block
+                    type(json_value), pointer :: body_obj
+                    call json%create_object(body_obj, '')
+                    call json%add(body_obj, 'stack_index', this%body_indices(i))
+                    call json%add(body_array, body_obj)
+                end block
+            end do
+        end if
 
         call json%add(parent, obj)
     end subroutine function_def_to_json
@@ -1277,17 +1282,31 @@ function create_function_def(name, params, return_type, body, line, column) resu
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
 
-        call json%create_array(params_array, 'params')
+        call json%create_array(params_array, 'param_indices')
         call json%add(obj, params_array)
-        do i = 1, size(this%params)
-            call this%params(i)%node%to_json(json, params_array)
-        end do
+        if (allocated(this%param_indices)) then
+            do i = 1, size(this%param_indices)
+                block
+                    type(json_value), pointer :: param_obj
+                    call json%create_object(param_obj, '')
+                    call json%add(param_obj, 'stack_index', this%param_indices(i))
+                    call json%add(params_array, param_obj)
+                end block
+            end do
+        end if
 
-        call json%create_array(body_array, 'body')
+        call json%create_array(body_array, 'body_indices')
         call json%add(obj, body_array)
-        do i = 1, size(this%body)
-            call this%body(i)%node%to_json(json, body_array)
-        end do
+        if (allocated(this%body_indices)) then
+            do i = 1, size(this%body_indices)
+                block
+                    type(json_value), pointer :: body_obj
+                    call json%create_object(body_obj, '')
+                    call json%add(body_obj, 'stack_index', this%body_indices(i))
+                    call json%add(body_array, body_obj)
+                end block
+            end do
+        end if
 
         call json%add(parent, obj)
     end subroutine subroutine_def_to_json
@@ -1459,11 +1478,16 @@ function create_function_def(name, params, return_type, body, line, column) resu
             call json%add(obj, 'format_spec', this%format_spec)
         end if
 
-        call json%create_array(args_array, 'args')
+        call json%create_array(args_array, 'arg_indices')
         call json%add(obj, args_array)
-        if (allocated(this%args)) then
-            do i = 1, size(this%args)
-                call this%args(i)%node%to_json(json, args_array)
+        if (allocated(this%arg_indices)) then
+            do i = 1, size(this%arg_indices)
+                block
+                    type(json_value), pointer :: arg_obj
+                    call json%create_object(arg_obj, '')
+                    call json%add(arg_obj, 'stack_index', this%arg_indices(i))
+                    call json%add(args_array, arg_obj)
+                end block
             end do
         end if
 

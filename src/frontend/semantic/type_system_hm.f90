@@ -425,32 +425,29 @@ contains
 
         select case (typ%kind)
         case (TVAR)
-            ! Skip substitution for now to avoid crash
-            ! TODO: Fix TVAR handling properly
-            ! lookup_result = this%lookup(typ%var)
-            ! if (allocated(lookup_result)) then
-            !     result_typ = lookup_result
-            ! end if
+            ! Apply substitution to type variable
+            lookup_result = this%lookup(typ%var)
+            if (allocated(lookup_result)) then
+                result_typ = lookup_result
+            end if
 
         case (TFUN, TARRAY)
             ! Simple non-recursive substitution - just handle direct args
             if (allocated(result_typ%args)) then
                 do i = 1, size(result_typ%args)
                     ! Simple case: if arg is a type variable, look it up
-                    ! STAGE 2 SAFETY: Skip type variable processing entirely to prevent crashes
-                    ! TODO: Fix the root cause in type variable initialization
-                    ! if (result_typ%args(i)%kind == TVAR) then
-                    !     block
-                    !         type(mono_type_t), allocatable :: lookup_result
-                    !         ! Defensive check: ensure var is properly initialized
-                    !         if (allocated(result_typ%args(i)%var%name) .and. result_typ%args(i)%var%id >= 0) then
-                    !             lookup_result = this%lookup(result_typ%args(i)%var)
-                    !             if (allocated(lookup_result)) then
-                    !                 result_typ%args(i) = lookup_result
-                    !             end if
-                    !         end if
-                    !     end block
-                    ! end if
+                    if (result_typ%args(i)%kind == TVAR) then
+                        block
+                            type(mono_type_t), allocatable :: lookup_result
+                            ! Defensive check: ensure var is properly initialized
+   if (allocated(result_typ%args(i)%var%name) .and. result_typ%args(i)%var%id >= 0) then
+                                lookup_result = this%lookup(result_typ%args(i)%var)
+                                if (allocated(lookup_result)) then
+                                    result_typ%args(i) = lookup_result
+                                end if
+                            end if
+                        end block
+                    end if
                 end do
             end if
 
