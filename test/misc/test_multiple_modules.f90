@@ -8,16 +8,14 @@ program test_multiple_modules
     character(len=128) :: package_name
     character(len=256) :: git_url
     logical :: found
+    type(temp_dir_manager) :: temp_mgr
 
     print *, '=== Multiple Modules from Same Package Test ===\'
 
     ! Create a temporary registry file
-    block
-        type(temp_dir_manager) :: temp_mgr
-        call temp_mgr%create('multiple_modules_test')
-        test_registry_path = temp_mgr%get_file_path('test_multiple_registry.toml')
-        call create_test_registry(test_registry_path)
-    end block
+    call temp_mgr%create('multiple_modules_test')
+    test_registry_path = temp_mgr%get_file_path('test_multiple_registry.toml')
+    call create_test_registry(test_registry_path)
 
     ! Load the test registry
     call load_registry_from_path(test_registry_path)

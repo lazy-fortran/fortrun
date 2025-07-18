@@ -43,17 +43,15 @@ contains
         character(len=256) :: error_msg
         logical :: success
         type(compilation_options_t) :: options
+        type(temp_dir_manager) :: temp_mgr
 
         test_count = test_count + 1
 
         ! Construct file paths
         input_file = trim(test_path)//"/"//trim(test_name)//".f"
         expected_file = trim(test_path)//"/"//trim(test_name)//".f90"
-        block
-            type(temp_dir_manager) :: temp_mgr
-            call temp_mgr%create('frontend_test')
-           actual_file = temp_mgr%get_file_path('test_'//trim(test_name)//'_actual.f90')
-        end block
+        call temp_mgr%create('frontend_test')
+        actual_file = temp_mgr%get_file_path('test_'//trim(test_name)//'_actual.f90')
 
         ! Check if test case files exist
         if (.not. file_exists(input_file)) then

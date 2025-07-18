@@ -65,6 +65,7 @@ contains
         character(len=:), allocatable :: content
         character(len=256) :: test_file
         logical :: file_exists
+        type(temp_dir_manager) :: temp_mgr
 
         print *, "Test 2: Save markdown"
         passed = .true.
@@ -76,11 +77,8 @@ contains
         call render_notebook_markdown(notebook, results, rendered)
 
         ! Save
-        block
-            type(temp_dir_manager) :: temp_mgr
-            call temp_mgr%create('renderer_simple_test')
-            test_file = temp_mgr%get_file_path('test_renderer_save.md')
-        end block
+        call temp_mgr%create('renderer_simple_test')
+        test_file = temp_mgr%get_file_path('test_renderer_save.md')
         if (allocated(rendered)) then
             call save_notebook_markdown(notebook, results, test_file)
 

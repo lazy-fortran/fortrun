@@ -46,8 +46,8 @@ contains
         ! Test initialization
         call init_figure_capture()
 
-        ! Check that temp directory was created
-        inquire(file=get_temp_file_path(get_system_temp_dir(), "fortran_figures"), exist=dir_exists)
+        ! Check that temp directory was created (default is ./fortran_figures)
+        inquire (file='./fortran_figures', exist=dir_exists)
         if (.not. dir_exists) then
             print *, '  FAIL: Temp directory not created'
             passed = .false.

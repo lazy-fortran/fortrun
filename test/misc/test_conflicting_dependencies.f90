@@ -11,16 +11,14 @@ program test_conflicting_dependencies
     type(module_info), dimension(2) :: test_modules
     integer :: unit, iostat
     logical :: found_v1, found_v2
+    type(temp_dir_manager) :: temp_mgr, temp_mgr2
 
     print *, '=== Conflicting Dependencies Tests ===\'
 
     ! Create a temporary registry file with conflicting versions
-    block
-        type(temp_dir_manager) :: temp_mgr
-        call temp_mgr%create('conflicting_deps_test')
-        test_registry_path = temp_mgr%get_file_path('registry.toml')
-        call create_test_registry_with_conflicts(test_registry_path)
-    end block
+    call temp_mgr%create('conflicting_deps_test')
+    test_registry_path = temp_mgr%get_file_path('registry.toml')
+    call create_test_registry_with_conflicts(test_registry_path)
 
     ! Load the test registry
     call load_registry_from_path(test_registry_path)
@@ -30,14 +28,11 @@ program test_conflicting_dependencies
     test_modules(2)%name = 'pyplot_utils'   ! Also maps to pyplot-fortran
 
     ! Create temporary project directory
-    block
-        type(temp_dir_manager) :: temp_mgr
-        call temp_mgr%create('test_conflict_project')
-        project_dir = temp_mgr%path
+    call temp_mgr2%create('test_conflict_project')
+    project_dir = temp_mgr2%path
 
-        ! Generate FPM file - this should handle the conflict
+    ! Generate FPM file - this should handle the conflict
     call generate_fpm_with_deps_from_config(project_dir, 'test_project', test_modules, 2, temp_mgr%path, .false., '')
-    end block
 
     ! Check the generated fpm.toml for conflict resolution
     fpm_toml_path = trim(project_dir)//'/fpm.toml'

@@ -227,12 +227,10 @@ contains
         character(len=256) :: temp_file
         character(len=512) :: full_command
         integer :: unit, iostat, file_size
+        type(temp_dir_manager) :: temp_mgr
 
-        block
-            type(temp_dir_manager) :: temp_mgr
-            call temp_mgr%create('fortran_system_test')
-            temp_file = temp_mgr%get_file_path('fortran_system_test.out')
-        end block
+        call temp_mgr%create('fortran_system_test')
+        temp_file = temp_mgr%get_file_path('fortran_system_test.out')
 
         full_command = trim(command)//' > '//trim(temp_file)//' 2>&1'
         call execute_command_line(full_command, exitstat=exit_code)
@@ -253,8 +251,6 @@ contains
         else
             output = ""
         end if
-
-        call execute_command_line('rm -f '//trim(temp_file))
 
     end subroutine execute_and_capture
 
