@@ -31,12 +31,12 @@ Complete the lexer → parser → semantic analyzer → codegen pipeline for sta
 - Arena-based JSON debug output implemented
 - Semantic analyzer integration ready (disabled due to scope lookup segfault)
 
-## Current Priority: Complete Frontend Finalization
+## Current Priority: COMPLETE Frontend TODO Elimination
 
 **Next Phase:**
-- **Resolve ALL remaining TODOs** in frontend code and tests
-- **Complete arena-based test compatibility**
-- **Final cleanup of implementation shortcuts**
+- **RESOLVE ALL TODOs, Notes, and shortcuts** in frontend code and tests
+- **IMPLEMENT actual functionality** instead of placeholders
+- **COMPLETE all remaining implementation gaps**
 
 **Completed Work ✅**
 - All critical frontend TODOs resolved and implemented
