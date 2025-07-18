@@ -61,14 +61,16 @@ contains
         integer, intent(in), optional :: line, column
         type(lf_program_node) :: node
         integer :: i
-        
+
         node%name = name
-        if (size(body) > 0) then
-            allocate(node%body(size(body)))
-            do i = 1, size(body)
-                allocate(node%body(i)%node, source=body(i))
-            end do
-        end if
+        ! NOTE: Temporarily disabled during arena conversion
+        ! TODO: Update lazy_fortran dialect to use arena-based AST
+        ! if (size(body) > 0) then
+        !     allocate(node%body(size(body)))
+        !     do i = 1, size(body)
+        !         allocate(node%body(i)%node, source=body(i))
+        !     end do
+        ! end if
         if (present(implicit)) node%implicit = implicit
         if (present(auto_contains)) node%auto_contains = auto_contains
         if (present(line)) node%line = line
@@ -80,9 +82,9 @@ contains
         class(ast_node), intent(in) :: initial_value
         integer, intent(in), optional :: line, column
         type(inferred_var_node) :: node
-        
+
         node%name = name
-        allocate(node%initial_value, source=initial_value)
+        allocate (node%initial_value, source=initial_value)
         if (present(line)) node%line = line
         if (present(column)) node%column = column
     end function create_inferred_var
@@ -94,11 +96,11 @@ contains
         class(ast_node), intent(in), optional :: condition
         integer, intent(in), optional :: line, column
         type(list_comp_node) :: node
-        
-        allocate(node%expr, source=expr)
-        allocate(node%target, source=target)
-        allocate(node%iter, source=iter)
-        if (present(condition)) allocate(node%condition, source=condition)
+
+        allocate (node%expr, source=expr)
+        allocate (node%target, source=target)
+        allocate (node%iter, source=iter)
+        if (present(condition)) allocate (node%condition, source=condition)
         if (present(line)) node%line = line
         if (present(column)) node%column = column
     end function create_list_comp
@@ -110,12 +112,12 @@ contains
         type(fstring_node) :: node
         integer :: i
         type(ast_node_wrapper) :: temp_wrapper
-        
+
         node%template = template
         if (size(expressions) > 0) then
-            allocate(node%expressions(0))
+            allocate (node%expressions(0))
             do i = 1, size(expressions)
-                allocate(temp_wrapper%node, source=expressions(i))
+                allocate (temp_wrapper%node, source=expressions(i))
                 node%expressions = [node%expressions, temp_wrapper]
             end do
         end if
@@ -161,7 +163,7 @@ contains
         type(json_value), pointer, intent(in) :: parent
         type(json_value), pointer :: obj, body_array
         integer :: i
-        
+
         call json%create_object(obj, '')
         call json%add(obj, 'type', 'lf_program')
         call json%add(obj, 'name', this%name)
@@ -169,16 +171,18 @@ contains
         call json%add(obj, 'auto_contains', this%auto_contains)
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
-        
+
         call json%create_array(body_array, 'body')
         call json%add(obj, body_array)
-        
-        if (allocated(this%body)) then
-            do i = 1, size(this%body)
-                call this%body(i)%node%to_json(json, body_array)
-            end do
-        end if
-        
+
+        ! NOTE: Temporarily disabled during arena conversion
+        ! TODO: Update to arena-based JSON serialization
+        ! if (allocated(this%body)) then
+        !     do i = 1, size(this%body)
+        !         call this%body(i)%node%to_json(json, body_array)
+        !     end do
+        ! end if
+
         call json%add(parent, obj)
     end subroutine lf_program_to_json
 
@@ -187,15 +191,15 @@ contains
         type(json_core), intent(inout) :: json
         type(json_value), pointer, intent(in) :: parent
         type(json_value), pointer :: obj
-        
+
         call json%create_object(obj, '')
         call json%add(obj, 'type', 'inferred_var')
         call json%add(obj, 'name', this%name)
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
-        
+
         call this%initial_value%to_json(json, obj)
-        
+
         call json%add(parent, obj)
     end subroutine inferred_var_to_json
 
@@ -204,20 +208,20 @@ contains
         type(json_core), intent(inout) :: json
         type(json_value), pointer, intent(in) :: parent
         type(json_value), pointer :: obj
-        
+
         call json%create_object(obj, '')
         call json%add(obj, 'type', 'list_comp')
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
-        
+
         call this%expr%to_json(json, obj)
         call this%target%to_json(json, obj)
         call this%iter%to_json(json, obj)
-        
+
         if (allocated(this%condition)) then
             call this%condition%to_json(json, obj)
         end if
-        
+
         call json%add(parent, obj)
     end subroutine list_comp_to_json
 
@@ -227,20 +231,20 @@ contains
         type(json_value), pointer, intent(in) :: parent
         type(json_value), pointer :: obj, expr_array
         integer :: i
-        
+
         call json%create_object(obj, '')
         call json%add(obj, 'type', 'fstring')
         call json%add(obj, 'template', this%template)
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
-        
+
         call json%create_array(expr_array, 'expressions')
         call json%add(obj, expr_array)
-        
+
         do i = 1, size(this%expressions)
             call this%expressions(i)%node%to_json(json, expr_array)
         end do
-        
+
         call json%add(parent, obj)
     end subroutine fstring_to_json
 
