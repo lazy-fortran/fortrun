@@ -15,7 +15,7 @@ library = false
 test = false
 [dependencies]
 fpm = { git = "https://github.com/krystophny/fpm.git", branch = "main" }
-json-fortran = { git = "https://github.com/krystophny/json-fortran.git", branch = "master" }
+json-fortran = "*"
 
 [fortran]
 implicit-typing = false
