@@ -458,8 +458,7 @@ contains
         integer :: interface_index
         type(interface_block_node) :: interface_block
 
-        ! TODO: Convert interface_block_node to arena-based indices
-        interface_block = create_interface_block(interface_name, "interface", line=line, column=column)
+        interface_block = create_interface_block(interface_name, "interface", procedure_indices=procedure_indices, line=line, column=column)
         call arena%push(interface_block, "interface_block", parent_index)
         interface_index = arena%size
     end function push_interface_block
@@ -473,9 +472,7 @@ contains
         integer :: module_index
         type(module_node) :: mod_node
 
-        ! Create module with simplified approach (using create_module)
-        ! TODO: Convert module_node to arena-based indices
-        mod_node = create_module(name, line=line, column=column)
+        mod_node = create_module(name, declaration_indices=body_indices, line=line, column=column)
 
         call arena%push(mod_node, "module_node", parent_index)
         module_index = arena%size

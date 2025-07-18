@@ -275,7 +275,7 @@ module ast_core
         character(len=:), allocatable :: name         ! Interface name (optional)
         character(len=:), allocatable :: kind         ! "interface", "generic", "operator", "assignment"
         character(len=:), allocatable :: operator     ! Operator symbol (for operator interfaces)
-        type(ast_node_wrapper), allocatable :: procedures(:) ! Procedure declarations
+        integer, allocatable :: procedure_indices(:)  ! Procedure declaration arena indices
     contains
         procedure :: accept => interface_block_accept
         procedure :: to_json => interface_block_to_json
@@ -284,8 +284,8 @@ module ast_core
     ! Module node
     type, extends(ast_node), public :: module_node
         character(len=:), allocatable :: name         ! Module name
-        type(ast_node_wrapper), allocatable :: declarations(:) ! Module declarations
-        type(ast_node_wrapper), allocatable :: procedures(:)   ! Module procedures (after contains)
+        integer, allocatable :: declaration_indices(:) ! Module declaration arena indices
+        integer, allocatable :: procedure_indices(:)   ! Module procedure arena indices (after contains)
         logical :: has_contains = .false.             ! Whether module has a contains section
     contains
         procedure :: accept => module_accept
@@ -966,11 +966,11 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         if (present(column)) node%column = column
     end function create_derived_type
 
-    function create_interface_block(name, kind, operator, procedures, line, column) result(node)
+    function create_interface_block(name, kind, operator, procedure_indices, line, column) result(node)
         character(len=*), intent(in), optional :: name
         character(len=*), intent(in) :: kind
         character(len=*), intent(in), optional :: operator
-        type(ast_node_wrapper), intent(in), optional :: procedures(:)
+        integer, intent(in), optional :: procedure_indices(:)
         integer, intent(in), optional :: line, column
         type(interface_block_node) :: node
 
@@ -984,9 +984,9 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
             node%operator = operator
         end if
 
-        if (present(procedures)) then
-            if (size(procedures) > 0) then
-                allocate (node%procedures, source=procedures)
+        if (present(procedure_indices)) then
+            if (size(procedure_indices) > 0) then
+                node%procedure_indices = procedure_indices
             end if
         end if
 
@@ -994,24 +994,26 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         if (present(column)) node%column = column
     end function create_interface_block
 
-    function create_module(name, declarations, procedures, has_contains, line, column) result(node)
+    function create_module(name, declaration_indices, procedure_indices, has_contains, line, column) result(node)
         character(len=*), intent(in) :: name
-        type(ast_node_wrapper), intent(in), optional :: declarations(:)
-        type(ast_node_wrapper), intent(in), optional :: procedures(:)
+        integer, intent(in), optional :: declaration_indices(:)
+        integer, intent(in), optional :: procedure_indices(:)
         logical, intent(in), optional :: has_contains
         integer, intent(in), optional :: line, column
         type(module_node) :: node
 
         node%name = name
 
-        if (present(declarations)) then
-            allocate (node%declarations(size(declarations)))
-            node%declarations = declarations
+        if (present(declaration_indices)) then
+            if (size(declaration_indices) > 0) then
+                node%declaration_indices = declaration_indices
+            end if
         end if
 
-        if (present(procedures)) then
-            allocate (node%procedures(size(procedures)))
-            node%procedures = procedures
+        if (present(procedure_indices)) then
+            if (size(procedure_indices) > 0) then
+                node%procedure_indices = procedure_indices
+            end if
         end if
 
         if (present(has_contains)) then
@@ -1715,14 +1717,17 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
             call json%add(obj, 'operator', this%operator)
         end if
 
-        if (allocated(this%procedures)) then
+        if (allocated(this%procedure_indices)) then
             block
                 type(json_value), pointer :: procedures_array
-                call json%create_array(procedures_array, 'procedures')
-                do i = 1, size(this%procedures)
-                    if (allocated(this%procedures(i)%node)) then
-                        call this%procedures(i)%node%to_json(json, procedures_array)
-                    end if
+                call json%create_array(procedures_array, 'procedure_indices')
+                do i = 1, size(this%procedure_indices)
+                    block
+                        type(json_value), pointer :: proc_obj
+                        call json%create_object(proc_obj, '')
+                       call json%add(proc_obj, 'arena_index', this%procedure_indices(i))
+                        call json%add(procedures_array, proc_obj)
+                    end block
                 end do
                 call json%add(obj, procedures_array)
             end block
@@ -1745,25 +1750,35 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         call json%add(obj, 'line', this%line)
         call json%add(obj, 'column', this%column)
 
-        ! Add declarations array
-        if (allocated(this%declarations)) then
+        ! Add declaration indices array
+        if (allocated(this%declaration_indices)) then
             block
                 type(json_value), pointer :: declarations_array
-                call json%create_array(declarations_array, 'declarations')
-                do i = 1, size(this%declarations)
-                    call this%declarations(i)%node%to_json(json, declarations_array)
+                call json%create_array(declarations_array, 'declaration_indices')
+                do i = 1, size(this%declaration_indices)
+                    block
+                        type(json_value), pointer :: decl_obj
+                        call json%create_object(decl_obj, '')
+                     call json%add(decl_obj, 'arena_index', this%declaration_indices(i))
+                        call json%add(declarations_array, decl_obj)
+                    end block
                 end do
                 call json%add(obj, declarations_array)
             end block
         end if
 
-        ! Add procedures array
-        if (allocated(this%procedures)) then
+        ! Add procedure indices array
+        if (allocated(this%procedure_indices)) then
             block
                 type(json_value), pointer :: procedures_array
-                call json%create_array(procedures_array, 'procedures')
-                do i = 1, size(this%procedures)
-                    call this%procedures(i)%node%to_json(json, procedures_array)
+                call json%create_array(procedures_array, 'procedure_indices')
+                do i = 1, size(this%procedure_indices)
+                    block
+                        type(json_value), pointer :: proc_obj
+                        call json%create_object(proc_obj, '')
+                       call json%add(proc_obj, 'arena_index', this%procedure_indices(i))
+                        call json%add(procedures_array, proc_obj)
+                    end block
                 end do
                 call json%add(obj, procedures_array)
             end block

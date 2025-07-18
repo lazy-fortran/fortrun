@@ -803,23 +803,25 @@ contains
         call ctx%scopes%enter_module(mod_node%name)
 
         ! Analyze module declarations
-        if (allocated(mod_node%declarations)) then
-            do i = 1, size(mod_node%declarations)
-                if (allocated(mod_node%declarations(i)%node)) then
-                    ! Analyze declaration using infer_and_store_type for arena compatibility
-                    ! Note: Module nodes not yet fully arena-converted, skip for now
-                    continue
+        if (allocated(mod_node%declaration_indices)) then
+            do i = 1, size(mod_node%declaration_indices)
+                if (mod_node%declaration_indices(i) > 0) then
+                    block
+                        type(mono_type_t) :: decl_type
+                        decl_type = ctx%infer(arena, mod_node%declaration_indices(i))
+                    end block
                 end if
             end do
         end if
 
         ! Analyze module procedures
-        if (allocated(mod_node%procedures)) then
-            do i = 1, size(mod_node%procedures)
-                if (allocated(mod_node%procedures(i)%node)) then
-                    ! Analyze procedure using infer_and_store_type for arena compatibility
-                    ! Note: Module nodes not yet fully arena-converted, skip for now
-                    continue
+        if (allocated(mod_node%procedure_indices)) then
+            do i = 1, size(mod_node%procedure_indices)
+                if (mod_node%procedure_indices(i) > 0) then
+                    block
+                        type(mono_type_t) :: proc_type
+                        proc_type = ctx%infer(arena, mod_node%procedure_indices(i))
+                    end block
                 end if
             end do
         end if

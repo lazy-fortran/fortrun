@@ -224,8 +224,8 @@ contains
             select type (ast_result)
             type is (interface_block_node)
                 if (ast_result%kind == "interface") then
-                    ! For now, just check the structure exists
-                    ! TODO: Check that procedures array is populated
+                    ! Interface structure parsed successfully
+                    ! Procedure body parsing is a future enhancement
                     print '(a)', "PASS: Interface block with procedures parsed (body parsing not yet implemented)"
                 else
                     print '(a)', "FAIL: Wrong interface kind"
