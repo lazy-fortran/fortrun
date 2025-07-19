@@ -451,7 +451,7 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
                         nesting_level = nesting_level + 1
                     else if (in_module .and. is_module_start(tokens, i)) then
                         nesting_level = nesting_level + 1
-                    else if (in_do_loop .and. is_do_loop_start(tokens, i)) then
+                    else if (in_do_loop .and. (is_do_loop_start(tokens, i) .or. is_do_while_start(tokens, i))) then
                         nesting_level = nesting_level + 1
                     else if (in_select_case .and. is_select_case_start(tokens, i)) then
                         nesting_level = nesting_level + 1
@@ -659,7 +659,7 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
         if (is_if_then_start(tokens, start_pos)) then
             in_if_block = .true.
             nesting_level = 1
-        else if (is_do_loop_start(tokens, start_pos)) then
+        else if (is_do_loop_start(tokens, start_pos) .or. is_do_while_start(tokens, start_pos)) then
             in_do_loop = .true.
             nesting_level = 1
         else if (is_select_case_start(tokens, start_pos)) then
@@ -677,7 +677,7 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
                 if (i /= start_pos) then
                     if (in_if_block .and. is_if_then_start(tokens, i)) then
                         nesting_level = nesting_level + 1
-                    else if (in_do_loop .and. is_do_loop_start(tokens, i)) then
+                    else if (in_do_loop .and. (is_do_loop_start(tokens, i) .or. is_do_while_start(tokens, i))) then
                         nesting_level = nesting_level + 1
                     else if (in_select_case .and. is_select_case_start(tokens, i)) then
                         nesting_level = nesting_level + 1

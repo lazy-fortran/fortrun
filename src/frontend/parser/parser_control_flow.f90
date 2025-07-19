@@ -817,7 +817,7 @@ contains
         type(ast_arena_t), intent(inout) :: arena
         character(len=*), intent(in) :: end_keywords(:)
         integer, allocatable :: body_indices(:)
-        
+
         type(token_t) :: token
         integer :: stmt_count, stmt_index
         integer :: stmt_start, stmt_end, j
@@ -852,7 +852,7 @@ contains
                     stmt_end = j
                     exit
                 end if
-                if (j > stmt_start .and. parser%tokens(j)%line > parser%tokens(stmt_start)%line) then
+   if (j > stmt_start .and. parser%tokens(j)%line > parser%tokens(stmt_start)%line) then
                     stmt_end = j - 1
                     exit
                 end if
@@ -862,11 +862,11 @@ contains
             ! Extract and parse statement tokens
             if (stmt_end >= stmt_start) then
                 allocate (stmt_tokens(stmt_end - stmt_start + 2))
-                stmt_tokens(1:stmt_end - stmt_start + 1) = parser%tokens(stmt_start:stmt_end)
+           stmt_tokens(1:stmt_end - stmt_start + 1) = parser%tokens(stmt_start:stmt_end)
                 stmt_tokens(stmt_end - stmt_start + 2)%kind = TK_EOF
                 stmt_tokens(stmt_end - stmt_start + 2)%text = ""
-                stmt_tokens(stmt_end - stmt_start + 2)%line = parser%tokens(stmt_end)%line
-                stmt_tokens(stmt_end - stmt_start + 2)%column = parser%tokens(stmt_end)%column + 1
+              stmt_tokens(stmt_end - stmt_start + 2)%line = parser%tokens(stmt_end)%line
+      stmt_tokens(stmt_end - stmt_start + 2)%column = parser%tokens(stmt_end)%column + 1
 
                 stmt_index = parse_basic_statement(stmt_tokens, arena)
 
@@ -929,9 +929,15 @@ contains
             do while (.not. parser%is_at_end())
                 token = parser%peek()
 
-                ! Check for 'end' keyword
+                ! Check for 'end do' keywords
                 if (token%kind == TK_KEYWORD .and. token%text == "end") then
-                    exit
+                    ! Check if next token is 'do'
+                    if (parser%current_token + 1 <= size(parser%tokens)) then
+                  if (parser%tokens(parser%current_token + 1)%kind == TK_KEYWORD .and. &
+                            parser%tokens(parser%current_token + 1)%text == "do") then
+                            exit  ! Found 'end do'
+                        end if
+                    end if
                 end if
 
                 ! Parse statement until end of line (same approach as if blocks)
@@ -944,7 +950,7 @@ contains
                         stmt_end = j
                         exit
                     end if
-                    if (j > stmt_start .and. parser%tokens(j)%line > parser%tokens(stmt_start)%line) then
+   if (j > stmt_start .and. parser%tokens(j)%line > parser%tokens(stmt_start)%line) then
                         stmt_end = j - 1
                         exit
                     end if
@@ -954,11 +960,11 @@ contains
                 ! Extract statement tokens
                 if (stmt_end >= stmt_start) then
                     allocate (stmt_tokens(stmt_end - stmt_start + 2))
-                    stmt_tokens(1:stmt_end - stmt_start + 1) = parser%tokens(stmt_start:stmt_end)
+           stmt_tokens(1:stmt_end - stmt_start + 1) = parser%tokens(stmt_start:stmt_end)
                     stmt_tokens(stmt_end - stmt_start + 2)%kind = TK_EOF
                     stmt_tokens(stmt_end - stmt_start + 2)%text = ""
-                    stmt_tokens(stmt_end - stmt_start + 2)%line = parser%tokens(stmt_end)%line
-                    stmt_tokens(stmt_end - stmt_start + 2)%column = parser%tokens(stmt_end)%column + 1
+              stmt_tokens(stmt_end - stmt_start + 2)%line = parser%tokens(stmt_end)%line
+      stmt_tokens(stmt_end - stmt_start + 2)%column = parser%tokens(stmt_end)%column + 1
 
                     ! Parse the statement
                     stmt_index = parse_basic_statement(stmt_tokens, arena)
@@ -977,7 +983,7 @@ contains
 
             body_indices = temp_body_indices
         end block
-        
+
         ! Consume 'end do' tokens
         block
             type(token_t) :: token

@@ -337,11 +337,8 @@ contains
             do i = 1, size(prog%body_indices)
              if (prog%body_indices(i) > 0 .and. prog%body_indices(i) <= arena%size) then
                     if (allocated(arena%entries(prog%body_indices(i))%node)) then
-                        select type (stmt => arena%entries(prog%body_indices(i))%node)
-                        type is (assignment_node)
-                            call collect_assignment_vars(arena, prog%body_indices(i), &
+                        call collect_statement_vars(arena, prog%body_indices(i), &
                                           var_names, var_types, var_declared, var_count)
-                        end select
                     end if
                 end if
             end do
@@ -370,6 +367,59 @@ contains
         end if
 
     end subroutine generate_and_insert_declarations
+
+    ! Collect variables from any statement type
+    recursive subroutine collect_statement_vars(arena, stmt_index, var_names, var_types, var_declared, var_count)
+        type(ast_arena_t), intent(in) :: arena
+        integer, intent(in) :: stmt_index
+        character(len=64), intent(inout) :: var_names(:)
+        character(len=64), intent(inout) :: var_types(:)
+        logical, intent(inout) :: var_declared(:)
+        integer, intent(inout) :: var_count
+        integer :: i
+
+        if (stmt_index <= 0 .or. stmt_index > arena%size) return
+        if (.not. allocated(arena%entries(stmt_index)%node)) return
+
+        select type (stmt => arena%entries(stmt_index)%node)
+        type is (assignment_node)
+            call collect_assignment_vars(arena, stmt_index, var_names, var_types, var_declared, var_count)
+        type is (do_loop_node)
+            ! Collect loop variable
+            call add_variable(stmt%var_name, "integer", var_names, var_types, var_declared, var_count)
+            ! Collect variables from body
+            if (allocated(stmt%body_indices)) then
+                do i = 1, size(stmt%body_indices)
+                    call collect_statement_vars(arena, stmt%body_indices(i), &
+                                          var_names, var_types, var_declared, var_count)
+                end do
+            end if
+        type is (do_while_node)
+            ! Collect variables from body
+            if (allocated(stmt%body_indices)) then
+                do i = 1, size(stmt%body_indices)
+                    call collect_statement_vars(arena, stmt%body_indices(i), &
+                                          var_names, var_types, var_declared, var_count)
+                end do
+            end if
+        type is (if_node)
+            ! Collect variables from then and else branches
+            if (allocated(stmt%then_body_indices)) then
+                do i = 1, size(stmt%then_body_indices)
+                    call collect_statement_vars(arena, stmt%then_body_indices(i), &
+                                          var_names, var_types, var_declared, var_count)
+                end do
+            end if
+            if (allocated(stmt%else_body_indices)) then
+                do i = 1, size(stmt%else_body_indices)
+                    call collect_statement_vars(arena, stmt%else_body_indices(i), &
+                                          var_names, var_types, var_declared, var_count)
+                end do
+            end if
+        type is (select_case_node)
+            ! TODO: Handle select case when implemented
+        end select
+    end subroutine collect_statement_vars
 
     ! Collect variables from assignment node
     subroutine collect_assignment_vars(arena, assign_index, var_names, var_types, var_declared, var_count)
@@ -432,6 +482,36 @@ contains
             end if
         end if
     end subroutine collect_identifier_var
+
+    ! Add a variable to the collection list
+    subroutine add_variable(var_name, var_type, var_names, var_types, var_declared, var_count)
+        character(len=*), intent(in) :: var_name
+        character(len=*), intent(in) :: var_type
+        character(len=64), intent(inout) :: var_names(:)
+        character(len=64), intent(inout) :: var_types(:)
+        logical, intent(inout) :: var_declared(:)
+        integer, intent(inout) :: var_count
+        integer :: i
+        logical :: found
+
+        ! Check if variable already exists
+        found = .false.
+        do i = 1, var_count
+            if (trim(var_names(i)) == trim(var_name)) then
+                found = .true.
+                exit
+            end if
+        end do
+
+        if (.not. found) then
+            var_count = var_count + 1
+            if (var_count <= size(var_names)) then
+                var_names(var_count) = var_name
+                var_types(var_count) = var_type
+                var_declared(var_count) = .true.
+            end if
+        end if
+    end subroutine add_variable
 
     ! Convert mono_type_t to Fortran type string
     function get_fortran_type_string(mono_type) result(type_str)

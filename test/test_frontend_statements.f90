@@ -102,9 +102,9 @@ contains
                               ''//new_line('a')// &
                               '    i = 0'//new_line('a')// &
                               '    do while (i < 3)'//new_line('a')// &
-                              '    print *, i'//new_line('a')// &
-                              '    i = i + 1'//new_line('a')// &
-                              'end do'//new_line('a')// &
+                              '        print *, i'//new_line('a')// &
+                              '        i = i + 1'//new_line('a')// &
+                              '    end do'//new_line('a')// &
                               'end program main')) then
             write (*, '(a)') '  ✓ PASS: Do while statement parsed correctly'
             pass_count = pass_count + 1
