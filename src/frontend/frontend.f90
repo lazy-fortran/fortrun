@@ -267,11 +267,26 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
         ! Check if file starts with explicit 'program', 'module', 'function', or 'subroutine' statement
         do i = 1, size(tokens)
             if (tokens(i)%kind == TK_KEYWORD) then
-                if (tokens(i)%text == "program" .or. tokens(i)%text == "module" .or. &
-                  tokens(i)%text == "function" .or. tokens(i)%text == "subroutine") then
+                if (tokens(i)%text == "program" .or. tokens(i)%text == "module") then
                     has_explicit_program_unit = .true.
+                    exit  ! Found explicit program unit
+         else if (tokens(i)%text == "function" .or. tokens(i)%text == "subroutine") then
+                    ! Check if it's a function/subroutine definition (not a call)
+                 if (i == 1 .or. (i > 1 .and. tokens(i - 1)%line < tokens(i)%line)) then
+                        ! At start of file or start of new line
+                        has_explicit_program_unit = .true.
+                        exit
+                    else if (i > 1 .and. tokens(i - 1)%kind == TK_KEYWORD .and. &
+               (tokens(i - 1)%text == "real" .or. tokens(i - 1)%text == "integer" .or. &
+           tokens(i - 1)%text == "logical" .or. tokens(i - 1)%text == "character")) then
+                        ! Type prefixed function/subroutine
+                        has_explicit_program_unit = .true.
+                        exit
+                    end if
+                else
+                    ! Found other keyword, not a program unit
+                    exit
                 end if
-                exit  ! Stop at first keyword
             else if (tokens(i)%kind /= TK_EOF) then
                 exit  ! Stop at first non-EOF token
             end if
@@ -289,7 +304,7 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
             end if
 
             ! Find program unit boundary
-            call find_program_unit_boundary(tokens, i, unit_start, unit_end)
+            call find_program_unit_boundary(tokens, i, unit_start, unit_end, has_explicit_program_unit)
 
             block
                 character(len=20) :: start_str, end_str
@@ -337,12 +352,24 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
             i = unit_end + 1
             call log_verbose("parsing", "Next iteration will start at token "// &
                              trim(adjustl(int_to_str(i))))
+
+            ! For lowercase fortran without explicit program units,
+            ! parse_all_statements has already processed everything
+            if (.not. has_explicit_program_unit .and. unit_end >= size(tokens) - 1) then
+                exit  ! We've processed all tokens
+            end if
         end do
 
         ! Create program node with collected body indices
         ! Only wrap in implicit program if there's no explicit program unit (program/module/function/subroutine)
         if (.not. has_explicit_program_unit) then
-            prog_index = push_program(arena, "main", body_indices, 1, 1)
+            ! For lowercase fortran, parse_all_statements already created the program node
+            if (stmt_count > 0) then
+                prog_index = body_indices(1)  ! This is the program node from parse_all_statements
+            else
+                error_msg = "No statements found in file"
+                prog_index = 0
+            end if
         else if (stmt_count > 0) then
             ! Use the first (and should be only) statement as the program unit
             prog_index = body_indices(1)
@@ -354,10 +381,11 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
     end subroutine parse_tokens
 
     ! Find program unit boundary (function/subroutine/module spans multiple lines)
-    subroutine find_program_unit_boundary(tokens, start_pos, unit_start, unit_end)
+    subroutine find_program_unit_boundary(tokens, start_pos, unit_start, unit_end, has_explicit_program)
         type(token_t), intent(in) :: tokens(:)
         integer, intent(in) :: start_pos
         integer, intent(out) :: unit_start, unit_end
+        logical, intent(in) :: has_explicit_program
 
         integer :: i, current_line, nesting_level
         logical :: in_function, in_subroutine, in_module, in_do_loop, in_select_case, in_if_block
@@ -480,17 +508,27 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
                 if (nesting_level == 0) exit
             end do
         else
-            ! Single line construct - find end of current line
-            current_line = tokens(start_pos)%line
-            i = start_pos
-            do while (i <= size(tokens))
-                if (tokens(i)%line == current_line) then
-                    unit_end = i
-                    i = i + 1
-                else
-                    exit
-                end if
-            end do
+            ! For lowercase fortran without explicit program units,
+            ! parse the entire remaining file as one unit
+            if (.not. has_explicit_program) then
+                ! Find end of all tokens (excluding final EOF)
+                unit_end = size(tokens)
+                do while (unit_end > start_pos .and. tokens(unit_end)%kind == TK_EOF)
+                    unit_end = unit_end - 1
+                end do
+            else
+                ! Single line construct - find end of current line
+                current_line = tokens(start_pos)%line
+                i = start_pos
+                do while (i <= size(tokens))
+                    if (tokens(i)%line == current_line) then
+                        unit_end = i
+                        i = i + 1
+                    else
+                        exit
+                    end if
+                end do
+            end if
 
             ! Skip empty lines (single EOF token on its own line)
             if (unit_end == unit_start .and. tokens(unit_start)%kind == TK_EOF) then
@@ -512,7 +550,7 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
         end if
     end subroutine find_program_unit_boundary
 
-    ! Parse a program unit (function, subroutine, module, or statement)
+    ! Parse a program unit (function, subroutine, module, or statements)
     function parse_program_unit(tokens, arena) result(unit_index)
         type(token_t), intent(in) :: tokens(:)
         type(ast_arena_t), intent(inout) :: arena
@@ -532,10 +570,177 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
                 unit_index = parse_function_definition(parser, arena)
             end block
         else
-            ! Simple statement - use arena-based parsing
-            unit_index = parse_statement_dispatcher(tokens, arena)
+            ! For lowercase fortran, we need to parse ALL statements in the token array
+            unit_index = parse_all_statements(tokens, arena)
         end if
     end function parse_program_unit
+
+    ! Parse all statements in a token array (for lowercase fortran)
+    function parse_all_statements(tokens, arena) result(prog_index)
+        type(token_t), intent(in) :: tokens(:)
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: prog_index
+        integer, allocatable :: body_indices(:)
+        integer :: i, stmt_start, stmt_end, stmt_index
+        type(token_t), allocatable :: stmt_tokens(:)
+
+        allocate (body_indices(0))
+
+        ! Parse each statement
+        i = 1
+        do while (i <= size(tokens))
+            if (tokens(i)%kind == TK_EOF) then
+                call log_verbose("parse_all", "Hit EOF token at position "// &
+                                 trim(adjustl(int_to_str(i))))
+                exit
+            end if
+
+            ! Find statement boundary
+            call find_statement_boundary(tokens, i, stmt_start, stmt_end)
+
+            ! Debug output
+            call log_verbose("parse_all", "Statement boundary: "// &
+                             trim(adjustl(int_to_str(stmt_start)))//" to "// &
+                             trim(adjustl(int_to_str(stmt_end))))
+
+            if (stmt_end >= stmt_start) then
+                ! Extract statement tokens
+                allocate (stmt_tokens(stmt_end - stmt_start + 2))
+                stmt_tokens(1:stmt_end - stmt_start + 1) = tokens(stmt_start:stmt_end)
+                ! Add EOF token
+                stmt_tokens(stmt_end - stmt_start + 2)%kind = TK_EOF
+                stmt_tokens(stmt_end - stmt_start + 2)%text = ""
+                stmt_tokens(stmt_end - stmt_start + 2)%line = tokens(stmt_end)%line
+             stmt_tokens(stmt_end - stmt_start + 2)%column = tokens(stmt_end)%column + 1
+
+                ! Parse the statement
+                stmt_index = parse_statement_dispatcher(stmt_tokens, arena)
+                if (stmt_index > 0) then
+                    body_indices = [body_indices, stmt_index]
+                end if
+
+                deallocate (stmt_tokens)
+            end if
+
+            i = stmt_end + 1
+            call log_verbose("parse_all", "Next statement starts at token "// &
+                             trim(adjustl(int_to_str(i)))//" of "// &
+                             trim(adjustl(int_to_str(size(tokens)))))
+
+            ! Debug: Show next token if available
+            if (i <= size(tokens)) then
+                call log_verbose("parse_all", "Next token: '"//tokens(i)%text// &
+                               "' (kind="//trim(adjustl(int_to_str(tokens(i)%kind)))// &
+                              ", line="//trim(adjustl(int_to_str(tokens(i)%line)))//")")
+            end if
+
+            ! Check bounds
+            if (i > size(tokens)) then
+                call log_verbose("parse_all", "Reached end of tokens array")
+                exit
+            end if
+        end do
+
+        ! Create program node with all statements
+        prog_index = push_program(arena, "main", body_indices, 1, 1)
+    end function parse_all_statements
+
+    ! Find statement boundary (handles multi-line constructs)
+    subroutine find_statement_boundary(tokens, start_pos, stmt_start, stmt_end)
+        type(token_t), intent(in) :: tokens(:)
+        integer, intent(in) :: start_pos
+        integer, intent(out) :: stmt_start, stmt_end
+        integer :: i, nesting_level
+        logical :: in_if_block, in_do_loop, in_select_case
+
+        stmt_start = start_pos
+        stmt_end = start_pos
+        in_if_block = .false.
+        in_do_loop = .false.
+        in_select_case = .false.
+        nesting_level = 0
+
+        ! Check for multi-line constructs
+        if (is_if_then_start(tokens, start_pos)) then
+            in_if_block = .true.
+            nesting_level = 1
+        else if (is_do_loop_start(tokens, start_pos)) then
+            in_do_loop = .true.
+            nesting_level = 1
+        else if (is_select_case_start(tokens, start_pos)) then
+            in_select_case = .true.
+            nesting_level = 1
+        end if
+
+        if (nesting_level > 0) then
+            ! Multi-line construct - find matching end
+            i = start_pos
+            do while (i <= size(tokens) .and. nesting_level > 0)
+                if (tokens(i)%kind == TK_EOF) exit
+
+                ! Check for nested constructs
+                if (i /= start_pos) then
+                    if (in_if_block .and. is_if_then_start(tokens, i)) then
+                        nesting_level = nesting_level + 1
+                    else if (in_do_loop .and. is_do_loop_start(tokens, i)) then
+                        nesting_level = nesting_level + 1
+                    else if (in_select_case .and. is_select_case_start(tokens, i)) then
+                        nesting_level = nesting_level + 1
+                    end if
+                end if
+
+                ! Check for end constructs
+                if (in_if_block .and. is_end_if(tokens, i)) then
+                    nesting_level = nesting_level - 1
+                    if (nesting_level == 0) then
+                        ! Check if it's "end if" (two tokens) or "endif" (one token)
+                        if (i + 1 <= size(tokens) .and. tokens(i)%text == "end" .and. &
+                 tokens(i + 1)%kind == TK_KEYWORD .and. tokens(i + 1)%text == "if") then
+                            stmt_end = i + 1  ! Include both "end" and "if"
+                        else
+                            stmt_end = i  ! Just "endif"
+                        end if
+                        exit
+                    end if
+                else if (in_do_loop .and. is_end_do(tokens, i)) then
+                    nesting_level = nesting_level - 1
+                    if (nesting_level == 0) then
+                        ! "end do" is always two tokens
+                        stmt_end = i + 1  ! Include both "end" and "do"
+                        exit
+                    end if
+                else if (in_select_case .and. is_end_select(tokens, i)) then
+                    nesting_level = nesting_level - 1
+                    if (nesting_level == 0) then
+                        ! "end select" is always two tokens
+                        stmt_end = i + 1  ! Include both "end" and "select"
+                        exit
+                    end if
+                end if
+
+                i = i + 1
+            end do
+
+            if (stmt_end == start_pos) then
+                stmt_end = i - 1  ! Couldn't find matching end
+            end if
+        else
+            ! Single-line statement - find end of line
+            i = start_pos
+            do while (i <= size(tokens))
+                if (tokens(i)%kind == TK_EOF) then
+                    stmt_end = i - 1
+                    exit
+               else if (i < size(tokens) .and. tokens(i)%line < tokens(i + 1)%line) then
+                    stmt_end = i
+                    exit
+                else
+                    stmt_end = i
+                    i = i + 1
+                end if
+            end do
+        end if
+    end subroutine find_statement_boundary
 
     ! Helper functions to detect program unit types
     logical function is_function_start(tokens, pos)

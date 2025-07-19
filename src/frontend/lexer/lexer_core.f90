@@ -220,9 +220,17 @@ contains
         ! Scan until closing quote
         do while (pos <= len(source))
             if (source(pos:pos) == quote_char) then
-                pos = pos + 1
-                col_num = col_num + 1
-                exit
+                ! Check if it's an escaped quote (doubled)
+            if (pos + 1 <= len(source) .and. source(pos + 1:pos + 1) == quote_char) then
+                    ! Escaped quote - skip both characters
+                    pos = pos + 2
+                    col_num = col_num + 2
+                else
+                    ! End of string
+                    pos = pos + 1
+                    col_num = col_num + 1
+                    exit
+                end if
             else if (source(pos:pos) == new_line('a')) then
                 ! Error: unterminated string
                 exit
@@ -556,24 +564,24 @@ contains
     function token_deep_copy(this) result(copy)
         class(token_t), intent(in) :: this
         type(token_t) :: copy
-        
+
         copy%kind = this%kind
         copy%line = this%line
         copy%column = this%column
-        
+
         if (allocated(this%text)) then
             copy%text = this%text
         end if
     end function token_deep_copy
-    
+
     subroutine token_assign(lhs, rhs)
         class(token_t), intent(out) :: lhs
         type(token_t), intent(in) :: rhs
-        
+
         lhs%kind = rhs%kind
         lhs%line = rhs%line
         lhs%column = rhs%column
-        
+
         if (allocated(rhs%text)) then
             lhs%text = rhs%text
         end if
