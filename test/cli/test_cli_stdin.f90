@@ -45,7 +45,7 @@ contains
         character(len=256) :: custom_cache_dir, custom_config_dir, notebook_output
         integer :: parallel_jobs
         logical :: no_wait, notebook_mode, standardize_only, clear_cache, cache_info
-        logical :: debug_tokens, debug_ast, debug_semantic, debug_codegen
+    logical :: debug_tokens, debug_ast, debug_semantic, debug_standardize, debug_codegen
         logical :: from_tokens, from_ast, from_semantic
 
         test_no_args_no_stdin_shows_help = .true.
@@ -62,7 +62,7 @@ contains
                                               parallel_jobs, no_wait, notebook_mode, &
                                               notebook_output, standardize_only, &
                                               clear_cache, cache_info, debug_tokens, &
-                                             debug_ast, debug_semantic, debug_codegen, &
+                          debug_ast, debug_semantic, debug_standardize, debug_codegen, &
                                               from_tokens, from_ast, from_semantic, &
                                               has_stdin=.false., nargs_override=0)
 
@@ -83,7 +83,7 @@ contains
         character(len=256) :: custom_cache_dir, custom_config_dir, notebook_output
         integer :: parallel_jobs
         logical :: no_wait, notebook_mode, standardize_only, clear_cache, cache_info
-        logical :: debug_tokens, debug_ast, debug_semantic, debug_codegen
+    logical :: debug_tokens, debug_ast, debug_semantic, debug_standardize, debug_codegen
         logical :: from_tokens, from_ast, from_semantic
 
         test_no_args_with_stdin_uses_stdin = .true.
@@ -96,7 +96,7 @@ contains
                                               parallel_jobs, no_wait, notebook_mode, &
                                               notebook_output, standardize_only, &
                                               clear_cache, cache_info, debug_tokens, &
-                                             debug_ast, debug_semantic, debug_codegen, &
+                          debug_ast, debug_semantic, debug_standardize, debug_codegen, &
                                               from_tokens, from_ast, from_semantic, &
                                               has_stdin=.true., nargs_override=0)
 

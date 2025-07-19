@@ -135,6 +135,7 @@ temp_input = get_temp_file_path(create_temp_dir('fortran_test'), 'test_frontend_
         ! Set up compilation options
         temp_output = get_temp_file_path(create_temp_dir('fortran_test'), 'test_frontend_stmt_out.f90')
         options%backend = BACKEND_FORTRAN
+        allocate (character(len=len(temp_output)) :: options%output_file)
         options%output_file = temp_output
 
         ! Compile

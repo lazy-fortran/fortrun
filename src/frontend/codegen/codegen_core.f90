@@ -167,14 +167,21 @@ contains
         type(program_node), intent(in) :: node
         integer, intent(in) :: node_index
         character(len=:), allocatable :: code
-        character(len=:), allocatable :: use_statements, body_code
+        character(len=:), allocatable :: use_statements, declarations, exec_statements
         integer, allocatable :: child_indices(:)
         integer :: i
         character(len=:), allocatable :: stmt_code
+    logical :: has_declarations, has_executable, has_implicit_none, has_var_declarations
 
-        ! First pass: collect use statements
+        ! Initialize sections
         use_statements = ""
-        body_code = ""
+        declarations = ""
+        exec_statements = ""
+        has_declarations = .false.
+        has_executable = .false.
+        has_implicit_none = .false.
+        has_var_declarations = .false.
+
         ! Use body_indices from program_node, not get_children
         if (allocated(node%body_indices)) then
             allocate (child_indices(size(node%body_indices)))
@@ -183,6 +190,7 @@ contains
             allocate (child_indices(0))
         end if
 
+        ! Process all statements, separating by type
         do i = 1, size(child_indices)
             if (child_indices(i) > 0 .and. child_indices(i) <= arena%size) then
                 if (allocated(arena%entries(child_indices(i))%node)) then
@@ -192,27 +200,68 @@ contains
                             use_statements = use_statements//new_line('A')
                         end if
         use_statements = use_statements//"    "//generate_code_use_statement(child_node)
-                    class default
+                    type is (literal_node)
+                        ! Check for implicit none
+                        if (child_node%value == "implicit none") then
+                            if (len(declarations) > 0) then
+                                declarations = declarations//new_line('A')
+                            end if
+                            declarations = declarations//"    implicit none"
+                            has_declarations = .true.
+                            has_implicit_none = .true.
+                        else
+                            ! Other literals go to executable section
+                           stmt_code = generate_code_from_arena(arena, child_indices(i))
+                            if (len(stmt_code) > 0) then
+                                if (len(exec_statements) > 0) then
+                                    exec_statements = exec_statements//new_line('A')
+                                end if
+                                exec_statements = exec_statements//"    "//stmt_code
+                                has_executable = .true.
+                            end if
+                        end if
+                    type is (declaration_node)
                         stmt_code = generate_code_from_arena(arena, child_indices(i))
                         if (len(stmt_code) > 0) then
-                            if (len(body_code) > 0) then
-                                body_code = body_code//new_line('A')
+                            if (len(declarations) > 0) then
+                                declarations = declarations//new_line('A')
                             end if
-                            body_code = body_code//"    "//stmt_code
+                            declarations = declarations//"    "//stmt_code
+                            has_declarations = .true.
+                            has_var_declarations = .true.
+                        end if
+                    class default
+                        ! All other statements are executable
+                        stmt_code = generate_code_from_arena(arena, child_indices(i))
+                        if (len(stmt_code) > 0) then
+                            if (len(exec_statements) > 0) then
+                                exec_statements = exec_statements//new_line('A')
+                            end if
+                            exec_statements = exec_statements//"    "//stmt_code
+                            has_executable = .true.
                         end if
                     end select
                 end if
             end if
         end do
 
-        ! Combine everything
+        ! Combine everything with proper spacing
         code = "program "//node%name//new_line('A')
+
         if (len(use_statements) > 0) then
             code = code//use_statements//new_line('A')
         end if
 
-        if (len(body_code) > 0) then
-            code = code//body_code//new_line('A')
+        if (len(declarations) > 0) then
+            code = code//declarations//new_line('A')
+            ! Add blank line after declarations only if we have variable declarations and executable statements
+            if (has_var_declarations .and. has_executable) then
+                code = code//new_line('A')
+            end if
+        end if
+
+        if (len(exec_statements) > 0) then
+            code = code//exec_statements//new_line('A')
         end if
 
         code = code//"end program "//node%name
