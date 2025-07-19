@@ -47,6 +47,8 @@ contains
             code = generate_code_print_statement(arena, node, node_index)
         type is (declaration_node)
             code = generate_code_declaration(arena, node, node_index)
+        type is (parameter_declaration_node)
+            code = generate_code_parameter_declaration(arena, node, node_index)
         type is (if_node)
             code = generate_code_if(arena, node, node_index)
         type is (do_loop_node)
@@ -228,6 +230,16 @@ contains
                             end if
                         end if
                     type is (declaration_node)
+                        stmt_code = generate_code_from_arena(arena, child_indices(i))
+                        if (len(stmt_code) > 0) then
+                            if (len(declarations) > 0) then
+                                declarations = declarations//new_line('A')
+                            end if
+                            declarations = declarations//stmt_code
+                            has_declarations = .true.
+                        end if
+                    type is (parameter_declaration_node)
+                        ! Parameter declarations are handled like regular declarations in body
                         stmt_code = generate_code_from_arena(arena, child_indices(i))
                         if (len(stmt_code) > 0) then
                             if (len(declarations) > 0) then
@@ -545,6 +557,19 @@ contains
             code = code//" = "//init_code
         end if
     end function generate_code_declaration
+
+    ! Generate code for parameter declaration
+    function generate_code_parameter_declaration(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
+        type(parameter_declaration_node), intent(in) :: node
+        integer, intent(in) :: node_index
+        character(len=:), allocatable :: code
+
+        ! In parameter lists, only output the parameter name
+        ! The type information is used in the body declarations
+        code = node%name
+
+    end function generate_code_parameter_declaration
 
     ! Generate code for if statement
     function generate_code_if(arena, node, node_index) result(code)
@@ -966,6 +991,59 @@ contains
 
                         code = code//indent//stmt_code//new_line('a')
                         i = j  ! Skip processed declarations
+
+                    type is (parameter_declaration_node)
+                        ! Handle parameter declarations (convert to regular declarations)
+                        group_type = node%type_name
+                        group_kind = node%kind_value
+                        group_has_kind = (node%kind_value > 0)
+                        if (len_trim(node%intent) > 0) then
+                            group_intent = node%intent
+                        else
+                            group_intent = ""
+                        end if
+                        var_list = node%name
+
+                        ! Look ahead for more parameter declarations of same type
+                        j = i + 1
+                        do while (j <= size(body_indices))
+                       if (body_indices(j) > 0 .and. body_indices(j) <= arena%size) then
+                                if (allocated(arena%entries(body_indices(j))%node)) then
+                          select type (next_node => arena%entries(body_indices(j))%node)
+                                    type is (parameter_declaration_node)
+                                        ! Check if same type, kind, and intent
+                                        if (next_node%type_name == group_type .and. &
+                                            next_node%kind_value == group_kind .and. &
+                                            next_node%intent == group_intent) then
+                                            ! Add to group
+                                            var_list = var_list//", "//next_node%name
+                                            j = j + 1
+                                        else
+                                            exit
+                                        end if
+                                    class default
+                                        exit
+                                    end select
+                                else
+                                    exit
+                                end if
+                            else
+                                exit
+                            end if
+                        end do
+
+                        ! Generate grouped parameter declaration
+                        stmt_code = group_type
+                        if (group_has_kind) then
+               stmt_code = stmt_code//"("//trim(adjustl(int_to_string(group_kind)))//")"
+                        end if
+                        if (len_trim(group_intent) > 0) then
+                            stmt_code = stmt_code//", intent("//group_intent//")"
+                        end if
+                        stmt_code = stmt_code//" :: "//var_list
+
+                        code = code//indent//stmt_code//new_line('a')
+                        i = j  ! Skip processed parameter declarations
 
                     class default
                         ! Non-declaration node - generate normally

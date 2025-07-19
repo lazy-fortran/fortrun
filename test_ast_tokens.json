@@ -1,0 +1,40 @@
+{
+  "tokens": [
+    {
+      "type": "identifier",
+      "text": "y",
+      "line": 1,
+      "column": 1
+    },
+    {
+      "type": "operator",
+      "text": "=",
+      "line": 1,
+      "column": 3
+    },
+    {
+      "type": "number",
+      "text": "2",
+      "line": 1,
+      "column": 5
+    },
+    {
+      "type": "operator",
+      "text": "*",
+      "line": 1,
+      "column": 7
+    },
+    {
+      "type": "number",
+      "text": "3",
+      "line": 1,
+      "column": 9
+    },
+    {
+      "type": "eof",
+      "text": "",
+      "line": 2,
+      "column": 1
+    }
+  ]
+}

@@ -6,7 +6,7 @@ module ast_factory
     ! Public interface for creating AST nodes in stack-based system
     public :: push_program, push_assignment, push_binary_op
    public :: push_call_or_subscript, push_subroutine_call, push_identifier, push_literal
-    public :: push_derived_type, push_declaration
+    public :: push_derived_type, push_declaration, push_parameter_declaration
     public :: push_if, push_do_loop, push_do_while, push_select_case
     public :: push_use_statement, push_include_statement, push_print_statement
     public :: push_function_def, push_subroutine_def, push_interface_block, push_module
@@ -196,6 +196,49 @@ contains
         call arena%push(decl, "declaration", parent_index)
         decl_index = arena%size
     end function push_declaration
+
+    ! Create parameter declaration node and add to stack
+ function push_parameter_declaration(arena, name, type_name, kind_value, intent_value, &
+                                        line, column, parent_index) result(param_index)
+        type(ast_arena_t), intent(inout) :: arena
+        character(len=*), intent(in) :: name, type_name
+        integer, intent(in), optional :: kind_value, intent_value
+        integer, intent(in), optional :: line, column, parent_index
+        integer :: param_index
+        type(parameter_declaration_node) :: param
+
+        param%name = name
+        param%type_name = type_name
+
+        if (present(kind_value) .and. kind_value > 0) then
+            param%kind_value = kind_value
+        else
+            param%kind_value = 0
+        end if
+
+        if (present(intent_value)) then
+            select case (intent_value)
+            case (1)
+                param%intent = "in"
+            case (2)
+                param%intent = "out"
+            case (3)
+                param%intent = "inout"
+            case default
+                param%intent = ""
+            end select
+        else
+            param%intent = ""
+        end if
+
+        param%is_array = .false.
+
+        if (present(line)) param%line = line
+        if (present(column)) param%column = column
+
+        call arena%push(param, "parameter_declaration", parent_index)
+        param_index = arena%size
+    end function push_parameter_declaration
 
     ! Create if statement node and add to stack
     function push_if(arena, condition_index, then_body_indices, elseif_indices, else_body_indices, &

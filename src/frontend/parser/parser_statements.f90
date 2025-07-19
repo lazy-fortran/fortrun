@@ -427,6 +427,214 @@ contains
 
     end subroutine parse_derived_type_parameters
 
+    ! Parse function/subroutine parameters with explicit type declarations
+    subroutine parse_typed_parameters(parser, arena, param_indices)
+        type(parser_state_t), intent(inout) :: parser
+        type(ast_arena_t), intent(inout) :: arena
+        integer, allocatable, intent(out) :: param_indices(:)
+
+        type(token_t) :: token
+        integer :: param_count
+        logical :: parsing_type_spec
+        character(len=:), allocatable :: current_type, current_kind_str
+        integer :: current_kind, current_intent
+        integer, allocatable :: temp_params(:)
+        integer :: line, column
+
+        param_count = 0
+        allocate (param_indices(0))
+        parsing_type_spec = .false.
+
+        do while (.not. parser%is_at_end())
+            token = parser%peek()
+
+            ! Check for closing parenthesis
+            if (token%kind == TK_OPERATOR .and. token%text == ")") then
+                exit
+            end if
+
+            ! Check for comma (parameter separator)
+            if (token%kind == TK_OPERATOR .and. token%text == ",") then
+                token = parser%consume()
+                parsing_type_spec = .false.  ! Reset after comma
+                cycle
+            end if
+
+            ! Check for type keywords (real, integer, etc.)
+            if (token%kind == TK_KEYWORD .and. &
+                (token%text == "real" .or. token%text == "integer" .or. &
+                 token%text == "logical" .or. token%text == "character" .or. &
+                 token%text == "type")) then
+
+                parsing_type_spec = .true.
+                current_type = token%text
+                current_kind = 0
+                current_intent = 0
+                line = token%line
+                column = token%column
+                token = parser%consume()
+
+                ! Check for kind specification (e.g., real(8))
+                token = parser%peek()
+                if (token%kind == TK_OPERATOR .and. token%text == "(") then
+                    token = parser%consume()  ! consume '('
+
+                    token = parser%peek()
+                    if (token%kind == TK_NUMBER) then
+                        read (token%text, *) current_kind
+                        token = parser%consume()
+                    else if (token%kind == TK_IDENTIFIER) then
+                        ! For type(typename)
+                        current_type = current_type//"("//token%text//")"
+                        token = parser%consume()
+                    end if
+
+                    ! Consume ')'
+                    token = parser%peek()
+                    if (token%kind == TK_OPERATOR .and. token%text == ")") then
+                        token = parser%consume()
+                    end if
+                end if
+
+                ! Check for comma followed by attributes
+                token = parser%peek()
+                if (token%kind == TK_OPERATOR .and. token%text == ",") then
+                    token = parser%consume()  ! consume ','
+
+                    ! Check for intent
+                    token = parser%peek()
+                    if (token%kind == TK_KEYWORD .and. token%text == "intent") then
+                        token = parser%consume()  ! consume 'intent'
+
+                        token = parser%peek()
+                        if (token%kind == TK_OPERATOR .and. token%text == "(") then
+                            token = parser%consume()  ! consume '('
+
+                            token = parser%peek()
+                            if (token%kind == TK_KEYWORD) then
+                                if (token%text == "in") then
+                                    current_intent = 1
+                                else if (token%text == "out") then
+                                    current_intent = 2
+                                else if (token%text == "inout") then
+                                    current_intent = 3
+                                end if
+                                token = parser%consume()
+                            end if
+
+                            ! Consume ')'
+                            token = parser%peek()
+                            if (token%kind == TK_OPERATOR .and. token%text == ")") then
+                                token = parser%consume()
+                            end if
+                        end if
+                 else if (token%kind == TK_KEYWORD .and. token%text == "dimension") then
+                        ! Skip dimension attribute for now
+                        token = parser%consume()
+                        token = parser%peek()
+                        if (token%kind == TK_OPERATOR .and. token%text == "(") then
+                            ! Skip dimension specification
+                            token = parser%consume()
+                            do while (.not. parser%is_at_end())
+                                token = parser%peek()
+                             if (token%kind == TK_OPERATOR .and. token%text == ")") then
+                                    token = parser%consume()
+                                    exit
+                                end if
+                                token = parser%consume()
+                            end do
+                        end if
+                    end if
+                end if
+
+                ! Expect :: after type specification
+                token = parser%peek()
+                if (token%kind == TK_OPERATOR .and. token%text == "::") then
+                    token = parser%consume()
+                end if
+
+                ! Now collect all parameter names for this type
+                allocate (temp_params(0))
+                do while (.not. parser%is_at_end())
+                    token = parser%peek()
+
+                    if (token%kind == TK_IDENTIFIER) then
+                        ! Create parameter declaration node with type info
+                        block
+                            integer :: param_index
+             param_index = push_parameter_declaration(arena, token%text, current_type, &
+                                                         current_kind, current_intent, &
+                                                                     line, column)
+                            temp_params = [temp_params, param_index]
+                        end block
+                        token = parser%consume()
+
+                        ! Check for array specification
+                        token = parser%peek()
+                        if (token%kind == TK_OPERATOR .and. token%text == "(") then
+                            ! Skip array dimensions for now
+                            token = parser%consume()
+                            do while (.not. parser%is_at_end())
+                                token = parser%peek()
+                             if (token%kind == TK_OPERATOR .and. token%text == ")") then
+                                    token = parser%consume()
+                                    exit
+                                end if
+                                token = parser%consume()
+                            end do
+                        end if
+
+                        ! Check for comma (more params of same type)
+                        token = parser%peek()
+                        if (token%kind == TK_OPERATOR .and. token%text == ",") then
+                            ! Peek ahead to see if next is a type keyword
+                            if (parser%current_token + 1 <= size(parser%tokens)) then
+                                block
+                                    type(token_t) :: next_token
+                                    next_token = parser%tokens(parser%current_token + 1)
+                                    if (next_token%kind == TK_KEYWORD .and. &
+                     (next_token%text == "real" .or. next_token%text == "integer" .or. &
+                 next_token%text == "logical" .or. next_token%text == "character")) then
+                                        ! This comma separates different type groups
+                                        exit
+                                    else
+                                        ! This comma separates params of same type
+                                        token = parser%consume()  ! consume comma
+                                        cycle
+                                    end if
+                                end block
+                            else
+                                token = parser%consume()  ! consume comma
+                                cycle
+                            end if
+                        else
+                            ! No more params of this type
+                            exit
+                        end if
+                    else
+                        ! Not an identifier, stop collecting params for this type
+                        exit
+                    end if
+                end do
+
+                ! Add collected params to main list
+                param_indices = [param_indices, temp_params]
+                param_count = param_count + size(temp_params)
+                deallocate (temp_params)
+
+            else if (token%kind == TK_IDENTIFIER .and. .not. parsing_type_spec) then
+                ! Simple parameter without explicit type
+                param_indices = [param_indices, push_identifier(arena, token%text, token%line, token%column)]
+                param_count = param_count + 1
+                token = parser%consume()
+            else
+                ! Skip unexpected token
+                token = parser%consume()
+            end if
+        end do
+
+    end subroutine parse_typed_parameters
+
     function parse_function_definition(parser, arena) result(func_index)
         type(parser_state_t), intent(inout) :: parser
         type(ast_arena_t), intent(inout) :: arena
@@ -478,39 +686,14 @@ contains
         if (token%kind == TK_OPERATOR .and. token%text == "(") then
             token = parser%consume()
 
-            ! Parse parameter list
-            block
-                integer :: param_count
+            ! Use new typed parameter parser
+            call parse_typed_parameters(parser, arena, param_indices)
 
-                param_count = 0
-                allocate (param_indices(0))
-
-                do while (.not. parser%is_at_end())
-                    token = parser%peek()
-
-                    ! Check for closing parenthesis
-                    if (token%kind == TK_OPERATOR .and. token%text == ")") then
-                        token = parser%consume()
-                        exit
-                    end if
-
-                    ! Check for comma (parameter separator)
-                    if (token%kind == TK_OPERATOR .and. token%text == ",") then
-                        token = parser%consume()
-                        cycle
-                    end if
-
-                    ! Parse parameter identifier
-                    if (token%kind == TK_IDENTIFIER) then
-                        param_indices = [param_indices, push_identifier(arena, token%text, token%line, token%column)]
-                        param_count = param_count + 1
-                        token = parser%consume()
-                    else
-                        ! Skip unexpected token
-                        token = parser%consume()
-                    end if
-                end do
-            end block
+            ! Consume closing parenthesis if not already consumed
+            token = parser%peek()
+            if (token%kind == TK_OPERATOR .and. token%text == ")") then
+                token = parser%consume()
+            end if
         else
             allocate (param_indices(0))
         end if
@@ -663,61 +846,18 @@ contains
         if (token%kind == TK_OPERATOR .and. token%text == "(") then
             token = parser%consume()  ! consume '('
 
-            ! Parse parameter list inline
-            block
-                integer :: param_count
+            ! Use new typed parameter parser
+            call parse_typed_parameters(parser, arena, param_indices)
 
-                param_count = 0
-                allocate (param_indices(0))
-
-                do while (.not. parser%is_at_end())
-                    token = parser%peek()
-
-                    ! Check for closing parenthesis
-                    if (token%kind == TK_OPERATOR .and. token%text == ")") then
-                        token = parser%consume()
-                        exit
-                    end if
-
-                    ! Check for comma (parameter separator)
-                    if (token%kind == TK_OPERATOR .and. token%text == ",") then
-                        token = parser%consume()
-                        cycle
-                    end if
-
-                    ! Parse parameter identifier
-                    if (token%kind == TK_IDENTIFIER) then
-                        param_indices = [param_indices, push_identifier(arena, token%text, token%line, token%column)]
-                        param_count = param_count + 1
-                        token = parser%consume()
-                    else
-                        ! Skip unexpected token
-                        token = parser%consume()
-                    end if
-                end do
-            end block
+            ! Consume closing parenthesis if not already consumed
+            token = parser%peek()
+            if (token%kind == TK_OPERATOR .and. token%text == ")") then
+                token = parser%consume()
+            end if
         else
             ! No parameters
             allocate (param_indices(0))
         end if
-
-        ! Parse body (simplified for now - just consume tokens until end subroutine)
-        allocate (body_indices(0))
-
-        ! Look for end subroutine
-        do while (.not. parser%is_at_end())
-            token = parser%peek()
-            if (token%kind == TK_KEYWORD .and. token%text == "end") then
-                token = parser%consume()  ! consume 'end'
-                token = parser%peek()
-                if (token%kind == TK_KEYWORD .and. token%text == "subroutine") then
-                    token = parser%consume()  ! consume 'subroutine'
-                    exit
-                end if
-            else
-                token = parser%consume()  ! skip other tokens
-            end if
-        end do
 
         ! Parse subroutine body (collect all statements until "end subroutine")
         block
