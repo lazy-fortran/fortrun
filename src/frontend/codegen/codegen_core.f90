@@ -2,6 +2,7 @@ module codegen_core
     use ast_core
     use type_system_hm
     use fpm_strings, only: string_t
+    use codegen_indent
     implicit none
     private
 
@@ -173,6 +174,9 @@ contains
         character(len=:), allocatable :: stmt_code
     logical :: has_declarations, has_executable, has_implicit_none, has_var_declarations
 
+        ! Reset indentation for top-level program
+        call reset_indent()
+
         ! Initialize sections
         use_statements = ""
         declarations = ""
@@ -199,14 +203,14 @@ contains
                         if (len(use_statements) > 0) then
                             use_statements = use_statements//new_line('A')
                         end if
-        use_statements = use_statements//"    "//generate_code_use_statement(child_node)
+                use_statements = use_statements//generate_code_use_statement(child_node)
                     type is (literal_node)
                         ! Check for implicit none
                         if (child_node%value == "implicit none") then
                             if (len(declarations) > 0) then
                                 declarations = declarations//new_line('A')
                             end if
-                            declarations = declarations//"    implicit none"
+                            declarations = declarations//"implicit none"
                             has_declarations = .true.
                             has_implicit_none = .true.
                         else
@@ -216,7 +220,7 @@ contains
                                 if (len(exec_statements) > 0) then
                                     exec_statements = exec_statements//new_line('A')
                                 end if
-                                exec_statements = exec_statements//"    "//stmt_code
+                                exec_statements = exec_statements//stmt_code
                                 has_executable = .true.
                             end if
                         end if
@@ -226,7 +230,7 @@ contains
                             if (len(declarations) > 0) then
                                 declarations = declarations//new_line('A')
                             end if
-                            declarations = declarations//"    "//stmt_code
+                            declarations = declarations//stmt_code
                             has_declarations = .true.
                             has_var_declarations = .true.
                         end if
@@ -237,7 +241,7 @@ contains
                             if (len(exec_statements) > 0) then
                                 exec_statements = exec_statements//new_line('A')
                             end if
-                            exec_statements = exec_statements//"    "//stmt_code
+                            exec_statements = exec_statements//stmt_code
                             has_executable = .true.
                         end if
                     end select
@@ -247,13 +251,14 @@ contains
 
         ! Combine everything with proper spacing
         code = "program "//node%name//new_line('A')
+        call increase_indent()
 
         if (len(use_statements) > 0) then
-            code = code//use_statements//new_line('A')
+            code = code//indent_lines(use_statements)//new_line('A')
         end if
 
         if (len(declarations) > 0) then
-            code = code//declarations//new_line('A')
+            code = code//indent_lines(declarations)//new_line('A')
             ! Add blank line after declarations only if we have variable declarations and executable statements
             if (has_var_declarations .and. has_executable) then
                 code = code//new_line('A')
@@ -261,9 +266,10 @@ contains
         end if
 
         if (len(exec_statements) > 0) then
-            code = code//exec_statements//new_line('A')
+            code = code//indent_lines(exec_statements)//new_line('A')
         end if
 
+        call decrease_indent()
         code = code//"end program "//node%name
     end function generate_code_program
 
@@ -363,17 +369,19 @@ contains
             code = code//"()"
         end if
         code = code//new_line('a')
+        call increase_indent()
 
         ! Generate body
         if (allocated(node%body_indices)) then
             do i = 1, size(node%body_indices)
              if (node%body_indices(i) > 0 .and. node%body_indices(i) <= arena%size) then
                     body_code = generate_code_from_arena(arena, node%body_indices(i))
-                    code = code//"    "//body_code//new_line('a')
+                    code = code//with_indent(body_code)//new_line('a')
                 end if
             end do
         end if
 
+        call decrease_indent()
         ! End function
         code = code//"end function "//node%name
     end function generate_code_function_def
@@ -405,17 +413,19 @@ contains
             code = code//"()"
         end if
         code = code//new_line('a')
+        call increase_indent()
 
         ! Generate body
         if (allocated(node%body_indices)) then
             do i = 1, size(node%body_indices)
              if (node%body_indices(i) > 0 .and. node%body_indices(i) <= arena%size) then
                     body_code = generate_code_from_arena(arena, node%body_indices(i))
-                    code = code//"    "//body_code//new_line('a')
+                    code = code//with_indent(body_code)//new_line('a')
                 end if
             end do
         end if
 
+        call decrease_indent()
         ! End subroutine
         code = code//"end subroutine "//node%name
     end function generate_code_subroutine_def
@@ -501,14 +511,15 @@ contains
             cond_code = ".true."
         end if
 
-        code = "if ("//cond_code//") then"//new_line('a')
+        code = with_indent("if ("//cond_code//") then")//new_line('a')
+        call increase_indent()
 
         ! Generate then body
         if (allocated(node%then_body_indices)) then
             do i = 1, size(node%then_body_indices)
    if (node%then_body_indices(i) > 0 .and. node%then_body_indices(i) <= arena%size) then
                   body_code = generate_code_from_arena(arena, node%then_body_indices(i))
-                    code = code//"    "//body_code//new_line('a')
+                    code = code//with_indent(body_code)//new_line('a')
                 end if
             end do
         end if
@@ -524,7 +535,9 @@ contains
                     cond_code = ".true."
                 end if
 
-                code = code//"else if ("//cond_code//") then"//new_line('a')
+                call decrease_indent()
+               code = code//with_indent("else if ("//cond_code//") then")//new_line('a')
+                call increase_indent()
 
                 ! Generate elseif body
                 if (allocated(node%elseif_blocks(i)%body_indices)) then
@@ -534,7 +547,7 @@ contains
                             if (node%elseif_blocks(i)%body_indices(j) > 0 .and. &
                                node%elseif_blocks(i)%body_indices(j) <= arena%size) then
       body_code = generate_code_from_arena(arena, node%elseif_blocks(i)%body_indices(j))
-                                code = code//"    "//body_code//new_line('a')
+                                code = code//with_indent(body_code)//new_line('a')
                             end if
                         end do
                     end block
@@ -544,16 +557,19 @@ contains
 
         ! Generate else block
         if (allocated(node%else_body_indices)) then
-            code = code//"else"//new_line('a')
+            call decrease_indent()
+            code = code//with_indent("else")//new_line('a')
+            call increase_indent()
             do i = 1, size(node%else_body_indices)
    if (node%else_body_indices(i) > 0 .and. node%else_body_indices(i) <= arena%size) then
                   body_code = generate_code_from_arena(arena, node%else_body_indices(i))
-                    code = code//"    "//body_code//new_line('a')
+                    code = code//with_indent(body_code)//new_line('a')
                 end if
             end do
         end if
 
-        code = code//"end if"
+        call decrease_indent()
+        code = code//with_indent("end if")
     end function generate_code_if
 
     ! Generate code for do loop
@@ -566,7 +582,7 @@ contains
         integer :: i
 
         ! Generate loop variable and bounds
-        code = "do "//node%var_name//" = "
+        code = with_indent("do "//node%var_name//" = ")
 
         if (node%start_expr_index > 0 .and. node%start_expr_index <= arena%size) then
             start_code = generate_code_from_arena(arena, node%start_expr_index)
@@ -590,17 +606,19 @@ contains
         end if
 
         code = code//new_line('a')
+        call increase_indent()
 
         ! Generate body
         if (allocated(node%body_indices)) then
             do i = 1, size(node%body_indices)
              if (node%body_indices(i) > 0 .and. node%body_indices(i) <= arena%size) then
                     body_code = generate_code_from_arena(arena, node%body_indices(i))
-                    code = code//"    "//body_code//new_line('a')
+                    code = code//with_indent(body_code)//new_line('a')
                 end if
             end do
         end if
 
+        call decrease_indent()
         code = code//"end do"
     end function generate_code_do_loop
 
@@ -620,18 +638,20 @@ contains
             cond_code = ".true."
         end if
 
-        code = "do while ("//cond_code//")"//new_line('a')
+        code = with_indent("do while ("//cond_code//")")//new_line('a')
+        call increase_indent()
 
         ! Generate body
         if (allocated(node%body_indices)) then
             do i = 1, size(node%body_indices)
              if (node%body_indices(i) > 0 .and. node%body_indices(i) <= arena%size) then
                     body_code = generate_code_from_arena(arena, node%body_indices(i))
-                    code = code//"    "//body_code//new_line('a')
+                    code = code//with_indent(body_code)//new_line('a')
                 end if
             end do
         end if
 
+        call decrease_indent()
         code = code//"end do"
     end function generate_code_do_while
 
@@ -659,7 +679,8 @@ contains
             expr_code = "???"
         end if
 
-        code = "select case ("//expr_code//")"//new_line('a')
+        code = with_indent("select case ("//expr_code//")")//new_line('a')
+        call increase_indent()
 
         ! Generate case blocks
         if (allocated(node%cases)) then
@@ -667,7 +688,7 @@ contains
                 ! Generate case statement
                 if (allocated(node%cases(i)%case_type)) then
                     if (node%cases(i)%case_type == "case_default") then
-                        code = code//"case default"//new_line('a')
+                        code = code//with_indent("case default")//new_line('a')
                     else
                         ! Generate case value
                         if (allocated(node%cases(i)%value)) then
@@ -682,10 +703,11 @@ contains
                         else
                             case_code = "???"
                         end if
-                        code = code//"case ("//case_code//")"//new_line('a')
+                       code = code//with_indent("case ("//case_code//")")//new_line('a')
                     end if
                 end if
 
+                call increase_indent()
                 ! Generate case body
                 if (allocated(node%cases(i)%body)) then
                     do j = 1, size(node%cases(i)%body)
@@ -709,13 +731,15 @@ contains
                             class default
                                 body_code = "! unknown case body"
                             end select
-                            code = code//"    "//body_code//new_line('a')
+                            code = code//with_indent(body_code)//new_line('a')
                         end if
                     end do
                 end if
+                call decrease_indent()
             end do
         end if
 
+        call decrease_indent()
         code = code//"end select"
     end function generate_code_select_case
 
