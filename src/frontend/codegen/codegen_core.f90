@@ -431,15 +431,9 @@ contains
         end if
         code = code//new_line('a')
 
-        ! Generate body with indentation
+        ! Generate body with indentation and declaration grouping
         if (allocated(node%body_indices)) then
-            do i = 1, size(node%body_indices)
-             if (node%body_indices(i) > 0 .and. node%body_indices(i) <= arena%size) then
-                    body_code = generate_code_from_arena(arena, node%body_indices(i))
-                    ! Add 4 spaces of indentation for function body
-                    code = code//"    "//body_code//new_line('a')
-                end if
-            end do
+            code = code//generate_grouped_body(arena, node%body_indices, "    ")
         end if
 
         ! End function
@@ -473,15 +467,9 @@ contains
             code = code//"()"
         end if
         code = code//new_line('a')
-        ! Generate body with indentation
+        ! Generate body with indentation and declaration grouping
         if (allocated(node%body_indices)) then
-            do i = 1, size(node%body_indices)
-             if (node%body_indices(i) > 0 .and. node%body_indices(i) <= arena%size) then
-                    body_code = generate_code_from_arena(arena, node%body_indices(i))
-                    ! Add 4 spaces of indentation for subroutine body
-                    code = code//"    "//body_code//new_line('a')
-                end if
-            end do
+            code = code//generate_grouped_body(arena, node%body_indices, "    ")
         end if
 
         ! End subroutine
@@ -899,5 +887,101 @@ contains
             end select
         end select
     end function same_node
+
+    ! Generate function/subroutine body with grouped declarations
+    function generate_grouped_body(arena, body_indices, indent) result(code)
+        type(ast_arena_t), intent(in) :: arena
+        integer, intent(in) :: body_indices(:)
+        character(len=*), intent(in) :: indent
+        character(len=:), allocatable :: code
+        character(len=:), allocatable :: stmt_code
+        integer :: i, j, group_start
+        logical :: in_declaration_group
+        character(len=:), allocatable :: group_type, group_intent, var_list
+        integer :: group_kind
+        logical :: group_has_kind
+
+        code = ""
+        i = 1
+
+        do while (i <= size(body_indices))
+            if (body_indices(i) > 0 .and. body_indices(i) <= arena%size) then
+                if (allocated(arena%entries(body_indices(i))%node)) then
+                    select type (node => arena%entries(body_indices(i))%node)
+                    type is (declaration_node)
+                        ! Start of declaration group
+                        group_type = node%type_name
+                        group_kind = node%kind_value
+                        group_has_kind = node%has_kind
+                        if (node%has_intent) then
+                            group_intent = node%intent
+                        else
+                            group_intent = ""
+                        end if
+                        var_list = node%var_name
+
+                        ! Look ahead for more declarations of same type
+                        j = i + 1
+                        do while (j <= size(body_indices))
+                       if (body_indices(j) > 0 .and. body_indices(j) <= arena%size) then
+                                if (allocated(arena%entries(body_indices(j))%node)) then
+                          select type (next_node => arena%entries(body_indices(j))%node)
+                                    type is (declaration_node)
+                                        ! Check if same type, kind, and intent
+                                        if (next_node%type_name == group_type .and. &
+                                            next_node%kind_value == group_kind .and. &
+                                           next_node%has_kind .eqv. group_has_kind) then
+                                 if ((next_node%has_intent .and. node%has_intent .and. &
+                                                next_node%intent == group_intent) .or. &
+                          (.not. next_node%has_intent .and. .not. node%has_intent)) then
+                                                ! Add to group
+                                           var_list = var_list//", "//next_node%var_name
+                                                j = j + 1
+                                            else
+                                                exit
+                                            end if
+                                        else
+                                            exit
+                                        end if
+                                    class default
+                                        exit
+                                    end select
+                                else
+                                    exit
+                                end if
+                            else
+                                exit
+                            end if
+                        end do
+
+                        ! Generate grouped declaration
+                        stmt_code = group_type
+                        if (group_has_kind) then
+               stmt_code = stmt_code//"("//trim(adjustl(int_to_string(group_kind)))//")"
+                        end if
+                        if (len_trim(group_intent) > 0) then
+                            stmt_code = stmt_code//", intent("//group_intent//")"
+                        end if
+                        stmt_code = stmt_code//" :: "//var_list
+
+                        code = code//indent//stmt_code//new_line('a')
+                        i = j  ! Skip processed declarations
+
+                    class default
+                        ! Non-declaration node - generate normally
+                        stmt_code = generate_code_from_arena(arena, body_indices(i))
+                        code = code//indent//stmt_code//new_line('a')
+                        i = i + 1
+                    end select
+                else
+                    i = i + 1
+                end if
+            else
+                i = i + 1
+            end if
+        end do
+
+        ! Keep trailing newline - it will be handled by caller if needed
+    end function generate_grouped_body
 
 end module codegen_core

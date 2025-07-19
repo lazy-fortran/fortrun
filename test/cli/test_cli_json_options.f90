@@ -36,8 +36,13 @@ contains
         block
             integer :: iostat
 
-            ! Create a simple JSON tokens file
-            call execute_command_line('echo ''{"tokens": []}'' > '//temp_dir//'/test_tokens.json', exitstat=iostat)
+            ! Create a simple JSON tokens file with a basic statement
+            call execute_command_line('echo ''{"tokens": ['// &
+                      '{"type": "identifier", "text": "x", "line": 1, "column": 1},'// &
+                        '{"type": "operator", "text": "=", "line": 1, "column": 3},'// &
+                          '{"type": "number", "text": "1", "line": 1, "column": 5},'// &
+                               '{"type": "eof", "text": "", "line": 1, "column": 6}'// &
+                              ']}'' > '//temp_dir//'/test_tokens.json', exitstat=iostat)
 
             if (iostat == 0) then
                 ! Test --from-tokens option with wait flag for CI reliability
