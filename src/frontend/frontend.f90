@@ -27,6 +27,7 @@ module frontend
     ! Debug functions for unit testing
     public :: find_program_unit_boundary, is_function_start, is_end_function, parse_program_unit
     public :: is_do_loop_start, is_do_while_start, is_select_case_start, is_end_do, is_end_select
+    public :: is_if_then_start, is_end_if
     public :: lex_file, parse_tokens
 
     ! Backend target enumeration
@@ -303,7 +304,8 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
      (tokens(unit_start)%text == "real" .or. tokens(unit_start)%text == "integer" .or. &
  tokens(unit_start)%text == "logical" .or. tokens(unit_start)%text == "character" .or. &
                             tokens(unit_start)%text == "function" .or. tokens(unit_start)%text == "subroutine" .or. &
-       tokens(unit_start)%text == "module" .or. tokens(unit_start)%text == "end"))) then
+        tokens(unit_start)%text == "module" .or. tokens(unit_start)%text == "end" .or. &
+      tokens(unit_start)%text == "else" .or. tokens(unit_start)%text == "elseif"))) then
                 ! Extract unit tokens and add EOF
                 allocate (unit_tokens(unit_end - unit_start + 2))
                 unit_tokens(1:unit_end - unit_start + 1) = tokens(unit_start:unit_end)
@@ -356,7 +358,7 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
         integer, intent(out) :: unit_start, unit_end
 
         integer :: i, current_line, nesting_level
-        logical :: in_function, in_subroutine, in_module, in_do_loop, in_select_case
+        logical :: in_function, in_subroutine, in_module, in_do_loop, in_select_case, in_if_block
 
         unit_start = start_pos
         unit_end = start_pos
@@ -365,6 +367,7 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
         in_module = .false.
         in_do_loop = .false.
         in_select_case = .false.
+        in_if_block = .false.
         nesting_level = 0
 
         ! Check if starting token indicates a multi-line construct
@@ -395,11 +398,14 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
             else if (is_select_case_start(tokens, start_pos)) then
                 in_select_case = .true.
                 nesting_level = 1
+            else if (is_if_then_start(tokens, start_pos)) then
+                in_if_block = .true.
+                nesting_level = 1
             end if
         end if
 
         ! If this is a multi-line construct, find the end
-        if (in_function .or. in_subroutine .or. in_module .or. in_do_loop .or. in_select_case) then
+        if (in_function .or. in_subroutine .or. in_module .or. in_do_loop .or. in_select_case .or. in_if_block) then
             i = start_pos
             do while (i <= size(tokens) .and. nesting_level > 0)
                 if (tokens(i)%kind == TK_EOF) exit
@@ -418,6 +424,8 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
                     else if (in_do_loop .and. is_do_loop_start(tokens, i)) then
                         nesting_level = nesting_level + 1
                     else if (in_select_case .and. is_select_case_start(tokens, i)) then
+                        nesting_level = nesting_level + 1
+                    else if (in_if_block .and. is_if_then_start(tokens, i)) then
                         nesting_level = nesting_level + 1
                     end if
                 end if
@@ -449,6 +457,17 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
                     nesting_level = nesting_level - 1
                     unit_end = i + 1  ! Include both "end" and "select" tokens
                     i = i + 2  ! Skip both "end" and "select" tokens
+                    ! Don't fall through to else block
+                else if (in_if_block .and. is_end_if(tokens, i)) then
+                    nesting_level = nesting_level - 1
+                    ! Check if it's "endif" (single token) or "end if" (two tokens)
+                    if (tokens(i)%text == "endif") then
+                        unit_end = i  ! Include just the "endif" token
+                        i = i + 1  ! Skip one token
+                    else
+                        unit_end = i + 1  ! Include both "end" and "if" tokens
+                        i = i + 2  ! Skip both tokens
+                    end if
                     ! Don't fall through to else block
                 else
                     unit_end = i
@@ -749,6 +768,50 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
             end if
         end if
     end function is_end_select
+
+    logical function is_if_then_start(tokens, pos)
+        type(token_t), intent(in) :: tokens(:)
+        integer, intent(in) :: pos
+        integer :: i
+
+        is_if_then_start = .false.
+        if (pos > size(tokens)) return
+
+        ! Check if current token is "if"
+        if (tokens(pos)%kind == TK_KEYWORD .and. tokens(pos)%text == "if") then
+            ! Look for "then" on the same line
+            i = pos + 1
+            do while (i <= size(tokens) .and. tokens(i)%line == tokens(pos)%line)
+                if (tokens(i)%kind == TK_KEYWORD .and. tokens(i)%text == "then") then
+                    is_if_then_start = .true.
+                    exit
+                end if
+                i = i + 1
+            end do
+        end if
+    end function is_if_then_start
+
+    logical function is_end_if(tokens, pos)
+        type(token_t), intent(in) :: tokens(:)
+        integer, intent(in) :: pos
+
+        is_end_if = .false.
+        if (pos > size(tokens)) return
+
+        ! Check for "endif" (single keyword)
+        if (tokens(pos)%kind == TK_KEYWORD .and. tokens(pos)%text == "endif") then
+            is_end_if = .true.
+            return
+        end if
+
+        ! Check for "end if" (two keywords)
+        if (pos + 1 <= size(tokens)) then
+            if (tokens(pos)%kind == TK_KEYWORD .and. tokens(pos)%text == "end" .and. &
+             tokens(pos + 1)%kind == TK_KEYWORD .and. tokens(pos + 1)%text == "if") then
+                is_end_if = .true.
+            end if
+        end if
+    end function is_end_if
 
     ! Deep copy procedures for compilation_options_t
     function compilation_options_deep_copy(this) result(copy)

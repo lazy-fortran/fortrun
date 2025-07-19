@@ -97,7 +97,7 @@ contains
 
         ! Create temporary directory and invalid extension file
         call temp_dir%create('test_invalid_ext')
-        call temp_dir%get_file_path('test_invalid.txt', test_file)
+        test_file = temp_dir%get_file_path('test_invalid.txt')
 
         open (newunit=unit, file=test_file)
         write (unit, '(a)') 'program test'
@@ -130,7 +130,7 @@ contains
 
         ! Create temporary directory and file
         call temp_dir%create('test_basic_f90')
-        call temp_dir%get_file_path('test_basic.f90', test_file)
+        test_file = temp_dir%get_file_path('test_basic.f90')
 
         open (newunit=unit, file=test_file)
         write (unit, '(a)') 'program test_basic'
@@ -164,7 +164,7 @@ contains
 
         ! Create temporary directory and .f file
         call temp_dir%create('test_preprocess')
-        call temp_dir%get_file_path('test_preprocess.f', test_file)
+        test_file = temp_dir%get_file_path('test_preprocess.f')
 
         open (newunit=unit, file=test_file)
         write (unit, '(a)') 'program test'
@@ -202,7 +202,7 @@ contains
         call temp_dir%create('test_cache_hit')
         call cache_temp_dir%create('test_runner_cache')
 
-        call temp_dir%get_file_path('test_cache_hit.f90', test_file)
+        test_file = temp_dir%get_file_path('test_cache_hit.f90')
         cache_dir = cache_temp_dir%path
 
         open (newunit=unit, file=test_file)
@@ -247,7 +247,7 @@ contains
 
         ! Create temporary directory and file
         call temp_dir%create('test_verbose')
-        call temp_dir%get_file_path('test_verbose.f90', test_file)
+        test_file = temp_dir%get_file_path('test_verbose.f90')
 
         open (newunit=unit, file=test_file)
         write (unit, '(a)') 'program test_verbose'
@@ -300,7 +300,7 @@ contains
         call temp_dir%create('test_custom_cache')
         call cache_temp_dir%create('my_custom_cache')
 
-        call temp_dir%get_file_path('test_custom_cache.f90', test_file)
+        test_file = temp_dir%get_file_path('test_custom_cache.f90')
         custom_cache = cache_temp_dir%path
 
         open (newunit=unit, file=test_file)
@@ -337,7 +337,7 @@ contains
         call temp_dir%create('test_custom_config')
         call config_temp_dir%create('my_custom_config')
 
-        call temp_dir%get_file_path('test_custom_config.f90', test_file)
+        test_file = temp_dir%get_file_path('test_custom_config.f90')
         custom_config = config_temp_dir%path
 
         open (newunit=unit, file=test_file)
@@ -372,7 +372,7 @@ contains
 
         ! Create temporary directory and file
         call temp_dir%create('test_parallel')
-        call temp_dir%get_file_path('test_parallel.f90', test_file)
+        test_file = temp_dir%get_file_path('test_parallel.f90')
 
         open (newunit=unit, file=test_file)
         write (unit, '(a)') 'program test_parallel'
@@ -407,7 +407,7 @@ contains
 
         ! Create temporary directory and file
         call temp_dir%create('test_no_wait')
-        call temp_dir%get_file_path('test_no_wait.f90', test_file)
+        test_file = temp_dir%get_file_path('test_no_wait.f90')
 
         open (newunit=unit, file=test_file)
         write (unit, '(a)') 'program test_no_wait'
@@ -444,7 +444,7 @@ contains
         call temp_dir%create('test_local_modules')
 
         ! Create a local module
-        call temp_dir%get_file_path('my_module.f90', module_file)
+        module_file = temp_dir%get_file_path('my_module.f90')
         open (newunit=unit, file=module_file)
         write (unit, '(a)') 'module my_module'
         write (unit, '(a)') '  implicit none'
@@ -457,7 +457,7 @@ contains
         close (unit)
 
         ! Create main file that uses the module
-        call temp_dir%get_file_path('main.f90', test_file)
+        test_file = temp_dir%get_file_path('main.f90')
         open (newunit=unit, file=test_file)
         write (unit, '(a)') 'program test_modules'
         write (unit, '(a)') '  use my_module'
@@ -491,7 +491,7 @@ contains
 
         ! Create temporary directory and file with compilation errors
         call temp_dir%create('test_error')
-        call temp_dir%get_file_path('test_error.f90', test_file)
+        test_file = temp_dir%get_file_path('test_error.f90')
 
         open (newunit=unit, file=test_file)
         write (unit, '(a)') 'program test_error'

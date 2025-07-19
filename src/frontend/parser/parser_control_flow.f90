@@ -4,6 +4,8 @@ module parser_control_flow_module
     use ast_types, only: LITERAL_STRING
     use parser_state_module
   use parser_expressions_module, only: parse_primary, parse_expression, parse_logical_or
+    use parser_statements_module, only: parse_print_statement
+    use parser_declarations_module, only: parse_declaration
     use ast_core
     use ast_factory, only: push_if, push_do_loop, push_do_while, push_select_case, &
                            push_assignment, push_identifier, push_literal
@@ -655,8 +657,22 @@ contains
         first_token = parser%peek()
         stmt_index = 0  ! Initialize to 0 (no statement)
 
-        ! Simple assignment statement: identifier = expression
-        if (first_token%kind == TK_IDENTIFIER) then
+        ! Handle different statement types
+        if (first_token%kind == TK_KEYWORD) then
+            select case (first_token%text)
+            case ("print")
+                ! Parse print statement
+                stmt_index = parse_print_statement(parser, arena)
+                return
+            case ("real", "integer", "logical", "character")
+                ! Parse declaration
+                stmt_index = parse_declaration(parser, arena)
+                return
+            case default
+                ! Unknown keyword
+                stmt_index = 0
+            end select
+        else if (first_token%kind == TK_IDENTIFIER) then
             block
                 type(token_t) :: id_token, op_token
                 integer :: target_index, value_index
