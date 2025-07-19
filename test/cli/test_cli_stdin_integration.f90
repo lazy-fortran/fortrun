@@ -1,5 +1,4 @@
 program test_cli_stdin_integration
-    use runner
     implicit none
 
     logical :: all_passed
@@ -20,6 +19,15 @@ program test_cli_stdin_integration
     end if
 
 contains
+
+    ! Stub implementation for TDD test
+    subroutine handle_stdin_input(filename, success)
+        character(len=*), intent(inout) :: filename
+        logical, intent(out) :: success
+
+        ! Stub: always fail for now
+        success = .false.
+    end subroutine handle_stdin_input
 
     logical function test_handle_stdin_input()
         ! TDD Test 1: handle_stdin_input function works
