@@ -646,13 +646,14 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
         integer, intent(in) :: start_pos
         integer, intent(out) :: stmt_start, stmt_end
         integer :: i, nesting_level
-        logical :: in_if_block, in_do_loop, in_select_case
+        logical :: in_if_block, in_do_loop, in_select_case, in_function
 
         stmt_start = start_pos
         stmt_end = start_pos
         in_if_block = .false.
         in_do_loop = .false.
         in_select_case = .false.
+        in_function = .false.
         nesting_level = 0
 
         ! Check for multi-line constructs
@@ -664,6 +665,9 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
             nesting_level = 1
         else if (is_select_case_start(tokens, start_pos)) then
             in_select_case = .true.
+            nesting_level = 1
+        else if (is_function_start(tokens, start_pos)) then
+            in_function = .true.
             nesting_level = 1
         end if
 
@@ -680,6 +684,8 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
                     else if (in_do_loop .and. (is_do_loop_start(tokens, i) .or. is_do_while_start(tokens, i))) then
                         nesting_level = nesting_level + 1
                     else if (in_select_case .and. is_select_case_start(tokens, i)) then
+                        nesting_level = nesting_level + 1
+                    else if (in_function .and. is_function_start(tokens, i)) then
                         nesting_level = nesting_level + 1
                     end if
                 end if
@@ -709,6 +715,13 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
                     if (nesting_level == 0) then
                         ! "end select" is always two tokens
                         stmt_end = i + 1  ! Include both "end" and "select"
+                        exit
+                    end if
+                else if (in_function .and. is_end_function(tokens, i)) then
+                    nesting_level = nesting_level - 1
+                    if (nesting_level == 0) then
+                        ! "end function" is always two tokens
+                        stmt_end = i + 1  ! Include both "end" and "function"
                         exit
                     end if
                 end if

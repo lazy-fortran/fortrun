@@ -323,14 +323,34 @@ contains
         character(len=64), allocatable :: var_names(:)
         character(len=64), allocatable :: var_types(:)
         logical, allocatable :: var_declared(:)
-        integer :: i, var_count
+        character(len=64), allocatable :: function_names(:)
+        integer :: i, var_count, func_count
         type(declaration_node) :: decl_node
 
         allocate (var_names(100))
         allocate (var_types(100))
         allocate (var_declared(100))
+        allocate (function_names(100))
         var_declared = .false.
         var_count = 0
+        func_count = 0
+
+        ! First pass: collect function names
+        if (allocated(prog%body_indices)) then
+            do i = 1, size(prog%body_indices)
+             if (prog%body_indices(i) > 0 .and. prog%body_indices(i) <= arena%size) then
+                    if (allocated(arena%entries(prog%body_indices(i))%node)) then
+                        select type (stmt => arena%entries(prog%body_indices(i))%node)
+                        type is (function_def_node)
+                            if (func_count < size(function_names)) then
+                                func_count = func_count + 1
+                                function_names(func_count) = stmt%name
+                            end if
+                        end select
+                    end if
+                end if
+            end do
+        end if
 
         ! Collect all variables that need declarations
         if (allocated(prog%body_indices)) then
@@ -338,7 +358,8 @@ contains
              if (prog%body_indices(i) > 0 .and. prog%body_indices(i) <= arena%size) then
                     if (allocated(arena%entries(prog%body_indices(i))%node)) then
                         call collect_statement_vars(arena, prog%body_indices(i), &
-                                          var_names, var_types, var_declared, var_count)
+                                        var_names, var_types, var_declared, var_count, &
+                                                    function_names, func_count)
                     end if
                 end if
             end do
@@ -369,13 +390,16 @@ contains
     end subroutine generate_and_insert_declarations
 
     ! Collect variables from any statement type
-    recursive subroutine collect_statement_vars(arena, stmt_index, var_names, var_types, var_declared, var_count)
+    recursive subroutine collect_statement_vars(arena, stmt_index, var_names, var_types, var_declared, var_count, &
+                                                function_names, func_count)
         type(ast_arena_t), intent(in) :: arena
         integer, intent(in) :: stmt_index
         character(len=64), intent(inout) :: var_names(:)
         character(len=64), intent(inout) :: var_types(:)
         logical, intent(inout) :: var_declared(:)
         integer, intent(inout) :: var_count
+        character(len=64), intent(in) :: function_names(:)
+        integer, intent(in) :: func_count
         integer :: i
 
         if (stmt_index <= 0 .or. stmt_index > arena%size) return
@@ -383,15 +407,18 @@ contains
 
         select type (stmt => arena%entries(stmt_index)%node)
         type is (assignment_node)
-            call collect_assignment_vars(arena, stmt_index, var_names, var_types, var_declared, var_count)
+            call collect_assignment_vars(arena, stmt_index, var_names, var_types, var_declared, var_count, &
+                                         function_names, func_count)
         type is (do_loop_node)
             ! Collect loop variable
-            call add_variable(stmt%var_name, "integer", var_names, var_types, var_declared, var_count)
+            call add_variable(stmt%var_name, "integer", var_names, var_types, var_declared, var_count, &
+                              function_names, func_count)
             ! Collect variables from body
             if (allocated(stmt%body_indices)) then
                 do i = 1, size(stmt%body_indices)
                     call collect_statement_vars(arena, stmt%body_indices(i), &
-                                          var_names, var_types, var_declared, var_count)
+                                        var_names, var_types, var_declared, var_count, &
+                                                function_names, func_count)
                 end do
             end if
         type is (do_while_node)
@@ -399,7 +426,8 @@ contains
             if (allocated(stmt%body_indices)) then
                 do i = 1, size(stmt%body_indices)
                     call collect_statement_vars(arena, stmt%body_indices(i), &
-                                          var_names, var_types, var_declared, var_count)
+                                        var_names, var_types, var_declared, var_count, &
+                                                function_names, func_count)
                 end do
             end if
         type is (if_node)
@@ -407,13 +435,15 @@ contains
             if (allocated(stmt%then_body_indices)) then
                 do i = 1, size(stmt%then_body_indices)
                     call collect_statement_vars(arena, stmt%then_body_indices(i), &
-                                          var_names, var_types, var_declared, var_count)
+                                        var_names, var_types, var_declared, var_count, &
+                                                function_names, func_count)
                 end do
             end if
             if (allocated(stmt%else_body_indices)) then
                 do i = 1, size(stmt%else_body_indices)
                     call collect_statement_vars(arena, stmt%else_body_indices(i), &
-                                          var_names, var_types, var_declared, var_count)
+                                        var_names, var_types, var_declared, var_count, &
+                                                function_names, func_count)
                 end do
             end if
         type is (select_case_node)
@@ -422,13 +452,16 @@ contains
     end subroutine collect_statement_vars
 
     ! Collect variables from assignment node
-    subroutine collect_assignment_vars(arena, assign_index, var_names, var_types, var_declared, var_count)
+    subroutine collect_assignment_vars(arena, assign_index, var_names, var_types, var_declared, var_count, &
+                                       function_names, func_count)
         type(ast_arena_t), intent(in) :: arena
         integer, intent(in) :: assign_index
         character(len=64), intent(inout) :: var_names(:)
         character(len=64), intent(inout) :: var_types(:)
         logical, intent(inout) :: var_declared(:)
         integer, intent(inout) :: var_count
+        character(len=64), intent(in) :: function_names(:)
+        integer, intent(in) :: func_count
 
         if (assign_index <= 0 .or. assign_index > arena%size) return
         if (.not. allocated(arena%entries(assign_index)%node)) return
@@ -440,7 +473,8 @@ contains
                 if (allocated(arena%entries(assign%target_index)%node)) then
                     select type (target => arena%entries(assign%target_index)%node)
                     type is (identifier_node)
-      call collect_identifier_var(target, var_names, var_types, var_declared, var_count)
+    call collect_identifier_var(target, var_names, var_types, var_declared, var_count, &
+                                                    function_names, func_count)
                     end select
                 end if
             end if
@@ -448,14 +482,29 @@ contains
     end subroutine collect_assignment_vars
 
     ! Collect variable from identifier node
-    subroutine collect_identifier_var(identifier, var_names, var_types, var_declared, var_count)
+    subroutine collect_identifier_var(identifier, var_names, var_types, var_declared, var_count, &
+                                      function_names, func_count)
         type(identifier_node), intent(in) :: identifier
         character(len=64), intent(inout) :: var_names(:)
         character(len=64), intent(inout) :: var_types(:)
         logical, intent(inout) :: var_declared(:)
         integer, intent(inout) :: var_count
+        character(len=64), intent(in) :: function_names(:)
+        integer, intent(in) :: func_count
         integer :: i
-        logical :: found
+        logical :: found, is_function
+
+        ! Check if this identifier is a function name
+        is_function = .false.
+        do i = 1, func_count
+            if (trim(function_names(i)) == trim(identifier%name)) then
+                is_function = .true.
+                exit
+            end if
+        end do
+
+        ! Skip if it's a function
+        if (is_function) return
 
         ! Check if variable already exists
         found = .false.
@@ -484,15 +533,30 @@ contains
     end subroutine collect_identifier_var
 
     ! Add a variable to the collection list
-    subroutine add_variable(var_name, var_type, var_names, var_types, var_declared, var_count)
+    subroutine add_variable(var_name, var_type, var_names, var_types, var_declared, var_count, &
+                            function_names, func_count)
         character(len=*), intent(in) :: var_name
         character(len=*), intent(in) :: var_type
         character(len=64), intent(inout) :: var_names(:)
         character(len=64), intent(inout) :: var_types(:)
         logical, intent(inout) :: var_declared(:)
         integer, intent(inout) :: var_count
+        character(len=64), intent(in) :: function_names(:)
+        integer, intent(in) :: func_count
         integer :: i
-        logical :: found
+        logical :: found, is_function
+
+        ! Check if this is a function name
+        is_function = .false.
+        do i = 1, func_count
+            if (trim(function_names(i)) == trim(var_name)) then
+                is_function = .true.
+                exit
+            end if
+        end do
+
+        ! Skip if it's a function
+        if (is_function) return
 
         ! Check if variable already exists
         found = .false.
