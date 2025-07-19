@@ -303,7 +303,7 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
      (tokens(unit_start)%text == "real" .or. tokens(unit_start)%text == "integer" .or. &
  tokens(unit_start)%text == "logical" .or. tokens(unit_start)%text == "character" .or. &
                             tokens(unit_start)%text == "function" .or. tokens(unit_start)%text == "subroutine" .or. &
-                        tokens(unit_start)%text == "module"))) then
+       tokens(unit_start)%text == "module" .or. tokens(unit_start)%text == "end"))) then
                 ! Extract unit tokens and add EOF
                 allocate (unit_tokens(unit_end - unit_start + 2))
                 unit_tokens(1:unit_end - unit_start + 1) = tokens(unit_start:unit_end)
@@ -427,18 +427,29 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
                     nesting_level = nesting_level - 1
                call log_verbose("parsing", "Found END FUNCTION, nesting level now: "// &
                                      trim(adjustl(int_to_str(nesting_level))))
+                    unit_end = i + 1  ! Include both "end" and "function" tokens
+                    i = i + 2  ! Skip both "end" and "function" tokens
+                    ! Don't fall through to else block
                 else if (in_subroutine .and. is_end_subroutine(tokens, i)) then
                     nesting_level = nesting_level - 1
+                    unit_end = i + 1  ! Include both "end" and "subroutine" tokens
+                    i = i + 2  ! Skip both "end" and "subroutine" tokens
+                    ! Don't fall through to else block
                 else if (in_module .and. is_end_module(tokens, i)) then
                     nesting_level = nesting_level - 1
+                    unit_end = i + 1  ! Include both "end" and "module" tokens
+                    i = i + 2  ! Skip both "end" and "module" tokens
+                    ! Don't fall through to else block
                 else if (in_do_loop .and. is_end_do(tokens, i)) then
                     nesting_level = nesting_level - 1
                     unit_end = i + 1  ! Include both "end" and "do" tokens
                     i = i + 2  ! Skip both "end" and "do" tokens
+                    ! Don't fall through to else block
                 else if (in_select_case .and. is_end_select(tokens, i)) then
                     nesting_level = nesting_level - 1
                     unit_end = i + 1  ! Include both "end" and "select" tokens
                     i = i + 2  ! Skip both "end" and "select" tokens
+                    ! Don't fall through to else block
                 else
                     unit_end = i
                     i = i + 1
