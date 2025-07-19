@@ -161,7 +161,7 @@ contains
             right_code = "???"
         end if
 
-        ! Combine with operator
+        ! Combine with operator - always use spaces for standard Fortran
         code = left_code//" "//node%operator//" "//right_code
     end function generate_code_binary_op
 
@@ -237,6 +237,16 @@ contains
                             has_declarations = .true.
                             has_var_declarations = .true.
                         end if
+                    type is (contains_node)
+                        ! Handle contains specially - it goes between exec and functions
+                        ! We'll process it later, not here
+                        continue
+                    type is (function_def_node)
+                        ! Functions go after contains, not in executable section
+                        continue
+                    type is (subroutine_def_node)
+                        ! Subroutines go after contains, not in executable section
+                        continue
                     class default
                         ! All other statements are executable
                         stmt_code = generate_code_from_arena(arena, child_indices(i))
@@ -271,6 +281,54 @@ contains
         if (len(exec_statements) > 0) then
             code = code//indent_lines(exec_statements)//new_line('A')
         end if
+
+        ! Check for contains and functions/subroutines
+        block
+            logical :: has_contains, has_subprograms
+            integer :: j
+
+            has_contains = .false.
+            has_subprograms = .false.
+
+            ! Check if we have contains or subprograms
+            do j = 1, size(child_indices)
+                if (child_indices(j) > 0 .and. child_indices(j) <= arena%size) then
+                    if (allocated(arena%entries(child_indices(j))%node)) then
+                        select type (child_node => arena%entries(child_indices(j))%node)
+                        type is (contains_node)
+                            has_contains = .true.
+                        type is (function_def_node)
+                            has_subprograms = .true.
+                        type is (subroutine_def_node)
+                            has_subprograms = .true.
+                        end select
+                    end if
+                end if
+            end do
+
+            ! Generate contains and subprograms
+            if (has_contains .or. has_subprograms) then
+                code = code//"contains"//new_line('A')
+
+                ! Generate functions and subroutines
+                do j = 1, size(child_indices)
+                    if (child_indices(j) > 0 .and. child_indices(j) <= arena%size) then
+                        if (allocated(arena%entries(child_indices(j))%node)) then
+                        select type (child_node => arena%entries(child_indices(j))%node)
+                            type is (function_def_node)
+                           stmt_code = generate_code_from_arena(arena, child_indices(j))
+                                ! Indent function lines
+                                code = code//indent_lines(stmt_code)//new_line('A')
+                            type is (subroutine_def_node)
+                           stmt_code = generate_code_from_arena(arena, child_indices(j))
+                                ! Indent subroutine lines
+                                code = code//indent_lines(stmt_code)//new_line('A')
+                            end select
+                        end if
+                    end if
+                end do
+            end if
+        end block
 
         call decrease_indent()
         code = code//"end program "//node%name
@@ -372,19 +430,18 @@ contains
             code = code//"()"
         end if
         code = code//new_line('a')
-        call increase_indent()
 
-        ! Generate body
+        ! Generate body with indentation
         if (allocated(node%body_indices)) then
             do i = 1, size(node%body_indices)
              if (node%body_indices(i) > 0 .and. node%body_indices(i) <= arena%size) then
                     body_code = generate_code_from_arena(arena, node%body_indices(i))
-                    code = code//with_indent(body_code)//new_line('a')
+                    ! Add 4 spaces of indentation for function body
+                    code = code//"    "//body_code//new_line('a')
                 end if
             end do
         end if
 
-        call decrease_indent()
         ! End function
         code = code//"end function "//node%name
     end function generate_code_function_def
@@ -416,19 +473,17 @@ contains
             code = code//"()"
         end if
         code = code//new_line('a')
-        call increase_indent()
-
-        ! Generate body
+        ! Generate body with indentation
         if (allocated(node%body_indices)) then
             do i = 1, size(node%body_indices)
              if (node%body_indices(i) > 0 .and. node%body_indices(i) <= arena%size) then
                     body_code = generate_code_from_arena(arena, node%body_indices(i))
-                    code = code//with_indent(body_code)//new_line('a')
+                    ! Add 4 spaces of indentation for subroutine body
+                    code = code//"    "//body_code//new_line('a')
                 end if
             end do
         end if
 
-        call decrease_indent()
         ! End subroutine
         code = code//"end subroutine "//node%name
     end function generate_code_subroutine_def

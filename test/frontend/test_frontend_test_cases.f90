@@ -66,6 +66,12 @@ contains
         ! Test using compile_source API with Fortran backend
         options%backend = BACKEND_FORTRAN
         options%output_file = actual_file
+
+        ! Debug: print what we're compiling
+        if (test_name == "function_call_inference") then
+            print *, "DEBUG: Compiling ", trim(input_file), " to ", trim(actual_file)
+        end if
+
         call compile_source(input_file, options, error_msg)
 
         if (len_trim(error_msg) > 0) then
@@ -96,6 +102,12 @@ contains
             print *, "FAIL: ", trim(test_name), " - output mismatch"
             ! Show diff for debugging
             call show_diff(expected_file, actual_file)
+
+            ! Additional debug for function_call_inference
+            if (test_name == "function_call_inference") then
+                print *, "DEBUG: Expected file: ", trim(expected_file)
+                print *, "DEBUG: Actual file: ", trim(actual_file)
+            end if
         end if
 
     end subroutine run_test_case

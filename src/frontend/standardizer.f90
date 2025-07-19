@@ -30,6 +30,12 @@ contains
         select type (node => arena%entries(root_index)%node)
         type is (program_node)
             call standardize_program(arena, node, root_index)
+        type is (function_def_node)
+            ! Wrap standalone function in a program
+            call wrap_function_in_program(arena, root_index)
+        type is (subroutine_def_node)
+            ! Wrap standalone subroutine in a program
+            call wrap_subroutine_in_program(arena, root_index)
         class default
             ! For other node types, no standardization needed yet
         end select
@@ -702,72 +708,226 @@ contains
         arena%entries(func_index)%node = func_def
     end subroutine standardize_function_def
 
-    ! Standardize function parameters by adding declarations with intent(in)
+    ! Standardize function parameters by updating existing declarations or adding new ones
     subroutine standardize_function_parameters(arena, func_def, func_index)
         type(ast_arena_t), intent(inout) :: arena
         type(function_def_node), intent(inout) :: func_def
         integer, intent(in) :: func_index
         type(declaration_node) :: param_decl
         integer, allocatable :: new_body_indices(:)
-        integer, allocatable :: param_decl_indices(:)
-        integer :: i, j, n_params, insert_pos
+        integer, allocatable :: param_names_found(:)
+        integer :: i, j, n_params, n_body, param_idx
         character(len=64) :: param_name
+        character(len=64), allocatable :: param_names(:)
+        logical :: is_param_decl, param_updated
 
         if (.not. allocated(func_def%param_indices)) return
         n_params = size(func_def%param_indices)
         if (n_params == 0) return
 
-        allocate (param_decl_indices(n_params))
+        ! Get parameter names
+        allocate (param_names(n_params))
+        allocate (param_names_found(n_params))
+        param_names_found = 0
 
-        ! Create declaration nodes for each parameter
         do i = 1, n_params
    if (func_def%param_indices(i) > 0 .and. func_def%param_indices(i) <= arena%size) then
                 if (allocated(arena%entries(func_def%param_indices(i))%node)) then
                     select type (param => arena%entries(func_def%param_indices(i))%node)
                     type is (identifier_node)
-                        param_name = param%name
-
-                        ! Create declaration node with intent(in)
-                        param_decl%type_name = "real"
-                        param_decl%var_name = param_name
-                        param_decl%has_kind = .true.
-                        param_decl%kind_value = 8
-                        param_decl%intent = "in"
-                        param_decl%has_intent = .true.
-                        param_decl%line = param%line
-                        param_decl%column = param%column
-                        call arena%push(param_decl, "param_decl", func_index)
-                        param_decl_indices(i) = arena%size
+                        param_names(i) = param%name
                     end select
                 end if
             end if
         end do
 
-        ! Insert parameter declarations after implicit none
-        if (allocated(func_def%body_indices) .and. size(func_def%body_indices) > 0) then
-            ! Find position after implicit none (should be at index 1)
-            insert_pos = 2  ! After implicit none
+        ! Update existing parameter declarations and track what we find
+        if (allocated(func_def%body_indices)) then
+            do i = 1, size(func_def%body_indices)
+     if (func_def%body_indices(i) > 0 .and. func_def%body_indices(i) <= arena%size) then
+                    if (allocated(arena%entries(func_def%body_indices(i))%node)) then
+                      select type (stmt => arena%entries(func_def%body_indices(i))%node)
+                        type is (declaration_node)
+                            ! Check if this declaration is for a parameter
+                            is_param_decl = .false.
+                            param_idx = 0
+                            do j = 1, n_params
+                                if (stmt%var_name == param_names(j)) then
+                                    is_param_decl = .true.
+                                    param_idx = j
+                                    exit
+                                end if
+                            end do
 
-            ! Create new body indices with parameter declarations
-            allocate (new_body_indices(size(func_def%body_indices) + n_params))
-
-            ! Copy up to insertion point
-            do i = 1, insert_pos - 1
-                new_body_indices(i) = func_def%body_indices(i)
+                            if (is_param_decl) then
+                                ! Update the declaration to have intent(in) and real(8)
+                                stmt%type_name = "real"
+                                stmt%has_kind = .true.
+                                stmt%kind_value = 8
+                                stmt%intent = "in"
+                                stmt%has_intent = .true.
+                                param_names_found(param_idx) = func_def%body_indices(i)
+                                ! Update in arena
+                                arena%entries(func_def%body_indices(i))%node = stmt
+                            end if
+                        end select
+                    end if
+                end if
             end do
+        end if
 
-            ! Insert parameter declarations
+        ! Add declarations for parameters not found
+        n_body = 0
+        if (allocated(func_def%body_indices)) n_body = size(func_def%body_indices)
+
+        ! Count how many new declarations we need
+        j = 0
+        do i = 1, n_params
+            if (param_names_found(i) == 0) j = j + 1
+        end do
+
+        if (j > 0) then
+            ! We need to add some parameter declarations
+            allocate (new_body_indices(n_body + j))
+
+            ! Copy implicit none (should be first)
+            if (n_body > 0) then
+                new_body_indices(1) = func_def%body_indices(1)
+            end if
+
+            ! Add missing parameter declarations
+            j = 2
             do i = 1, n_params
-                new_body_indices(insert_pos + i - 1) = param_decl_indices(i)
+                if (param_names_found(i) == 0) then
+                    ! Create declaration node with intent(in)
+                    param_decl%type_name = "real"
+                    param_decl%var_name = param_names(i)
+                    param_decl%has_kind = .true.
+                    param_decl%kind_value = 8
+                    param_decl%intent = "in"
+                    param_decl%has_intent = .true.
+                    param_decl%line = 1
+                    param_decl%column = 1
+                    call arena%push(param_decl, "param_decl", func_index)
+                    new_body_indices(j) = arena%size
+                    j = j + 1
+                end if
             end do
 
-            ! Copy remaining body
-            do i = insert_pos, size(func_def%body_indices)
-                new_body_indices(i + n_params) = func_def%body_indices(i)
+            ! Copy rest of body
+            do i = 2, n_body
+                new_body_indices(j) = func_def%body_indices(i)
+                j = j + 1
             end do
 
             func_def%body_indices = new_body_indices
         end if
     end subroutine standardize_function_parameters
+
+    ! Wrap a standalone function in a program
+    subroutine wrap_function_in_program(arena, func_index)
+        type(ast_arena_t), intent(inout) :: arena
+        integer, intent(inout) :: func_index
+        type(program_node) :: prog
+        type(literal_node) :: implicit_none_node
+        type(contains_node) :: contains_stmt
+        integer :: prog_index, implicit_none_index, contains_index
+        integer, allocatable :: body_indices(:)
+
+        ! Create program node
+        prog%name = "main"
+        prog%line = 1
+        prog%column = 1
+
+        ! Create implicit none
+        implicit_none_node%value = "implicit none"
+        implicit_none_node%literal_kind = LITERAL_STRING
+        implicit_none_node%line = 1
+        implicit_none_node%column = 1
+        call arena%push(implicit_none_node, "implicit_none", 0)
+        implicit_none_index = arena%size
+
+        ! Create contains statement
+        contains_stmt%line = 1
+        contains_stmt%column = 1
+        call arena%push(contains_stmt, "contains", 0)
+        contains_index = arena%size
+
+        ! Standardize the function first
+        select type (func => arena%entries(func_index)%node)
+        type is (function_def_node)
+            call standardize_function_def(arena, func, func_index)
+        end select
+
+        ! Build program body: implicit none, contains, function
+        allocate (body_indices(3))
+        body_indices(1) = implicit_none_index
+        body_indices(2) = contains_index
+        body_indices(3) = func_index
+        prog%body_indices = body_indices
+
+        ! Add program to arena
+        call arena%push(prog, "program", 0)
+        prog_index = arena%size
+
+        ! Update parent references
+        arena%entries(implicit_none_index)%parent_index = prog_index
+        arena%entries(contains_index)%parent_index = prog_index
+        arena%entries(func_index)%parent_index = prog_index
+
+        ! Update root index to point to the program
+        func_index = prog_index
+    end subroutine wrap_function_in_program
+
+    ! Wrap a standalone subroutine in a program
+    subroutine wrap_subroutine_in_program(arena, sub_index)
+        type(ast_arena_t), intent(inout) :: arena
+        integer, intent(inout) :: sub_index
+        type(program_node) :: prog
+        type(literal_node) :: implicit_none_node
+        type(contains_node) :: contains_stmt
+        integer :: prog_index, implicit_none_index, contains_index
+        integer, allocatable :: body_indices(:)
+
+        ! Create program node
+        prog%name = "main"
+        prog%line = 1
+        prog%column = 1
+
+        ! Create implicit none
+        implicit_none_node%value = "implicit none"
+        implicit_none_node%literal_kind = LITERAL_STRING
+        implicit_none_node%line = 1
+        implicit_none_node%column = 1
+        call arena%push(implicit_none_node, "implicit_none", 0)
+        implicit_none_index = arena%size
+
+        ! Create contains statement
+        contains_stmt%line = 1
+        contains_stmt%column = 1
+        call arena%push(contains_stmt, "contains", 0)
+        contains_index = arena%size
+
+        ! TODO: Standardize the subroutine if needed
+
+        ! Build program body: implicit none, contains, subroutine
+        allocate (body_indices(3))
+        body_indices(1) = implicit_none_index
+        body_indices(2) = contains_index
+        body_indices(3) = sub_index
+        prog%body_indices = body_indices
+
+        ! Add program to arena
+        call arena%push(prog, "program", 0)
+        prog_index = arena%size
+
+        ! Update parent references
+        arena%entries(implicit_none_index)%parent_index = prog_index
+        arena%entries(contains_index)%parent_index = prog_index
+        arena%entries(sub_index)%parent_index = prog_index
+
+        ! Update root index to point to the program
+        sub_index = prog_index
+    end subroutine wrap_subroutine_in_program
 
 end module standardizer
