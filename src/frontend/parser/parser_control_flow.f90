@@ -150,11 +150,18 @@ contains
             ! Parse the condition expression
             condition_index = parse_expression(remaining_tokens, arena)
 
-            ! Consume closing parenthesis
-            paren_token = parser%peek()
-            if (paren_token%kind == TK_OPERATOR .and. paren_token%text == ")") then
+            ! Advance parser past the condition tokens
+            ! Simple approach: advance until we find the closing paren or 'then'
+            do while (.not. parser%is_at_end())
+                paren_token = parser%peek()
+                if (paren_token%kind == TK_OPERATOR .and. paren_token%text == ")") then
+                    paren_token = parser%consume()  ! consume the ')'
+                    exit
+          else if (paren_token%kind == TK_KEYWORD .and. paren_token%text == "then") then
+                    exit  ! Don't consume 'then', let caller handle it
+                end if
                 paren_token = parser%consume()
-            end if
+            end do
         else
             ! No parentheses, just parse the expression
             ! Count remaining tokens
@@ -168,6 +175,15 @@ contains
             remaining_tokens = parser%tokens(parser%current_token:)
 
             condition_index = parse_expression(remaining_tokens, arena)
+
+            ! Advance parser past the condition tokens until 'then'
+            do while (.not. parser%is_at_end())
+                paren_token = parser%peek()
+               if (paren_token%kind == TK_KEYWORD .and. paren_token%text == "then") then
+                    exit  ! Don't consume 'then', let caller handle it
+                end if
+                paren_token = parser%consume()
+            end do
         end if
 
     end function parse_if_condition
@@ -214,6 +230,35 @@ contains
             if (stmt_index > 0) then
                 stmt_count = stmt_count + 1
                 body_indices = [body_indices, stmt_index]
+
+                ! CRITICAL: Advance the parser to skip the parsed statement
+                ! For now, we'll advance one token at a time until we hit a keyword or identifier
+                block
+                    integer :: tokens_to_skip
+                    tokens_to_skip = 1
+
+                    ! Simple heuristic: skip tokens until we find next statement start
+                    do i = 2, size(remaining_tokens)
+                        if (remaining_tokens(i)%kind == TK_EOF) exit
+                        if (remaining_tokens(i)%kind == TK_KEYWORD .or. &
+                           (remaining_tokens(i)%kind == TK_IDENTIFIER .and. i > 1)) then
+                            exit
+                        end if
+                        tokens_to_skip = tokens_to_skip + 1
+                    end do
+
+                    ! Advance parser
+                    do i = 1, tokens_to_skip
+                        if (.not. parser%is_at_end()) then
+                            token = parser%consume()
+                        end if
+                    end do
+                end block
+            else
+                ! Failed to parse, skip this token to avoid infinite loop
+                if (.not. parser%is_at_end()) then
+                    token = parser%consume()
+                end if
             end if
 
             deallocate (remaining_tokens)
