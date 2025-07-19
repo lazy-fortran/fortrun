@@ -1,152 +1,131 @@
 # TODO List for Fortran Frontend
 
-## Immediate Fixes Required (Next Steps) 🚨
+## 🚨 CRITICAL: Function Parameter Type Inference (HIGH PRIORITY)
 
-### Step 1: Fix Function-Related Type Inference (HIGH PRIORITY)
-- [ ] Fix function_call_inference test - missing contains block and function definition
-- [ ] Fix function_def test - function definition not properly generated
-- [ ] Fix function_with_param test - parameters not handled correctly
-- [ ] Ensure code generation includes full function implementations
+### Problem Statement
+- Function parameters need proper type declarations with `intent(in)`
+- Current AST structure doesn't support intent attributes on parameters
+- Type information from semantic analysis isn't flowing to code generation
+- Test expectations require `real(8), intent(in) :: x` format
 
-### Step 2: Fix CLI JSON Options Test (HIGH PRIORITY)
-- [ ] Debug --from-tokens execution failure (exit code 1)
-- [ ] Ensure token JSON input properly handled
-- [ ] Fix pipeline execution from intermediate representations
+### Detailed Implementation Plan
 
-### Step 3: Fix Other Failing Tests (MEDIUM PRIORITY)
-- [ ] Fix example/fortran/step1_explicit_types/step1_demo.f (exit code 1)
-- [ ] Fix test_artifact_cache - output file not created/empty
-- [ ] Review remaining integration test failures
+#### Phase 1: Extend AST Structure for Parameters
+1. **Create parameter_declaration_node** (NEW NODE TYPE)
+   - [ ] Add to ast_core.f90 with fields: name, type_name, kind_value, intent
+   - [ ] Add JSON serialization support
+   - [ ] Add visitor pattern support
+   - [ ] Add factory function for creating parameter declarations
 
-### Step 4: Implement Select Case Statement Parsing (MEDIUM PRIORITY)
+2. **Modify function_def_node structure**
+   - [ ] Change param_indices to store parameter_declaration nodes instead of identifiers
+   - [ ] Update parser to create parameter_declaration nodes
+   - [ ] Ensure backward compatibility with existing code
+
+#### Phase 2: Parser Enhancement
+1. **Update parse_function_definition**
+   - [ ] Parse parameter declarations with types (when present)
+   - [ ] Create parameter_declaration nodes instead of identifier nodes
+   - [ ] Handle both typed and untyped parameters for compatibility
+
+2. **Add parse_parameter_declaration function**
+   - [ ] Parse format: `type[(kind)] [, intent(in/out/inout)] :: name`
+   - [ ] Support optional intent specification
+   - [ ] Default to intent(in) for lowercase fortran
+
+#### Phase 3: Semantic Analysis Integration
+1. **Update analyze_function_def**
+   - [ ] Store inferred parameter types in parameter_declaration nodes
+   - [ ] Add type annotations to parameter nodes
+   - [ ] Ensure type information is preserved in AST
+
+2. **Create type annotation system**
+   - [ ] Add type_annotation field to nodes that need it
+   - [ ] Implement get/set methods for type annotations
+   - [ ] Ensure annotations survive AST transformations
+
+#### Phase 4: Standardizer Enhancement
+1. **Update standardize_function_def**
+   - [ ] Process parameter_declaration nodes
+   - [ ] Apply inferred types to untyped parameters
+   - [ ] Add intent(in) to parameters without intent
+   - [ ] Generate proper parameter declarations in function body
+
+2. **Implement standardize_function_parameters properly**
+   - [ ] Create declaration nodes for each parameter
+   - [ ] Use type information from semantic analysis
+   - [ ] Insert after implicit none in function body
+   - [ ] Handle array parameters correctly
+
+#### Phase 5: Code Generation Update
+1. **Update generate_code_declaration**
+   - [ ] Add support for intent attribute
+   - [ ] Format: `type(kind), intent(in) :: name`
+   - [ ] Handle all intent types (in, out, inout)
+
+2. **Update generate_code_function_def**
+   - [ ] Generate parameters from parameter_declaration nodes
+   - [ ] Ensure proper formatting of parameter list
+
+## 🔧 Other High Priority Fixes
+
+### Fix Standalone Function Wrapping
+- [ ] Modify frontend.f90 to wrap standalone functions in program with contains
+- [ ] Add logic to detect standalone function/subroutine definitions
+- [ ] Generate appropriate program wrapper with contains statement
+- [ ] Ensure module detection still works correctly
+
+### Fix CLI JSON Options Test
+- [ ] Debug --from-tokens execution failure
+- [ ] Check JSON deserialization in frontend
+- [ ] Ensure token stream reconstruction works
+- [ ] Add better error messages for JSON parsing failures
+
+### Fix Remaining Test Failures
+- [ ] Fix example/fortran/step1_explicit_types/step1_demo.f
+- [ ] Fix test_artifact_cache output file issues
+- [ ] Review and fix remaining integration test failures
+
+## 📋 Medium Priority Tasks
+
+### Implement Select Case Statement
 - [ ] Implement parse_select_case in parser_control_flow.f90
-- [ ] Add case value parsing
-- [ ] Handle case ranges (e.g., case (2:5))
-- [ ] Ensure proper select case body parsing
-- [ ] Test with simple select case
+- [ ] Add case value parsing (single values, ranges, lists)
+- [ ] Handle case default
+- [ ] Add proper code generation for select case
+- [ ] Test with various select case patterns
 
-## Current Test Status 📊
+### Improve Error Handling
+- [ ] Add location information to all error messages
+- [ ] Implement error recovery in parser
+- [ ] Add suggestions for common mistakes
+- [ ] Create comprehensive error test suite
 
-**Frontend Tests**: 26/29 passed (90% success rate)
-- Control flow: 100% passing ✅
-- Type inference: 3 failures (function-related) ❌
-- Basic statements: 100% passing ✅
-- Multiple statements: 100% passing ✅
+## 📊 Current Status
 
-**Major Systems**:
-- Cache system: Working ✅
-- Runner system: Working ✅
-- Registry system: Working ✅
-- Module resolution: Working ✅
-- FPM integration: Working ✅
-
-## Completed ✅
-
-### MAJOR MILESTONE: 90% Control Flow Parsing Complete! 🎉
-- [x] **Fixed do while parsing**: Frontend now recognizes do while as multi-line construct
-- [x] **Fixed variable declarations**: Standardizer recursively collects all variables
-- [x] **Unified parser architecture**: Eliminated code duplication with parse_statement_body
-- [x] **Complete type inference**: Loop variables and all nested variables properly typed
-- [x] **Code cleanup**: Removed obsolete codegen_declarations module
-
-### Control Flow Parsing Breakthrough
-- [x] **Fixed critical else-if nesting bug**: Parser no longer treats `else if` as nested if blocks
-- [x] **3x parsing improvement**: control_flow_simple.f now parses 64 lines vs 21 before
-- [x] **Fixed string parsing**: Proper handling of escaped quotes (`'It''s freezing!'`)
-- [x] **Fixed code generation**: Proper indentation and type precision (real → real(8))
-- [x] **Created comprehensive test suite**: 5 test cases all passing
-
-### Do While Loop Complete Solution
-- [x] Debug why do while loops generate empty body - ROOT CAUSE FOUND
-- [x] Fix frontend's find_statement_boundary to check is_do_while_start
-- [x] Create unified parse_statement_body to eliminate duplication
-- [x] Fix variable collection in standardizer for loop constructs
-- [x] Test with control_flow_simple.f - NOW FULLY WORKING
-
-### Variable Declaration System
-- [x] Add recursive collect_statement_vars to standardizer
-- [x] Collect loop variables (do i = 1, 5)
-- [x] Collect variables from nested constructs
-- [x] Generate proper declarations with inferred types
-- [x] Remove obsolete codegen_declarations module
-
-### Code Generation Fixes  
-- [x] Fix Code Generation Indentation for all control structures
-- [x] Fix Type Precision in Code Generation (real → real(8))
-- [x] Implement proper indentation for if/then/else blocks
-- [x] Add indentation tracking to codegen_core.f90
-
-### String and Lexer Improvements
-- [x] Fix lexer to handle escaped quotes properly
-- [x] Enhance scan_string() function for doubled apostrophes
-- [x] Test string parsing with comprehensive test cases
-
-### Control Flow Infrastructure
-- [x] Fix control_flow_simple.f parsing (90% complete)
-- [x] Debug and fix statement boundary detection
-- [x] Fix if/else/elseif parsing sequence issues
-- [x] Fix do while loop parsing completely
-- [x] Ensure all if blocks parse correctly
-
-### Test Infrastructure Cleanup
-- [x] Remove 8 redundant debug and test files
-- [x] Consolidate into comprehensive test suite
-- [x] Create test_control_flow_comprehensive.f90 with all scenarios
-- [x] Update test_frontend_statements.f90 expectations
-- [x] Follow cleanup policy: remove obsolete files
-
-### Type System and Inference (Previous Work)
-- [x] Add TLOGICAL type to type system for proper boolean handling
-- [x] Fix comparison operators to return TLOGICAL instead of TINT
-- [x] Fix logical literals (.true., .false.) to be typed as TLOGICAL
-- [x] Update logical operations (.and., .or.) to use TLOGICAL
-- [x] Fix unification to handle TLOGICAL type in semantic analyzer
-
-### Parser Foundation (Previous Work)
-- [x] Fix if/else parsing with proper line-based token advancement
-- [x] Add proper 'end if' recognition when it appears as two tokens
-- [x] Fix elseif parsing when 'else if' appears as two separate tokens
-- [x] Improve token consumption in parse_elseif_block
-- [x] Fix control flow parsing for complex nested structures
-
-### Testing Infrastructure (Previous Work)
-- [x] Enable frontend test runner (test_frontend_test_cases.f90)
-- [x] Add automatic test discovery for frontend test cases
-- [x] Add test cases for if/else, if/elseif/else, and logical type inference
-- [x] Ensure all new test cases pass in automated test suite
-
-### AST Standardization (Previous Work)
-- [x] Create formal standardization stage between semantic analysis and code generation
-- [x] Move variable declaration generation from codegen to standardizer
-- [x] Implement implicit none insertion in standardizer
-- [x] Add --debug-standardize flag for JSON output
-
-## Known Issues 🐛
-
-1. **Function type inference**: Missing contains blocks and function definitions (3 tests failing)
-2. **Select case**: Empty structure generation (last piece of control flow)
-3. **CLI JSON options**: --from-tokens pipeline failing
-4. **Artifact cache**: Output file creation issues
-5. **Preprocessor issues**: Known failures for advanced type inference examples
-
-## Current Status 📊
-
-**Major Achievement**: 90% success rate on frontend tests!
-
-**Statistics**:
+**Test Statistics:**
 - Frontend tests: 26/29 passing (90%)
-- Control flow: 100% working
-- Type inference: 90% working (functions need fixes)
-- Example files: 95%+ success rate
-- Major systems: All operational
+- Control flow: 100% working ✅
+- Basic type inference: 100% working ✅
+- Function type inference: Partial (missing parameter intent)
 
-**Impact**: The fortran compiler has rock-solid control flow handling and type inference. Only function-related type inference needs attention to reach 100% test success.
+**Architecture Gaps:**
+1. No parameter declaration node type in AST
+2. No intent support in declaration nodes
+3. Type information doesn't flow from semantic to codegen
+4. Standalone functions aren't wrapped properly
 
-## Future Enhancements 💡
+## 🎯 Success Criteria
 
-- Add support for modules and interfaces
-- Implement full Fortran 2018 standard compliance
-- Add optimization passes in standardizer
-- Support for preprocessor directives
-- Better error recovery and reporting
-- Performance optimizations for large files
+1. All 29 frontend tests passing (100%)
+2. Function parameters have proper type and intent declarations
+3. Standalone functions wrapped correctly
+4. Type inference working end-to-end for all constructs
+
+## 💡 Future Enhancements
+
+- Full Fortran 2018 standard compliance
+- Module and interface support
+- Generic programming features
+- Optimization passes in standardizer
+- Better IDE integration support
