@@ -1,7 +1,6 @@
 module codegen_core
     use ast_core
     use type_system_hm
-    use codegen_declarations
     use fpm_strings, only: string_t
     implicit none
     private
@@ -57,6 +56,8 @@ contains
             code = generate_code_select_case(arena, node, node_index)
         type is (use_statement_node)
             code = generate_code_use_statement(node)
+        type is (contains_node)
+            code = "contains"
         class default
             code = "! Unknown node type"
         end select
@@ -70,8 +71,11 @@ contains
         ! Return the literal value with proper formatting
         select case (node%literal_kind)
         case (LITERAL_STRING)
-            ! String literals need quotes if not already present
-            if (len_trim(node%value) == 0) then
+            ! Special case for implicit none
+            if (node%value == "implicit none") then
+                code = "implicit none"
+                ! String literals need quotes if not already present
+            else if (len_trim(node%value) == 0) then
                 code = ""  ! Skip empty literals (parser placeholders)
             else if (len(node%value) > 0 .and. node%value(1:1) /= '"' .and. &
                      node%value(1:1) /= "'") then
@@ -163,13 +167,10 @@ contains
         type(program_node), intent(in) :: node
         integer, intent(in) :: node_index
         character(len=:), allocatable :: code
-        character(len=:), allocatable :: use_statements, declarations, body_code
+        character(len=:), allocatable :: use_statements, body_code
         integer, allocatable :: child_indices(:)
         integer :: i
         character(len=:), allocatable :: stmt_code
-
-        ! Generate variable declarations
-        declarations = generate_variable_declarations(arena, node_index)
 
         ! First pass: collect use statements
         use_statements = ""
@@ -208,11 +209,6 @@ contains
         code = "program "//node%name//new_line('A')
         if (len(use_statements) > 0) then
             code = code//use_statements//new_line('A')
-        end if
-        code = code//"    implicit none"//new_line('A')
-
-        if (len(declarations) > 0) then
-            code = code//declarations//new_line('A')
         end if
 
         if (len(body_code) > 0) then

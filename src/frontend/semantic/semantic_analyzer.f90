@@ -143,6 +143,7 @@ contains
         if (node_index <= 0 .or. node_index > arena%size) return
         if (.not. allocated(arena%entries(node_index)%node)) return
 
+        ! DEBUG: print *, "infer_and_store_type for node", node_index, "type:", trim(arena%entries(node_index)%node_type)
         inferred = ctx%infer_stmt(arena, node_index)
 
         ! Store the inferred type in the AST node (assignment now does deep copy automatically)
@@ -176,6 +177,8 @@ contains
             stmt%inferred_type_name = typ%to_string()
         type is (print_statement_node)
             typ = create_mono_type(TINT)  ! print returns unit/void, use int
+        type is (declaration_node)
+            typ = analyze_declaration(this, arena, stmt, stmt_index)
         type is (module_node)
             typ = analyze_module(this, arena, stmt, stmt_index)
         type is (function_def_node)
@@ -575,7 +578,11 @@ contains
             end if
 
         case default
-            error stop "Unknown type kind in unification"
+            if (t1_subst%kind == 0 .or. t2_subst%kind == 0) then
+                error stop "Uninitialized type in unification"
+            else
+                error stop "Unknown type kind in unification"
+            end if
         end select
     end function unify_types
 
@@ -865,6 +872,71 @@ contains
         typ = create_mono_type(TINT)  ! Unit type
     end function analyze_module
 
+    ! Analyze declaration node
+    function analyze_declaration(ctx, arena, decl, decl_index) result(typ)
+        type(semantic_context_t), intent(inout) :: ctx
+        type(ast_arena_t), intent(inout) :: arena
+        type(declaration_node), intent(inout) :: decl
+        integer, intent(in) :: decl_index
+        type(mono_type_t) :: typ
+        type(poly_type_t) :: var_scheme
+
+        ! Determine type from declaration
+        select case (trim(decl%type_name))
+        case ('integer', 'integer(kind=4)', 'integer(4)')
+            typ = create_mono_type(TINT)
+        case ('real', 'real(kind=4)', 'real(4)')
+            typ = create_mono_type(TREAL)
+        case ('real(kind=8)', 'real(8)', 'double precision')
+            typ = create_mono_type(TREAL)  ! TODO: track precision
+        case ('character')
+            typ = create_mono_type(TCHAR, char_size=1)  ! TODO: handle length
+        case default
+            ! Unknown type - use type variable
+            typ = create_mono_type(TVAR, var=ctx%fresh_type_var())
+        end select
+
+        ! Check if this variable already exists in scope
+        block
+            type(poly_type_t), allocatable :: existing_scheme
+
+            call ctx%scopes%lookup(decl%var_name, existing_scheme)
+
+            if (allocated(existing_scheme)) then
+                ! Variable already declared - this might be a redeclaration of a parameter
+                ! For explicit function parameters, we need to unify the types
+                block
+                    type(mono_type_t) :: existing_typ
+                    type(substitution_t) :: s
+
+                    ! Instantiate the existing scheme
+                    existing_typ = ctx%instantiate(existing_scheme)
+
+                    ! Unify with the declared type
+                    s = ctx%unify(existing_typ, typ)
+                    call ctx%compose_with_subst(s)
+                end block
+            else
+                ! New variable declaration
+                var_scheme = ctx%generalize(typ)
+                call ctx%scopes%define(decl%var_name, var_scheme)
+            end if
+        end block
+
+        ! If there's an initializer, check type compatibility
+        if (decl%has_initializer .and. decl%initializer_index > 0) then
+            block
+                type(mono_type_t) :: init_typ
+                type(substitution_t) :: s
+
+                init_typ = ctx%infer(arena, decl%initializer_index)
+                s = ctx%unify(typ, init_typ)
+                call ctx%compose_with_subst(s)
+            end block
+        end if
+
+    end function analyze_declaration
+
     ! Analyze function definition
     function analyze_function_def(ctx, arena, func_def, func_index) result(typ)
         type(semantic_context_t), intent(inout) :: ctx
@@ -907,8 +979,26 @@ contains
             end do
         end if
 
-        ! Infer return type (for now, use a fresh type variable)
-        return_type = create_mono_type(TVAR, var=ctx%fresh_type_var())
+        ! Determine return type
+      if (allocated(func_def%return_type) .and. len_trim(func_def%return_type) > 0) then
+            ! Use explicit return type
+            select case (trim(func_def%return_type))
+            case ('integer', 'integer(kind=4)', 'integer(4)')
+                return_type = create_mono_type(TINT)
+            case ('real', 'real(kind=4)', 'real(4)')
+                return_type = create_mono_type(TREAL)
+            case ('real(kind=8)', 'real(8)', 'double precision')
+                return_type = create_mono_type(TREAL)  ! TODO: track precision
+            case ('character')
+                return_type = create_mono_type(TCHAR, char_size=1)
+            case default
+                ! Unknown type - use type variable
+                return_type = create_mono_type(TVAR, var=ctx%fresh_type_var())
+            end select
+        else
+            ! Infer return type (use a fresh type variable)
+            return_type = create_mono_type(TVAR, var=ctx%fresh_type_var())
+        end if
 
         ! Build function type
         if (size(param_types) == 0) then
@@ -916,12 +1006,11 @@ contains
         else if (size(param_types) == 1) then
             typ = create_fun_type(param_types(1), return_type)
         else
-            ! Multi-argument function - curry
-            typ = param_types(size(param_types))
-            do i = size(param_types) - 1, 1, -1
+            ! Multi-argument function - curry from right to left
+            typ = return_type
+            do i = size(param_types), 1, -1
                 typ = create_fun_type(param_types(i), typ)
             end do
-            typ = create_fun_type(param_types(1), typ)
         end if
 
         ! Leave function scope

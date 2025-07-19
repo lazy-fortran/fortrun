@@ -11,6 +11,7 @@ module frontend
     use ast_core
     use ast_factory, only: push_program, push_literal
     use semantic_analyzer, only: semantic_context_t, create_semantic_context, analyze_program
+    use standardizer, only: standardize_ast
     use codegen_core, only: generate_code_from_arena, generate_code_polymorphic
     use logger, only: log_debug, log_verbose, set_verbose_level
 
@@ -105,7 +106,11 @@ contains
         call analyze_program(sem_ctx, arena, prog_index)
    if (options%debug_semantic) call debug_output_semantic(input_file, arena, prog_index)
 
-        ! Phase 4: Code Generation
+        ! Phase 4: Standardization (transform dialect to standard Fortran)
+        call standardize_ast(arena, prog_index)
+        ! TODO: if (options%debug_standardize) call debug_output_standardize(input_file, arena, prog_index)
+
+        ! Phase 5: Code Generation
         call generate_fortran_code(arena, prog_index, code)
         if (options%debug_codegen) call debug_output_codegen(input_file, code)
 
@@ -141,12 +146,15 @@ contains
         ! if (options%debug_ast) call debug_output_ast(tokens_json_file, arena, prog_index)
 
         ! Phase 3: Semantic Analysis (only for lowercase fortran)
-        ! Phase 3: Semantic Analysis (only for lowercase fortran)
         sem_ctx = create_semantic_context()
         call analyze_program(sem_ctx, arena, prog_index)
         if (options%debug_semantic) call debug_output_semantic(tokens_json_file, arena, prog_index)
 
-        ! Phase 4: Code Generation
+        ! Phase 4: Standardization (transform dialect to standard Fortran)
+        call standardize_ast(arena, prog_index)
+        ! TODO: if (options%debug_standardize) call debug_output_standardize(tokens_json_file, arena, prog_index)
+
+        ! Phase 5: Code Generation
         call generate_fortran_code(arena, prog_index, code)
         if (options%debug_codegen) call debug_output_codegen(tokens_json_file, code)
 
@@ -180,7 +188,11 @@ prog_index = push_literal(arena, "! JSON loading not implemented", LITERAL_STRIN
         call analyze_program(sem_ctx, arena, prog_index)
 if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, prog_index)
 
-        ! Phase 4: Code Generation
+        ! Phase 4: Standardization
+        call standardize_ast(arena, prog_index)
+        ! TODO: if (options%debug_standardize) call debug_output_standardize(ast_json_file, arena, prog_index)
+
+        ! Phase 5: Code Generation
         call generate_fortran_code(arena, prog_index, code)
         if (options%debug_codegen) call debug_output_codegen(ast_json_file, code)
 

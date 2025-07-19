@@ -218,6 +218,13 @@ module ast_core
         procedure :: to_json => declaration_to_json
     end type declaration_node
 
+    ! Contains statement node (for separating interface from implementation)
+    type, extends(ast_node), public :: contains_node
+    contains
+        procedure :: accept => contains_accept
+        procedure :: to_json => contains_to_json
+    end type contains_node
+
     ! Do loop node
     type, extends(ast_node), public :: do_loop_node
         character(len=:), allocatable :: var_name     ! Loop variable
@@ -1443,6 +1450,28 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
 
         call json%add(parent, obj)
     end subroutine declaration_to_json
+
+    ! Contains node accept visitor
+    subroutine contains_accept(this, visitor)
+        class(contains_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! No children to visit
+    end subroutine contains_accept
+
+    ! Contains node to JSON
+    subroutine contains_to_json(this, json, parent)
+        class(contains_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj
+
+        call json%create_object(obj, '')
+        call json%add(obj, 'node_type', 'contains')
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+
+        call json%add(parent, obj)
+    end subroutine contains_to_json
 
     subroutine do_loop_to_json(this, json, parent)
         class(do_loop_node), intent(in) :: this
