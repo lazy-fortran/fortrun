@@ -528,7 +528,7 @@ contains
             do while (.not. parser%is_at_end())
                 token = parser%peek()
 
-                ! Check for "end function"
+                ! Check for "end function" BEFORE trying to parse as statement
                 if (token%kind == TK_KEYWORD .and. token%text == "end") then
                     ! Look ahead for "function"
                     if (parser%current_token + 1 <= size(parser%tokens)) then
@@ -536,13 +536,45 @@ contains
                             type(token_t) :: next_token
                             next_token = parser%tokens(parser%current_token + 1)
              if (next_token%kind == TK_KEYWORD .and. next_token%text == "function") then
-                                ! Consume "end function"
-                                token = parser%consume()
-                                token = parser%consume()
+                                ! Consume "end function" and any trailing tokens on same line
+                                token = parser%consume()  ! consume "end"
+                                token = parser%consume()  ! consume "function"
+
+                                ! Also consume any optional function name on same line
+                                if (.not. parser%is_at_end()) then
+                                    token = parser%peek()
+                                    if (token%kind == TK_IDENTIFIER) then
+                    if (token%line == parser%tokens(parser%current_token - 1)%line) then
+                                            token = parser%consume()  ! consume function name
+                                        end if
+                                    end if
+                                end if
+
                                 exit
                             end if
                         end block
                     end if
+                end if
+
+                ! Skip empty lines
+                if (token%kind == TK_EOF .or. token%kind == TK_NEWLINE) then
+                    token = parser%consume()
+                    cycle
+                end if
+
+                ! Don't try to parse standalone "end" lines - skip them
+                if (token%kind == TK_KEYWORD .and. token%text == "end") then
+                    ! This is a standalone "end" that's not followed by "function"
+                    ! Skip the entire line to avoid parser errors
+                    do while (.not. parser%is_at_end())
+                        token = parser%consume()
+                        if (parser%current_token <= size(parser%tokens)) then
+                        if (parser%tokens(parser%current_token)%line /= token%line) exit
+                        else
+                            exit
+                        end if
+                    end do
+                    cycle
                 end if
 
                 ! Collect tokens for the current statement (until newline or end of line)
