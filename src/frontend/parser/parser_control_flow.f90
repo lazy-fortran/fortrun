@@ -743,11 +743,11 @@ contains
             case ("print")
                 ! Parse print statement
                 stmt_index = parse_print_statement(parser, arena)
-                return
+                if (stmt_index > 0) return
             case ("real", "integer", "logical", "character")
                 ! Parse declaration
                 stmt_index = parse_declaration(parser, arena)
-                return
+                if (stmt_index > 0) return
             case default
                 ! Unknown keyword
                 stmt_index = 0
@@ -782,10 +782,31 @@ contains
             end block
         end if
 
-        ! If we couldn't parse it, create a placeholder
+        ! If we couldn't parse it, create a placeholder with debug info
         if (stmt_index == 0) then
-            stmt_index = push_literal(arena, "! Unparsed statement", LITERAL_STRING, &
-                                      first_token%line, first_token%column)
+            block
+                character(len=256) :: debug_msg
+                character(len=64) :: token_text
+                integer :: debug_len, i
+
+                debug_msg = "! Unparsed: "
+                debug_len = len_trim(debug_msg)
+
+                ! Add first few tokens for debugging
+                do i = 1, min(3, size(tokens))
+                    if (tokens(i)%kind == TK_EOF) exit
+                    if (len_trim(tokens(i)%text) > 0) then
+                        token_text = trim(tokens(i)%text)
+                        if (debug_len + len_trim(token_text) + 1 < 250) then
+                            debug_msg = debug_msg(1:debug_len)//" "//trim(token_text)
+                            debug_len = len_trim(debug_msg)
+                        end if
+                    end if
+                end do
+
+                stmt_index = push_literal(arena, trim(debug_msg), LITERAL_STRING, &
+                                          first_token%line, first_token%column)
+            end block
         end if
 
     end function parse_basic_statement
@@ -835,7 +856,7 @@ contains
             body_count = 0
 
             ! Parse body statements
-            ! Starting do while body parsing
+            ! Starting do while body parsing at token index: parser%current_token
             do while (parser%current_token <= size(parser%tokens))
                 ! Check for 'end do'
                 block
@@ -859,6 +880,21 @@ contains
                 stmt_start = parser%current_token
                 stmt_end = stmt_start
 
+                ! Safety check: ensure we have tokens to parse
+                if (stmt_start > size(parser%tokens)) then
+                    exit  ! No more tokens
+                end if
+
+                ! DEBUG: Check if we have valid tokens
+                if (stmt_start <= size(parser%tokens) .and. &
+                    parser%tokens(stmt_start)%kind /= TK_EOF) then
+                    ! We have a valid token to parse
+                else
+                    ! Skip empty or EOF tokens
+                    parser%current_token = parser%current_token + 1
+                    cycle
+                end if
+
                 ! Find end of statement (next line or EOF)
                 do j = stmt_start, size(parser%tokens)
    if (j > stmt_start .and. parser%tokens(j)%line > parser%tokens(stmt_start)%line) exit
@@ -866,20 +902,35 @@ contains
                     stmt_end = j
                 end do
 
+                ! Ensure we found at least one token
+                if (stmt_end < stmt_start) then
+                    stmt_end = stmt_start
+                end if
+
                 if (stmt_end >= stmt_start) then
-                    allocate (stmt_tokens(stmt_end - stmt_start + 2))
+                    ! Ensure we have at least one token
+                    if (stmt_end - stmt_start + 1 > 0) then
+                        allocate (stmt_tokens(stmt_end - stmt_start + 2))
            stmt_tokens(1:stmt_end - stmt_start + 1) = parser%tokens(stmt_start:stmt_end)
-                    stmt_tokens(stmt_end - stmt_start + 2)%kind = TK_EOF
-                    stmt_tokens(stmt_end - stmt_start + 2)%text = ""
+                        stmt_tokens(stmt_end - stmt_start + 2)%kind = TK_EOF
+                        stmt_tokens(stmt_end - stmt_start + 2)%text = ""
 
-                    stmt_index = parse_basic_statement(stmt_tokens, arena)
+                        stmt_index = parse_basic_statement(stmt_tokens, arena)
 
-                    if (stmt_index > 0) then
-                        body_indices = [body_indices, stmt_index]
-                        body_count = body_count + 1
+                        if (stmt_index > 0) then
+                            body_indices = [body_indices, stmt_index]
+                            body_count = body_count + 1
+                        else
+                            ! Fallback: create a comment for debugging
+           stmt_index = push_literal(arena, "! Failed to parse statement in do while", &
+                                                      LITERAL_STRING, &
+                       parser%tokens(stmt_start)%line, parser%tokens(stmt_start)%column)
+                            body_indices = [body_indices, stmt_index]
+                            body_count = body_count + 1
+                        end if
+
+                        deallocate (stmt_tokens)
                     end if
-
-                    deallocate (stmt_tokens)
                 end if
 
                 parser%current_token = stmt_end + 1

@@ -75,6 +75,9 @@ contains
             ! Special case for implicit none
             if (node%value == "implicit none") then
                 code = "implicit none"
+                ! Special case for comments (strings starting with "!")
+            else if (len(node%value) > 0 .and. node%value(1:1) == "!") then
+                code = node%value  ! Keep comments as-is, no quotes
                 ! String literals need quotes if not already present
             else if (len_trim(node%value) == 0) then
                 code = ""  ! Skip empty literals (parser placeholders)
