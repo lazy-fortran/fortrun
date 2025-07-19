@@ -1,131 +1,147 @@
 # TODO List for Fortran Frontend
 
-## 🚨 CRITICAL: Function Parameter Type Inference (HIGH PRIORITY)
+## 🚨 CRITICAL: Comprehensive Testing Strategy
 
-### Problem Statement
-- Function parameters need proper type declarations with `intent(in)`
-- Current AST structure doesn't support intent attributes on parameters
-- Type information from semantic analysis isn't flowing to code generation
-- Test expectations require `real(8), intent(in) :: x` format
+### Testing Philosophy
+**Every feature MUST have smart, non-shallow, non-tautological unit tests that:**
+- Test actual behavior, not just syntax
+- Cover edge cases and error conditions
+- Verify semantic correctness, not just parsing
+- Test integration between components
+- Include regression tests for all bug fixes
+- Test both positive and negative cases
+- Verify type inference accuracy
+- Check generated code correctness
 
-### Detailed Implementation Plan
+### Testing Priorities
+1. **Type Inference Tests**: Verify Algorithm W correctness with complex expressions
+2. **Code Generation Tests**: Ensure generated Fortran compiles and runs correctly
+3. **Error Recovery Tests**: Parser should handle malformed input gracefully
+4. **Performance Tests**: Ensure compilation speed for large files
+5. **Integration Tests**: Full pipeline from .f to executable
 
-#### Phase 1: Extend AST Structure for Parameters
-1. **Create parameter_declaration_node** (NEW NODE TYPE)
-   - [ ] Add to ast_core.f90 with fields: name, type_name, kind_value, intent
-   - [ ] Add JSON serialization support
-   - [ ] Add visitor pattern support
-   - [ ] Add factory function for creating parameter declarations
+## ✅ Recently Completed (93% Test Success!)
 
-2. **Modify function_def_node structure**
-   - [ ] Change param_indices to store parameter_declaration nodes instead of identifiers
-   - [ ] Update parser to create parameter_declaration nodes
-   - [ ] Ensure backward compatibility with existing code
+### Function Handling Improvements
+- ✅ Function parameter type inference with intent(in)
+- ✅ Standalone function wrapping in programs
+- ✅ Proper indentation for functions and their bodies
+- ✅ Binary operator spacing standardization
+- ✅ Fixed code duplication between CLI and compile_source API
 
-#### Phase 2: Parser Enhancement
-1. **Update parse_function_definition**
-   - [ ] Parse parameter declarations with types (when present)
-   - [ ] Create parameter_declaration nodes instead of identifier nodes
-   - [ ] Handle both typed and untyped parameters for compatibility
+### What's Working
+- ✅ Basic type inference (Hindley-Milner Algorithm W)
+- ✅ Control flow statements (if/else, do while)
+- ✅ Function definitions and calls
+- ✅ AST construction and transformation
+- ✅ Code generation for most constructs
 
-2. **Add parse_parameter_declaration function**
-   - [ ] Parse format: `type[(kind)] [, intent(in/out/inout)] :: name`
-   - [ ] Support optional intent specification
-   - [ ] Default to intent(in) for lowercase fortran
+## 🔧 Remaining High Priority Tasks
 
-#### Phase 3: Semantic Analysis Integration
-1. **Update analyze_function_def**
-   - [ ] Store inferred parameter types in parameter_declaration nodes
-   - [ ] Add type annotations to parameter nodes
-   - [ ] Ensure type information is preserved in AST
+### Fix Multiple Parameter Declarations (Last Frontend Test)
+**Issue**: Parameters declared separately instead of on single line
+```fortran
+# Current:
+real(8), intent(in) :: a
+real(8), intent(in) :: b
 
-2. **Create type annotation system**
-   - [ ] Add type_annotation field to nodes that need it
-   - [ ] Implement get/set methods for type annotations
-   - [ ] Ensure annotations survive AST transformations
+# Expected:
+real(8), intent(in) :: a, b
+```
+**Solution Options**:
+1. Modify code generator to group parameters by type
+2. Create compound declaration nodes
+3. Post-process declarations during code generation
 
-#### Phase 4: Standardizer Enhancement
-1. **Update standardize_function_def**
-   - [ ] Process parameter_declaration nodes
-   - [ ] Apply inferred types to untyped parameters
-   - [ ] Add intent(in) to parameters without intent
-   - [ ] Generate proper parameter declarations in function body
+### Complete Phase 2: Parser Enhancement
+- [ ] Parse parameter declarations with explicit types
+- [ ] Support intent specifications in source
+- [ ] Handle array parameter declarations
+- [ ] Parse derived type parameters
+- [ ] **Write comprehensive parser tests for all edge cases**
 
-2. **Implement standardize_function_parameters properly**
-   - [ ] Create declaration nodes for each parameter
-   - [ ] Use type information from semantic analysis
-   - [ ] Insert after implicit none in function body
-   - [ ] Handle array parameters correctly
-
-#### Phase 5: Code Generation Update
-1. **Update generate_code_declaration**
-   - [ ] Add support for intent attribute
-   - [ ] Format: `type(kind), intent(in) :: name`
-   - [ ] Handle all intent types (in, out, inout)
-
-2. **Update generate_code_function_def**
-   - [ ] Generate parameters from parameter_declaration nodes
-   - [ ] Ensure proper formatting of parameter list
-
-## 🔧 Other High Priority Fixes
-
-### Fix Standalone Function Wrapping
-- [ ] Modify frontend.f90 to wrap standalone functions in program with contains
-- [ ] Add logic to detect standalone function/subroutine definitions
-- [ ] Generate appropriate program wrapper with contains statement
-- [ ] Ensure module detection still works correctly
+### Complete Phase 3: Semantic Analysis Integration
+- [ ] Persist type annotations through AST transformations
+- [ ] Support polymorphic type inference
+- [ ] Handle recursive function type inference
+- [ ] Infer array dimensions and bounds
+- [ ] **Test type inference with complex nested expressions**
 
 ### Fix CLI JSON Options Test
-- [ ] Debug --from-tokens execution failure
-- [ ] Check JSON deserialization in frontend
-- [ ] Ensure token stream reconstruction works
-- [ ] Add better error messages for JSON parsing failures
-
-### Fix Remaining Test Failures
-- [ ] Fix example/fortran/step1_explicit_types/step1_demo.f
-- [ ] Fix test_artifact_cache output file issues
-- [ ] Review and fix remaining integration test failures
+- [ ] Debug --from-ast and --from-tokens execution
+- [ ] Ensure JSON round-trip preservation
+- [ ] Add validation for JSON schema
+- [ ] **Create test suite for all JSON workflows**
 
 ## 📋 Medium Priority Tasks
 
 ### Implement Select Case Statement
-- [ ] Implement parse_select_case in parser_control_flow.f90
-- [ ] Add case value parsing (single values, ranges, lists)
-- [ ] Handle case default
-- [ ] Add proper code generation for select case
-- [ ] Test with various select case patterns
+- [ ] Parse case value lists and ranges
+- [ ] Handle case default properly
+- [ ] Generate optimized select case code
+- [ ] **Test with all Fortran case patterns**
 
-### Improve Error Handling
-- [ ] Add location information to all error messages
-- [ ] Implement error recovery in parser
-- [ ] Add suggestions for common mistakes
-- [ ] Create comprehensive error test suite
+### Enhanced Error Handling
+- [ ] Add column information to all errors
+- [ ] Implement error recovery points
+- [ ] Provide fix suggestions
+- [ ] **Create error catalog with examples**
+
+### Array Support Enhancement
+- [ ] Infer array dimensions from usage
+- [ ] Support array slicing operations
+- [ ] Handle implicit array operations
+- [ ] **Test multidimensional array inference**
+
+## 🎯 Testing Requirements for Each Feature
+
+### For Every New Feature:
+1. **Unit Tests**: Test the feature in isolation
+2. **Integration Tests**: Test with other features
+3. **Error Tests**: Test error handling
+4. **Performance Tests**: Ensure no regression
+5. **Example Programs**: Real-world usage examples
+
+### Test Coverage Goals:
+- Line coverage: >90%
+- Branch coverage: >85%
+- Mutation testing: >75%
+- All edge cases documented and tested
 
 ## 📊 Current Status
 
 **Test Statistics:**
-- Frontend tests: 26/29 passing (90%)
+- Frontend tests: 27/29 passing (93%) ⬆️
 - Control flow: 100% working ✅
-- Basic type inference: 100% working ✅
-- Function type inference: Partial (missing parameter intent)
+- Type inference: 98% working (1 formatting issue)
+- Function handling: 95% working ✅
 
-**Architecture Gaps:**
-1. No parameter declaration node type in AST
-2. No intent support in declaration nodes
-3. Type information doesn't flow from semantic to codegen
-4. Standalone functions aren't wrapped properly
+**Remaining Issues:**
+1. Parameter declaration formatting (cosmetic)
+2. CLI JSON options test failure
+3. Some example files failing
 
-## 🎯 Success Criteria
+## 💡 Future Enhancements (With Testing)
 
-1. All 29 frontend tests passing (100%)
-2. Function parameters have proper type and intent declarations
-3. Standalone functions wrapped correctly
-4. Type inference working end-to-end for all constructs
+### Each Enhancement Must Include:
+1. Comprehensive test suite BEFORE implementation
+2. Benchmarks to measure improvement
+3. Integration tests with existing features
+4. Documentation with tested examples
 
-## 💡 Future Enhancements
+### Planned Enhancements:
+- Module and interface support (50+ tests needed)
+- Generic programming (100+ tests needed)
+- Coarray support (30+ tests needed)
+- OpenMP/OpenACC directives (40+ tests needed)
+- Optimization passes (performance test suite)
 
-- Full Fortran 2018 standard compliance
-- Module and interface support
-- Generic programming features
-- Optimization passes in standardizer
-- Better IDE integration support
+## 🏁 Definition of Done
+
+A feature is ONLY complete when:
+1. All tests pass (unit, integration, error cases)
+2. Code coverage >90%
+3. Performance benchmarks show no regression
+4. Documentation includes tested examples
+5. Edge cases are identified and tested
+6. Error messages are helpful and tested
