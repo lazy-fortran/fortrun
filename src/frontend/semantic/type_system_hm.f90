@@ -14,8 +14,9 @@ module type_system_hm
     integer, parameter, public :: TINT = 2      ! Integer type
     integer, parameter, public :: TREAL = 3     ! Real type
     integer, parameter, public :: TCHAR = 4     ! Character type
-    integer, parameter, public :: TFUN = 5      ! Function type
-    integer, parameter, public :: TARRAY = 6    ! Array type
+    integer, parameter, public :: TLOGICAL = 5  ! Logical type
+    integer, parameter, public :: TFUN = 6      ! Function type
+    integer, parameter, public :: TARRAY = 7    ! Array type
 
     ! Type variable
     type :: type_var_t

@@ -4,7 +4,7 @@ module semantic_analyzer
                               substitution_t, create_mono_type, create_type_var, &
                               create_poly_type, create_fun_type, free_type_vars, &
                               compose_substitutions, occurs_check, &
-                              TVAR, TINT, TREAL, TCHAR, TFUN, TARRAY
+                              TVAR, TINT, TREAL, TCHAR, TLOGICAL, TFUN, TARRAY
     use scope_manager
     use type_checker
     use ast_core
@@ -321,7 +321,7 @@ contains
             ! Calculate string length (subtract 2 for quotes)
             typ = create_mono_type(TCHAR, char_size=len_trim(lit%value) - 2)
         case (LITERAL_LOGICAL)
-            typ = create_mono_type(TINT)  ! Boolean as integer
+            typ = create_mono_type(TLOGICAL)  ! Boolean as logical
         case default
             error stop "Unknown literal kind"
         end select
@@ -404,19 +404,19 @@ contains
         case ("<", ">", "<=", ">=", "==", "/=")
             ! Comparison operations: operands must be compatible
             if (is_compatible(left_typ, right_typ, compat_level)) then
-                result_typ = create_mono_type(TINT)  ! Boolean as integer
+                result_typ = create_mono_type(TLOGICAL)  ! Boolean as logical
             else
                 ! Type error - still return boolean
-                result_typ = create_mono_type(TINT)
+                result_typ = create_mono_type(TLOGICAL)
             end if
 
         case (".and.", ".or.")
-            ! Logical operations: all integer (boolean)
-            s1 = ctx%unify(left_typ, create_mono_type(TINT))
+            ! Logical operations: all logical
+            s1 = ctx%unify(left_typ, create_mono_type(TLOGICAL))
             call ctx%compose_with_subst(s1)
-            s2 = ctx%unify(right_typ, create_mono_type(TINT))
+            s2 = ctx%unify(right_typ, create_mono_type(TLOGICAL))
             call ctx%compose_with_subst(s2)
-            result_typ = create_mono_type(TINT)
+            result_typ = create_mono_type(TLOGICAL)
 
         case default
             error stop "Unknown binary operator: "//trim(binop%operator)

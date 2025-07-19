@@ -209,59 +209,75 @@ contains
             ! Check for end of body
             if (token%kind == TK_KEYWORD) then
                 if (token%text == "elseif" .or. token%text == "else if" .or. &
-                    token%text == "else" .or. token%text == "endif" .or. &
-                    token%text == "end if") then
+                    token%text == "endif" .or. token%text == "end if") then
                     exit
+                else if (token%text == "else") then
+                    ! Check if next token is "if" (for "else if")
+                    if (parser%current_token + 1 <= size(parser%tokens)) then
+                  if (parser%tokens(parser%current_token + 1)%kind == TK_KEYWORD .and. &
+                            parser%tokens(parser%current_token + 1)%text == "if") then
+                            exit  ! Found "else if"
+                        end if
+                    end if
+                    ! If not "else if", it's just "else" - also exit
+                    exit
+                else if (token%text == "end") then
+                    ! Check if next token is "if"
+                    if (parser%current_token + 1 <= size(parser%tokens)) then
+                  if (parser%tokens(parser%current_token + 1)%kind == TK_KEYWORD .and. &
+                            parser%tokens(parser%current_token + 1)%text == "if") then
+                            exit  ! Found "end if"
+                        end if
+                    end if
                 end if
             end if
 
-            ! Count remaining tokens
-            n = 0
-            do i = parser%current_token, size(parser%tokens)
-                n = n + 1
-            end do
+            ! Parse statement until end of line (same approach as do loop)
+            block
+                integer :: stmt_start, stmt_end, j
+                type(token_t), allocatable :: stmt_tokens(:)
 
-            ! Extract remaining tokens
-            allocate (remaining_tokens(n))
-            remaining_tokens = parser%tokens(parser%current_token:)
+                stmt_start = parser%current_token
+                stmt_end = stmt_start
 
-            ! Parse statement
-            stmt_index = parse_basic_statement(remaining_tokens, arena)
-            if (stmt_index > 0) then
-                stmt_count = stmt_count + 1
-                body_indices = [body_indices, stmt_index]
+                ! Find end of current statement (same line)
+                do j = stmt_start, size(parser%tokens)
+                    if (parser%tokens(j)%kind == TK_EOF) then
+                        stmt_end = j
+                        exit
+                    end if
+   if (j > stmt_start .and. parser%tokens(j)%line > parser%tokens(stmt_start)%line) then
+                        stmt_end = j - 1
+                        exit
+                    end if
+                    stmt_end = j
+                end do
 
-                ! CRITICAL: Advance the parser to skip the parsed statement
-                ! For now, we'll advance one token at a time until we hit a keyword or identifier
-                block
-                    integer :: tokens_to_skip
-                    tokens_to_skip = 1
+                ! Extract statement tokens
+                if (stmt_end >= stmt_start) then
+                    allocate (stmt_tokens(stmt_end - stmt_start + 2))
+           stmt_tokens(1:stmt_end - stmt_start + 1) = parser%tokens(stmt_start:stmt_end)
+                    ! Add EOF token
+                    stmt_tokens(stmt_end - stmt_start + 2)%kind = TK_EOF
+                    stmt_tokens(stmt_end - stmt_start + 2)%text = ""
+              stmt_tokens(stmt_end - stmt_start + 2)%line = parser%tokens(stmt_end)%line
+      stmt_tokens(stmt_end - stmt_start + 2)%column = parser%tokens(stmt_end)%column + 1
 
-                    ! Simple heuristic: skip tokens until we find next statement start
-                    do i = 2, size(remaining_tokens)
-                        if (remaining_tokens(i)%kind == TK_EOF) exit
-                        if (remaining_tokens(i)%kind == TK_KEYWORD .or. &
-                           (remaining_tokens(i)%kind == TK_IDENTIFIER .and. i > 1)) then
-                            exit
-                        end if
-                        tokens_to_skip = tokens_to_skip + 1
-                    end do
+                    ! Parse the statement
+                    stmt_index = parse_basic_statement(stmt_tokens, arena)
 
-                    ! Advance parser
-                    do i = 1, tokens_to_skip
-                        if (.not. parser%is_at_end()) then
-                            token = parser%consume()
-                        end if
-                    end do
-                end block
-            else
-                ! Failed to parse, skip this token to avoid infinite loop
-                if (.not. parser%is_at_end()) then
-                    token = parser%consume()
+                    ! Add to body if successfully parsed
+                    if (stmt_index > 0) then
+                        body_indices = [body_indices, stmt_index]
+                        stmt_count = stmt_count + 1
+                    end if
+
+                    deallocate (stmt_tokens)
                 end if
-            end if
 
-            deallocate (remaining_tokens)
+                ! Move to next statement
+                parser%current_token = stmt_end + 1
+            end block
         end do
 
     end function parse_if_body

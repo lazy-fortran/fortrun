@@ -437,11 +437,11 @@ contains
 
         select case (mono_type%kind)
         case (TINT)
-            ! TODO: Need better way to distinguish logical from integer
-            ! For now, use integer as that's what the type system expects
             type_str = "integer"
         case (TREAL)
             type_str = "real(8)"
+        case (TLOGICAL)
+            type_str = "logical"
         case (TCHAR)
             if (mono_type%size > 0) then
                 block
