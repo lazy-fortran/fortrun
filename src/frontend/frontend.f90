@@ -598,11 +598,6 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
             ! Find statement boundary
             call find_statement_boundary(tokens, i, stmt_start, stmt_end)
 
-            ! Debug output
-            call log_verbose("parse_all", "Statement boundary: "// &
-                             trim(adjustl(int_to_str(stmt_start)))//" to "// &
-                             trim(adjustl(int_to_str(stmt_end))))
-
             if (stmt_end >= stmt_start) then
                 ! Extract statement tokens
                 allocate (stmt_tokens(stmt_end - stmt_start + 2))
@@ -986,6 +981,15 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
 
         ! Check if current token is "if"
         if (tokens(pos)%kind == TK_KEYWORD .and. tokens(pos)%text == "if") then
+            ! Check if this is "else if" - if so, it's not a new if block for nesting purposes
+            if (pos > 1 .and. tokens(pos - 1)%kind == TK_KEYWORD .and. &
+                tokens(pos - 1)%text == "else" .and. &
+                tokens(pos - 1)%line == tokens(pos)%line) then
+                ! This is "else if", not a new if block
+                is_if_then_start = .false.
+                return
+            end if
+
             ! Look for "then" on the same line
             i = pos + 1
             do while (i <= size(tokens) .and. tokens(i)%line == tokens(pos)%line)
