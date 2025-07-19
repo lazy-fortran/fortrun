@@ -74,6 +74,9 @@ contains
             end if
         end if
 
+        ! Standardize function and subroutine definitions
+        call standardize_subprograms(arena, prog)
+
     end subroutine standardize_program
 
     ! Analyze program content to determine its nature
@@ -630,5 +633,74 @@ contains
             end if
         end do
     end subroutine standardize_declarations
+
+    ! Standardize function and subroutine definitions
+    subroutine standardize_subprograms(arena, prog)
+        type(ast_arena_t), intent(inout) :: arena
+        type(program_node), intent(in) :: prog
+        integer :: i
+
+        if (.not. allocated(prog%body_indices)) return
+
+        do i = 1, size(prog%body_indices)
+            if (prog%body_indices(i) > 0 .and. prog%body_indices(i) <= arena%size) then
+                if (allocated(arena%entries(prog%body_indices(i))%node)) then
+                    select type (stmt => arena%entries(prog%body_indices(i))%node)
+                    type is (function_def_node)
+                        call standardize_function_def(arena, stmt, prog%body_indices(i))
+                    type is (subroutine_def_node)
+                        ! TODO: Implement subroutine standardization
+                    end select
+                end if
+            end if
+        end do
+    end subroutine standardize_subprograms
+
+    ! Standardize a function definition
+    subroutine standardize_function_def(arena, func_def, func_index)
+        type(ast_arena_t), intent(inout) :: arena
+        type(function_def_node), intent(inout) :: func_def
+        integer, intent(in) :: func_index
+        integer, allocatable :: new_body_indices(:)
+        integer :: implicit_none_index, i, j
+        type(literal_node) :: implicit_none_node
+        character(len=:), allocatable :: return_type_str
+
+        ! Standardize return type
+        if (allocated(func_def%return_type)) then
+            if (func_def%return_type == "real") then
+                func_def%return_type = "real(8)"
+            end if
+        else
+            ! Default to real(8) if no return type specified
+            func_def%return_type = "real(8)"
+        end if
+
+        ! Add implicit none at the beginning of function body
+        if (allocated(func_def%body_indices)) then
+            ! Create implicit none node
+            implicit_none_node%value = "implicit none"
+            implicit_none_node%literal_kind = LITERAL_STRING
+            implicit_none_node%line = 1
+            implicit_none_node%column = 1
+            call arena%push(implicit_none_node, "implicit_none", func_index)
+            implicit_none_index = arena%size
+
+            ! Create new body with implicit none at the beginning
+            allocate (new_body_indices(size(func_def%body_indices) + 1))
+            new_body_indices(1) = implicit_none_index
+            do i = 1, size(func_def%body_indices)
+                new_body_indices(i + 1) = func_def%body_indices(i)
+            end do
+            func_def%body_indices = new_body_indices
+        end if
+
+        ! TODO: Add parameter declarations with intent later
+
+        ! Update the arena entry
+        arena%entries(func_index)%node = func_def
+    end subroutine standardize_function_def
+
+    ! TODO: Implement parameter standardization with intent support later
 
 end module standardizer
