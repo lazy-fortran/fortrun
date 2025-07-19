@@ -474,6 +474,11 @@ contains
             code = code//"("//trim(adjustl(int_to_string(node%kind_value)))//")"
         end if
 
+        ! Add intent if present
+        if (node%has_intent .and. allocated(node%intent)) then
+            code = code//", intent("//node%intent//")"
+        end if
+
         code = code//" :: "//node%var_name
 
         ! Add array dimensions if present

@@ -205,6 +205,8 @@ module ast_core
         character(len=:), allocatable :: var_name      ! Variable name
         integer :: kind_value                          ! Kind parameter (e.g., 8 for real(8))
         logical :: has_kind                            ! Whether kind was specified
+        character(len=:), allocatable :: intent        ! in, out, inout (for parameters)
+        logical :: has_intent = .false.                ! Whether intent was specified
         class(ast_node), allocatable :: initializer    ! Optional initialization value (legacy)
         integer :: initializer_index = 0              ! Initializer index (stack-based)
         logical :: has_initializer = .false.          ! Whether initializer is present
@@ -1472,6 +1474,10 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
 
         if (this%has_kind) then
             call json%add(obj, 'kind_value', this%kind_value)
+        end if
+
+        if (this%has_intent) then
+            call json%add(obj, 'intent', this%intent)
         end if
 
         if (this%is_array) then

@@ -695,12 +695,79 @@ contains
             func_def%body_indices = new_body_indices
         end if
 
-        ! TODO: Add parameter declarations with intent later
+        ! Standardize parameter declarations
+        call standardize_function_parameters(arena, func_def, func_index)
 
         ! Update the arena entry
         arena%entries(func_index)%node = func_def
     end subroutine standardize_function_def
 
-    ! TODO: Implement parameter standardization with intent support later
+    ! Standardize function parameters by adding declarations with intent(in)
+    subroutine standardize_function_parameters(arena, func_def, func_index)
+        type(ast_arena_t), intent(inout) :: arena
+        type(function_def_node), intent(inout) :: func_def
+        integer, intent(in) :: func_index
+        type(declaration_node) :: param_decl
+        integer, allocatable :: new_body_indices(:)
+        integer, allocatable :: param_decl_indices(:)
+        integer :: i, j, n_params, insert_pos
+        character(len=64) :: param_name
+
+        if (.not. allocated(func_def%param_indices)) return
+        n_params = size(func_def%param_indices)
+        if (n_params == 0) return
+
+        allocate (param_decl_indices(n_params))
+
+        ! Create declaration nodes for each parameter
+        do i = 1, n_params
+   if (func_def%param_indices(i) > 0 .and. func_def%param_indices(i) <= arena%size) then
+                if (allocated(arena%entries(func_def%param_indices(i))%node)) then
+                    select type (param => arena%entries(func_def%param_indices(i))%node)
+                    type is (identifier_node)
+                        param_name = param%name
+
+                        ! Create declaration node with intent(in)
+                        param_decl%type_name = "real"
+                        param_decl%var_name = param_name
+                        param_decl%has_kind = .true.
+                        param_decl%kind_value = 8
+                        param_decl%intent = "in"
+                        param_decl%has_intent = .true.
+                        param_decl%line = param%line
+                        param_decl%column = param%column
+                        call arena%push(param_decl, "param_decl", func_index)
+                        param_decl_indices(i) = arena%size
+                    end select
+                end if
+            end if
+        end do
+
+        ! Insert parameter declarations after implicit none
+        if (allocated(func_def%body_indices) .and. size(func_def%body_indices) > 0) then
+            ! Find position after implicit none (should be at index 1)
+            insert_pos = 2  ! After implicit none
+
+            ! Create new body indices with parameter declarations
+            allocate (new_body_indices(size(func_def%body_indices) + n_params))
+
+            ! Copy up to insertion point
+            do i = 1, insert_pos - 1
+                new_body_indices(i) = func_def%body_indices(i)
+            end do
+
+            ! Insert parameter declarations
+            do i = 1, n_params
+                new_body_indices(insert_pos + i - 1) = param_decl_indices(i)
+            end do
+
+            ! Copy remaining body
+            do i = insert_pos, size(func_def%body_indices)
+                new_body_indices(i + n_params) = func_def%body_indices(i)
+            end do
+
+            func_def%body_indices = new_body_indices
+        end if
+    end subroutine standardize_function_parameters
 
 end module standardizer
