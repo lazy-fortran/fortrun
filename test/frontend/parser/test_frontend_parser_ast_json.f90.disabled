@@ -2,7 +2,7 @@ program test_frontend_parser_ast_json
     use json_reader, only: json_to_ast
     use json_module
     use ast_core
-    use ast_lazy_fortran
+    use ast_lowercase_fortran
     use codegen_core, only: generate_code_polymorphic
     implicit none
 

@@ -80,7 +80,7 @@ Clean organized directory structure:
   - `basic/` - Simple getting started examples
   - `scientific/` - Scientific computing examples
   - `modules/` - Module usage examples
-  - `lazy_fortran/` - Lazy fortran dialect features
+  - `fortran/` - Lowercase fortran dialect features
   - `frontend_test_cases/` - Frontend test cases with JSON input/output pairs
 
 ## CRITICAL: No Shortcuts in Frontend ⚠️

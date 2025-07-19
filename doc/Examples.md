@@ -8,7 +8,7 @@ Practical examples demonstrating `fortran` tool features. All examples are organ
 - **basic/** - Simple getting started examples
 - **scientific/** - Scientific computing and visualization
 - **modules/** - Module usage and dependencies
-- **lazy_fortran/** - Lazy fortran dialect features
+- **fortran/** - Lazy fortran dialect features
 - **frontend_test_cases/** - Frontend compiler test cases (for development)
 
 ## Basic Usage
@@ -89,7 +89,7 @@ fortran main.f90  # Resolves all interdependencies automatically
 Shows how the tool handles complex dependency graphs.
 
 ### Type Inference (.f files)
-**Location:** [example/lazy_fortran/type_inference/](https://github.com/krystophny/fortran/tree/main/example/lazy_fortran/type_inference)
+**Location:** [example/fortran/type_inference/](https://github.com/krystophny/fortran/tree/main/example/fortran/type_inference)
 
 ```fortran
 ! calculate.f (note: .f extension)
@@ -109,7 +109,7 @@ fortran calculate.f  # Automatically infers types and wraps in program
 Demonstrates the preprocessor that adds type declarations and program structure.
 
 ### Preprocessor Features  
-**Location:** [example/lazy_fortran/preprocessor/](https://github.com/krystophny/fortran/tree/main/example/lazy_fortran/preprocessor)
+**Location:** [example/fortran/preprocessor/](https://github.com/krystophny/fortran/tree/main/example/fortran/preprocessor)
 
 ```fortran
 ! math.f
@@ -241,7 +241,7 @@ fortran plot_demo.f90  # Downloads and builds pyplot-fortran automatically
 Shows integration with external FPM packages.
 
 ### Advanced Type Inference
-**Location:** [example/lazy_fortran/advanced_inference/](https://github.com/krystophny/fortran/tree/main/example/lazy_fortran/advanced_inference)
+**Location:** [example/fortran/advanced_inference/](https://github.com/krystophny/fortran/tree/main/example/fortran/advanced_inference)
 
 ```fortran
 ! arrays.f
@@ -270,7 +270,7 @@ fortran derived_types.f # Handles derived types
 Advanced preprocessing with complex type inference.
 
 ### Step 1 Type Inference (Explicit Types)
-**Location:** [example/lazy_fortran/step1_explicit_types/](https://github.com/krystophny/fortran/tree/main/example/lazy_fortran/step1_explicit_types)
+**Location:** [example/fortran/step1_explicit_types/](https://github.com/krystophny/fortran/tree/main/example/fortran/step1_explicit_types)
 
 ```fortran
 ! step1_demo.f - Input with explicit types

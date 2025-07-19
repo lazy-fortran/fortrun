@@ -135,16 +135,16 @@ print '(a)', '                    (.f90: user flags only, .f: opinionated + user
         character(len=256) :: temp_output, error_msg
         character(len=1024) :: line
         integer :: unit, ios
-        logical :: is_lazy_fortran
+        logical :: is_lowercase_fortran
 
         ! Check if input is a .f file (lowercase fortran)
-        is_lazy_fortran = is_simple_fortran_file(input_file)
+        is_lowercase_fortran = is_simple_fortran_file(input_file)
 
         ! Create temporary output file
         temp_output = get_temp_file_path(create_temp_dir('fortran_main'), 'output.f90')
 
         ! Process based on file type
-        if (is_lazy_fortran) then
+        if (is_lowercase_fortran) then
             ! Compile with frontend to Fortran IR
             if (debug_tokens .or. debug_ast .or. debug_semantic .or. debug_codegen) then
         call compile_with_frontend_debug(input_file, temp_output, error_msg, debug_tokens, debug_ast, debug_semantic, debug_codegen)

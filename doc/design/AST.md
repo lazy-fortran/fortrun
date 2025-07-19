@@ -177,9 +177,9 @@ test/frontend/
 - **Integration tests**: Full pipeline validation
 - **JSON workflow tests**: Debug output validation
 
-## *Lazy Fortran* Extensions
+## *Lowercase Fortran* Extensions
 
-### Dialect-Specific Features (`src/frontend/standard/lazy_fortran/`)
+### Dialect-Specific Features (`src/frontend/standard/lowercase_fortran/`)
 - **Implicit program wrapping**: No `program`/`end program` needed
 - **Automatic type inference**: Variables declared through assignment
 - **Modern defaults**: `implicit none`, `real(8)`, `intent(in)`

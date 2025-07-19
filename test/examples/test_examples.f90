@@ -38,16 +38,16 @@ program test_examples
     example_files(12) = 'example/modules/interdependent/main.f'
 
     ! Type inference examples
-    example_files(13) = 'example/lazy_fortran/type_inference/calculate.f90'
-    example_files(14) = 'example/lazy_fortran/type_inference/calculate.f'
-    example_files(15) = 'example/lazy_fortran/type_inference/all_types.f90'
-    example_files(16) = 'example/lazy_fortran/type_inference/all_types.f'
+    example_files(13) = 'example/fortran/type_inference/calculate.f90'
+    example_files(14) = 'example/fortran/type_inference/calculate.f'
+    example_files(15) = 'example/fortran/type_inference/all_types.f90'
+    example_files(16) = 'example/fortran/type_inference/all_types.f'
 
     ! Advanced inference examples
-    example_files(17) = 'example/lazy_fortran/advanced_inference/arrays.f90'
-    example_files(18) = 'example/lazy_fortran/advanced_inference/arrays.f'
-    example_files(19) = 'example/lazy_fortran/advanced_inference/derived_types.f90'
-    example_files(20) = 'example/lazy_fortran/advanced_inference/derived_types.f'
+    example_files(17) = 'example/fortran/advanced_inference/arrays.f90'
+    example_files(18) = 'example/fortran/advanced_inference/arrays.f'
+    example_files(19) = 'example/fortran/advanced_inference/derived_types.f90'
+    example_files(20) = 'example/fortran/advanced_inference/derived_types.f'
 
     ! Notebook examples
     example_files(21) = 'example/scientific/notebook/simple_math.f90'
@@ -58,14 +58,14 @@ program test_examples
     example_files(26) = 'example/scientific/notebook/control_flow_simple.f'
 
     ! Step 1 explicit types examples (our new Step 1 work)
-    example_files(27) = 'example/lazy_fortran/step1_explicit_types/step1_demo.f90'
-    example_files(28) = 'example/lazy_fortran/step1_explicit_types/step1_demo.f'
+    example_files(27) = 'example/fortran/step1_explicit_types/step1_demo.f90'
+    example_files(28) = 'example/fortran/step1_explicit_types/step1_demo.f'
 
     ! Advanced inference function returns and intrinsics
-    example_files(29) = 'example/lazy_fortran/advanced_inference/function_returns.f90'
-    example_files(30) = 'example/lazy_fortran/advanced_inference/function_returns.f'
-   example_files(31) = 'example/lazy_fortran/advanced_inference/intrinsic_functions.f90'
-    example_files(32) = 'example/lazy_fortran/advanced_inference/intrinsic_functions.f'
+    example_files(29) = 'example/fortran/advanced_inference/function_returns.f90'
+    example_files(30) = 'example/fortran/advanced_inference/function_returns.f'
+    example_files(31) = 'example/fortran/advanced_inference/intrinsic_functions.f90'
+    example_files(32) = 'example/fortran/advanced_inference/intrinsic_functions.f'
 
     ! Plotting examples (may have external deps but should be testable)
     example_files(33) = 'example/scientific/plotting/plot_demo.f90'
@@ -74,10 +74,10 @@ program test_examples
     ! These require advanced type inference and complex syntax support
     n_expected_failures = 4
     allocate (expected_failures(n_expected_failures))
-expected_failures(1) = 'example/lazy_fortran/advanced_inference/arrays.f'              ! Complex array type inference
-expected_failures(2) = 'example/lazy_fortran/advanced_inference/derived_types.f'       ! Derived type syntax
+    expected_failures(1) = 'example/fortran/advanced_inference/arrays.f'              ! Complex array type inference
+    expected_failures(2) = 'example/fortran/advanced_inference/derived_types.f'       ! Derived type syntax
     expected_failures(3) = 'example/scientific/notebook/arrays_loops_simple.f'           ! Complex array functions
-expected_failures(4) = 'example/lazy_fortran/advanced_inference/function_returns.f'    ! Function interfaces
+    expected_failures(4) = 'example/fortran/advanced_inference/function_returns.f'    ! Function interfaces
 
     n_passed = 0
     n_failed = 0
@@ -879,10 +879,10 @@ contains
     call test_file_pair('example/basic/calculator/calculator.f', 'example/basic/calculator/calculator.f90', &
                             temp_cache_dir, n_passed, n_failed)
 
-    call test_file_pair('example/lazy_fortran/type_inference/calculate.f', 'example/lazy_fortran/type_inference/calculate.f90', &
+    call test_file_pair('example/fortran/type_inference/calculate.f', 'example/fortran/type_inference/calculate.f90', &
                             temp_cache_dir, n_passed, n_failed)
 
-    call test_file_pair('example/lazy_fortran/type_inference/all_types.f', 'example/lazy_fortran/type_inference/all_types.f90', &
+    call test_file_pair('example/fortran/type_inference/all_types.f', 'example/fortran/type_inference/all_types.f90', &
                             temp_cache_dir, n_passed, n_failed)
 
         ! Clean up temporary cache directory
@@ -1005,8 +1005,8 @@ else if (index(clean1, 'Integer count:') > 0 .and. index(clean1, 'Real pi:') > 0
         character(len=256), parameter :: expected_f_failures(4) = [ &
                      'example/basic/hello/hello.f                                   ', &
                      'example/basic/calculator/calculator.f                         ', &
-                     'example/lazy_fortran/type_inference/calculate.f               ', &
-                       'example/lazy_fortran/type_inference/all_types.f               ']
+                     'example/fortran/type_inference/calculate.f                    ', &
+                       'example/fortran/type_inference/all_types.f                    ']
         integer :: i
 
         is_expected = .false.

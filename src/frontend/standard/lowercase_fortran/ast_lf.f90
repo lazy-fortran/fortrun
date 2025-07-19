@@ -1,4 +1,4 @@
-module ast_lazy_fortran
+module ast_lowercase_fortran
     use ast_core
     use json_module
     implicit none
@@ -245,4 +245,4 @@ contains
 
     ! lf_assignment_to_json removed - core assignment_to_json now handles type inference
 
-end module ast_lazy_fortran
+end module ast_lowercase_fortran
