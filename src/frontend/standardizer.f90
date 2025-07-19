@@ -57,6 +57,9 @@ contains
             ! For now, just handle contains insertion
         end if
 
+        ! Standardize existing declarations (e.g., real -> real(8))
+        call standardize_declarations(arena, prog)
+
         ! Always insert implicit none and variable declarations for programs
         call insert_variable_declarations(arena, prog, prog_index)
 
@@ -456,5 +459,32 @@ contains
             type_str = "real(8)"  ! Default fallback
         end select
     end function get_fortran_type_string
+
+    ! Standardize existing declaration nodes (e.g., real -> real(8))
+    subroutine standardize_declarations(arena, prog)
+        type(ast_arena_t), intent(inout) :: arena
+        type(program_node), intent(in) :: prog
+        integer :: i
+
+        if (.not. allocated(prog%body_indices)) return
+
+        do i = 1, size(prog%body_indices)
+            if (prog%body_indices(i) > 0 .and. prog%body_indices(i) <= arena%size) then
+                if (allocated(arena%entries(prog%body_indices(i))%node)) then
+                    select type (stmt => arena%entries(prog%body_indices(i))%node)
+                    type is (declaration_node)
+                        ! Standardize the type name
+                        if (stmt%type_name == "real") then
+                            stmt%type_name = "real"
+                            stmt%has_kind = .true.
+                            stmt%kind_value = 8
+                        end if
+                        ! Update the node in the arena
+                        arena%entries(prog%body_indices(i))%node = stmt
+                    end select
+                end if
+            end if
+        end do
+    end subroutine standardize_declarations
 
 end module standardizer
