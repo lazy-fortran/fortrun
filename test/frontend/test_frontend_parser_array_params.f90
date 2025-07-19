@@ -37,7 +37,7 @@ contains
         integer, allocatable :: param_indices(:)
 
         passed = .false.
-        
+
         ! Tokenize
         call tokenize_core(source, tokens)
         if (.not. allocated(tokens) .or. size(tokens) == 0) then
@@ -57,8 +57,7 @@ contains
             return
         end if
 
-
-        ! Should have at least 2 parameter_declaration nodes 
+        ! Should have at least 2 parameter_declaration nodes
         ! (plus dimension nodes for the array specifications)
         if (size(param_indices) < 2) then
             print *, "ERROR in ", test_name, ": Expected at least 2 params, got ", size(param_indices)
@@ -90,7 +89,7 @@ contains
                     return
                 end if
                 if (.not. allocated(node1%dimension_indices)) then
-                    print *, "ERROR in ", test_name, ": First param should have dimension_indices"
+          print *, "ERROR in ", test_name, ": First param should have dimension_indices"
                     return
                 end if
                 if (size(node1%dimension_indices) /= 1) then
@@ -98,7 +97,7 @@ contains
                     return
                 end if
             class default
-                print *, "ERROR in ", test_name, ": First node should be parameter_declaration_node"
+    print *, "ERROR in ", test_name, ": First node should be parameter_declaration_node"
                 return
             end select
         else
@@ -119,7 +118,7 @@ contains
                     return
                 end if
             class default
-                print *, "ERROR in ", test_name, ": Second node should be parameter_declaration_node"
+   print *, "ERROR in ", test_name, ": Second node should be parameter_declaration_node"
                 return
             end select
         else

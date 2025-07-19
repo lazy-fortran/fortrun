@@ -566,40 +566,40 @@ contains
                             integer :: param_index
                             integer, allocatable :: dim_indices(:)
                             integer :: dim_count
-                            
+
                             param_name = token%text
                             token = parser%consume()
-                            
+
                             ! Check for array specification
-                            allocate(dim_indices(0))
+                            allocate (dim_indices(0))
                             dim_count = 0
                             token = parser%peek()
                             if (token%kind == TK_OPERATOR .and. token%text == "(") then
                                 token = parser%consume()  ! consume '('
-                                
+
                                 ! Parse array dimensions
                                 do while (.not. parser%is_at_end())
                                     token = parser%peek()
-                                    if (token%kind == TK_OPERATOR .and. token%text == ")") then
+                             if (token%kind == TK_OPERATOR .and. token%text == ")") then
                                         token = parser%consume()  ! consume ')'
                                         exit
                                     end if
-                                    
+
                                     ! Parse dimension expression (for now, create identifier or literal nodes)
-                                    if (token%kind == TK_OPERATOR .and. token%text == ":") then
+                             if (token%kind == TK_OPERATOR .and. token%text == ":") then
                                         ! Assumed shape (:)
                                         block
                                             integer :: dim_index
-                                            dim_index = push_identifier(arena, ":", token%line, token%column)
+                       dim_index = push_identifier(arena, ":", token%line, token%column)
                                             dim_indices = [dim_indices, dim_index]
                                             dim_count = dim_count + 1
                                         end block
                                         token = parser%consume()
-                                    else if (token%kind == TK_OPERATOR .and. token%text == "*") then
+                        else if (token%kind == TK_OPERATOR .and. token%text == "*") then
                                         ! Assumed size (*)
                                         block
                                             integer :: dim_index
-                                            dim_index = push_identifier(arena, "*", token%line, token%column)
+                       dim_index = push_identifier(arena, "*", token%line, token%column)
                                             dim_indices = [dim_indices, dim_index]
                                             dim_count = dim_count + 1
                                         end block
@@ -608,8 +608,8 @@ contains
                                         ! Explicit size
                                         block
                                             integer :: dim_index
-                                            dim_index = push_literal(arena, token%text, LITERAL_INTEGER, &
-                                                                   token%line, token%column)
+                          dim_index = push_literal(arena, token%text, LITERAL_INTEGER, &
+                                                               token%line, token%column)
                                             dim_indices = [dim_indices, dim_index]
                                             dim_count = dim_count + 1
                                         end block
@@ -618,7 +618,7 @@ contains
                                         ! Variable size
                                         block
                                             integer :: dim_index
-                                            dim_index = push_identifier(arena, token%text, token%line, token%column)
+                dim_index = push_identifier(arena, token%text, token%line, token%column)
                                             dim_indices = [dim_indices, dim_index]
                                             dim_count = dim_count + 1
                                         end block
@@ -627,24 +627,24 @@ contains
                                         ! Skip unrecognized tokens
                                         token = parser%consume()
                                     end if
-                                    
+
                                     ! Check for comma (more dimensions)
                                     token = parser%peek()
-                                    if (token%kind == TK_OPERATOR .and. token%text == ",") then
+                             if (token%kind == TK_OPERATOR .and. token%text == ",") then
                                         token = parser%consume()  ! consume ','
                                     end if
                                 end do
                             end if
-                            
+
                             ! Create parameter declaration node with array info
                             if (dim_count > 0) then
-                                param_index = push_parameter_declaration(arena, param_name, current_type, &
-                                                                       current_kind, current_intent, &
-                                                                       dim_indices, line, column)
+             param_index = push_parameter_declaration(arena, param_name, current_type, &
+                                                         current_kind, current_intent, &
+                                                              dim_indices, line, column)
                             else
-                                param_index = push_parameter_declaration(arena, param_name, current_type, &
-                                                                       current_kind, current_intent, &
-                                                                       line=line, column=column)
+             param_index = push_parameter_declaration(arena, param_name, current_type, &
+                                                         current_kind, current_intent, &
+                                                               line=line, column=column)
                             end if
                             temp_params = [temp_params, param_index]
                         end block

@@ -1002,24 +1002,24 @@ contains
                         else
                             group_intent = ""
                         end if
-                        
+
                         ! Build variable name with array specification
                         block
                             character(len=:), allocatable :: param_name_with_dims
                             param_name_with_dims = node%name
-                            if (node%is_array .and. allocated(node%dimension_indices)) then
+                         if (node%is_array .and. allocated(node%dimension_indices)) then
                                 param_name_with_dims = param_name_with_dims//"("
                                 block
                                     integer :: d
                                     character(len=:), allocatable :: dim_code
                                     do d = 1, size(node%dimension_indices)
-                                        if (d > 1) param_name_with_dims = param_name_with_dims//","
+                             if (d > 1) param_name_with_dims = param_name_with_dims//","
                                         block
                                             integer :: dim_idx
                                             dim_idx = node%dimension_indices(d)
-                                            dim_code = generate_code_from_arena(arena, dim_idx)
+                                     dim_code = generate_code_from_arena(arena, dim_idx)
                                         end block
-                                        param_name_with_dims = param_name_with_dims//dim_code
+                                   param_name_with_dims = param_name_with_dims//dim_code
                                     end do
                                 end block
                                 param_name_with_dims = param_name_with_dims//")"
@@ -1040,26 +1040,26 @@ contains
                                             next_node%intent == group_intent) then
                                             ! Build next parameter name with array specification
                                             block
-                                                character(len=:), allocatable :: next_param_name
+                                        character(len=:), allocatable :: next_param_name
                                                 next_param_name = next_node%name
-                                                if (next_node%is_array .and. allocated(next_node%dimension_indices)) then
-                                                    next_param_name = next_param_name//"("
+               if (next_node%is_array .and. allocated(next_node%dimension_indices)) then
+                                                  next_param_name = next_param_name//"("
                                                     block
                                                         integer :: d
-                                                        character(len=:), allocatable :: dim_code
-                                                        do d = 1, size(next_node%dimension_indices)
-                                                            if (d > 1) next_param_name = next_param_name//","
+                                               character(len=:), allocatable :: dim_code
+                                             do d = 1, size(next_node%dimension_indices)
+                                       if (d > 1) next_param_name = next_param_name//","
                                                             block
                                                                 integer :: dim_idx
-                                                                dim_idx = next_node%dimension_indices(d)
-                                                                dim_code = generate_code_from_arena(arena, dim_idx)
+                                                dim_idx = next_node%dimension_indices(d)
+                                     dim_code = generate_code_from_arena(arena, dim_idx)
                                                             end block
-                                                            next_param_name = next_param_name//dim_code
+                                             next_param_name = next_param_name//dim_code
                                                         end do
                                                     end block
-                                                    next_param_name = next_param_name//")"
+                                                  next_param_name = next_param_name//")"
                                                 end if
-                                                var_list = var_list//", "//next_param_name
+                                              var_list = var_list//", "//next_param_name
                                             end block
                                             j = j + 1
                                         else
