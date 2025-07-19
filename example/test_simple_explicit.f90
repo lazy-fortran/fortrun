@@ -1,4 +1,2 @@
-function add(real(8) :: x, y)
-    real(8) :: add
-    add = x + y
-end function
+real(8) :: x, y
+x = y + 1.0

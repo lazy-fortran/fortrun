@@ -198,11 +198,12 @@ contains
     end function push_declaration
 
     ! Create parameter declaration node and add to stack
- function push_parameter_declaration(arena, name, type_name, kind_value, intent_value, &
-                                        line, column, parent_index) result(param_index)
+function push_parameter_declaration(arena, name, type_name, kind_value, intent_value, &
+                                   dimension_indices, line, column, parent_index) result(param_index)
         type(ast_arena_t), intent(inout) :: arena
         character(len=*), intent(in) :: name, type_name
         integer, intent(in), optional :: kind_value, intent_value
+        integer, intent(in), optional :: dimension_indices(:)
         integer, intent(in), optional :: line, column, parent_index
         integer :: param_index
         type(parameter_declaration_node) :: param
@@ -231,7 +232,17 @@ contains
             param%intent = ""
         end if
 
-        param%is_array = .false.
+        ! Handle array dimensions
+        if (present(dimension_indices)) then
+            if (size(dimension_indices) > 0) then
+                param%is_array = .true.
+                allocate(param%dimension_indices, source=dimension_indices)
+            else
+                param%is_array = .false.
+            end if
+        else
+            param%is_array = .false.
+        end if
 
         if (present(line)) param%line = line
         if (present(column)) param%column = column
