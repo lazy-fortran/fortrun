@@ -1,6 +1,6 @@
 program test_frontend_parser_if_statement
     use lexer_core
-    use ast_core
+    use ast_core, only: ast_arena_t, create_ast_stack, if_node
     use ast_factory
     use parser_control_flow_module, only: parse_if
     use parser_state_module, only: parser_state_t, create_parser_state
@@ -50,7 +50,7 @@ contains
         tokens(8) = token_t(TK_EOF, "", 1, 16)
 
         ! Create parser and arena
-        arena = create_ast_arena()
+        arena = create_ast_stack()
         parser = create_parser_state(tokens)
 
         ! Parse if statement
@@ -60,10 +60,15 @@ contains
             print '(a)', "PASS: If statement parsed successfully"
 
             ! Check the node type
-            if (arena%node_types(if_index) == "if") then
-                print '(a)', "PASS: Correct node type 'if'"
+            if (allocated(arena%entries(if_index)%node_type)) then
+                if (arena%entries(if_index)%node_type == "if_statement") then
+                    print '(a)', "PASS: Correct node type 'if_statement'"
+                else
+       print '(a,a)', "FAIL: Wrong node type: ", trim(arena%entries(if_index)%node_type)
+                    test_simple_if_then = .false.
+                end if
             else
-                print '(a)', "FAIL: Wrong node type: ", trim(arena%node_types(if_index))
+                print '(a)', "FAIL: Node type not allocated"
                 test_simple_if_then = .false.
             end if
         else
@@ -96,7 +101,7 @@ contains
         tokens(8) = token_t(TK_EOF, "", 1, 18)
 
         ! Create parser and arena
-        arena = create_ast_arena()
+        arena = create_ast_stack()
         parser = create_parser_state(tokens)
 
         ! Parse if statement
@@ -106,18 +111,23 @@ contains
             print '(a)', "PASS: If statement with condition parsed"
 
             ! The if node should have been created
-            select type (node => arena%get_node(if_index))
-            type is (if_node)
-                if (node%condition_index > 0) then
-                    print '(a)', "PASS: Condition index is set"
-                else
-                    print '(a)', "FAIL: No condition index"
+            if (allocated(arena%entries(if_index)%node)) then
+                select type (node => arena%entries(if_index)%node)
+                type is (if_node)
+                    if (node%condition_index > 0) then
+                        print '(a)', "PASS: Condition index is set"
+                    else
+                        print '(a)', "FAIL: No condition index"
+                        test_if_condition_parsing = .false.
+                    end if
+                class default
+                    print '(a)', "FAIL: Not an if_node"
                     test_if_condition_parsing = .false.
-                end if
-            class default
-                print '(a)', "FAIL: Not an if_node"
+                end select
+            else
+                print '(a)', "FAIL: Node not allocated"
                 test_if_condition_parsing = .false.
-            end select
+            end if
         else
             print '(a)', "FAIL: If statement with condition not parsed"
             test_if_condition_parsing = .false.
@@ -147,7 +157,7 @@ contains
         tokens(8) = token_t(TK_EOF, "", 1, 16)
 
         ! Create arena
-        arena = create_ast_arena()
+        arena = create_ast_stack()
 
         ! Parse through dispatcher
         stmt_index = parse_statement_dispatcher(tokens, arena)
@@ -155,10 +165,15 @@ contains
         if (stmt_index > 0) then
             print '(a)', "PASS: If block parsed through dispatcher"
 
-            if (arena%node_types(stmt_index) == "if") then
-                print '(a)', "PASS: Dispatcher created if node"
+            if (allocated(arena%entries(stmt_index)%node_type)) then
+                if (arena%entries(stmt_index)%node_type == "if_statement") then
+                    print '(a)', "PASS: Dispatcher created if_statement node"
+                else
+                    print '(a,a)', "FAIL: Dispatcher created wrong node type: ", trim(arena%entries(stmt_index)%node_type)
+                    test_full_if_block = .false.
+                end if
             else
-                print '(a)', "FAIL: Dispatcher created wrong node type: ", trim(arena%node_types(stmt_index))
+                print '(a)', "FAIL: Node type not allocated"
                 test_full_if_block = .false.
             end if
         else

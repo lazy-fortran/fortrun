@@ -8,7 +8,7 @@ contains
     subroutine parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                              custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
                                notebook_output, standardize_only, custom_flags, &
-      clear_cache, cache_info, debug_tokens, debug_ast, debug_semantic, debug_codegen, &
+      clear_cache, cache_info, debug_tokens, debug_ast, debug_semantic, debug_standardize, debug_codegen, &
                                from_tokens, from_ast, from_semantic)
         character(len=*), intent(out) :: filename
         logical, intent(out) :: show_help
@@ -26,6 +26,7 @@ contains
         logical, intent(out) :: debug_tokens
         logical, intent(out) :: debug_ast
         logical, intent(out) :: debug_semantic
+        logical, intent(out) :: debug_standardize
         logical, intent(out) :: debug_codegen
         logical, intent(out) :: from_tokens
         logical, intent(out) :: from_ast
@@ -50,6 +51,7 @@ contains
         debug_tokens = .false.
         debug_ast = .false.
         debug_semantic = .false.
+        debug_standardize = .false.
         debug_codegen = .false.
         from_tokens = .false.
         from_ast = .false.
@@ -149,6 +151,8 @@ contains
                 debug_ast = .true.
             else if (arg == '--debug-semantic') then
                 debug_semantic = .true.
+            else if (arg == '--debug-standardize') then
+                debug_standardize = .true.
             else if (arg == '--debug-codegen') then
                 debug_codegen = .true.
             else if (arg == '--from-tokens') then
@@ -234,7 +238,7 @@ contains
                                                 parallel_jobs, no_wait, notebook_mode, &
                                                 notebook_output, standardize_only, &
                                                 clear_cache, cache_info, debug_tokens, &
-                                             debug_ast, debug_semantic, debug_codegen, &
+                          debug_ast, debug_semantic, debug_standardize, debug_codegen, &
                                                 from_tokens, from_ast, from_semantic, &
                                                 has_stdin, nargs_override)
         character(len=*), intent(out) :: filename
@@ -245,45 +249,61 @@ contains
         logical, intent(out) :: no_wait, notebook_mode, standardize_only
         character(len=*), intent(out) :: notebook_output
         logical, intent(out) :: clear_cache, cache_info
-        logical, intent(out) :: debug_tokens, debug_ast, debug_semantic, debug_codegen
+        logical, intent(out) :: debug_tokens, debug_ast, debug_semantic, debug_standardize, debug_codegen
         logical, intent(out) :: from_tokens, from_ast, from_semantic
         logical, intent(in) :: has_stdin
         integer, intent(in) :: nargs_override
 
         ! This is a testable version that allows mocking STDIN and arg count
-        if (nargs_override == 0) then
+
+        ! If nargs_override is negative, use actual command arg count
+        integer :: actual_nargs
+        if (nargs_override < 0) then
+            actual_nargs = command_argument_count()
+        else
+            actual_nargs = nargs_override
+        end if
+
+        if (actual_nargs == 0) then
             if (has_stdin) then
-                filename = '-'  ! Special marker for STDIN
+                ! No arguments but STDIN available - use STDIN
+                filename = '-'
                 show_help = .false.
+                ! Set defaults for all other parameters
+                verbose_level = 0
+                custom_cache_dir = ''
+                custom_config_dir = ''
+                parallel_jobs = 0
+                no_wait = .false.
+                notebook_mode = .false.
+                notebook_output = ''
+                standardize_only = .false.
+                clear_cache = .false.
+                cache_info = .false.
+                debug_tokens = .false.
+                debug_ast = .false.
+                debug_semantic = .false.
+                debug_standardize = .false.
+                debug_codegen = .false.
+                from_tokens = .false.
+                from_ast = .false.
+                from_semantic = .false.
             else
+                ! No arguments and no STDIN - show help
                 show_help = .true.
                 return
             end if
         else
-            ! Has arguments - use normal parsing logic
-            ! For now, just set defaults - full implementation would parse args
-            filename = 'test.f90'
-            show_help = .false.
+            ! Has arguments - use normal parsing
+            call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
+                             custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
+                             notebook_output, standardize_only, custom_flags=filename, &
+                                 clear_cache=clear_cache, cache_info=cache_info, &
+                                 debug_tokens=debug_tokens, debug_ast=debug_ast, &
+                   debug_semantic=debug_semantic, debug_standardize=debug_standardize, &
+                                 debug_codegen=debug_codegen, from_tokens=from_tokens, &
+                                 from_ast=from_ast, from_semantic=from_semantic)
         end if
-
-        ! Set default values for other parameters
-        verbose_level = 0
-        custom_cache_dir = ''
-        custom_config_dir = ''
-        parallel_jobs = 0
-        no_wait = .false.
-        notebook_mode = .false.
-        notebook_output = ''
-        standardize_only = .false.
-        clear_cache = .false.
-        cache_info = .false.
-        debug_tokens = .false.
-        debug_ast = .false.
-        debug_semantic = .false.
-        debug_codegen = .false.
-        from_tokens = .false.
-        from_ast = .false.
-        from_semantic = .false.
 
     end subroutine parse_arguments_with_stdin_check
 

@@ -12,6 +12,7 @@ module debug_utils
     public :: debug_output_tokens
     public :: debug_output_ast
     public :: debug_output_semantic
+    public :: debug_output_standardize
     public :: debug_output_codegen
 
 contains
@@ -71,6 +72,56 @@ contains
         ! For now, write arena summary since semantic analysis is disabled
         call write_arena_summary(arena, prog_index, json_file)
     end subroutine debug_output_semantic
+
+    subroutine debug_output_standardize(input_file, arena, prog_index)
+        use ast_core, only: ast_arena_t
+        use json_module
+        character(len=*), intent(in) :: input_file
+        type(ast_arena_t), intent(in) :: arena
+        integer, intent(in) :: prog_index
+        character(len=:), allocatable :: output_filename
+        type(json_core) :: json_obj
+        type(json_value), pointer :: root, array, obj
+        integer :: i
+
+        ! Create standardize filename in same directory as input file
+        output_filename = input_file
+        if (index(output_filename, '.') > 0) then
+       output_filename = output_filename(1:index(output_filename, '.', back=.true.) - 1)
+        end if
+        output_filename = output_filename//"_standardize.json"
+
+        print *, "DEBUG: Writing standardized AST to: ", trim(output_filename)
+
+        ! Initialize JSON
+        call json_obj%initialize()
+        call json_obj%create_object(root, '')
+        call json_obj%add(root, 'input_file', trim(input_file))
+        call json_obj%add(root, 'phase', 'standardization')
+        call json_obj%add(root, 'root_index', prog_index)
+
+        ! Add arena summary
+        call json_obj%create_array(array, 'arena_nodes')
+        do i = 1, arena%size
+            call json_obj%create_object(obj, '')
+            call json_obj%add(obj, 'index', i)
+            if (allocated(arena%entries(i)%node_type)) then
+                call json_obj%add(obj, 'type', trim(arena%entries(i)%node_type))
+            else
+                call json_obj%add(obj, 'type', 'unknown')
+            end if
+            call json_obj%add(obj, 'parent', arena%entries(i)%parent_index)
+            call json_obj%add(obj, 'depth', arena%entries(i)%depth)
+            call json_obj%add(array, obj)
+            nullify (obj)
+        end do
+        call json_obj%add(root, array)
+
+        ! Write to file
+        call json_obj%print(root, output_filename)
+        call json_obj%destroy(root)
+
+    end subroutine debug_output_standardize
 
     subroutine debug_output_codegen(input_file, code)
         character(len=*), intent(in) :: input_file

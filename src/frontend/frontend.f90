@@ -15,7 +15,8 @@ module frontend
     use codegen_core, only: generate_code_from_arena, generate_code_polymorphic
     use logger, only: log_debug, log_verbose, set_verbose_level
 
-    use debug_utils, only: debug_output_tokens, debug_output_ast, debug_output_semantic, debug_output_codegen
+  use debug_utils, only: debug_output_tokens, debug_output_ast, debug_output_semantic, &
+                           debug_output_standardize, debug_output_codegen
     use json_reader, only: json_read_tokens_from_file, json_read_ast_from_file, json_read_semantic_from_file
 
     implicit none
@@ -41,6 +42,7 @@ module frontend
         logical :: debug_tokens = .false.
         logical :: debug_ast = .false.
         logical :: debug_semantic = .false.
+        logical :: debug_standardize = .false.
         logical :: debug_codegen = .false.
         logical :: optimize = .false.
         character(len=:), allocatable :: output_file
@@ -109,7 +111,7 @@ contains
 
         ! Phase 4: Standardization (transform dialect to standard Fortran)
         call standardize_ast(arena, prog_index)
-        ! TODO: if (options%debug_standardize) call debug_output_standardize(input_file, arena, prog_index)
+        if (options%debug_standardize) call debug_output_standardize(input_file, arena, prog_index)
 
         ! Phase 5: Code Generation
         call generate_fortran_code(arena, prog_index, code)
@@ -153,7 +155,7 @@ contains
 
         ! Phase 4: Standardization (transform dialect to standard Fortran)
         call standardize_ast(arena, prog_index)
-        ! TODO: if (options%debug_standardize) call debug_output_standardize(tokens_json_file, arena, prog_index)
+        if (options%debug_standardize) call debug_output_standardize(tokens_json_file, arena, prog_index)
 
         ! Phase 5: Code Generation
         call generate_fortran_code(arena, prog_index, code)
@@ -191,7 +193,7 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
 
         ! Phase 4: Standardization
         call standardize_ast(arena, prog_index)
-        ! TODO: if (options%debug_standardize) call debug_output_standardize(ast_json_file, arena, prog_index)
+        if (options%debug_standardize) call debug_output_standardize(ast_json_file, arena, prog_index)
 
         ! Phase 5: Code Generation
         call generate_fortran_code(arena, prog_index, code)
@@ -822,6 +824,7 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
         copy%debug_tokens = this%debug_tokens
         copy%debug_ast = this%debug_ast
         copy%debug_semantic = this%debug_semantic
+        copy%debug_standardize = this%debug_standardize
         copy%debug_codegen = this%debug_codegen
         copy%optimize = this%optimize
 
@@ -838,6 +841,7 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
         lhs%debug_tokens = rhs%debug_tokens
         lhs%debug_ast = rhs%debug_ast
         lhs%debug_semantic = rhs%debug_semantic
+        lhs%debug_standardize = rhs%debug_standardize
         lhs%debug_codegen = rhs%debug_codegen
         lhs%optimize = rhs%optimize
 

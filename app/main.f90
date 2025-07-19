@@ -14,7 +14,7 @@ program main
 
   character(len=256) :: filename, custom_cache_dir, custom_config_dir, notebook_output, custom_flags
   logical :: show_help, no_wait, notebook_mode, standardize_only, clear_cache_flag, cache_info_flag
-    logical :: debug_tokens, debug_ast, debug_semantic, debug_codegen
+    logical :: debug_tokens, debug_ast, debug_semantic, debug_standardize, debug_codegen
     logical :: from_tokens, from_ast, from_semantic
     integer :: exit_code, verbose_level, parallel_jobs
     type(notebook_t) :: notebook
@@ -22,7 +22,8 @@ program main
 
   call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, custom_config_dir, &
                       parallel_jobs, no_wait, notebook_mode, notebook_output, standardize_only, custom_flags, &
-                      clear_cache_flag, cache_info_flag, debug_tokens, debug_ast, debug_semantic, debug_codegen, &
+           clear_cache_flag, cache_info_flag, debug_tokens, debug_ast, debug_semantic, &
+                         debug_standardize, debug_codegen, &
                          from_tokens, from_ast, from_semantic)
 
     ! Initialize logging based on verbose level
@@ -50,7 +51,7 @@ program main
 
     if (from_tokens .or. from_ast .or. from_semantic) then
         call handle_json_input(filename, from_tokens, from_ast, from_semantic, &
-                               debug_tokens, debug_ast, debug_semantic, debug_codegen)
+              debug_tokens, debug_ast, debug_semantic, debug_standardize, debug_codegen)
         stop 0
     end if
 
@@ -73,7 +74,7 @@ program main
     else
         ! Normal execution mode
         ! Set global debug flags for the runner to use
-        call set_debug_flags(debug_tokens, debug_ast, debug_semantic, debug_codegen)
+        call set_debug_flags(debug_tokens, debug_ast, debug_semantic, debug_standardize, debug_codegen)
 
         call run_fortran_file(filename, exit_code, verbose_level, custom_cache_dir, &
                               custom_config_dir, parallel_jobs, no_wait, custom_flags)
@@ -146,8 +147,9 @@ print '(a)', '                    (.f90: user flags only, .f: opinionated + user
         ! Process based on file type
         if (is_lowercase_fortran) then
             ! Compile with frontend to Fortran IR
-            if (debug_tokens .or. debug_ast .or. debug_semantic .or. debug_codegen) then
-        call compile_with_frontend_debug(input_file, temp_output, error_msg, debug_tokens, debug_ast, debug_semantic, debug_codegen)
+            if (debug_tokens .or. debug_ast .or. debug_semantic .or. debug_standardize .or. debug_codegen) then
+        call compile_with_frontend_debug(input_file, temp_output, error_msg, debug_tokens, debug_ast, &
+                                       debug_semantic, debug_standardize, debug_codegen)
             else
                 call compile_with_frontend(input_file, temp_output, error_msg)
             end if
@@ -189,10 +191,10 @@ call execute_command_line('cp '//trim(input_file)//' '//trim(temp_output), exits
     end subroutine handle_standardize_only
 
     subroutine handle_json_input(json_file, from_tokens, from_ast, from_semantic, &
-                                 debug_tokens, debug_ast, debug_semantic, debug_codegen)
+              debug_tokens, debug_ast, debug_semantic, debug_standardize, debug_codegen)
         character(len=*), intent(in) :: json_file
         logical, intent(in) :: from_tokens, from_ast, from_semantic
-        logical, intent(in) :: debug_tokens, debug_ast, debug_semantic, debug_codegen
+        logical, intent(in) :: debug_tokens, debug_ast, debug_semantic, debug_standardize, debug_codegen
 
         type(compilation_options_t) :: options
         character(len=256) :: error_msg
@@ -202,6 +204,7 @@ call execute_command_line('cp '//trim(input_file)//' '//trim(temp_output), exits
         options%debug_tokens = debug_tokens
         options%debug_ast = debug_ast
         options%debug_semantic = debug_semantic
+        options%debug_standardize = debug_standardize
         options%debug_codegen = debug_codegen
 
         ! Generate output filename based on input JSON

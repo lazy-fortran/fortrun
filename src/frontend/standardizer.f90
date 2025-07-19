@@ -57,10 +57,8 @@ contains
             ! For now, just handle contains insertion
         end if
 
-        ! Generate and insert variable declarations if needed
-        if (has_executable_statements) then
-            call insert_variable_declarations(arena, prog, prog_index)
-        end if
+        ! Always insert implicit none and variable declarations for programs
+        call insert_variable_declarations(arena, prog, prog_index)
 
         ! Check if we need to insert a contains statement
         if (has_functions .or. has_subroutines) then
