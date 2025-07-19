@@ -218,6 +218,22 @@ module ast_core
         procedure :: to_json => declaration_to_json
     end type declaration_node
 
+    ! Parameter declaration node (for function/subroutine parameters)
+    type, extends(ast_node), public :: parameter_declaration_node
+        character(len=:), allocatable :: name          ! Parameter name
+        character(len=:), allocatable :: type_name     ! real, integer, etc.
+        integer :: kind_value                          ! Kind parameter (e.g., 8 for real(8))
+        logical :: has_kind                            ! Whether kind was specified
+        character(len=:), allocatable :: intent        ! in, out, inout
+        logical :: has_intent                          ! Whether intent was specified
+        ! Array dimension support
+        logical :: is_array = .false.                  ! Whether this is an array parameter
+        integer, allocatable :: dimension_indices(:)   ! Dimension indices (stack-based)
+    contains
+        procedure :: accept => parameter_declaration_accept
+        procedure :: to_json => parameter_declaration_to_json
+    end type parameter_declaration_node
+
     ! Contains statement node (for separating interface from implementation)
     type, extends(ast_node), public :: contains_node
     contains
@@ -824,6 +840,45 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         if (present(line)) node%line = line
         if (present(column)) node%column = column
     end function create_declaration
+
+    function create_parameter_declaration(name, type_name, kind_value, intent, dimension_indices, line, column) result(node)
+        character(len=*), intent(in) :: name
+        character(len=*), intent(in) :: type_name
+        integer, intent(in), optional :: kind_value
+        character(len=*), intent(in), optional :: intent
+        integer, intent(in), optional :: dimension_indices(:)
+        integer, intent(in), optional :: line, column
+        type(parameter_declaration_node) :: node
+
+        node%name = name
+        node%type_name = type_name
+
+        if (present(kind_value)) then
+            node%kind_value = kind_value
+            node%has_kind = .true.
+        else
+            node%kind_value = 0
+            node%has_kind = .false.
+        end if
+
+        if (present(intent)) then
+            node%intent = intent
+            node%has_intent = .true.
+        else
+            node%intent = "in"  ! Default to intent(in)
+            node%has_intent = .false.
+        end if
+
+        if (present(dimension_indices) .and. size(dimension_indices) > 0) then
+            node%is_array = .true.
+            node%dimension_indices = dimension_indices
+        else
+            node%is_array = .false.
+        end if
+
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_parameter_declaration
 
     function create_use_statement(module_name, only_list, rename_list, has_only, line, column) result(node)
         character(len=*), intent(in) :: module_name
@@ -1451,6 +1506,38 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         call json%add(parent, obj)
     end subroutine declaration_to_json
 
+    ! Parameter declaration node to JSON
+    subroutine parameter_declaration_to_json(this, json, parent)
+        class(parameter_declaration_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj
+
+        call json%create_object(obj, '')
+        call json%add(obj, 'type', 'parameter_declaration')
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+        call json%add(obj, 'name', this%name)
+        call json%add(obj, 'type_name', this%type_name)
+
+        if (this%has_kind) then
+            call json%add(obj, 'kind_value', this%kind_value)
+        end if
+
+        if (this%has_intent) then
+            call json%add(obj, 'intent', this%intent)
+        end if
+
+        if (this%is_array) then
+            call json%add(obj, 'is_array', .true.)
+            if (allocated(this%dimension_indices)) then
+                call json%add(obj, 'dimension_indices', this%dimension_indices)
+            end if
+        end if
+
+        call json%add(parent, obj)
+    end subroutine parameter_declaration_to_json
+
     ! Contains node accept visitor
     subroutine contains_accept(this, visitor)
         class(contains_node), intent(in) :: this
@@ -1822,6 +1909,12 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         class(*), intent(inout) :: visitor
         ! Basic accept implementation - can be overridden
     end subroutine declaration_accept
+
+    subroutine parameter_declaration_accept(this, visitor)
+        class(parameter_declaration_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine parameter_declaration_accept
 
     subroutine do_loop_accept(this, visitor)
         class(do_loop_node), intent(in) :: this
