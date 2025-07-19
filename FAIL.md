@@ -32,20 +32,26 @@ Created `test_control_flow_comprehensive.f90` with 5 test cases:
 
 ## ⚠️ **REMAINING ISSUES**
 
-### Frontend Statement Tests
-- `test_frontend_statements.f90` fails due to do while loop parsing
-- Expected proper do while loop structure
-- Currently generates unparsed statements and error messages
+### Do While Loop Parsing (CRITICAL ISSUE)
+- **Root Cause**: Frontend-parser token flow issue in do while constructs
+- **Symptom**: Statements inside do while loop appear after `end do` in generated code
+- **Test Status**: 3/4 frontend statement tests pass (only do while failing)
+- **Architecture Issue**: Frontend passes entire do while construct to parser, but parser expects different token boundaries
 
-### Specific Parsing Issues in control_flow_simple.f
-1. **Do While Loops**: Lines 52-54 show "! Unparsed statement" instead of loop body
-2. **Select Case**: Lines 62-63 incomplete select case structure  
-3. **Loop Variable Scope**: Some loop variables not properly scoped
+#### Technical Details:
+- Do while loop structure generates correctly: `do while (condition)` and `end do`
+- Body statements are not parsed inside loop due to incorrect token positioning
+- `parse_logical_or` condition parsing advances tokens correctly
+- Issue is in how frontend determines statement boundaries for multi-line constructs
+- Error "Unexpected keyword 'end' in expression" suggests frontend tries to parse 'end do' as expression
 
-### Test Failures Summary
-- Frontend statement tests: do while loop parsing
-- Some integration tests: dependency and build issues
-- Notebook system tests: related to do while parsing
+### Select Case Parsing
+- Lines 62-63 incomplete select case structure in control_flow_simple.f
+- Similar architecture issue as do while loops
+
+### Integration Test Failures
+- Multiple tests fail due to do while parsing issues
+- Build and dependency issues in some tests
 
 ## 📋 **NEXT PRIORITIES**
 

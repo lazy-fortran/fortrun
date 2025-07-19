@@ -849,15 +849,31 @@ contains
         block
             integer, allocatable :: body_indices(:)
             integer :: stmt_index
-            integer :: body_count, stmt_start, stmt_end, j
+            integer :: body_count, stmt_start, stmt_end, j, body_start_pos, body_end_pos
             type(token_t), allocatable :: stmt_tokens(:)
 
             allocate (body_indices(0))
             body_count = 0
+            
+            ! Find the extent of the loop body
+            body_start_pos = parser%current_token
+            body_end_pos = body_start_pos
+            
+            ! Find 'end do' to determine body extent
+            do j = body_start_pos, size(parser%tokens)
+                if (j + 1 <= size(parser%tokens)) then
+                    if (parser%tokens(j)%kind == TK_KEYWORD .and. parser%tokens(j)%text == "end" .and. &
+                        parser%tokens(j + 1)%kind == TK_KEYWORD .and. parser%tokens(j + 1)%text == "do") then
+                        body_end_pos = j - 1
+                        exit
+                    end if
+                end if
+            end do
 
             ! Parse body statements
-            ! Starting do while body parsing at token index: parser%current_token
-            do while (parser%current_token <= size(parser%tokens))
+            ! Starting do while body parsing from token body_start_pos to body_end_pos
+            parser%current_token = body_start_pos
+            do while (parser%current_token <= body_end_pos .and. parser%current_token <= size(parser%tokens))
                 ! Check for 'end do'
                 block
                     type(token_t) :: current_token
@@ -935,6 +951,16 @@ contains
 
                 parser%current_token = stmt_end + 1
             end do
+            
+            ! Consume the 'end do' tokens
+            if (parser%current_token + 1 <= size(parser%tokens)) then
+                if (parser%tokens(parser%current_token)%kind == TK_KEYWORD .and. &
+                    parser%tokens(parser%current_token)%text == "end" .and. &
+                    parser%tokens(parser%current_token + 1)%kind == TK_KEYWORD .and. &
+                    parser%tokens(parser%current_token + 1)%text == "do") then
+                    parser%current_token = parser%current_token + 2  ! consume 'end do'
+                end if
+            end if
 
             ! Create do while node
          loop_index = push_do_while(arena, condition_index, body_indices=body_indices, &

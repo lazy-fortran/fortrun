@@ -2,12 +2,13 @@
 
 ## Immediate Fixes Required (Next Steps) 🚨
 
-### Step 1: Fix Do While Loop Parsing (HIGH PRIORITY)
-- [ ] Debug why do while loops generate "! Unparsed statement"
-- [ ] Check parser_control_flow.f90 for do while implementation
-- [ ] Ensure proper statement boundary detection for do while
-- [ ] Fix statement parsing inside do while body
-- [ ] Test with simple do while loop
+### Step 1: Fix Do While Loop Parsing (HIGH PRIORITY) - ARCHITECTURE ISSUE IDENTIFIED
+- [x] Debug why do while loops generate "! Unparsed statement" - ROOT CAUSE FOUND
+- [x] Check parser_control_flow.f90 for do while implementation - ANALYZED  
+- [x] Ensure proper statement boundary detection for do while - IMPROVED BUT ISSUE PERSISTS
+- [ ] **CRITICAL**: Fix frontend-parser token flow for multi-line constructs
+- [ ] **ALTERNATIVE**: Redesign do while parsing to handle current token flow
+- [x] Test with simple do while loop - ISSUE REPRODUCED AND UNDERSTOOD
 
 ### Step 2: Fix Select Case Statement Parsing (HIGH PRIORITY)  
 - [ ] Debug incomplete select case structures
