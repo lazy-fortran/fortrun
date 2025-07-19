@@ -1,5 +1,39 @@
 # TODO List for Fortran Frontend
 
+## Immediate Fixes Required (Step by Step) 🚨
+
+### Step 1: Fix Code Generation Indentation
+- [ ] Add indentation tracking to codegen_core.f90
+- [ ] Implement proper indentation for if/then/else blocks
+- [ ] Implement proper indentation for contains blocks
+- [ ] Implement proper indentation for function/subroutine bodies
+- [ ] Update expected test outputs with correct indentation
+
+### Step 2: Fix Type Precision in Code Generation
+- [ ] Preserve real(8) instead of converting to real
+- [ ] Preserve intent(in) attributes for parameters
+- [ ] Generate all parameter declarations in functions
+- [ ] Update single_real_declaration test expectations
+
+### Step 3: Fix control_flow_simple.f Parsing
+- [ ] Debug why parser stops after first if block
+- [ ] Check if issue is in parse_statement_dispatcher
+- [ ] Ensure all top-level statements are parsed
+- [ ] Add debug output to trace parsing flow
+- [ ] Fix any issues with statement sequence parsing
+
+### Step 4: Fix Function Code Generation
+- [ ] Ensure contains keyword is properly indented
+- [ ] Add implicit none to generated functions
+- [ ] Generate proper function signatures with types
+- [ ] Handle multiple parameters correctly
+
+### Step 5: Update Test Expectations
+- [ ] Update if_else_simple expected output with indentation
+- [ ] Update if_elseif_else expected output with indentation
+- [ ] Update function test cases with proper formatting
+- [ ] Ensure all test cases have required input/output files
+
 ## Completed ✓
 
 ### Type System and Inference
