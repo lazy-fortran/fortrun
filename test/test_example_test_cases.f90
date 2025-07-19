@@ -15,6 +15,9 @@ program test_example_test_cases
     call test_case("use_statement", test_count, pass_count)
     call test_case("print_statement", test_count, pass_count)
     call test_case("multi_statement", test_count, pass_count)
+    call test_case("if_else_simple", test_count, pass_count)
+    call test_case("if_elseif_else", test_count, pass_count)
+    call test_case("logical_type_inference", test_count, pass_count)
 
     write (*, '(a)') ''
 write(*, '(a,i0,a,i0,a)') 'Example test cases: ', pass_count, '/', test_count, ' passed'

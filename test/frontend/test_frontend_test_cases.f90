@@ -1,7 +1,6 @@
 program test_frontend_test_cases
     ! Automatically discover and test all frontend test cases in example/frontend_test_cases/
-    use frontend, only: compile_source, compilation_options_t
-    use standardizer, only: standardize_file
+    use frontend, only: compile_source, compilation_options_t, BACKEND_FORTRAN
     use temp_utils, only: temp_dir_manager
     implicit none
 
@@ -64,8 +63,10 @@ contains
             return
         end if
 
-        ! Test using standardize_file API
-        call standardize_file(input_file, actual_file, error_msg)
+        ! Test using compile_source API with Fortran backend
+        options%backend = BACKEND_FORTRAN
+        options%output_file = actual_file
+        call compile_source(input_file, options, error_msg)
 
         if (len_trim(error_msg) > 0) then
             print *, "FAIL: ", trim(test_name), " - ", trim(error_msg)
@@ -95,15 +96,6 @@ contains
             print *, "FAIL: ", trim(test_name), " - output mismatch"
             ! Show diff for debugging
             call show_diff(expected_file, actual_file)
-        end if
-
-        ! Also test using compile_source API for completeness
-        options%backend = 1  ! BACKEND_FORTRAN
-        options%output_file = actual_file//".api"
-        call compile_source(input_file, options, error_msg)
-
-        if (len_trim(error_msg) > 0) then
-            print *, "  API FAIL: ", trim(error_msg)
         end if
 
     end subroutine run_test_case

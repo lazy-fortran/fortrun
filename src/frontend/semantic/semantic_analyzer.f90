@@ -533,7 +533,7 @@ contains
         end if
 
         select case (t1_subst%kind)
-        case (TINT, TREAL)
+        case (TINT, TREAL, TLOGICAL)
             ! Base types unify if equal (already checked kind)
 
         case (TCHAR)

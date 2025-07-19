@@ -62,6 +62,20 @@ contains
                             elseif_count = elseif_count + 1
                         end block
                     else if (then_token%text == "else") then
+                        ! Check if next token is "if" (for "else if")
+                        if (parser%current_token + 1 <= size(parser%tokens)) then
+                  if (parser%tokens(parser%current_token + 1)%kind == TK_KEYWORD .and. &
+                              parser%tokens(parser%current_token + 1)%text == "if") then
+                                ! Parse as elseif block
+                                block
+                                    integer :: elseif_pair(2)
+                                    elseif_pair = parse_elseif_block(parser, arena)
+                                    elseif_indices = [elseif_indices, elseif_pair]
+                                    elseif_count = elseif_count + 1
+                                end block
+                                cycle  ! Continue looking for more elseif/else blocks
+                            end if
+                        end if
                         ! Parse else block
                         then_token = parser%consume()  ! consume 'else'
                         else_body_indices = parse_if_body(parser, arena)
@@ -291,6 +305,11 @@ contains
 
         ! Consume 'elseif' or 'else if'
         elseif_token = parser%consume()
+        ! Check if we consumed 'else' and need to consume 'if' as well
+        if (elseif_token%text == "else") then
+            ! This should be "else if", consume the "if" token too
+            elseif_token = parser%consume()
+        end if
 
         ! Parse condition
         elseif_indices(1) = parse_if_condition(parser, arena)
