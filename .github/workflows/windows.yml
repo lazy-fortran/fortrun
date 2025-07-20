@@ -77,7 +77,10 @@ jobs:
 
         # Create a temp cache directory to avoid mkdir -p issues
         TEMP_CACHE="$CURRENT_DIR/temp_cache"
-        mkdir "$TEMP_CACHE"
+        # Use test -d to check if directory exists first
+        if [ ! -d "$TEMP_CACHE" ]; then
+          /usr/bin/mkdir "$TEMP_CACHE"
+        fi
 
         # Run the executable with the test file using custom cache
         $FORTRAN_EXE --cache-dir "$TEMP_CACHE" "$TEST_FILE"
