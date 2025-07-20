@@ -14,6 +14,7 @@ module-naming = false
 library = false
 test = false
 [dependencies]
+openmp = "*"
 fpm = { git = "https://github.com/krystophny/fpm.git", branch = "main" }
 json-fortran = { git = "https://github.com/jacobwilliams/json-fortran.git", branch = "master" }
 

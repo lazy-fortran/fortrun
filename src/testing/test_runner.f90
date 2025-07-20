@@ -74,7 +74,7 @@ contains
 
         ! Run tests in parallel
         !$omp parallel shared(tests, results, num_tests, next_test_index, completed_tests, &
-        !$omp                 queue_lock, output_lock, options) private(i, test_idx, thread_id)
+        !$omp                 queue_lock, output_lock, options)
     call run_tests_worker(tests, results, num_tests, next_test_index, completed_tests, &
                               queue_lock, output_lock, options)
         !$omp end parallel

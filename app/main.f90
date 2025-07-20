@@ -20,10 +20,10 @@ program main
     integer :: exit_code, verbose_level, parallel_jobs
     type(notebook_t) :: notebook
     type(execution_result_t) :: results
+    character(len=256) :: first_arg
 
     ! Check for test command first
     if (command_argument_count() > 0) then
-        character(len=256) :: first_arg
         call get_command_argument(1, first_arg)
         if (trim(first_arg) == '--test') then
             call handle_test_subcommand()
