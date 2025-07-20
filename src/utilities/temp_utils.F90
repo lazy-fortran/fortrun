@@ -93,34 +93,24 @@ contains
             end if
         end if
 
+        ! Normalize the base_temp_dir path
+#ifdef _WIN32
+        ! On Windows, ensure we have consistent path separators
+        block
+            integer :: i
+            do i = 1, len_trim(base_temp_dir)
+                if (base_temp_dir(i:i) == '/') base_temp_dir(i:i) = '\'
+            end do
+        end block
+#endif
+
         ! Generate random suffix using system time and process ID
         call generate_random_suffix(random_suffix)
 
         ! Create unique temp directory path (cross-platform path separator)
 #ifdef _WIN32
-        ! Check if running under MSYS2
-        block
-            character(len=256) :: msystem
-            integer :: status
-            call get_environment_variable('MSYSTEM', msystem, status=status)
-            if (status == 0 .and. len_trim(msystem) > 0) then
-                ! MSYS2 environment - use Unix-style paths
-                temp_dir = trim(base_temp_dir)//'/'//trim(prefix)// &
-                           '_'//trim(random_suffix)
-            else
-                ! Native Windows - normalize paths
-                block
-                    integer :: i
-                    character(len=256) :: normalized_base
-                    normalized_base = base_temp_dir
-                    do i = 1, len_trim(normalized_base)
-                        if (normalized_base(i:i) == '/') normalized_base(i:i) = '\'
-                    end do
-                    temp_dir = trim(normalized_base)//'\'//trim(prefix)// &
-                               '_'//trim(random_suffix)
-                end block
-            end if
-        end block
+        ! Always use Windows-style paths on Windows to avoid confusion
+        temp_dir = trim(base_temp_dir)//'\'//trim(prefix)//'_'//trim(random_suffix)
 #else
         temp_dir = trim(base_temp_dir)//'/'//trim(prefix)//'_'//trim(random_suffix)
 #endif
@@ -182,19 +172,8 @@ contains
         character(len=:), allocatable :: file_path
 
 #ifdef _WIN32
-        ! Check if running under MSYS2
-        block
-            character(len=256) :: msystem
-            integer :: status
-            call get_environment_variable('MSYSTEM', msystem, status=status)
-            if (status == 0 .and. len_trim(msystem) > 0) then
-                ! MSYS2 environment
-                file_path = trim(temp_dir)//'/'//trim(filename)
-            else
-                ! Native Windows
-                file_path = trim(temp_dir)//'\'//trim(filename)
-            end if
-        end block
+        ! Always use Windows-style paths on Windows
+        file_path = trim(temp_dir)//'\'//trim(filename)
 #else
         file_path = trim(temp_dir)//'/'//trim(filename)
 #endif
@@ -297,15 +276,26 @@ contains
         integer :: status
 
 #ifdef _WIN32
-        ! Check if running under MSYS2
-        call get_environment_variable('MSYSTEM', msystem, status=status)
-        if (status == 0 .and. len_trim(msystem) > 0) then
-            ! MSYS2 environment - use Unix-style path
-            temp_dir = '/tmp'
-        else
-            ! Native Windows
-            temp_dir = 'C:\Windows\Temp'
-        end if
+        ! Always use Windows temp directory on Windows, even under MSYS2
+        ! This avoids path separator issues
+        block
+            character(len=256) :: temp_env
+            integer :: env_status
+
+            ! Try Windows environment variables first
+            call get_environment_variable('TEMP', temp_env, status=env_status)
+            if (env_status == 0 .and. len_trim(temp_env) > 0) then
+                temp_dir = trim(temp_env)
+            else
+                call get_environment_variable('TMP', temp_env, status=env_status)
+                if (env_status == 0 .and. len_trim(temp_env) > 0) then
+                    temp_dir = trim(temp_env)
+                else
+                    ! Fallback to Windows default
+                    temp_dir = 'C:\Windows\Temp'
+                end if
+            end if
+        end block
 #else
         temp_dir = '/tmp'
 #endif
