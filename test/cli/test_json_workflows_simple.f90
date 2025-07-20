@@ -1,5 +1,5 @@
 program test_json_workflows_simple
-    use temp_utils, only: get_system_temp_dir
+    use temp_utils, only: get_system_temp_dir, create_temp_dir
     implicit none
 
     logical :: all_passed
@@ -27,16 +27,14 @@ program test_json_workflows_simple
 contains
 
     logical function test_tokens_json_creation()
-        character(len=:), allocatable :: temp_dir
+        character(len=:), allocatable :: temp_dir, cache_dir
         integer :: iostat, unit
 
         test_tokens_json_creation = .true.
         temp_dir = get_system_temp_dir()
+        cache_dir = create_temp_dir('fortran_json_simple_cache')
 
         print *, 'Testing token JSON creation...'
-
-        ! Clear cache first
-        call execute_command_line('fpm run fortran -- --clear-cache > /dev/null 2>&1', wait=.true.)
 
         ! Create simple source
         open (newunit=unit, file='test_tokens.f', status='replace')
@@ -44,7 +42,9 @@ contains
         close (unit)
 
         ! Generate tokens JSON
-        call execute_command_line('fpm run fortran -- test_tokens.f --debug-tokens > /dev/null 2>&1', &
+  call execute_command_line('cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+                           'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+                                  'test_tokens.f --debug-tokens > /dev/null 2>&1', &
                                   wait=.true., exitstat=iostat)
 
         if (iostat == 0) then
@@ -65,16 +65,14 @@ contains
     end function test_tokens_json_creation
 
     logical function test_ast_json_creation()
-        character(len=:), allocatable :: temp_dir
+        character(len=:), allocatable :: temp_dir, cache_dir
         integer :: iostat, unit
 
         test_ast_json_creation = .true.
         temp_dir = get_system_temp_dir()
+        cache_dir = create_temp_dir('fortran_ast_simple_cache')
 
         print *, 'Testing AST JSON creation...'
-
-        ! Clear cache first
-        call execute_command_line('fpm run fortran -- --clear-cache > /dev/null 2>&1', wait=.true.)
 
         ! Create simple source
         open (newunit=unit, file='test_ast.f', status='replace')
@@ -82,12 +80,16 @@ contains
         close (unit)
 
         ! Generate AST JSON (through tokens first)
-        call execute_command_line('fpm run fortran -- test_ast.f --debug-tokens > /dev/null 2>&1', &
+  call execute_command_line('cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+                           'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+                                  'test_ast.f --debug-tokens > /dev/null 2>&1', &
                                   wait=.true., exitstat=iostat)
 
         if (iostat == 0) then
             ! Now parse tokens to AST
-            call execute_command_line('fpm run fortran -- test_ast_tokens.json --from-tokens --debug-ast > /dev/null 2>&1', &
+  call execute_command_line('cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+                           'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+                    'test_ast_tokens.json --from-tokens --debug-ast > /dev/null 2>&1', &
                                       wait=.true., exitstat=iostat)
 
             if (iostat == 0) then
@@ -111,11 +113,12 @@ contains
     end function test_ast_json_creation
 
     logical function test_json_from_tokens()
-        character(len=:), allocatable :: temp_dir
+        character(len=:), allocatable :: temp_dir, cache_dir
         integer :: iostat, unit
 
         test_json_from_tokens = .true.
         temp_dir = get_system_temp_dir()
+        cache_dir = create_temp_dir('fortran_from_tokens_cache')
 
         print *, 'Testing JSON from tokens workflow...'
 
@@ -130,7 +133,9 @@ contains
         close (unit)
 
         ! Process tokens JSON
-        call execute_command_line('fpm run fortran -- direct_tokens.json --from-tokens > /dev/null 2>&1', &
+  call execute_command_line('cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+                           'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+                                  'direct_tokens.json --from-tokens > /dev/null 2>&1', &
                                   wait=.true., exitstat=iostat)
 
         if (iostat == 0) then

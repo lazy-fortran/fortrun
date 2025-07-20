@@ -9,7 +9,7 @@ program test_runner_comprehensive
     print *, ""
 
     ! Clear cache before running tests to avoid module conflicts
-    call clear_test_cache()
+    ! call clear_test_cache() -- Removed to avoid parallel test conflicts
 
     all_tests_passed = .true.
 

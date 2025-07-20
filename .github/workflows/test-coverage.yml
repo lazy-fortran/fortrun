@@ -27,7 +27,19 @@ jobs:
 
     - name: Run tests with coverage
       run: |
-        fpm test --flag '-fprofile-arcs -ftest-coverage'
+        # Build tests with coverage flags
+        fpm build --tests --flag '-fprofile-arcs -ftest-coverage'
+
+        # Run our custom test runner which provides:
+        # - Parallel test execution with better performance
+        # - Comprehensive test discovery including integration tests
+        # - Detailed failure diagnostics and progress reporting
+        # Note: Some tests may have race conditions when run in parallel
+        # Run with limited threads to reduce race conditions
+        # Known issues:
+        # - test_frontend_test_cases: Has many skipped tests due to AST limitations
+        # - test_json_workflows: May fail intermittently in parallel execution
+        OMP_NUM_THREADS=4 fpm run fortran -- --test -v
 
     - name: Test installed binary
       run: |

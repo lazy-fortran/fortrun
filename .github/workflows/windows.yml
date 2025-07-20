@@ -55,7 +55,20 @@ jobs:
       shell: msys2 {0}
 
     - name: Run unit tests
-      run: fpm test --compiler gfortran --flag="-cpp"
+      run: |
+        # Build tests with compiler flags
+        fpm build --tests --compiler gfortran --flag="-cpp"
+
+        # Run our custom test runner which provides:
+        # - Parallel test execution
+        # - Better test discovery
+        # - Cross-platform consistent test execution
+        # Note: Some tests may have race conditions when run in parallel
+        # Run with limited threads to reduce race conditions
+        # Known issues:
+        # - test_frontend_test_cases: Has many skipped tests due to AST limitations
+        # - test_json_workflows: May fail intermittently in parallel execution
+        OMP_NUM_THREADS=4 fpm run fortran -- --test -v
       shell: msys2 {0}
 
     - name: Test cache functionality

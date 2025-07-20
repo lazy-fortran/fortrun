@@ -1,5 +1,5 @@
 program test_json_workflows
-    use temp_utils, only: get_system_temp_dir
+    use temp_utils, only: get_system_temp_dir, create_temp_dir
     implicit none
 
     logical :: all_passed
@@ -28,17 +28,15 @@ program test_json_workflows
 contains
 
     logical function test_simple_assignment_workflow()
-        character(len=:), allocatable :: temp_dir
+        character(len=:), allocatable :: temp_dir, cache_dir
         integer :: iostat, unit
         logical :: success
 
         test_simple_assignment_workflow = .true.
         temp_dir = get_system_temp_dir()
+        cache_dir = create_temp_dir('fortran_json_cache')
 
         print *, 'Testing simple assignment workflow...'
-
-        ! Clear cache first
-        call execute_command_line('fpm run fortran -- --clear-cache > /dev/null 2>&1', wait=.true.)
 
         ! Step 1: Create source file
         open (newunit=unit, file=temp_dir//'/simple.f', status='replace')
@@ -46,7 +44,9 @@ contains
         close (unit)
 
         ! Step 2: Generate tokens
-        call execute_command_line('fpm run fortran -- '//temp_dir//'/simple.f --debug-tokens 2>/dev/null', &
+  call execute_command_line('cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+                           'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+                                  temp_dir//'/simple.f --debug-tokens 2>/dev/null', &
                                   wait=.true., exitstat=iostat)
         if (iostat /= 0) then
             print *, '  FAIL: Token generation failed'
@@ -55,7 +55,9 @@ contains
         end if
 
         ! Step 3: Parse to AST from tokens
-        call execute_command_line('fpm run fortran -- '//temp_dir//'/simple_tokens.json --from-tokens --debug-ast 2>/dev/null', &
+  call execute_command_line('cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+                           'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+                temp_dir//'/simple_tokens.json --from-tokens --debug-ast 2>/dev/null', &
                                   wait=.true., exitstat=iostat)
         if (iostat /= 0) then
             print *, '  FAIL: AST generation from tokens failed'
@@ -64,8 +66,9 @@ contains
         end if
 
         ! Step 4: Semantic analysis from AST (AST file is named simple_tokens_ast.json)
-        call execute_command_line('fpm run fortran -- '//temp_dir// &
-                    '/simple_tokens_ast.json --from-ast --debug-semantic 2>/dev/null', &
+  call execute_command_line('cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+                           'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+          temp_dir//'/simple_tokens_ast.json --from-ast --debug-semantic 2>/dev/null', &
                                   wait=.true., exitstat=iostat)
         if (iostat /= 0) then
             print *, '  FAIL: Semantic analysis from AST failed'
@@ -74,8 +77,9 @@ contains
         end if
 
         ! Step 5: Code generation from semantic AST (semantic file is named simple_tokens_ast_semantic.json)
-        call execute_command_line('fpm run fortran -- '//temp_dir// &
-                                  '/simple_tokens_ast_semantic.json --from-ast > '// &
+  call execute_command_line('cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+                           'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+                          temp_dir//'/simple_tokens_ast_semantic.json --from-ast > '// &
                    temp_dir//'/generated.f90 2>/dev/null', wait=.true., exitstat=iostat)
         if (iostat /= 0) then
             print *, '  FAIL: Code generation from semantic AST failed'
@@ -96,16 +100,17 @@ contains
     end function test_simple_assignment_workflow
 
     logical function test_function_workflow()
-        character(len=:), allocatable :: temp_dir
+        character(len=:), allocatable :: temp_dir, cache_dir
         integer :: iostat, unit
 
         test_function_workflow = .true.
         temp_dir = get_system_temp_dir()
+        cache_dir = create_temp_dir('fortran_func_cache')
 
         print *, 'Testing function workflow...'
 
         ! Clear cache first
-        call execute_command_line('fpm run fortran -- --clear-cache > /dev/null 2>&1', wait=.true.)
+        !call execute_command_line('fpm run fortran -- --clear-cache -- Removed cache clearing > /dev/null 2>&1', wait=.true.)
 
         ! Create source with function
         open (newunit=unit, file=temp_dir//'/func.f', status='replace')
@@ -116,7 +121,9 @@ contains
         close (unit)
 
         ! Run full pipeline
-        call execute_command_line('fpm run fortran -- '//temp_dir//'/func.f --debug-tokens 2>/dev/null', &
+  call execute_command_line('cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+                           'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+                                  temp_dir//'/func.f --debug-tokens 2>/dev/null', &
                                   wait=.true., exitstat=iostat)
         if (iostat /= 0) then
             print *, '  FAIL: Token generation for function failed'
@@ -124,7 +131,9 @@ contains
             return
         end if
 
-        call execute_command_line('fpm run fortran -- '//temp_dir//'/func_tokens.json --from-tokens --debug-ast 2>/dev/null', &
+  call execute_command_line('cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+                           'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+                  temp_dir//'/func_tokens.json --from-tokens --debug-ast 2>/dev/null', &
                                   wait=.true., exitstat=iostat)
         if (iostat /= 0) then
             print *, '  FAIL: AST generation for function failed'
@@ -132,8 +141,9 @@ contains
             return
         end if
 
-        call execute_command_line('fpm run fortran -- '//temp_dir// &
-                      '/func_tokens_ast.json --from-ast --debug-semantic 2>/dev/null', &
+  call execute_command_line('cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+                           'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+            temp_dir//'/func_tokens_ast.json --from-ast --debug-semantic 2>/dev/null', &
                                   wait=.true., exitstat=iostat)
         if (iostat /= 0) then
             print *, '  FAIL: Semantic analysis for function failed'
@@ -152,16 +162,17 @@ contains
     end function test_function_workflow
 
     logical function test_control_flow_workflow()
-        character(len=:), allocatable :: temp_dir
+        character(len=:), allocatable :: temp_dir, cache_dir
         integer :: iostat, unit
 
         test_control_flow_workflow = .true.
         temp_dir = get_system_temp_dir()
+        cache_dir = create_temp_dir('fortran_flow_cache')
 
         print *, 'Testing control flow workflow...'
 
         ! Clear cache first
-        call execute_command_line('fpm run fortran -- --clear-cache > /dev/null 2>&1', wait=.true.)
+        !call execute_command_line('fpm run fortran -- --clear-cache -- Removed cache clearing > /dev/null 2>&1', wait=.true.)
 
         ! Create source with if statement in a program
         open (newunit=unit, file=temp_dir//'/if.f', status='replace')
@@ -174,7 +185,9 @@ contains
         close (unit)
 
         ! Generate tokens
-        call execute_command_line('fpm run fortran -- '//temp_dir//'/if.f --debug-tokens 2>/dev/null', &
+  call execute_command_line('cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+                           'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+                                  temp_dir//'/if.f --debug-tokens 2>/dev/null', &
                                   wait=.true., exitstat=iostat)
         if (iostat /= 0) then
             print *, '  FAIL: Token generation for control flow failed'
@@ -183,7 +196,9 @@ contains
         end if
 
         ! Parse to AST
-        call execute_command_line('fpm run fortran -- '//temp_dir//'/if_tokens.json --from-tokens --debug-ast 2>/dev/null', &
+  call execute_command_line('cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+                           'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+                    temp_dir//'/if_tokens.json --from-tokens --debug-ast 2>/dev/null', &
                                   wait=.true., exitstat=iostat)
         if (iostat /= 0) then
             print *, '  FAIL: AST generation for control flow failed'
@@ -202,18 +217,19 @@ contains
     end function test_control_flow_workflow
 
     logical function test_round_trip_workflow()
-        character(len=:), allocatable :: temp_dir
+        character(len=:), allocatable :: temp_dir, cache_dir
         integer :: iostat, unit
         character(len=1024) :: line
         logical :: found_assignment
 
         test_round_trip_workflow = .true.
         temp_dir = get_system_temp_dir()
+        cache_dir = create_temp_dir('fortran_round_cache')
 
         print *, 'Testing round-trip workflow...'
 
         ! Clear cache first
-        call execute_command_line('fpm run fortran -- --clear-cache > /dev/null 2>&1', wait=.true.)
+        !call execute_command_line('fpm run fortran -- --clear-cache -- Removed cache clearing > /dev/null 2>&1', wait=.true.)
 
         ! Create original source
         open (newunit=unit, file=temp_dir//'/original.f', status='replace')
@@ -223,7 +239,9 @@ contains
         close (unit)
 
         ! Full pipeline: source -> tokens -> AST -> semantic -> code
-        call execute_command_line('fpm run fortran -- '//temp_dir//'/original.f --debug-tokens 2>/dev/null', &
+  call execute_command_line('cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+                           'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+                                  temp_dir//'/original.f --debug-tokens 2>/dev/null', &
                                   wait=.true., exitstat=iostat)
         if (iostat /= 0) then
             print *, '  FAIL: Initial tokenization failed'
@@ -231,7 +249,9 @@ contains
             return
         end if
 
-        call execute_command_line('fpm run fortran -- '//temp_dir//'/original_tokens.json --from-tokens --debug-ast 2>/dev/null', &
+  call execute_command_line('cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+                           'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+              temp_dir//'/original_tokens.json --from-tokens --debug-ast 2>/dev/null', &
                                   wait=.true., exitstat=iostat)
         if (iostat /= 0) then
             print *, '  FAIL: AST generation in round-trip failed'
@@ -239,8 +259,9 @@ contains
             return
         end if
 
-        call execute_command_line('fpm run fortran -- '//temp_dir// &
-                  '/original_tokens_ast.json --from-ast --debug-semantic 2>/dev/null', &
+  call execute_command_line('cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+                           'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+        temp_dir//'/original_tokens_ast.json --from-ast --debug-semantic 2>/dev/null', &
                                   wait=.true., exitstat=iostat)
         if (iostat /= 0) then
             print *, '  FAIL: Semantic analysis in round-trip failed'
@@ -248,8 +269,9 @@ contains
             return
         end if
 
-        call execute_command_line('fpm run fortran -- '//temp_dir// &
-                                  '/original_tokens_ast_semantic.json --from-ast > '// &
+  call execute_command_line('cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+                           'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+                        temp_dir//'/original_tokens_ast_semantic.json --from-ast > '// &
                    temp_dir//'/roundtrip.f90 2>/dev/null', wait=.true., exitstat=iostat)
         if (iostat /= 0) then
             print *, '  FAIL: Code generation in round-trip failed'

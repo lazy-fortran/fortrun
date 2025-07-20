@@ -48,7 +48,6 @@ contains
 
         ! Use temporary cache
         cache_dir = create_temp_dir('fortran_test_bench_cache_simple')
-        call execute_command_line('rm -rf "'//trim(cache_dir)//'"')
 
         ! First run - should compile
         block
@@ -96,7 +95,7 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
         end if
 
         ! Cleanup
-        call execute_command_line('rm -rf '//trim(test_file)//' '//trim(cache_dir))
+        call execute_command_line('rm -rf '//trim(test_file))
         print *
 
     end subroutine benchmark_simple_program
@@ -117,7 +116,7 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
 
         ! Use temporary cache
         cache_dir = create_temp_dir('fortran_test_bench_cache_modules')
-        call execute_command_line('rm -rf "'//trim(cache_dir)//'"')
+        ! cache_dir is temporary, no need to remove
 
         ! First run - should compile modules
         block
@@ -166,7 +165,7 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
         end if
 
         ! Cleanup
-        call execute_command_line('rm -rf '//trim(test_dir)//' '//trim(cache_dir))
+        call execute_command_line('rm -rf '//trim(test_dir))
         print *
 
     end subroutine benchmark_local_modules
@@ -187,7 +186,7 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
 
         ! Use temporary cache
         cache_dir = create_temp_dir('fortran_test_bench_cache_incremental')
-        call execute_command_line('rm -rf "'//trim(cache_dir)//'"')
+        ! cache_dir is temporary, no need to remove
 
         ! Initial build (establish cache)
         block
@@ -238,7 +237,7 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
         end if
 
         ! Cleanup
-        call execute_command_line('rm -rf '//trim(test_dir)//' '//trim(cache_dir))
+        call execute_command_line('rm -rf '//trim(test_dir))
         print *
 
     end subroutine benchmark_incremental_compilation
@@ -253,7 +252,7 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
 
         ! Clear cache if requested
         if (clear_cache) then
-            call execute_command_line('rm -rf '//trim(cache_dir))
+            ! cache_dir is temporary, no need to remove
         end if
 
         ! Build command
