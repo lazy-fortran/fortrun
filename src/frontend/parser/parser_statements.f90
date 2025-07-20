@@ -3,7 +3,7 @@ module parser_statements_module
     use lexer_core
     use parser_state_module
     use parser_expressions_module
-    use parser_declarations_module, only: parse_declaration
+    use parser_declarations_module, only: parse_declaration, parse_multi_declaration
     use ast_core
     use ast_factory
     implicit none
@@ -868,14 +868,20 @@ contains
                     stmt_tokens(i - stmt_start + 1)%line = parser%tokens(i - 1)%line
                 stmt_tokens(i - stmt_start + 1)%column = parser%tokens(i - 1)%column + 1
 
-                    ! Parse the statement
-                    stmt_index = parse_basic_statement(stmt_tokens, arena)
+                    ! Parse the statement (may return multiple indices for multi-variable declarations)
+                    block
+                        integer, allocatable :: stmt_indices(:)
+                        integer :: j
+                        stmt_indices = parse_basic_statement_multi(stmt_tokens, arena)
 
-                    ! Only add to body if statement was successfully parsed
-                    if (stmt_index > 0) then
-                        body_indices = [body_indices, stmt_index]
-                        body_count = body_count + 1
-                    end if
+                        ! Add all parsed statements to body
+                        do j = 1, size(stmt_indices)
+                            if (stmt_indices(j) > 0) then
+                                body_indices = [body_indices, stmt_indices(j)]
+                                body_count = body_count + 1
+                            end if
+                        end do
+                    end block
 
                     deallocate (stmt_tokens)
 
@@ -997,14 +1003,20 @@ contains
                     stmt_tokens(i - stmt_start + 1)%line = parser%tokens(i - 1)%line
                 stmt_tokens(i - stmt_start + 1)%column = parser%tokens(i - 1)%column + 1
 
-                    ! Parse the statement
-                    stmt_index = parse_basic_statement(stmt_tokens, arena)
+                    ! Parse the statement (may return multiple indices for multi-variable declarations)
+                    block
+                        integer, allocatable :: stmt_indices(:)
+                        integer :: j
+                        stmt_indices = parse_basic_statement_multi(stmt_tokens, arena)
 
-                    ! Only add to body if statement was successfully parsed
-                    if (stmt_index > 0) then
-                        body_indices = [body_indices, stmt_index]
-                        body_count = body_count + 1
-                    end if
+                        ! Add all parsed statements to body
+                        do j = 1, size(stmt_indices)
+                            if (stmt_indices(j) > 0) then
+                                body_indices = [body_indices, stmt_indices(j)]
+                                body_count = body_count + 1
+                            end if
+                        end do
+                    end block
 
                     deallocate (stmt_tokens)
 
@@ -1213,27 +1225,31 @@ contains
 
     end function parse_module
 
-    ! Helper function to parse basic statements (simplified version)
-    function parse_basic_statement(tokens, arena) result(stmt_index)
+    ! Parse basic statement with support for multi-variable declarations
+    function parse_basic_statement_multi(tokens, arena) result(stmt_indices)
         type(token_t), intent(in) :: tokens(:)
         type(ast_arena_t), intent(inout) :: arena
-        integer :: stmt_index
+        integer, allocatable :: stmt_indices(:)
         type(parser_state_t) :: parser
         type(token_t) :: first_token
+        integer :: stmt_index
 
         parser = create_parser_state(tokens)
         first_token = parser%peek()
-        stmt_index = 0
 
-        ! Try to parse declaration first
+        ! Check if this is a declaration that might have multiple variables
         if (first_token%kind == TK_KEYWORD) then
             if (first_token%text == "real" .or. first_token%text == "integer" .or. &
                 first_token%text == "logical" .or. first_token%text == "character") then
-                ! Parse declaration
-                stmt_index = parse_declaration(parser, arena)
+                ! Use multi-declaration parser
+                stmt_indices = parse_multi_declaration(parser, arena)
                 return
             end if
         end if
+
+        ! For all other statements, parse as single statement
+        allocate (stmt_indices(1))
+        stmt_index = 0
 
         ! Simple assignment statement: identifier = expression
         if (first_token%kind == TK_IDENTIFIER) then
@@ -1270,7 +1286,9 @@ contains
             stmt_index = push_literal(arena, "! Unparsed statement", LITERAL_STRING, first_token%line, first_token%column)
         end if
 
-    end function parse_basic_statement
+        stmt_indices(1) = stmt_index
+
+    end function parse_basic_statement_multi
 
     ! Parse program statement: program program_name
     function parse_program_statement(parser, arena) result(prog_index)

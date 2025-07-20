@@ -56,9 +56,10 @@ This enables:
 ### Frontend Type Inference (2 failures)
 
 1. **function_with_param**
-   - Issue: Parameter order reversal and formatting
-   - Expected: `real(8), intent(in) :: a, b`
-   - Actual: `real(8), intent(in) :: b, a` (reversed order)
+   - Issue: Multi-variable declaration not parsed properly
+   - Root cause: Parser only creates one declaration node for `real :: a, b`
+   - Fixed: Implemented parse_multi_declaration to handle comma-separated variables
+   - Status: Implementation complete, test pending validation
 
 2. **function_call_inference**
    - Issue: Minor whitespace in expressions

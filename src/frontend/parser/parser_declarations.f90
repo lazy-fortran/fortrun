@@ -9,7 +9,7 @@ module parser_declarations_module
     private
 
     ! Public declaration parsing interface
-    public :: parse_declaration, parse_derived_type
+    public :: parse_declaration, parse_derived_type, parse_multi_declaration
 
 contains
 
@@ -157,67 +157,49 @@ contains
             end if
         end if
 
+        ! Create the first declaration node
         ! Check for initialization (= expression)
         block
             integer :: initializer_index
             var_token = parser%peek()
+            initializer_index = 0
+
             if (var_token%kind == TK_OPERATOR .and. var_token%text == "=") then
                 ! Consume '='
                 var_token = parser%consume()
 
                 ! Parse the initializer expression
                 initializer_index = parse_comparison(parser, arena)
-
-                ! Store the initializer in the declaration node (will be handled in create_declaration)
-                if (initializer_index > 0) then
-                    ! Create declaration node with initializer
-                    if (has_kind .and. is_array) then
-                        decl_index = push_declaration(arena, type_name, var_name, &
-                           kind_value=kind_value, initializer_index=initializer_index, &
-                   dimension_indices=dimension_indices, is_allocatable=is_allocatable, &
-                                                      line=line, column=column)
-                    else if (has_kind) then
-                        decl_index = push_declaration(arena, type_name, var_name, &
-                           kind_value=kind_value, initializer_index=initializer_index, &
-                                is_allocatable=is_allocatable, line=line, column=column)
-                    else if (is_array) then
-                        decl_index = push_declaration(arena, type_name, var_name, &
-             initializer_index=initializer_index, dimension_indices=dimension_indices, &
-                                is_allocatable=is_allocatable, line=line, column=column)
-                    else
-                        decl_index = push_declaration(arena, type_name, var_name, &
-                   initializer_index=initializer_index, is_allocatable=is_allocatable, &
-                                                      line=line, column=column)
-                    end if
-                    return
-                end if
             end if
 
-            ! Consume any remaining tokens
-            do while (.not. parser%is_at_end())
-                var_token = parser%peek()
-                if (var_token%kind == TK_EOF) exit
-                var_token = parser%consume()
-            end do
+            ! Create declaration node with or without initializer
+            if (has_kind .and. is_array) then
+                decl_index = push_declaration(arena, type_name, var_name, &
+                           kind_value=kind_value, initializer_index=initializer_index, &
+                   dimension_indices=dimension_indices, is_allocatable=is_allocatable, &
+                                              line=line, column=column)
+            else if (has_kind) then
+                decl_index = push_declaration(arena, type_name, var_name, &
+                           kind_value=kind_value, initializer_index=initializer_index, &
+                                is_allocatable=is_allocatable, line=line, column=column)
+            else if (is_array) then
+                decl_index = push_declaration(arena, type_name, var_name, &
+             initializer_index=initializer_index, dimension_indices=dimension_indices, &
+                                is_allocatable=is_allocatable, line=line, column=column)
+            else
+                decl_index = push_declaration(arena, type_name, var_name, &
+                   initializer_index=initializer_index, is_allocatable=is_allocatable, &
+                                              line=line, column=column)
+            end if
         end block
 
-        ! Create declaration node
-        if (has_kind .and. is_array) then
-            decl_index = push_declaration(arena, type_name, var_name, &
-                           kind_value=kind_value, dimension_indices=dimension_indices, &
-                                is_allocatable=is_allocatable, line=line, column=column)
-        else if (has_kind) then
-            decl_index = push_declaration(arena, type_name, var_name, &
-                                 kind_value=kind_value, is_allocatable=is_allocatable, &
-                                          line=line, column=column)
-        else if (is_array) then
-            decl_index = push_declaration(arena, type_name, var_name, &
-                   dimension_indices=dimension_indices, is_allocatable=is_allocatable, &
-                                          line=line, column=column)
-        else
-            decl_index = push_declaration(arena, type_name, var_name, &
-                                is_allocatable=is_allocatable, line=line, column=column)
-        end if
+        ! For now, consume any remaining tokens
+        ! TODO: Handle multi-variable declarations like "real :: a, b, c"
+        do while (.not. parser%is_at_end())
+            var_token = parser%peek()
+            if (var_token%kind == TK_EOF) exit
+            var_token = parser%consume()
+        end do
 
     end function parse_declaration
 
@@ -401,5 +383,170 @@ contains
         end do
 
     end subroutine parse_derived_type_parameters
+
+    ! Parse multi-variable declaration (e.g., real :: a, b, c)
+    function parse_multi_declaration(parser, arena) result(decl_indices)
+        type(parser_state_t), intent(inout) :: parser
+        type(ast_arena_t), intent(inout) :: arena
+        integer, allocatable :: decl_indices(:)
+
+        type(token_t) :: type_token, var_token, token
+        character(len=:), allocatable :: type_name
+        integer :: line, column, kind_value
+        logical :: has_kind, is_allocatable
+        integer :: decl_count, decl_index
+        character(len=:), allocatable :: var_name
+        logical :: is_array
+        integer, allocatable :: dimension_indices(:)
+
+        allocate (decl_indices(0))
+        decl_count = 0
+
+        ! Get type name (real, integer, etc.)
+        type_token = parser%consume()
+        type_name = type_token%text
+        line = type_token%line
+        column = type_token%column
+        has_kind = .false.
+        kind_value = 0
+        is_allocatable = .false.
+
+        ! Check for kind specification (e.g., real(8))
+        var_token = parser%peek()
+        if (var_token%kind == TK_OPERATOR .and. var_token%text == "(") then
+            ! Consume '('
+            type_token = parser%consume()
+
+            ! Get kind value
+            var_token = parser%peek()
+            if (var_token%kind == TK_NUMBER) then
+                var_token = parser%consume()
+                read (var_token%text, *) kind_value
+                has_kind = .true.
+
+                ! Consume ')'
+                var_token = parser%peek()
+                if (var_token%kind == TK_OPERATOR .and. var_token%text == ")") then
+                    type_token = parser%consume()
+                else
+                    ! Error: expected )
+     decl_index = push_literal(arena, "ERROR: Expected )", LITERAL_STRING, line, column)
+                    decl_indices = [decl_index]
+                    return
+                end if
+            end if
+        end if
+
+        ! Check for attributes like allocatable
+        var_token = parser%peek()
+        if (var_token%kind == TK_OPERATOR .and. var_token%text == ",") then
+            ! Consume ','
+            var_token = parser%consume()
+
+            ! Parse attribute
+            var_token = parser%peek()
+         if (var_token%kind == TK_IDENTIFIER .and. var_token%text == "allocatable") then
+                is_allocatable = .true.
+                var_token = parser%consume()
+            else
+                ! Unknown attribute - for now, just consume it
+                var_token = parser%consume()
+            end if
+        end if
+
+        ! Consume ::
+        var_token = parser%peek()
+        if (var_token%kind == TK_OPERATOR .and. var_token%text == "::") then
+            type_token = parser%consume()
+        else
+            ! Error: expected ::
+    decl_index = push_literal(arena, "ERROR: Expected ::", LITERAL_STRING, line, column)
+            decl_indices = [decl_index]
+            return
+        end if
+
+        ! Parse variable list
+        do
+            ! Get variable name
+            var_token = parser%peek()
+            if (var_token%kind == TK_IDENTIFIER) then
+                var_token = parser%consume()
+                var_name = var_token%text
+            else
+                exit  ! No more variables
+            end if
+
+            ! Check for array dimensions
+            is_array = .false.
+            var_token = parser%peek()
+            if (var_token%kind == TK_OPERATOR .and. var_token%text == "(") then
+                is_array = .true.
+                ! Consume '('
+                var_token = parser%consume()
+
+                ! Parse dimensions
+                call parse_array_dimensions(parser, arena, dimension_indices)
+
+                ! Consume ')'
+                var_token = parser%peek()
+                if (var_token%kind == TK_OPERATOR .and. var_token%text == ")") then
+                    var_token = parser%consume()
+                else
+                    ! Error: expected )
+                    decl_index = push_literal(arena, "ERROR: Expected ) after array dimensions", LITERAL_STRING, line, column)
+                    decl_indices = [decl_indices, decl_index]
+                    return
+                end if
+            end if
+
+            ! Check for initialization
+            block
+                integer :: initializer_index
+                initializer_index = 0
+
+                var_token = parser%peek()
+                if (var_token%kind == TK_OPERATOR .and. var_token%text == "=") then
+                    ! Consume '='
+                    var_token = parser%consume()
+
+                    ! Parse the initializer expression
+                    initializer_index = parse_comparison(parser, arena)
+                end if
+
+                ! Create declaration node
+                if (has_kind .and. is_array) then
+                    decl_index = push_declaration(arena, type_name, var_name, &
+                           kind_value=kind_value, initializer_index=initializer_index, &
+                   dimension_indices=dimension_indices, is_allocatable=is_allocatable, &
+                                                  line=line, column=column)
+                else if (has_kind) then
+                    decl_index = push_declaration(arena, type_name, var_name, &
+                           kind_value=kind_value, initializer_index=initializer_index, &
+                                is_allocatable=is_allocatable, line=line, column=column)
+                else if (is_array) then
+                    decl_index = push_declaration(arena, type_name, var_name, &
+             initializer_index=initializer_index, dimension_indices=dimension_indices, &
+                                is_allocatable=is_allocatable, line=line, column=column)
+                else
+                    decl_index = push_declaration(arena, type_name, var_name, &
+                   initializer_index=initializer_index, is_allocatable=is_allocatable, &
+                                                  line=line, column=column)
+                end if
+
+                decl_indices = [decl_indices, decl_index]
+                decl_count = decl_count + 1
+            end block
+
+            ! Check for comma (more variables)
+            var_token = parser%peek()
+            if (var_token%kind == TK_OPERATOR .and. var_token%text == ",") then
+                ! Consume ','
+                var_token = parser%consume()
+            else
+                exit  ! No more variables
+            end if
+        end do
+
+    end function parse_multi_declaration
 
 end module parser_declarations_module

@@ -944,7 +944,7 @@ contains
                         else
                             group_intent = ""
                         end if
-                        var_list = node%var_name
+                        var_list = trim(node%var_name)
 
                         ! Look ahead for more declarations of same type
                         j = i + 1
@@ -961,7 +961,7 @@ contains
                                                 next_node%intent == group_intent) .or. &
                           (.not. next_node%has_intent .and. .not. node%has_intent)) then
                                                 ! Add to group
-                                           var_list = var_list//", "//next_node%var_name
+                                     var_list = var_list//", "//trim(next_node%var_name)
                                                 j = j + 1
                                             else
                                                 exit
@@ -1025,7 +1025,7 @@ contains
                                 end block
                                 param_name_with_dims = param_name_with_dims//")"
                             end if
-                            var_list = param_name_with_dims
+                            var_list = trim(param_name_with_dims)
                         end block
 
                         ! Look ahead for more parameter declarations of same type
@@ -1060,7 +1060,7 @@ contains
                                                     end block
                                                   next_param_name = next_param_name//")"
                                                 end if
-                                              var_list = var_list//", "//next_param_name
+                                        var_list = var_list//", "//trim(next_param_name)
                                             end block
                                             j = j + 1
                                         else

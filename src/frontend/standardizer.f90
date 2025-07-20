@@ -790,13 +790,15 @@ contains
             ! We need to add some parameter declarations
             allocate (new_body_indices(n_body + j))
 
-            ! Copy implicit none (should be first)
+            ! Copy implicit none (should be first) if it exists
             if (n_body > 0) then
                 new_body_indices(1) = func_def%body_indices(1)
+                j = 2
+            else
+                j = 1
             end if
 
             ! Add missing parameter declarations
-            j = 2
             do i = 1, n_params
                 if (param_names_found(i) == 0) then
                     ! Create declaration node with intent(in)
@@ -814,11 +816,13 @@ contains
                 end if
             end do
 
-            ! Copy rest of body
-            do i = 2, n_body
-                new_body_indices(j) = func_def%body_indices(i)
-                j = j + 1
-            end do
+            ! Copy rest of body (skip first if it was implicit none)
+            if (n_body > 1) then
+                do i = 2, n_body
+                    new_body_indices(j) = func_def%body_indices(i)
+                    j = j + 1
+                end do
+            end if
 
             func_def%body_indices = new_body_indices
         end if
