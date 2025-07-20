@@ -104,21 +104,8 @@ contains
         temp_locks_file = get_temp_file_path(create_temp_dir('fortran_locks'), &
                                              'fortran_locks.tmp')
 #ifdef _WIN32
-        ! Check if we're in MSYS2 environment
-        block
-            character(len=256) :: msystem
-            integer :: status
-            call get_environment_variable('MSYSTEM', msystem, status=status)
-            if (status == 0 .and. len_trim(msystem) > 0) then
-                ! MSYS2 - use Unix find
-                command = 'find "'//trim(cache_dir)//'" -name "*.lock" -type f > "'// &
-                          trim(temp_locks_file)//'" 2>/dev/null'
-            else
-                ! Native Windows - use dir
-                command = 'dir /s /b "'//trim(cache_dir)//'"\*.lock > "'// &
-                          trim(temp_locks_file)//'" 2>nul'
-            end if
-        end block
+        command = 'dir /s /b "'//trim(cache_dir)//'"\*.lock > "'// &
+                  trim(temp_locks_file)//'" 2>nul'
 #else
         command = 'find "'//trim(cache_dir)//'" -name "*.lock" -type f > "'// &
                   trim(temp_locks_file)//'" 2>/dev/null'
@@ -185,35 +172,15 @@ contains
             if (file_exists) then
                 ! Lock already exists, can't create
 #ifdef _WIN32
-                block
-                    character(len=256) :: msystem
-                    integer :: env_status
-                    call get_environment_variable('MSYSTEM', msystem, status=env_status)
-                    if (env_status == 0 .and. len_trim(msystem) > 0) then
-                        call execute_command_line('rm -f "'//trim(temp_file)//'"')
-                    else
-                       call execute_command_line('del /f "'//trim(temp_file)//'" 2>nul')
-                    end if
-                end block
+                call execute_command_line('del /f "'//trim(temp_file)//'" 2>nul')
 #else
                 call execute_command_line('rm -f "'//trim(temp_file)//'"')
 #endif
                 success = .false.
             else
 #ifdef _WIN32
-                ! Check if we're in MSYS2 environment
-                block
-                    character(len=256) :: msystem
-                    integer :: env_status
-                    call get_environment_variable('MSYSTEM', msystem, status=env_status)
-                    if (env_status == 0 .and. len_trim(msystem) > 0) then
-                        ! MSYS2 - use Unix mv command
-           command = 'mv -f "'//trim(temp_file)//'" "'//trim(lock_file)//'" 2>/dev/null'
-                    else
-                        ! Native Windows - use move command
+                ! On Windows, use move command which is atomic within same drive
            command = 'move /Y "'//trim(temp_file)//'" "'//trim(lock_file)//'" >nul 2>&1'
-                    end if
-                end block
                 call execute_command_line(command, exitstat=iostat)
 
                 if (iostat == 0) then
@@ -223,16 +190,7 @@ contains
                 else
                     success = .false.
                     ! Clean up temp file if move failed
-                    block
-                        character(len=256) :: msystem
-                        integer :: env_status
-                    call get_environment_variable('MSYSTEM', msystem, status=env_status)
-                        if (env_status == 0 .and. len_trim(msystem) > 0) then
-                            call execute_command_line('rm -f "'//trim(temp_file)//'"')
-                        else
-                       call execute_command_line('del /f "'//trim(temp_file)//'" 2>nul')
-                        end if
-                    end block
+                    call execute_command_line('del /f "'//trim(temp_file)//'" 2>nul')
                 end if
 #else
                 ! Use ln to create hard link atomically, then remove temp
@@ -312,19 +270,7 @@ contains
         character(len=512) :: command
 
 #ifdef _WIN32
-        ! Check if we're in MSYS2 environment
-        block
-            character(len=256) :: msystem
-            integer :: status
-            call get_environment_variable('MSYSTEM', msystem, status=status)
-            if (status == 0 .and. len_trim(msystem) > 0) then
-                ! MSYS2 - use Unix rm
-                command = 'rm -f "'//trim(lock_file)//'"'
-            else
-                ! Native Windows - use del
-                command = 'del /f "'//trim(lock_file)//'" 2>nul'
-            end if
-        end block
+        command = 'del /f "'//trim(lock_file)//'" 2>nul'
 #else
         command = 'rm -f "'//trim(lock_file)//'"'
 #endif
@@ -377,19 +323,8 @@ contains
         integer :: exitstat
 
 #ifdef _WIN32
-        ! Check if we're in MSYS2 environment
-        block
-            character(len=256) :: msystem
-            integer :: status
-            call get_environment_variable('MSYSTEM', msystem, status=status)
-            if (status == 0 .and. len_trim(msystem) > 0) then
-                ! MSYS2 environment - use Unix-style kill command
-                write (command, '(a,i0,a)') 'kill -0 ', pid, ' 2>/dev/null'
-            else
-                ! Native Windows - use wmic
-                write (command, '(a,i0,a)') 'wmic process where processid=', pid, ' get processid 2>nul >nul'
-            end if
-        end block
+        ! On Windows, use tasklist to check if process is running
+        write (command, '(a,i0,a)') 'tasklist /FI "PID eq ', pid, '" 2>nul | find "', pid, '" >nul'
         call execute_command_line(command, exitstat=exitstat)
 #else
         write (command, '(a,i0,a)') 'kill -0 ', pid, ' 2>/dev/null'
@@ -405,19 +340,8 @@ contains
         character(len=32) :: command
 
 #ifdef _WIN32
-        ! Check if we're in MSYS2 environment
-        block
-            character(len=256) :: msystem
-            integer :: status
-            call get_environment_variable('MSYSTEM', msystem, status=status)
-            if (status == 0 .and. len_trim(msystem) > 0) then
-                ! MSYS2 environment - use Unix-style sleep
-                write (command, '(a,i0)') 'sleep ', seconds
-            else
-                ! Native Windows - use timeout
-                write (command, '(a,i0,a)') 'timeout /t ', seconds, ' /nobreak >nul'
-            end if
-        end block
+        ! On Windows, use timeout command
+        write (command, '(a,i0,a)') 'timeout /t ', seconds, ' /nobreak >nul'
 #else
         write (command, '(a,i0)') 'sleep ', seconds
 #endif
