@@ -1,6 +1,6 @@
 module cache_lock
     use iso_c_binding, only: c_int
-    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path
+    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, mkdir
     use fpm_environment, only: get_os_type, OS_WINDOWS
     implicit none
     private
@@ -26,6 +26,9 @@ contains
         lock_file = get_lock_file_path(cache_dir, project_name)
         wait_time = 0
         success = .false.
+
+        ! Ensure cache directory exists
+        call mkdir(cache_dir)
 
         do
             ! First check if lock already exists
@@ -106,7 +109,8 @@ contains
         temp_locks_file = get_temp_file_path(create_temp_dir('fortran_locks'), &
                                              'fortran_locks.tmp')
         if (get_os_type() == OS_WINDOWS) then
-            command = 'dir /s /b "'//trim(cache_dir)//'"\*.lock > "'// &
+            ! Use simpler dir command for Windows
+            command = 'cmd /c dir /b "'//trim(cache_dir)//'\*.lock" > "'// &
                       trim(temp_locks_file)//'" 2>nul'
         else
             command = 'find "'//trim(cache_dir)//'" -name "*.lock" -type f > "'// &
@@ -174,7 +178,7 @@ contains
             if (file_exists) then
                 ! Lock already exists, can't create
                 if (get_os_type() == OS_WINDOWS) then
-                    call execute_command_line('del /f "'//trim(temp_file)//'" 2>nul')
+         call execute_command_line('cmd /c del /f /q "'//trim(temp_file)//'" >nul 2>&1')
                 else
                     call execute_command_line('rm -f "'//trim(temp_file)//'"')
                 end if
@@ -182,7 +186,7 @@ contains
             else
                 if (get_os_type() == OS_WINDOWS) then
                     ! On Windows, use move command which is atomic within same drive
-           command = 'move /Y "'//trim(temp_file)//'" "'//trim(lock_file)//'" >nul 2>&1'
+    command = 'cmd /c move /Y "'//trim(temp_file)//'" "'//trim(lock_file)//'" >nul 2>&1'
                     call execute_command_line(command, exitstat=iostat)
 
                     if (iostat == 0) then
@@ -192,7 +196,7 @@ contains
                     else
                         success = .false.
                         ! Clean up temp file if move failed
-                       call execute_command_line('del /f "'//trim(temp_file)//'" 2>nul')
+         call execute_command_line('cmd /c del /f /q "'//trim(temp_file)//'" >nul 2>&1')
                     end if
                 else
                     ! Use ln to create hard link atomically, then remove temp
@@ -272,7 +276,7 @@ contains
         character(len=512) :: command
 
         if (get_os_type() == OS_WINDOWS) then
-            command = 'del /f "'//trim(lock_file)//'" 2>nul'
+            command = 'cmd /c del /f /q "'//trim(lock_file)//'" >nul 2>&1'
         else
             command = 'rm -f "'//trim(lock_file)//'"'
         end if
@@ -350,7 +354,7 @@ contains
 
         if (get_os_type() == OS_WINDOWS) then
             ! On Windows, use ping for sleep (more reliable than timeout)
-            write (command, '(a,i0,a)') 'ping -n ', seconds + 1, ' 127.0.0.1 >nul'
+      write (command, '(a,i0,a)') 'cmd /c ping -n ', seconds + 1, ' 127.0.0.1 >nul 2>&1'
         else
             write (command, '(a,i0)') 'sleep ', seconds
         end if
