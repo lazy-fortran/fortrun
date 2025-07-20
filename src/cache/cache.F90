@@ -86,7 +86,7 @@ contains
                             call execute_command_line(trim(command), exitstat=exitstat)
                         end if
                     end if
-                    current_dir = current_dir(1:i)
+                    current_dir = cache_dir(1:i)
                 end do
                 ! Create the final directory
                 command = 'cmd /c mkdir "'//trim(cache_dir)//'" 2>nul'
