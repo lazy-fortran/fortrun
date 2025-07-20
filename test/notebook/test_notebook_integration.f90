@@ -2,7 +2,7 @@ program test_notebook_integration
     use notebook_parser
     use notebook_executor
     use notebook_renderer
-    use temp_utils, only: temp_dir_manager
+    use temp_utils, only: temp_dir_manager, create_test_cache_dir
     implicit none
 
     logical :: all_tests_passed
@@ -66,8 +66,7 @@ contains
         ! Set up test cache directory
         block
             type(temp_dir_manager) :: temp_mgr
-            call temp_mgr%create('test_notebook_cache')
-            test_cache_dir = temp_mgr%path
+            test_cache_dir = create_test_cache_dir('notebook_integration')
         end block
 
         ! Execute notebook
@@ -113,8 +112,7 @@ contains
         ! Set up test cache directory
         block
             type(temp_dir_manager) :: temp_mgr
-            call temp_mgr%create('test_notebook_cache')
-            test_cache_dir = temp_mgr%path
+            test_cache_dir = create_test_cache_dir('notebook_integration')
         end block
 
         call execute_notebook(nb, results, test_cache_dir)
@@ -169,8 +167,7 @@ contains
         ! Set up test cache directory
         block
             type(temp_dir_manager) :: temp_mgr
-            call temp_mgr%create('test_notebook_cache')
-            test_cache_dir = temp_mgr%path
+            test_cache_dir = create_test_cache_dir('notebook_integration')
         end block
 
         call execute_notebook(nb, results, test_cache_dir)
@@ -216,8 +213,7 @@ contains
         ! Set up test cache directory
         block
             type(temp_dir_manager) :: temp_mgr
-            call temp_mgr%create('test_notebook_cache')
-            test_cache_dir = temp_mgr%path
+            test_cache_dir = create_test_cache_dir('notebook_integration')
         end block
 
         call execute_notebook(nb, results, test_cache_dir)

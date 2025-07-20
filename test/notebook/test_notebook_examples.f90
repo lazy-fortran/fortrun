@@ -2,7 +2,7 @@ program test_notebook_examples
     use notebook_parser
     use notebook_executor
     use notebook_renderer
-    use temp_utils, only: temp_dir_manager
+    use temp_utils, only: temp_dir_manager, create_test_cache_dir
     use temp_utils, only: mkdir
     implicit none
 
@@ -47,9 +47,7 @@ contains
         ! Set up test cache directory
         block
             type(temp_dir_manager) :: temp_mgr
-            temp_mgr = temp_dir_manager("test_notebook_examples")
-            test_cache_dir = temp_mgr%get_path()
-            call mkdir(trim(test_cache_dir))
+            test_cache_dir = create_test_cache_dir('notebook_examples_basic')
 
             ! Read the simple_math.f example
             call read_example_file("example/scientific/notebook/simple_math.f", content)
@@ -133,9 +131,7 @@ contains
         ! Set up test cache directory
         block
             type(temp_dir_manager) :: temp_mgr
-            temp_mgr = temp_dir_manager("test_notebook_examples_arrays")
-            test_cache_dir = temp_mgr%get_path()
-            call mkdir(trim(test_cache_dir))
+            test_cache_dir = create_test_cache_dir('notebook_examples_arrays')
 
             ! Read the arrays_loops.f example
            call read_example_file("example/scientific/notebook/arrays_loops.f", content)
@@ -219,9 +215,7 @@ contains
         ! Set up test cache directory
         block
             type(temp_dir_manager) :: temp_mgr
-            temp_mgr = temp_dir_manager("test_notebook_examples_control")
-            test_cache_dir = temp_mgr%get_path()
-            call mkdir(trim(test_cache_dir))
+            test_cache_dir = create_test_cache_dir('notebook_examples_control')
 
             ! Read the control_flow.f example
            call read_example_file("example/scientific/notebook/control_flow.f", content)

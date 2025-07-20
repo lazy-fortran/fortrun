@@ -350,7 +350,7 @@ contains
 
     subroutine sleep(seconds)
         integer, intent(in) :: seconds
-        character(len=32) :: command
+        character(len=128) :: command
 
         if (get_os_type() == OS_WINDOWS) then
             ! On Windows, use ping for sleep (more reliable than timeout)

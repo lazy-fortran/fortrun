@@ -3,7 +3,7 @@ program test_notebook_figure_integration
     use notebook_executor
     use notebook_renderer
     use figure_capture
-    use temp_utils, only: temp_dir_manager
+    use temp_utils, only: temp_dir_manager, create_test_cache_dir
     implicit none
 
     logical :: all_tests_passed
@@ -164,8 +164,7 @@ contains
 
         block
             ! Set up test cache directory
-            call temp_dir%create('test_notebook_figure_cache')
-            test_cache_dir = temp_dir%path
+            test_cache_dir = create_test_cache_dir('notebook_figure_cache')
 
             ! Execute notebook (this should handle figure capture)
             call execute_notebook(nb, results, test_cache_dir)

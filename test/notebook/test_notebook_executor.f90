@@ -1,7 +1,7 @@
 program test_notebook_executor
     use notebook_executor
     use notebook_parser
-    use temp_utils, only: temp_dir_manager
+    use temp_utils, only: temp_dir_manager, create_test_cache_dir
     implicit none
 
     logical :: all_tests_passed
@@ -74,8 +74,7 @@ contains
 
         block
             ! Set up test cache directory
-            call temp_dir%create('test_notebook_executor')
-            test_cache_dir = temp_dir%path
+            test_cache_dir = create_test_cache_dir('notebook_executor_basic')
 
             ! Create simple test notebook
             nb%num_cells = 1
@@ -175,8 +174,7 @@ contains
 
         block
             ! Set up test cache directory
-            call temp_dir%create('test_notebook_executor_multi')
-            test_cache_dir = temp_dir%path
+            test_cache_dir = create_test_cache_dir('notebook_executor_multi')
 
             ! Create notebook with multiple cells
             nb%num_cells = 3
@@ -225,8 +223,7 @@ contains
 
         block
             ! Set up test cache directory
-            call temp_dir%create('test_notebook_executor_error')
-            test_cache_dir = temp_dir%path
+            test_cache_dir = create_test_cache_dir('notebook_executor_error')
 
             ! Create notebook with syntax error
             nb%num_cells = 1
@@ -272,8 +269,7 @@ contains
 
         block
             ! Set up unique test cache directory
-            call temp_dir%create('test_notebook_executor_cache_test')
-            test_cache_dir = temp_dir%path
+            test_cache_dir = create_test_cache_dir('notebook_executor_cache')
 
             ! Create simple notebook
             nb%num_cells = 1
@@ -313,8 +309,7 @@ contains
 
         block
             ! Set up test cache directory
-            call temp_dir%create('test_notebook_executor_empty')
-            test_cache_dir = temp_dir%path
+            test_cache_dir = create_test_cache_dir('notebook_executor_empty')
 
             ! Create empty notebook
             nb%num_cells = 0
@@ -357,8 +352,7 @@ contains
 
         block
             ! Set up test cache directory
-            call temp_dir%create('test_notebook_executor_mixed')
-            test_cache_dir = temp_dir%path
+            test_cache_dir = create_test_cache_dir('notebook_executor_mixed')
 
             ! Create notebook with mixed cell types
             nb%num_cells = 3
