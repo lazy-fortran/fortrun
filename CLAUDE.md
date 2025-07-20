@@ -48,19 +48,29 @@ fpm run fortran -- --clear-cache  # Clear cache (CRITICAL before testing fronten
 fpm clean --skip                  # Clean build directory without prompting
 
 # Testing
-# ⚠️ CRITICAL: ALWAYS USE PARALLEL TEST RUNNER FOR MULTIPLE TESTS ⚠️
-./test/run_tests_parallel.sh              # Run all tests (DEFAULT: shows only failures)
-./test/run_tests_parallel.sh -v           # Show all test results, not just failures
-./test/run_tests_parallel.sh --full-output # Show full test output like fpm test
-./test/run_tests_parallel.sh -q           # Quiet mode (only show summary)
-./test/run_tests_parallel.sh --output-dir results/  # Save all test outputs
+# ⚠️ CRITICAL: USE BUILT-IN PARALLEL TEST RUNNER ⚠️
+fpm run fortran -- --test                 # Run all tests with OpenMP parallel execution
+fpm run fortran -- --test frontend       # Run tests matching 'frontend' pattern
+fpm run fortran -- --test --filter cache # Run tests matching 'cache' pattern
+fpm run fortran -- --test -v             # Verbose output (show all test details)
+fpm run fortran -- --test -q             # Quiet mode (only failures and summary)
+fpm run fortran -- --test -j 8           # Use 8 threads (default: auto-detect all cores)
+fpm run fortran -- --test --help         # Show detailed test runner help
+
+# Features of the built-in test runner:
+# • OpenMP parallel execution with dynamic work queue
+# • Smart load balancing across CPU cores  
+# • Real-time progress reporting with thread assignments
+# • Direct FPM API integration (no shell command overhead)
+# • Comprehensive filtering and output options
+# • Automatic test discovery and executable management
 
 # Only use fpm test directly for single tests:
 fpm test test_specific_name               # Run single test only
 
 # NEVER use these for multiple tests:
-# ❌ fpm test                             # Use ./test/run_tests_parallel.sh instead
-# ❌ fpm test > /dev/null                 # Use ./test/run_tests_parallel.sh -q instead
+# ❌ fpm test                             # Use fortran --test instead  
+# ❌ fpm test > /dev/null                 # Use fortran --test -q instead
 
 # Cache Management
 fpm run fortran -- --clear-cache  # Clear all cached files
@@ -193,30 +203,22 @@ end function deep_copy
 ## Test Categories
 
 ```bash
-# ⚠️ ALWAYS USE PARALLEL TEST RUNNER ⚠️
+# ⚠️ ALWAYS USE BUILT-IN PARALLEL TEST RUNNER ⚠️
 
 # Run all tests in parallel (default: shows only failures)
-./test/run_tests_parallel.sh
+fpm run fortran -- --test
 
 # Run all tests showing all results
-./test/run_tests_parallel.sh -v
-
-# Run with full output (like fpm test)
-./test/run_tests_parallel.sh --full-output
+fpm run fortran -- --test -v
 
 # Run specific test categories in parallel
-./test/run_tests_parallel.sh --filter frontend
-./test/run_tests_parallel.sh --filter lexer
-./test/run_tests_parallel.sh -j 8 --filter parser  # Use 8 cores
-
-# Save test outputs for analysis
-./test/run_tests_parallel.sh --output-dir test_results/
-./test/run_tests_parallel.sh --full-output --output-dir failures/ --filter failed_tests
+fpm run fortran -- --test frontend
+fpm run fortran -- --test --filter lexer
+fpm run fortran -- --test -j 8 --filter parser  # Use 8 cores
 
 # Verbose modes
-./test/run_tests_parallel.sh -v           # Show test outputs inline
-./test/run_tests_parallel.sh --full-output # Show everything like fpm test
-./test/run_tests_parallel.sh -d           # Debug mode
+fpm run fortran -- --test -v             # Show test outputs inline
+fpm run fortran -- --test -q             # Quiet mode (only failures)
 
 # ONLY use fpm test for single specific tests:
 fpm test test_frontend_lexer_basic        # OK for single test
@@ -262,10 +264,10 @@ example/frontend_test_cases/single_assignment/
 ## Critical Notes
 
 - **Clear cache before testing frontend**: `fpm run fortran -- --clear-cache`
-- **Run tests in parallel**: `./test/run_tests_parallel.sh` (ALWAYS use this)
-- **Run tests quietly**: `./test/run_tests_parallel.sh -q`
-- **Full output mode**: `./test/run_tests_parallel.sh --full-output`
-- **Save test outputs**: `./test/run_tests_parallel.sh --output-dir results/`
+- **Run tests in parallel**: `fpm run fortran -- --test` (ALWAYS use this)
+- **Run tests quietly**: `fpm run fortran -- --test -q`
+- **Verbose test output**: `fpm run fortran -- --test -v`
+- **Filter tests**: `fpm run fortran -- --test --filter pattern`
 - **Fortran 95 standard**: https://wg5-fortran.org/N1151-N1200/N1191.pdf
 - **CLI options documented in**: doc/index.md
 

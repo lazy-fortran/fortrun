@@ -1,131 +1,80 @@
-# Test Failures and Status
+# Test Failures Summary
 
-Last updated: 2025-01-20
+This document tracks current test failures and their root causes.
 
 ## Summary
 
-**Frontend Tests**: 27/29 passed (93% success rate)
-- Control flow: 100% passing
-- Type inference: Working correctly
-- Function handling: Major improvements implemented
-- JSON round-trip: ✅ COMPLETED
-
-## Recent Accomplishments
-
-### ✅ Completed: Full JSON Round-Trip Implementation
-
-Successfully implemented complete JSON serialization for all compilation phases:
-
-1. **Tokens JSON** - Lexical analysis output with token stream
-2. **AST JSON** - Parse tree structure without type annotations  
-3. **Semantic JSON** - AST with Hindley-Milner type inference results
-4. **Codegen JSON** - Generated Fortran code
-
-#### Example Semantic JSON Output
-```json
-{
-  "phase": "semantic",
-  "arena_size": 4,
-  "program_index": 4,
-  "nodes": [
-    {
-      "index": 1,
-      "type": "identifier",
-      "name": "x",
-      "inferred_type": "real(8)"
-    },
-    {
-      "index": 2,
-      "type": "literal",
-      "value": "5.0",
-      "inferred_type": "real(8)"
-    }
-  ]
-}
-```
-
-This enables:
-- Complete compilation pipeline visibility
-- Independent testing of each phase
-- Type inference validation
-- Debugging support via `--debug-tokens`, `--debug-ast`, `--debug-semantic`, `--debug-codegen`
-- Round-trip compilation from any intermediate stage
+- **Total Tests**: 87
+- **Failing Tests**: 7
 
 ## Failing Tests
 
-### Frontend Type Inference (2 failures)
+### 1. test_frontend_test_cases
+**Status**: FAILED  
+**Issue**: Minor whitespace difference in code generation
+```
+FAIL: function_call_inference - output mismatch
+--- expected: compute = x*x
++++ actual:   compute = x * x
+```
+**Root Cause**: Code generator adds spaces around operators
+**Fix**: Either update expected output or standardize spacing in codegen
 
-1. **function_with_param**
-   - Issue: Multi-variable declaration not parsed properly
-   - Root cause: Parser only creates one declaration node for `real :: a, b`
-   - Fixed: Implemented parse_multi_declaration to handle comma-separated variables
-   - Status: Implementation complete, test pending validation
+### 2. test_artifact_cache
+**Status**: FAILED  
+**Issue**: Directory creation error
+```
+<ERROR> *mkdir*:directory creation failed
+```
+**Root Cause**: Trying to create cache directory with invalid path containing spaces
+**Fix**: Fix path handling in cache module
 
-2. **function_call_inference**
-   - Issue: Minor whitespace in expressions
-   - Expected: `x*x`
-   - Actual: `x * x`
+### 3. test_json_workflows
+**Status**: FAILED  
+**Issue**: JSON workflow tests failing
+**Root Cause**: JSON serialization/deserialization issues
+**Fix**: Debug JSON round-trip functionality
 
-### Other Test Failures
+### 4. test_json_workflows_simple
+**Status**: FAILED  
+**Issue**: Simple JSON workflow tests failing
+**Root Cause**: Related to test_json_workflows
+**Fix**: Same as above
 
-1. **test_cli_json_options** - Infrastructure issues
-2. **test_artifact_cache** - Cache directory issues
-3. **test_runner_comprehensive** - Module resolution
-4. **test_json_workflows** - File path issues
+### 5. test_notebook_system_end2end
+**Status**: FAILED  
+**Issue**: Notebook system tests failing
+**Root Cause**: Unknown - needs investigation
+**Fix**: Debug notebook integration
 
-## Fixed Issues ✅
+### 6. test_registry_enhancement
+**Status**: FAILED  
+**Issue**: Registry enhancement tests failing
+**Root Cause**: Unknown - needs investigation
+**Fix**: Debug registry module
 
-1. **Array parameter declarations** - NOW PASSING
-   - Implemented array dimension parsing in parameters
-   - Added proper code generation for array specifications
-
-2. **Derived type parameters** - NOW PASSING
-   - Fixed lexer keyword recognition for intent specifications
-   - Implemented nested type parsing (e.g., `type(complex_nested(8))`)
-
-3. **Parser edge cases** - NOW PASSING
-   - Fixed complex nested type handling
-   - Improved error recovery
-
-4. **JSON round-trip implementation** - NOW COMPLETE
-   - All compilation stages now output JSON
-   - Type annotations properly serialized
+### 7. test_runner_comprehensive
+**Status**: FAILED  
+**Issue**: Compilation failures in test cases
+```
+<ERROR> Compilation failed for object " app_main.f90.o "
+```
+**Root Cause**: Test cases with intentional errors not handled properly
+**Fix**: Update test expectations or error handling
 
 ## Known Issues
 
-### Parameter Order Reversal (Medium Priority)
-- Root cause: Parameter collection in code generation processes nodes in reverse order
-- Affects function parameter declarations
-- Work tracked in TODO.md
+1. **Parallel Test Runner**: Hangs on certain tests in non-verbose mode
+   - Workaround: Use `-v` flag or run specific tests with `fpm test`
 
-### Whitespace Formatting (Low Priority)
-- Minor spacing differences in generated code
-- Does not affect functionality
+2. **Whitespace Inconsistencies**: Code generation adds spaces inconsistently
+   - Affects: function_call_inference test
+   - Need: Standardized formatting module
 
-## Test Successes
+## Next Steps
 
-### Perfect Score Categories
-- Control flow (if/else, do while) - 100%
-- Basic statements (assignments, prints) - 100%
-- Multiple statements handling - 100%
-- Logical type inference - 100%
-- Function definitions and calls - 93%+
-- Type inference with Hindley-Milner - 100%
-- JSON serialization - 100%
-
-### Major Systems Working
-- AST-based frontend with type inference
-- Complete JSON round-trip
-- Cache system
-- Runner system
-- Registry system
-- CLI argument handling
-- Module resolution
-- FPM integration
-
-## Recent Improvements
-- Implemented semantic analysis JSON output
-- Added type annotation serialization
-- Fixed array bounds checking in frontend
-- Improved parser edge case handling
-- Enhanced debug output capabilities
+1. Fix whitespace formatting in code generation (high priority)
+2. Fix cache directory path handling (high priority)
+3. Debug JSON workflow issues (medium priority)
+4. Fix test runner hanging issue (high priority)
+5. Investigate notebook and registry test failures (medium priority)

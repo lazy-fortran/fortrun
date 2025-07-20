@@ -10,6 +10,7 @@ program main
     use notebook_executor
     use notebook_renderer
     use temp_utils, only: create_temp_dir, get_temp_file_path
+    use test_cli, only: handle_test_command
     implicit none
 
   character(len=256) :: filename, custom_cache_dir, custom_config_dir, notebook_output, custom_flags
@@ -19,6 +20,16 @@ program main
     integer :: exit_code, verbose_level, parallel_jobs
     type(notebook_t) :: notebook
     type(execution_result_t) :: results
+
+    ! Check for test command first
+    if (command_argument_count() > 0) then
+        character(len=256) :: first_arg
+        call get_command_argument(1, first_arg)
+        if (trim(first_arg) == '--test') then
+            call handle_test_subcommand()
+            stop 0
+        end if
+    end if
 
   call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, custom_config_dir, &
                       parallel_jobs, no_wait, notebook_mode, notebook_output, standardize_only, custom_flags, &
@@ -278,5 +289,31 @@ call execute_command_line('cp '//trim(input_file)//' '//trim(temp_output), exits
         call get_cache_info(custom_cache_dir, info)
         print '(a)', trim(info)
     end subroutine handle_cache_info
+
+    subroutine handle_test_subcommand()
+        integer :: nargs, i, test_exit_code
+        character(len=256), allocatable :: test_args(:)
+
+        ! Get all arguments except the first one (--test)
+        nargs = command_argument_count() - 1
+
+        if (nargs > 0) then
+            allocate (test_args(nargs))
+            do i = 1, nargs
+                call get_command_argument(i + 1, test_args(i))
+            end do
+            call handle_test_command(test_args, test_exit_code)
+            deallocate (test_args)
+        else
+            ! No additional arguments, run all tests
+            allocate (test_args(0))
+            call handle_test_command(test_args, test_exit_code)
+            deallocate (test_args)
+        end if
+
+        if (test_exit_code /= 0) then
+            stop 1
+        end if
+    end subroutine handle_test_subcommand
 
 end program main

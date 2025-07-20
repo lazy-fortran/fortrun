@@ -46,6 +46,9 @@ contains
             end if
         end if
 
+        ! Ensure result is trimmed to avoid issues with fixed-length strings
+        cache_dir = trim(cache_dir)
+
     end function get_cache_dir
 
     subroutine ensure_cache_dir(cache_dir, success)
@@ -53,10 +56,10 @@ contains
         logical, intent(out) :: success
 
         ! Use FPM's cross-platform mkdir function
-        call mkdir(cache_dir)
+        call mkdir(trim(cache_dir))
 
         ! Check if directory was created successfully
-        success = exists(cache_dir)
+        success = exists(trim(cache_dir))
 
     end subroutine ensure_cache_dir
 
@@ -70,19 +73,19 @@ contains
         if (.not. success) return
 
         ! Create subdirectories using cross-platform paths
-        builds_dir = join_path(cache_dir, 'builds')
-        modules_dir = join_path(cache_dir, 'modules')
-        executables_dir = join_path(cache_dir, 'executables')
-        metadata_dir = join_path(cache_dir, 'metadata')
+        builds_dir = join_path(trim(cache_dir), 'builds')
+        modules_dir = join_path(trim(cache_dir), 'modules')
+        executables_dir = join_path(trim(cache_dir), 'executables')
+        metadata_dir = join_path(trim(cache_dir), 'metadata')
 
-        call mkdir(builds_dir)
-        call mkdir(modules_dir)
-        call mkdir(executables_dir)
-        call mkdir(metadata_dir)
+        call mkdir(trim(builds_dir))
+        call mkdir(trim(modules_dir))
+        call mkdir(trim(executables_dir))
+        call mkdir(trim(metadata_dir))
 
         ! Check if all directories were created successfully
-        success = exists(builds_dir) .and. exists(modules_dir) .and. &
-                  exists(executables_dir) .and. exists(metadata_dir)
+        success = exists(trim(builds_dir)) .and. exists(trim(modules_dir)) .and. &
+                  exists(trim(executables_dir)) .and. exists(trim(metadata_dir))
 
     end subroutine ensure_cache_structure
 
@@ -92,7 +95,7 @@ contains
         character(len=256) :: cache_dir
 
         cache_dir = get_cache_dir()
-        subdir_path = join_path(cache_dir, subdir_name)
+        subdir_path = join_path(trim(cache_dir), trim(subdir_name))
 
     end function get_cache_subdir
 
@@ -107,7 +110,7 @@ contains
         modules_dir = get_cache_subdir('modules')
 
         ! Create cache key subdirectory
-        modules_dir = join_path(modules_dir, cache_key)
+        modules_dir = join_path(trim(modules_dir), trim(cache_key))
         call ensure_cache_dir(modules_dir, success)
         if (.not. success) return
 
@@ -115,7 +118,7 @@ contains
         success = .true.
         do i = 1, size(module_files)
             if (len_trim(module_files(i)) > 0) then
-                dest_file = join_path(modules_dir, extract_filename(module_files(i)))
+       dest_file = join_path(trim(modules_dir), trim(extract_filename(module_files(i))))
 
                 ! Use cross-platform copy command
                 if (get_os_type() == OS_WINDOWS) then
@@ -144,12 +147,12 @@ contains
         executables_dir = get_cache_subdir('executables')
 
         ! Create cache key subdirectory
-        executables_dir = join_path(executables_dir, cache_key)
+        executables_dir = join_path(trim(executables_dir), trim(cache_key))
         call ensure_cache_dir(executables_dir, success)
         if (.not. success) return
 
         ! Copy executable using cross-platform commands
-        dest_file = join_path(executables_dir, extract_filename(executable_path))
+   dest_file = join_path(trim(executables_dir), trim(extract_filename(executable_path)))
 
         if (get_os_type() == OS_WINDOWS) then
         command = 'copy "'//trim(executable_path)//'" "'//trim(dest_file)//'" >nul 2>&1'
@@ -271,7 +274,7 @@ contains
         integer :: exitstat
 
         ! Create cache directory for this hash
-        cache_path = join_path(get_cache_subdir('builds'), hash_key)
+        cache_path = join_path(trim(get_cache_subdir('builds')), trim(hash_key))
         call ensure_cache_dir(cache_path, success)
         if (.not. success) return
 
@@ -295,8 +298,8 @@ contains
         integer :: exitstat
 
         ! Check if cache exists
-        cache_path = join_path(get_cache_subdir('builds'), hash_key)
-        if (.not. exists(cache_path)) then
+        cache_path = join_path(trim(get_cache_subdir('builds')), trim(hash_key))
+        if (.not. exists(trim(cache_path))) then
             success = .false.
             return
         end if
@@ -323,8 +326,8 @@ command = 'xcopy /E /I /Y "'//trim(cache_path)//'\*" "'//trim(target_dir)//'" >n
         logical :: cache_found
         character(len=512) :: cache_path
 
-        cache_path = join_path(get_cache_subdir('builds'), hash_key)
-        cache_found = exists(cache_path)
+        cache_path = join_path(trim(get_cache_subdir('builds')), trim(hash_key))
+        cache_found = exists(trim(cache_path))
 
     end function cache_exists
 
@@ -335,7 +338,7 @@ command = 'xcopy /E /I /Y "'//trim(cache_path)//'\*" "'//trim(target_dir)//'" >n
         character(len=512) :: cache_path, command
         integer :: exitstat
 
-        cache_path = join_path(get_cache_subdir('builds'), hash_key)
+        cache_path = join_path(trim(get_cache_subdir('builds')), trim(hash_key))
 
         ! Use cross-platform directory removal commands
         if (get_os_type() == OS_WINDOWS) then
