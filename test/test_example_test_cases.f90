@@ -2,6 +2,7 @@ program test_example_test_cases
     use iso_fortran_env, only: error_unit
     use frontend, only: compile_source, compilation_options_t, BACKEND_FORTRAN
     use temp_utils, only: get_temp_file_path, get_system_temp_dir
+    use formatter_utils, only: format_fortran_code
     implicit none
 
     integer :: test_count, pass_count
@@ -111,10 +112,14 @@ input_file = "example/frontend_test_cases/"//trim(case_name)//"/"//trim(case_nam
     function compare_normalized(str1, str2) result(equal)
         character(len=*), intent(in) :: str1, str2
         logical :: equal
+        character(len=:), allocatable :: formatted1, formatted2
 
-        ! For now, just do a simple comparison
-        ! TODO: Implement proper whitespace normalization
-        equal = (trim(adjustl(str1)) == trim(adjustl(str2)))
+        ! Format both strings using fprettify
+        formatted1 = format_fortran_code(str1)
+        formatted2 = format_fortran_code(str2)
+
+        ! Compare formatted versions
+        equal = (formatted1 == formatted2)
     end function compare_normalized
 
 end program test_example_test_cases

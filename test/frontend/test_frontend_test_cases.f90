@@ -2,6 +2,7 @@ program test_frontend_test_cases
     ! Automatically discover and test all frontend test cases in example/frontend_test_cases/
     use frontend, only: compile_source, compilation_options_t, BACKEND_FORTRAN
     use temp_utils, only: temp_dir_manager
+    use formatter_utils, only: format_fortran_code
     implicit none
 
     integer :: test_count = 0, pass_count = 0
@@ -179,41 +180,25 @@ contains
 
     logical function compare_files(file1, file2)
         character(len=*), intent(in) :: file1, file2
-        character(len=1024) :: line1, line2
-        integer :: unit1, unit2, iostat1, iostat2
+        character(len=:), allocatable :: content1, content2
+        character(len=:), allocatable :: formatted1, formatted2
 
-        compare_files = .true.
+        compare_files = .false.
 
-        open (newunit=unit1, file=file1, status='old', action='read')
-        open (newunit=unit2, file=file2, status='old', action='read')
+        ! Read entire files
+        content1 = read_entire_file(file1)
+        content2 = read_entire_file(file2)
 
-        do
-            read (unit1, '(A)', iostat=iostat1) line1
-            read (unit2, '(A)', iostat=iostat2) line2
+        if (.not. allocated(content1) .or. .not. allocated(content2)) then
+            return
+        end if
 
-            ! Both files ended
-            if (iostat1 /= 0 .and. iostat2 /= 0) exit
+        ! Format both contents using fprettify
+        formatted1 = format_fortran_code(content1)
+        formatted2 = format_fortran_code(content2)
 
-            ! One file ended early
-            if (iostat1 /= 0 .or. iostat2 /= 0) then
-                compare_files = .false.
-                exit
-            end if
-
-            ! Compare lines (ignoring leading/trailing spaces and normalizing internal spaces)
-            block
-                character(len=:), allocatable :: norm_line1, norm_line2
-                norm_line1 = normalize_whitespace(line1)
-                norm_line2 = normalize_whitespace(line2)
-                if (norm_line1 /= norm_line2) then
-                    compare_files = .false.
-                    exit
-                end if
-            end block
-        end do
-
-        close (unit1)
-        close (unit2)
+        ! Compare formatted contents
+        compare_files = (formatted1 == formatted2)
 
     end function compare_files
 
@@ -254,5 +239,31 @@ contains
         call execute_command_line(cmd, wait=.true.)
 
     end subroutine show_diff
+
+    ! Read entire file into a string
+    function read_entire_file(filename) result(content)
+        character(len=*), intent(in) :: filename
+        character(len=:), allocatable :: content
+        integer :: unit, iostat, file_size
+        character(len=1024) :: line
+        logical :: first_line
+
+        content = ''
+        first_line = .true.
+
+        open (newunit=unit, file=filename, status='old', action='read', iostat=iostat)
+        if (iostat /= 0) return
+
+        do
+            read (unit, '(A)', iostat=iostat) line
+            if (iostat /= 0) exit
+            if (.not. first_line) content = content//new_line('a')
+            content = content//trim(line)
+            first_line = .false.
+        end do
+
+        close (unit)
+
+    end function read_entire_file
 
 end program test_frontend_test_cases
