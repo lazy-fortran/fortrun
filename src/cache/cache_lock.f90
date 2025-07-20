@@ -178,7 +178,7 @@ contains
             if (file_exists) then
                 ! Lock already exists, can't create
                 if (get_os_type() == OS_WINDOWS) then
-                    command = 'cmd /c del /f /q "'//trim(temp_file)//'" >nul 2>&1'
+                    command = 'del /f /q '//trim(temp_file)
                     call execute_command_line(command, exitstat=iostat)
                     if (iostat /= 0) then
        print *, 'DEBUG: Windows del command failed:', trim(command), 'exitstat:', iostat
@@ -190,7 +190,7 @@ contains
             else
                 if (get_os_type() == OS_WINDOWS) then
                     ! On Windows, use move command which is atomic within same drive
-    command = 'cmd /c move /Y "'//trim(temp_file)//'" "'//trim(lock_file)//'" >nul 2>&1'
+                    command = 'move /Y '//trim(temp_file)//' '//trim(lock_file)
                     call execute_command_line(command, exitstat=iostat)
                     if (iostat /= 0) then
       print *, 'DEBUG: Windows move command failed:', trim(command), 'exitstat:', iostat
@@ -203,7 +203,7 @@ contains
                     else
                         success = .false.
                         ! Clean up temp file if move failed
-                        command = 'cmd /c del /f /q "'//trim(temp_file)//'" >nul 2>&1'
+                        command = 'del /f /q '//trim(temp_file)
                         call execute_command_line(command, exitstat=iostat)
                         if (iostat /= 0) then
        print *, 'DEBUG: Windows cleanup del failed:', trim(command), 'exitstat:', iostat
@@ -288,7 +288,7 @@ contains
         integer :: iostat
 
         if (get_os_type() == OS_WINDOWS) then
-            command = 'cmd /c del /f /q "'//trim(lock_file)//'" >nul 2>&1'
+            command = 'del /f /q '//trim(lock_file)
         else
             command = 'rm -f "'//trim(lock_file)//'"'
         end if
@@ -370,7 +370,7 @@ contains
 
         if (get_os_type() == OS_WINDOWS) then
             ! On Windows, use ping for sleep (more reliable than timeout)
-      write (command, '(a,i0,a)') 'cmd /c ping -n ', seconds + 1, ' 127.0.0.1 >nul 2>&1'
+            write (command, '(a,i0,a)') 'ping -n ', seconds + 1, ' 127.0.0.1'
         else
             write (command, '(a,i0)') 'sleep ', seconds
         end if
