@@ -30,23 +30,17 @@ jobs:
           mingw-w64-x86_64-gcc
           git
 
-    - name: Setup PATH
-      shell: cmd
-      run: |
-        echo Setting up PATH...
-        set PATH=C:\msys64\mingw64\bin;%PATH%
-        echo %PATH%
-        where gfortran
-        gfortran --version
+    - name: Add MinGW to PATH
+      run: echo C:\msys64\mingw64\bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      shell: pwsh
 
     - name: Install FPM
-      shell: cmd
+      shell: pwsh
       run: |
-        echo Installing FPM directly from GitHub releases...
-        set PATH=C:\msys64\mingw64\bin;%PATH%
-        curl -L -o fpm.exe https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-windows-x86_64-gcc-12.exe
-        move fpm.exe C:\msys64\mingw64\bin\
-        fpm --version
+        Write-Host "Installing FPM directly from GitHub releases..."
+        Invoke-WebRequest -Uri "https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-windows-x86_64-gcc-12.exe" -OutFile "fpm.exe"
+        Move-Item -Path "fpm.exe" -Destination "C:\msys64\mingw64\bin\fpm.exe"
+        & "C:\msys64\mingw64\bin\fpm.exe" --version
 
     - name: Test Windows cache directory creation
       run: |
@@ -63,7 +57,6 @@ jobs:
     - name: Build project
       run: |
         echo Building project...
-        set PATH=C:\msys64\mingw64\bin;%PATH%
         if exist build rmdir /s /q build
         fpm build --compiler gfortran --flag="-cpp"
       shell: cmd
@@ -71,7 +64,6 @@ jobs:
     - name: Run unit tests
       run: |
         echo Running unit tests...
-        set PATH=C:\msys64\mingw64\bin;%PATH%
 
         REM Find the built executable
         for /r build %%i in (fortran.exe) do set "FORTRAN_EXE=%%i"
@@ -183,28 +175,21 @@ jobs:
           mingw-w64-x86_64-gcc
           git
 
-    - name: Setup PATH
-      shell: cmd
-      run: |
-        echo Setting up PATH...
-        set PATH=C:\msys64\mingw64\bin;%PATH%
-        echo %PATH%
-        where gfortran
-        gfortran --version
+    - name: Add MinGW to PATH
+      run: echo C:\msys64\mingw64\bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      shell: pwsh
 
     - name: Install FPM
-      shell: cmd
+      shell: pwsh
       run: |
-        echo Installing FPM directly from GitHub releases...
-        set PATH=C:\msys64\mingw64\bin;%PATH%
-        curl -L -o fpm.exe https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-windows-x86_64-gcc-12.exe
-        move fpm.exe C:\msys64\mingw64\bin\
-        fpm --version
+        Write-Host "Installing FPM directly from GitHub releases..."
+        Invoke-WebRequest -Uri "https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-windows-x86_64-gcc-12.exe" -OutFile "fpm.exe"
+        Move-Item -Path "fpm.exe" -Destination "C:\msys64\mingw64\bin\fpm.exe"
+        & "C:\msys64\mingw64\bin\fpm.exe" --version
 
     - name: Build project
       run: |
         echo Building project...
-        set PATH=C:\msys64\mingw64\bin;%PATH%
         if exist build rmdir /s /q build
         fpm build --compiler gfortran --flag="-cpp"
       shell: cmd
