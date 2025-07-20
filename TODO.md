@@ -59,11 +59,62 @@ real(8), intent(in) :: b, a  # Wrong order!
 **Root Cause**: Parameter collection iterates in reverse order
 **Solution**: Fix parameter traversal in codegen_core.f90
 
-### Standardize Code Formatting
-- [ ] Consistent whitespace in expressions (x*x vs x * x)
-- [ ] Proper parameter grouping on single lines
-- [ ] Standardize indentation levels
-- [ ] Remove trailing whitespace in generated code
+### Implement Code Formatting Module
+**Design a clean, reusable formatting module inspired by fprettify/findent**
+
+#### Architecture:
+```
+src/frontend/formatting/
+├── formatting_core.f90      # Core formatting interfaces and types
+├── formatting_rules.f90     # Configurable formatting rules
+├── formatting_indent.f90    # Indentation management
+├── formatting_spacing.f90   # Whitespace and expression spacing
+└── formatting_line.f90      # Line length and continuation handling
+```
+
+#### Key Interfaces:
+```fortran
+type :: format_options_t
+    integer :: indent_width = 4
+    integer :: max_line_length = 88
+    logical :: space_around_operators = .true.
+    logical :: group_declarations = .true.
+    logical :: align_intent = .true.
+end type
+
+! Main formatting function
+function format_code(code, options) result(formatted)
+    character(len=*), intent(in) :: code
+    type(format_options_t), intent(in) :: options
+    character(len=:), allocatable :: formatted
+end function
+
+! Specific formatters
+function format_expression(expr, options) result(formatted)
+function format_declaration(decl, options) result(formatted)
+function format_parameter_list(params, options) result(formatted)
+```
+
+#### Benefits:
+- **Single Responsibility**: Each module handles one formatting aspect
+- **DRY Principle**: Code generator uses formatting module, no duplication
+- **Configurable**: Options for different formatting styles
+- **Testable**: Each formatter can be unit tested independently
+- **Extensible**: Easy to add new formatting rules
+
+#### Integration Points:
+1. **Code Generator**: Use formatters during code generation
+2. **AST Visitors**: Apply formatting rules during traversal
+3. **CLI Tool**: Standalone formatting command
+4. **Pre-commit Hook**: Auto-format before commit
+
+#### Implementation Tasks:
+- [ ] Design format_options_t configuration type
+- [ ] Implement expression spacing formatter
+- [ ] Implement declaration grouping formatter
+- [ ] Implement indentation manager
+- [ ] Integrate with code generator
+- [ ] Add comprehensive formatting tests
 
 ## 📋 Medium Priority Tasks
 
