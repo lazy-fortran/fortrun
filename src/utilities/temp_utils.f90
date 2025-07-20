@@ -1,4 +1,7 @@
 module temp_utils
+#ifdef _OPENMP
+    use omp_lib, only: omp_get_thread_num
+#endif
     implicit none
     private
     public :: create_temp_dir, cleanup_temp_dir, get_temp_file_path, temp_dir_manager, &
@@ -91,18 +94,35 @@ contains
     subroutine generate_random_suffix(suffix)
         character(len=*), intent(out) :: suffix
         integer :: time_vals(8)
-        integer :: pid_estimate
+        integer :: pid_estimate, thread_id
         integer :: random_num
+        integer :: counter
+        save :: counter
+        data counter/0/
 
-        ! Get current time
+        ! Get current time with microseconds
         call date_and_time(values=time_vals)
 
-        ! Create pseudo-random number from time and a simple PID estimate
-        pid_estimate = time_vals(8)*1000 + time_vals(7)*100 + time_vals(6)
-        random_num = time_vals(6)*1000000 + time_vals(7)*1000 + time_vals(8)
-        random_num = random_num + pid_estimate
+        ! Add thread-specific component
+#ifdef _OPENMP
+        ! Use OpenMP thread number if available
+        thread_id = omp_get_thread_num()
+#else
+        thread_id = 0
+#endif
 
-        ! Convert to hex string for shorter suffix
+        ! Thread-safe counter increment
+#ifdef _OPENMP
+        !$omp atomic
+#endif
+        counter = counter + 1
+
+        ! Create unique random number combining time, thread, and counter
+        pid_estimate = time_vals(8)*1000 + time_vals(7)*100 + time_vals(6)
+        random_num = time_vals(6)*1000000 + time_vals(7)*10000 + time_vals(8)*100
+        random_num = random_num + thread_id*1000000 + counter*10000 + pid_estimate
+
+        ! Convert to hex string for shorter but unique suffix
         write (suffix, '(z0)') abs(random_num)
 
     end subroutine generate_random_suffix
