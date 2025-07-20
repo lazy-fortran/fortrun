@@ -1,7 +1,7 @@
 program test_example_test_cases
     use iso_fortran_env, only: error_unit
     use frontend, only: compile_source, compilation_options_t, BACKEND_FORTRAN
-    use temp_utils, only: get_temp_file_path, get_system_temp_dir
+    use temp_utils, only: get_temp_file_path, get_system_temp_dir, get_project_root
     use formatter_utils, only: format_fortran_code
     implicit none
 
@@ -42,9 +42,13 @@ contains
         test_count = test_count + 1
 
         ! Set file paths (updated for reorganized structure)
-input_file = "example/frontend_test_cases/"//trim(case_name)//"/"//trim(case_name)//".f"
-        expected_file = "example/frontend_test_cases/" // trim(case_name) // "/" // trim(case_name) // ".f90"
+        block
+            character(len=:), allocatable :: project_root
+            project_root = get_project_root()
+            input_file = trim(project_root)//"/example/frontend_test_cases/"//trim(case_name)//"/"//trim(case_name)//".f"
+            expected_file = trim(project_root)//"/example/frontend_test_cases/"//trim(case_name)//"/"//trim(case_name)//".f90"
     output_file = get_temp_file_path(get_system_temp_dir(), trim(case_name)//"_out.f90")
+        end block
 
         ! Read expected output
         call read_file(expected_file, expected_code)
