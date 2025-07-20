@@ -24,18 +24,28 @@ jobs:
       with:
         msystem: MINGW64
         update: false
+        path-type: inherit
         install: >-
           mingw-w64-x86_64-gcc-fortran
           mingw-w64-x86_64-gcc
           git
 
-    - name: Install FPM
-      shell: msys2 {0}
+    - name: Setup PATH
+      shell: cmd
       run: |
-        echo "Installing FPM directly from GitHub releases..."
+        echo Setting up PATH...
+        set PATH=C:\msys64\mingw64\bin;%PATH%
+        echo %PATH%
+        where gfortran
+        gfortran --version
+
+    - name: Install FPM
+      shell: cmd
+      run: |
+        echo Installing FPM directly from GitHub releases...
+        set PATH=C:\msys64\mingw64\bin;%PATH%
         curl -L -o fpm.exe https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-windows-x86_64-gcc-12.exe
-        chmod +x fpm.exe
-        mv fpm.exe /mingw64/bin/fpm
+        move fpm.exe C:\msys64\mingw64\bin\
         fpm --version
 
     - name: Test Windows cache directory creation
@@ -52,54 +62,43 @@ jobs:
 
     - name: Build project
       run: |
-        # Clean build to ensure temp_utils.F90 changes are included
-        rm -rf build
+        echo Building project...
+        set PATH=C:\msys64\mingw64\bin;%PATH%
+        if exist build rmdir /s /q build
         fpm build --compiler gfortran --flag="-cpp"
-      shell: msys2 {0}
+      shell: cmd
 
     - name: Run unit tests
       run: |
-        # Windows CI/CD currently has json-fortran compilation issues
-        # Run the already built executable directly
+        echo Running unit tests...
+        set PATH=C:\msys64\mingw64\bin;%PATH%
 
-        # Find the built executable
-        FORTRAN_EXE=$(find build -name "fortran.exe" | head -1)
-        echo "Found executable: $FORTRAN_EXE"
+        REM Find the built executable
+        for /r build %%i in (fortran.exe) do set "FORTRAN_EXE=%%i"
+        echo Found executable: %FORTRAN_EXE%
 
-        # Get the current directory
-        CURRENT_DIR=$(pwd)
-        echo "Current directory: $CURRENT_DIR"
+        REM Get the current directory
+        echo Current directory: %CD%
 
-        # Run basic smoke test with absolute path
-        TEST_FILE="$CURRENT_DIR/test_windows.f"
-        echo "program test; print *, 'x = 42'; end program" > "$TEST_FILE"
-        echo "Test file created at: $TEST_FILE"
+        REM Run basic smoke test
+        echo program test; print *, 'x = 42'; end program > test_windows.f
+        echo Test file created at: %CD%\test_windows.f
 
-        # Create a temp cache directory to avoid mkdir -p issues
-        TEMP_CACHE="$CURRENT_DIR/temp_cache"
-        # Use test -d to check if directory exists first
-        if [ ! -d "$TEMP_CACHE" ]; then
-          /usr/bin/mkdir "$TEMP_CACHE"
-        fi
+        REM Create a temp cache directory
+        if not exist temp_cache mkdir temp_cache
 
-        # Convert MSYS2 paths to Windows paths for the executable
-        TEMP_CACHE_WIN=$(cygpath -w "$TEMP_CACHE")
-        TEST_FILE_WIN=$(cygpath -w "$TEST_FILE")
-        echo "Windows cache path: $TEMP_CACHE_WIN"
-        echo "Windows test file: $TEST_FILE_WIN"
+        REM Run the executable with the test file using custom cache
+        "%FORTRAN_EXE%" --cache-dir "%CD%\temp_cache" "%CD%\test_windows.f"
+        del /f test_windows.f
 
-        # Run the executable with the test file using custom cache
-        $FORTRAN_EXE --cache-dir "$TEMP_CACHE_WIN" "$TEST_FILE_WIN"
-        rm -f "$TEST_FILE"
+        REM Test version flag
+        "%FORTRAN_EXE%" --version
 
-        # Test version flag
-        $FORTRAN_EXE --version
+        REM Test help flag
+        "%FORTRAN_EXE%" --help
 
-        # Test help flag
-        $FORTRAN_EXE --help
-
-        echo "Basic Windows functionality tests passed"
-      shell: msys2 {0}
+        echo Basic Windows functionality tests passed
+      shell: cmd
 
     - name: Test cache functionality
       run: |
@@ -178,26 +177,37 @@ jobs:
       with:
         msystem: MINGW64
         update: false
+        path-type: inherit
         install: >-
           mingw-w64-x86_64-gcc-fortran
           mingw-w64-x86_64-gcc
           git
 
-    - name: Install FPM
-      shell: msys2 {0}
+    - name: Setup PATH
+      shell: cmd
       run: |
-        echo "Installing FPM directly from GitHub releases..."
+        echo Setting up PATH...
+        set PATH=C:\msys64\mingw64\bin;%PATH%
+        echo %PATH%
+        where gfortran
+        gfortran --version
+
+    - name: Install FPM
+      shell: cmd
+      run: |
+        echo Installing FPM directly from GitHub releases...
+        set PATH=C:\msys64\mingw64\bin;%PATH%
         curl -L -o fpm.exe https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-windows-x86_64-gcc-12.exe
-        chmod +x fpm.exe
-        mv fpm.exe /mingw64/bin/fpm
+        move fpm.exe C:\msys64\mingw64\bin\
         fpm --version
 
     - name: Build project
       run: |
-        # Clean build to ensure temp_utils.F90 changes are included
-        rm -rf build
+        echo Building project...
+        set PATH=C:\msys64\mingw64\bin;%PATH%
+        if exist build rmdir /s /q build
         fpm build --compiler gfortran --flag="-cpp"
-      shell: msys2 {0}
+      shell: cmd
 
     - name: Download artifacts
       uses: actions/download-artifact@v4

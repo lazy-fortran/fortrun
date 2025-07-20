@@ -323,8 +323,9 @@ contains
         integer :: exitstat
 
 #ifdef _WIN32
-        ! On Windows, use tasklist to check if process is running
-        write (command, '(a,i0,a)') 'tasklist /FI "PID eq ', pid, '" 2>nul | find "', pid, '" >nul'
+        ! On Windows, use wmic to check if process is running
+        ! wmic exits with code 1 if process not found
+        write (command, '(a,i0,a)') 'wmic process where processid=', pid, ' get processid >nul 2>&1'
         call execute_command_line(command, exitstat=exitstat)
 #else
         write (command, '(a,i0,a)') 'kill -0 ', pid, ' 2>/dev/null'
