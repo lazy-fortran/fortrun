@@ -421,7 +421,8 @@ Value: 0.33333333333333331
 
 All examples are automatically tested:
 ```bash
-fpm test test_examples  # Runs all example validations
+./test/run_tests_parallel.sh --filter examples  # Run example tests in parallel
+fpm test test_examples                          # Run sequentially (fallback)
 ```
 
 Each example includes:

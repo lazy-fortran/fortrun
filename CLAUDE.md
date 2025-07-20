@@ -48,7 +48,8 @@ fpm run fortran -- --clear-cache  # Clear cache (CRITICAL before testing fronten
 fpm clean --skip                  # Clean build directory without prompting
 
 # Testing
-fpm test                          # Run all tests
+./test/run_tests_parallel.sh      # Run all tests in parallel (RECOMMENDED)
+fpm test                          # Run all tests sequentially
 fpm test test_name                # Run specific test
 fpm test > /dev/null              # Run tests quietly (recommended during development)
 
@@ -183,7 +184,15 @@ end function deep_copy
 ## Test Categories
 
 ```bash
-# Frontend components
+# Run all tests in parallel (fastest)
+./test/run_tests_parallel.sh
+
+# Run specific test categories in parallel
+./test/run_tests_parallel.sh --filter frontend
+./test/run_tests_parallel.sh --filter lexer
+./test/run_tests_parallel.sh -j 8 --filter parser  # Use 8 cores
+
+# Sequential testing (fallback)
 fpm test test_frontend_lexer_*
 fpm test test_frontend_parser_*
 fpm test test_frontend_semantic_*
@@ -234,6 +243,7 @@ example/frontend_test_cases/single_assignment/
 ## Critical Notes
 
 - **Clear cache before testing frontend**: `fpm run fortran -- --clear-cache`
+- **Run tests in parallel**: `./test/run_tests_parallel.sh`
 - **Run tests quietly**: `fpm test > /dev/null`
 - **Fortran 95 standard**: https://wg5-fortran.org/N1151-N1200/N1191.pdf
 - **CLI options documented in**: doc/index.md

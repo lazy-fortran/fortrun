@@ -181,6 +181,9 @@ while IFS='|' read -r idx status display_name full_name; do
     fi
 done < "$TEMP_ALL"
 
+# Flush output
+sync
+
 # Show verbose output
 if [ "$VERBOSE" -eq 1 ] && [ -n "$(find "$TEMP_DIR" -name "core_*.out" -size +0 2>/dev/null)" ]; then
     echo ""
@@ -196,18 +199,20 @@ if [ "$TOTAL_FAILED" -gt 0 ] && [ -n "$(find "$TEMP_DIR" -name "core_*.err" -siz
 fi
 
 # Summary
-echo ""
-echo "=== Summary ==="
-echo "Tests run: $TOTAL_TESTS"
-echo -e "Passed: ${GREEN}$TOTAL_PASSED${NC}"
-echo -e "Failed: ${RED}$TOTAL_FAILED${NC}"
-echo "Time: ${DURATION}s (using $NCORES cores)"
+{
+    echo ""
+    echo "=== Summary ==="
+    echo "Tests run: $TOTAL_TESTS"
+    echo -e "Passed: ${GREEN}$TOTAL_PASSED${NC}"
+    echo -e "Failed: ${RED}$TOTAL_FAILED${NC}"
+    echo "Time: ${DURATION}s (using $NCORES cores)"
 
-# Final status
-if [ "$TOTAL_FAILED" -eq 0 ]; then
-    echo -e "\n${GREEN}${BOLD}All tests passed!${NC}"
-    exit 0
-else
-    echo -e "\n${RED}${BOLD}$TOTAL_FAILED test(s) failed!${NC}"
-    exit 1
-fi
+    # Final status
+    if [ "$TOTAL_FAILED" -eq 0 ]; then
+        echo -e "\n${GREEN}${BOLD}All tests passed!${NC}"
+        exit 0
+    else
+        echo -e "\n${RED}${BOLD}$TOTAL_FAILED test(s) failed!${NC}"
+        exit 1
+    fi
+} >&2

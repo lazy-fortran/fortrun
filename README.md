@@ -158,6 +158,7 @@ fortran --cache-dir /tmp/fortran-cache example.f90
 - ✅ *lowercase fortran* .f syntax with automatic type inference
 - ✅ Notebook mode with figure capture
 - ✅ Comprehensive test suite (30+ frontend tests)
+- ✅ Parallel test runner for faster development
 
 **Next**: FPM Registry integration and advanced language features
 
