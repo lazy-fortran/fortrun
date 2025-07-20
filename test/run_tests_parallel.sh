@@ -94,8 +94,8 @@ if [ "$FULL_OUTPUT" -eq 1 ]; then
         exit 1
     fi
 else
-    # Quiet build in normal mode
-    if ! fpm test --runner echo >/dev/null 2>&1; then
+    # Build tests properly in normal mode
+    if ! fpm build --tests >/dev/null 2>&1; then
         echo -e "${RED}ERROR: Failed to build tests${NC}"
         exit 1
     fi
@@ -160,19 +160,31 @@ run_test_subset() {
         # Extract just the test name for display
         local display_name=$(basename "$test_name")
 
+        [ "$DEBUG" -eq 1 ] && echo "[Core $core_id] Running test $((i+1)): $display_name" >&2
+
         # Run test and capture output
         local test_output="$TEMP_DIR/test_${core_id}_${i}.out"
 
         # Run test using just the basename
         local exit_code
+        local test_basename=$(basename "$test_name")
+
+        # Add timeout to prevent hanging and ensure proper exit
+        # Use exec to ensure proper subprocess handling
         if [ "$FULL_OUTPUT" -eq 1 ]; then
             # In full output mode, capture everything
-            fpm test "$(basename "$test_name")" > "$test_output" 2>&1
+            ( exec timeout --foreground 60 fpm test "$test_basename" > "$test_output" 2>&1 )
             exit_code=$?
         else
             # Normal mode - just capture output
-            fpm test "$(basename "$test_name")" > "$test_output" 2>&1
+            ( exec timeout --foreground 60 fpm test "$test_basename" > "$test_output" 2>&1 )
             exit_code=$?
+        fi
+
+        # Handle timeout
+        if [ $exit_code -eq 124 ]; then
+            echo "Test timed out after 60 seconds" >> "$test_output"
+            exit_code=1
         fi
 
         if [ $exit_code -eq 0 ]; then
@@ -210,16 +222,29 @@ for ((core=0; core<NCORES; core++)); do
     start_idx=$((core * TESTS_PER_CORE))
     end_idx=$((start_idx + TESTS_PER_CORE - 1))
 
-    run_test_subset "$core" "$start_idx" "$end_idx" &
+    # Run in background with proper file descriptor handling
+    run_test_subset "$core" "$start_idx" "$end_idx" </dev/null &
     pids+=($!)
 done
 
 # Show progress
 if [ "$VERBOSE" -eq 0 ] && [ "$QUIET" -eq 0 ] && [ "$FULL_OUTPUT" -eq 0 ]; then
     while true; do
+        # Check if all background jobs have finished
+        jobs_running=0
+        for pid in "${pids[@]}"; do
+            if kill -0 "$pid" 2>/dev/null; then
+                jobs_running=1
+                break
+            fi
+        done
+
+        # Count completed tests
         completed=$(find "$TEMP_DIR" -name "*.results" -exec cat {} \; 2>/dev/null | wc -l)
         printf "\rProgress: %d/%d tests completed" "$completed" "$TOTAL_TESTS" >&2
-        [ "$completed" -ge "$TOTAL_TESTS" ] && break
+
+        # Exit when all jobs are done, regardless of test count
+        [ "$jobs_running" -eq 0 ] && break
         sleep 0.5
     done
     echo "" >&2
