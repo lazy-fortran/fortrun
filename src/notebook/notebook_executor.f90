@@ -519,8 +519,12 @@ contains
         character(len=512) :: command
         integer :: exit_code
 
-        ! Build with FPM (with timeout to prevent hanging)
+        ! Build with FPM (with timeout to prevent hanging on Unix)
+#ifdef _WIN32
+        command = 'cd '//trim(project_dir)//' && fpm build'
+#else
         command = 'cd '//trim(project_dir)//' && timeout 30 fpm build'
+#endif
         call execute_and_capture(command, error_msg, exit_code)
 
         success = (exit_code == 0)
@@ -544,8 +548,12 @@ contains
         ! Initialize figure capture
         call init_figure_capture()
 
-        ! Execute the notebook (with timeout to prevent hanging)
+        ! Execute the notebook (with timeout to prevent hanging on Unix)
+#ifdef _WIN32
+        command = 'cd '//trim(project_dir)//' && fpm run'
+#else
         command = 'cd '//trim(project_dir)//' && timeout 30 fpm run'
+#endif
         call execute_and_capture(command, output, exit_code)
 
         ! Read actual output from notebook_output module
