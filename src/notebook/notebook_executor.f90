@@ -156,6 +156,9 @@ contains
         ! Copy figure_capture module
         call copy_figure_capture_module(project_dir)
 
+        ! Copy temp_utils module (needed by figure_capture)
+        call copy_temp_utils_module(project_dir)
+
         ! Generate main program
         call generate_main_program(notebook, trim(cache_dir) // '/notebook_' // trim(cache_key) // '_outputs.txt', main_content)
         open (newunit=unit, file=trim(project_dir)//'/app/main.f90', status='replace')
@@ -453,6 +456,9 @@ contains
                   '[build]'//new_line('a')// &
                   'auto-executables = true'//new_line('a')// &
                   ''//new_line('a')// &
+                  '[dependencies]'//new_line('a')// &
+              'fpm = { git = "https://github.com/fortran-lang/fpm" }'//new_line('a')// &
+                  ''//new_line('a')// &
                   '[fortran]'//new_line('a')// &
                   'implicit-typing = false'//new_line('a')// &
                   'implicit-external = false'//new_line('a')// &
@@ -489,6 +495,21 @@ contains
         call execute_command_line(command)
 
     end subroutine copy_figure_capture_module
+
+    subroutine copy_temp_utils_module(project_dir)
+        character(len=*), intent(in) :: project_dir
+        character(len=512) :: command
+        character(len=256) :: current_dir
+
+        ! Get current working directory
+        call getcwd(current_dir)
+
+        ! Copy the temp_utils module to the project
+        command = 'cp "'//trim(current_dir)//'/src/utilities/temp_utils.F90" "'// &
+                  trim(project_dir)//'/src/"'
+        call execute_command_line(command)
+
+    end subroutine copy_temp_utils_module
 
     subroutine build_notebook_project(project_dir, success, error_msg)
         character(len=*), intent(in) :: project_dir
