@@ -45,10 +45,32 @@ contains
 
         ! Create unique temp directory path (cross-platform path separator)
 #ifdef _WIN32
-        temp_dir = trim(base_temp_dir)//'\'//trim(prefix)//'_'//trim(random_suffix)
-
-        ! Create the directory (Windows)
-        call execute_command_line('mkdir "'//temp_dir//'" 2>nul', exitstat=ios)
+        ! Check if running under MSYS2
+        block
+            character(len=256) :: msystem
+            integer :: status
+            call get_environment_variable('MSYSTEM', msystem, status=status)
+            if (status == 0 .and. len_trim(msystem) > 0) then
+                ! MSYS2 environment - use Unix-style paths and commands
+                temp_dir = trim(base_temp_dir)//'/'//trim(prefix)// &
+                           '_'//trim(random_suffix)
+                call execute_command_line('mkdir -p "'//temp_dir//'"', exitstat=ios)
+            else
+                ! Native Windows - normalize paths and use Windows commands
+                block
+                    integer :: i
+                    character(len=256) :: normalized_base
+                    normalized_base = base_temp_dir
+                    do i = 1, len_trim(normalized_base)
+                        if (normalized_base(i:i) == '/') normalized_base(i:i) = '\'
+                    end do
+                    temp_dir = trim(normalized_base)//'\'//trim(prefix)// &
+                               '_'//trim(random_suffix)
+                end block
+                call execute_command_line('cmd /c mkdir "'//temp_dir// &
+                                          '" 2>nul', exitstat=ios)
+            end if
+        end block
 #else
         temp_dir = trim(base_temp_dir)//'/'//trim(prefix)//'_'//trim(random_suffix)
 
@@ -67,13 +89,28 @@ contains
 
         if (len_trim(temp_dir) > 0) then
 #ifdef _WIN32
-     call execute_command_line('rmdir /s /q "'//trim(temp_dir)//'" 2>nul', exitstat=ios)
+            ! Check if running under MSYS2
+            block
+                character(len=256) :: msystem
+                integer :: status
+                call get_environment_variable('MSYSTEM', msystem, status=status)
+                if (status == 0 .and. len_trim(msystem) > 0) then
+                    ! MSYS2 environment
+                    call execute_command_line('rm -rf "'//trim(temp_dir)//'"', &
+                                              exitstat=ios)
+                else
+                    ! Native Windows
+                    call execute_command_line('rmdir /s /q "'//trim(temp_dir)// &
+                                              '" 2>nul', exitstat=ios)
+                end if
+            end block
 #else
             call execute_command_line('rm -rf "'//trim(temp_dir)//'"', exitstat=ios)
 #endif
             ! Don't error on cleanup failure - just warn
             if (ios /= 0) then
-             print *, 'Warning: Failed to cleanup temporary directory: '//trim(temp_dir)
+                print *, 'Warning: Failed to cleanup temporary directory: '// &
+                    trim(temp_dir)
             end if
         end if
 
@@ -84,7 +121,19 @@ contains
         character(len=:), allocatable :: file_path
 
 #ifdef _WIN32
-        file_path = trim(temp_dir)//'\'//trim(filename)
+        ! Check if running under MSYS2
+        block
+            character(len=256) :: msystem
+            integer :: status
+            call get_environment_variable('MSYSTEM', msystem, status=status)
+            if (status == 0 .and. len_trim(msystem) > 0) then
+                ! MSYS2 environment
+                file_path = trim(temp_dir)//'/'//trim(filename)
+            else
+                ! Native Windows
+                file_path = trim(temp_dir)//'\'//trim(filename)
+            end if
+        end block
 #else
         file_path = trim(temp_dir)//'/'//trim(filename)
 #endif
@@ -183,9 +232,19 @@ contains
 
     function get_system_temp_dir() result(temp_dir)
         character(len=:), allocatable :: temp_dir
+        character(len=256) :: msystem
+        integer :: status
 
 #ifdef _WIN32
-        temp_dir = 'C:\Windows\Temp'
+        ! Check if running under MSYS2
+        call get_environment_variable('MSYSTEM', msystem, status=status)
+        if (status == 0 .and. len_trim(msystem) > 0) then
+            ! MSYS2 environment - use Unix-style path
+            temp_dir = '/tmp'
+        else
+            ! Native Windows
+            temp_dir = 'C:\Windows\Temp'
+        end if
 #else
         temp_dir = '/tmp'
 #endif
