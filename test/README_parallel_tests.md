@@ -4,6 +4,8 @@
 
 The `run_tests_parallel.sh` script runs FPM tests in parallel across multiple CPU cores to speed up test execution. It provides all the functionality of `fpm test` with better performance and additional features.
 
+**Default behavior**: Shows only failed tests and their output. Passed tests are counted but not displayed for cleaner output.
+
 ## Usage
 
 ```bash
@@ -13,7 +15,7 @@ The `run_tests_parallel.sh` script runs FPM tests in parallel across multiple CP
 ## Options
 
 - `-j, --jobs N`: Use N parallel jobs (default: CPU count)
-- `-v, --verbose`: Show detailed test output inline
+- `-v, --verbose`: Show all test names, not just failures (default: only show failed tests)
 - `-q, --quiet`: Suppress progress output (only show summary)
 - `-d, --debug`: Show debug information
 - `--full-output`: Show full test output exactly like `fpm test`
@@ -23,9 +25,14 @@ The `run_tests_parallel.sh` script runs FPM tests in parallel across multiple CP
 
 ## Examples
 
-Run all tests using all available cores:
+Run all tests (default - shows only failures):
 ```bash
 ./test/run_tests_parallel.sh
+```
+
+Run all tests showing all results:
+```bash
+./test/run_tests_parallel.sh -v
 ```
 
 Run with full output (exactly like `fpm test`):

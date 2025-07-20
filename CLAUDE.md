@@ -49,7 +49,8 @@ fpm clean --skip                  # Clean build directory without prompting
 
 # Testing
 # ⚠️ CRITICAL: ALWAYS USE PARALLEL TEST RUNNER FOR MULTIPLE TESTS ⚠️
-./test/run_tests_parallel.sh              # Run all tests in parallel (DEFAULT)
+./test/run_tests_parallel.sh              # Run all tests (DEFAULT: shows only failures)
+./test/run_tests_parallel.sh -v           # Show all test results, not just failures
 ./test/run_tests_parallel.sh --full-output # Show full test output like fpm test
 ./test/run_tests_parallel.sh -q           # Quiet mode (only show summary)
 ./test/run_tests_parallel.sh --output-dir results/  # Save all test outputs
@@ -194,8 +195,11 @@ end function deep_copy
 ```bash
 # ⚠️ ALWAYS USE PARALLEL TEST RUNNER ⚠️
 
-# Run all tests in parallel (fastest)
+# Run all tests in parallel (default: shows only failures)
 ./test/run_tests_parallel.sh
+
+# Run all tests showing all results
+./test/run_tests_parallel.sh -v
 
 # Run with full output (like fpm test)
 ./test/run_tests_parallel.sh --full-output

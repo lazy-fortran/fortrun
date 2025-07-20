@@ -55,13 +55,18 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: $0 [OPTIONS] [FILTER]"
             echo "Options:"
             echo "  -j, --jobs N      Use N parallel jobs (default: CPU count)"
-            echo "  -v, --verbose     Show detailed test output inline"
+            echo "  -v, --verbose     Show all test names (default: only failures)"
             echo "  -d, --debug       Show debug information"
             echo "  -q, --quiet       Suppress progress output"
             echo "  --full-output     Show full test output (like fpm test)"
             echo "  --output-dir DIR  Save individual test outputs to DIR"
             echo "  --filter PATTERN  Filter tests by pattern"
             echo "  -h, --help        Show this help"
+            echo ""
+            echo "Default behavior:"
+            echo "  - Shows only failed test names and their output"
+            echo "  - Passed tests are counted but not displayed"
+            echo "  - Use -v to see all test results"
             exit 0
             ;;
         *)
@@ -276,11 +281,13 @@ if [ -s "$TEMP_ALL" ]; then
             fi
         done < "$TEMP_ALL"
     else
-        # Normal mode - just show pass/fail
+        # Default mode - show pass/fail summary, but only show output for failed tests
         while IFS='|' read -r idx status display_name full_name; do
             if [ -n "$status" ]; then
                 if [ "$status" = "PASS" ]; then
-                    echo -e " ${GREEN}✓ PASS${NC}: $display_name"
+                    if [ "$VERBOSE" -eq 1 ]; then
+                        echo -e " ${GREEN}✓ PASS${NC}: $display_name"
+                    fi
                     ((TOTAL_PASSED++))
                 else
                     echo -e " ${RED}✗ FAIL${NC}: $display_name"
