@@ -130,7 +130,11 @@ contains
         character(len=*), intent(in) :: cache_dir, project_name
         character(len=512) :: lock_file
 
+#ifdef _WIN32
+        lock_file = trim(cache_dir)//'\'//trim(project_name)//'.lock'
+#else
         lock_file = trim(cache_dir)//'/'//trim(project_name)//'.lock'
+#endif
 
     end function get_lock_file_path
 
