@@ -284,17 +284,19 @@ contains
         integer, intent(out) :: pid
         real :: r
 
+        ! Interface declaration must be outside if block
+        interface
+            function getpid() bind(c, name='getpid')
+                import :: c_int
+                integer(c_int) :: getpid
+            end function getpid
+        end interface
+
         if (get_os_type() == OS_WINDOWS) then
             ! Simple fallback for Windows - just use a random number
             call random_number(r)
             pid = int(r*99999)
         else
-            interface
-                function getpid() bind(c, name='getpid')
-                    import :: c_int
-                    integer(c_int) :: getpid
-                end function getpid
-            end interface
             pid = getpid()
         end if
 
