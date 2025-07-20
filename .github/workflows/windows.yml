@@ -57,16 +57,22 @@ jobs:
     - name: Run unit tests
       run: |
         # Windows CI/CD currently has json-fortran compilation issues
-        # Run a basic smoke test instead
+        # Run the already built executable directly
+
+        # Find the built executable
+        FORTRAN_EXE=$(find build -name "fortran.exe" | head -1)
+        echo "Found executable: $FORTRAN_EXE"
+
+        # Run basic smoke test
         echo "program test; print *, 'x = 42'; end program" > test_windows.f
-        fpm run fortran -- test_windows.f
+        $FORTRAN_EXE test_windows.f
         rm -f test_windows.f
 
         # Test version flag
-        fpm run fortran -- --version
+        $FORTRAN_EXE --version
 
         # Test help flag
-        fpm run fortran -- --help
+        $FORTRAN_EXE --help
 
         echo "Basic Windows functionality tests passed"
       shell: msys2 {0}
