@@ -61,6 +61,12 @@ jobs:
         fpm build --compiler gfortran --flag="-cpp"
       shell: cmd
 
+    - name: List build directory
+      run: |
+        echo "Listing build directory contents:"
+        dir /s /b build
+      shell: cmd
+
     - name: Run unit tests
       run: |
         echo Running unit tests...
@@ -104,6 +110,10 @@ jobs:
 
         # Find the fortran executable
         $fortran_exe = Get-ChildItem -Path "build" -Recurse -Filter "fortran.exe" | Select-Object -First 1
+        if ($null -eq $fortran_exe) {
+          Write-Host "ERROR: Could not find fortran.exe in build directory"
+          exit 1
+        }
         Write-Host "Found executable: $($fortran_exe.FullName)"
 
         # Test version
@@ -204,6 +214,10 @@ jobs:
       run: |
         # Find the fortran executable
         $fortran_exe = Get-ChildItem -Path "build" -Recurse -Filter "fortran.exe" | Select-Object -First 1
+        if ($null -eq $fortran_exe) {
+          Write-Host "ERROR: Could not find fortran.exe in build directory"
+          exit 1
+        }
         Write-Host "Found executable: $($fortran_exe.FullName)"
 
         # Test hello world
