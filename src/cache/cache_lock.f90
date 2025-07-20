@@ -70,7 +70,7 @@ contains
             wait_time = wait_time + 1
 
             if (wait_time >= MAX_WAIT_TIME) then
-                ! print *, 'WARNING: Cache lock timeout after', MAX_WAIT_TIME, 'seconds'
+                print *, 'DEBUG: Cache lock timeout after', MAX_WAIT_TIME, 'seconds for', trim(project_name)
                 exit
             end if
         end do
@@ -178,7 +178,11 @@ contains
             if (file_exists) then
                 ! Lock already exists, can't create
                 if (get_os_type() == OS_WINDOWS) then
-         call execute_command_line('cmd /c del /f /q "'//trim(temp_file)//'" >nul 2>&1')
+                    command = 'cmd /c del /f /q "'//trim(temp_file)//'" >nul 2>&1'
+                    call execute_command_line(command, exitstat=iostat)
+                    if (iostat /= 0) then
+       print *, 'DEBUG: Windows del command failed:', trim(command), 'exitstat:', iostat
+                    end if
                 else
                     call execute_command_line('rm -f "'//trim(temp_file)//'"')
                 end if
@@ -188,6 +192,9 @@ contains
                     ! On Windows, use move command which is atomic within same drive
     command = 'cmd /c move /Y "'//trim(temp_file)//'" "'//trim(lock_file)//'" >nul 2>&1'
                     call execute_command_line(command, exitstat=iostat)
+                    if (iostat /= 0) then
+      print *, 'DEBUG: Windows move command failed:', trim(command), 'exitstat:', iostat
+                    end if
 
                     if (iostat == 0) then
                         ! Double-check that we really created the lock
@@ -196,7 +203,11 @@ contains
                     else
                         success = .false.
                         ! Clean up temp file if move failed
-         call execute_command_line('cmd /c del /f /q "'//trim(temp_file)//'" >nul 2>&1')
+                        command = 'cmd /c del /f /q "'//trim(temp_file)//'" >nul 2>&1'
+                        call execute_command_line(command, exitstat=iostat)
+                        if (iostat /= 0) then
+       print *, 'DEBUG: Windows cleanup del failed:', trim(command), 'exitstat:', iostat
+                        end if
                     end if
                 else
                     ! Use ln to create hard link atomically, then remove temp
@@ -274,13 +285,17 @@ contains
     subroutine remove_lock(lock_file)
         character(len=*), intent(in) :: lock_file
         character(len=512) :: command
+        integer :: iostat
 
         if (get_os_type() == OS_WINDOWS) then
             command = 'cmd /c del /f /q "'//trim(lock_file)//'" >nul 2>&1'
         else
             command = 'rm -f "'//trim(lock_file)//'"'
         end if
-        call execute_command_line(command)
+        call execute_command_line(command, exitstat=iostat)
+        if (iostat /= 0) then
+       print *, 'DEBUG: Remove lock command failed:', trim(command), 'exitstat:', iostat
+        end if
 
     end subroutine remove_lock
 
@@ -351,6 +366,7 @@ contains
     subroutine sleep(seconds)
         integer, intent(in) :: seconds
         character(len=128) :: command
+        integer :: iostat
 
         if (get_os_type() == OS_WINDOWS) then
             ! On Windows, use ping for sleep (more reliable than timeout)
@@ -358,7 +374,10 @@ contains
         else
             write (command, '(a,i0)') 'sleep ', seconds
         end if
-        call execute_command_line(command)
+        call execute_command_line(command, exitstat=iostat)
+        if (iostat /= 0) then
+            print *, 'DEBUG: Sleep command failed:', trim(command), 'exitstat:', iostat
+        end if
 
     end subroutine sleep
 
