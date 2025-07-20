@@ -1,5 +1,5 @@
 module figure_capture
-    use fpm_filesystem, only: mkdir
+    use temp_utils, only: mkdir
     implicit none
     private
 

@@ -7,7 +7,7 @@ module notebook_executor
     use frontend_integration, only: compile_with_frontend, is_simple_fortran_file
     use, intrinsic :: iso_c_binding
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path
-    use fpm_filesystem, only: mkdir
+    use temp_utils, only: mkdir
     implicit none
     private
 

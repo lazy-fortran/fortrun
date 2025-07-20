@@ -15,7 +15,8 @@
 !>
 module fpm_module_cache
     use, intrinsic :: iso_fortran_env, only: int64
-    use fpm_filesystem, only: exists, mkdir, join_path, list_files
+    use fpm_filesystem, only: exists, join_path, list_files
+    use temp_utils, only: mkdir
     use fpm_strings, only: string_t, str
     use fpm_environment, only: get_os_type, OS_LINUX, OS_MACOS, OS_WINDOWS
     use fpm_compiler, only: compiler_t, id_gcc, id_intel_classic_nix, &

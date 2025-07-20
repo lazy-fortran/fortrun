@@ -2,12 +2,13 @@ module temp_utils
 #ifdef _OPENMP
     use omp_lib, only: omp_get_thread_num
 #endif
-    use fpm_filesystem, only: join_path, mkdir, get_temp_filename, exists
+    use fpm_filesystem, only: join_path, get_temp_filename, exists
     use fpm_environment, only: get_env, get_os_type, OS_WINDOWS
     implicit none
     private
     public :: create_temp_dir, cleanup_temp_dir, get_temp_file_path, temp_dir_manager, &
-              get_system_temp_dir, get_current_directory, get_project_root, path_join
+              get_system_temp_dir, get_current_directory, get_project_root, path_join, &
+              mkdir
 
     ! Type for managing temporary directories with automatic cleanup
     type :: temp_dir_manager
@@ -49,8 +50,8 @@ contains
         temp_dir = join_path(trim(base_temp_dir), &
                              trim(prefix)//'_'//trim(random_suffix))
 
-        ! Create the directory using FPM's mkdir with parent directory support
-        call mkdir_with_parents(temp_dir)
+        ! Create the directory
+        call mkdir(temp_dir)
 
     end function create_temp_dir
 
@@ -347,39 +348,27 @@ contains
 
     end function path_join_simple
 
-    !> Create directory and any necessary parent directories
-    !> This wraps FPM's mkdir to handle parent directory creation on Windows
-    subroutine mkdir_with_parents(dir_path)
+    !> Safe mkdir that creates parent directories and doesn't terminate on failure (unlike FPM's mkdir)
+    subroutine mkdir(dir_path)
         character(len=*), intent(in) :: dir_path
-        character(len=:), allocatable :: parent_dir
-        integer :: last_sep
+        character(len=512) :: command
+        integer :: exitstat, cmdstat
 
-        ! Try to create the directory first
-        if (.not. exists(dir_path)) then
-            ! On Windows, FPM's mkdir doesn't create parents, so we need to ensure parent exists
-            if (get_os_type() == OS_WINDOWS) then
-                ! Find the parent directory
-                parent_dir = trim(dir_path)
-                last_sep = 0
+        ! Skip if directory already exists
+        if (exists(dir_path)) return
 
-                ! Find the last path separator (backslash or forward slash)
-                do last_sep = len_trim(parent_dir), 1, -1
-                    if (parent_dir(last_sep:last_sep) == '/' .or. &
-                        parent_dir(last_sep:last_sep) == '\') exit
-                end do
+        ! Skip invalid paths that would cause problems
+        if (len_trim(dir_path) == 0) return
+        if (index(dir_path, '/dev/null') > 0) return
 
-                if (last_sep > 1) then
-                    parent_dir = parent_dir(1:last_sep - 1)
-                    ! Recursively ensure parent exists
-                    if (.not. exists(parent_dir)) then
-                        call mkdir_with_parents(parent_dir)
-                    end if
-                end if
-            end if
+        ! Use safe system commands
+#ifdef _WIN32
+      command = 'if not exist "'//trim(dir_path)//'" mkdir "'//trim(dir_path)//'" 2>nul'
+#else
+        command = 'mkdir -p "'//trim(dir_path)//'" 2>/dev/null'
+#endif
 
-            ! Now create the directory itself using FPM's mkdir
-            call mkdir(dir_path)
-        end if
-    end subroutine mkdir_with_parents
+        call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
+    end subroutine mkdir
 
 end module temp_utils

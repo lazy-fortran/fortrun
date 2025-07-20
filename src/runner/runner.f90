@@ -11,8 +11,7 @@ module runner
     use fpm_error, only: error_t
   use frontend_integration, only: compile_with_frontend, compile_with_frontend_debug, is_simple_fortran_file
     use debug_state, only: get_debug_flags
-    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path
-    use fpm_filesystem, only: mkdir
+    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, mkdir
     use, intrinsic :: iso_fortran_env, only: int64
     implicit none
     private

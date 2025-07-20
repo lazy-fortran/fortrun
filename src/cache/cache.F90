@@ -4,11 +4,11 @@ module cache
     use fpm_sources, only: add_sources_from_dir
     use fpm_model, only: srcfile_t, FPM_SCOPE_APP
     use fpm_error, only: error_t
-    use fpm_filesystem, only: list_files, read_lines, mkdir, join_path, exists, run
+    use fpm_filesystem, only: list_files, read_lines, join_path, exists, run
     use fpm_environment, only: get_os_type, OS_WINDOWS
     use fpm_strings, only: string_t, fnv_1a
     use temp_utils, only: create_temp_dir, get_temp_file_path
-    use fpm_filesystem, only: mkdir
+    use temp_utils, only: mkdir
     implicit none
     private
   public :: get_cache_dir, ensure_cache_dir, ensure_cache_structure, get_cache_subdir, &
@@ -62,7 +62,7 @@ contains
             return
         end if
 
-        ! Create directory using FPM's cross-platform mkdir
+        ! Create directory using our safe mkdir
         call mkdir(trim(cache_dir))
 
         ! Check if directory was created successfully

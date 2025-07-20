@@ -1,5 +1,5 @@
 module config
-    use fpm_filesystem, only: mkdir
+    use temp_utils, only: mkdir
     implicit none
     private
     public :: get_config_dir, ensure_config_dir, get_registry_path
@@ -43,8 +43,22 @@ contains
         character(len=512) :: command
         integer :: exitstat, cmdstat
 
-        ! Create directory using FPM's cross-platform mkdir
-        call mkdir(trim(config_dir))
+        ! Initialize success to false
+        success = .false.
+
+        ! Skip invalid or empty paths
+        if (len_trim(config_dir) == 0) return
+        if (index(config_dir, '/dev/null') > 0) return
+
+        ! Try to create directory using safe command approach
+        ! This avoids FPM's mkdir which calls fpm_stop on failure
+#ifdef _WIN32
+        command = 'mkdir "'//trim(config_dir)//'" 2>nul'
+#else
+        command = 'mkdir -p "'//trim(config_dir)//'" 2>/dev/null'
+#endif
+
+        call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
 
         ! Check if directory exists
         inquire (file=trim(config_dir)//'/.', exist=success)
