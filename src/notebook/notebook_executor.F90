@@ -6,7 +6,7 @@ module notebook_executor
     use cache_lock, only: acquire_lock, release_lock
     use frontend_integration, only: compile_with_frontend, is_simple_fortran_file
     use, intrinsic :: iso_c_binding
-    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path
+    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, mkdir_p
     implicit none
     private
 
@@ -65,7 +65,7 @@ contains
         end if
 
         ! Ensure cache directory exists
-        call execute_command_line('mkdir -p "'//trim(cache_dir)//'"')
+        call mkdir_p(trim(cache_dir))
 
         ! Generate cache key from notebook content
         call generate_notebook_cache_key(notebook, cache_key)
@@ -134,8 +134,8 @@ contains
         integer :: unit, i, code_cell_count
 
         ! Create project directory structure
-        command = 'mkdir -p '//trim(project_dir)//'/src '//trim(project_dir)//'/app'
-        call execute_command_line(command)
+        call mkdir_p(trim(project_dir)//'/src')
+        call mkdir_p(trim(project_dir)//'/app')
 
         ! Generate fpm.toml
         fpm_content = generate_notebook_fpm_toml()
@@ -224,8 +224,7 @@ contains
         cached_project_dir = trim(cache_dir)//'/notebook_'//trim(cache_key)
 
         ! Create cache directory
-        command = 'mkdir -p "'//trim(cache_dir)//'"'
-        call execute_command_line(command)
+        call mkdir_p(trim(cache_dir))
 
         ! Copy project to cache
         command = 'cp -r "'//trim(project_dir)//'" "'//trim(cached_project_dir)//'"'

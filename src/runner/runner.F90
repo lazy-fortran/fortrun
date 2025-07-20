@@ -11,7 +11,7 @@ module runner
     use fpm_error, only: error_t
   use frontend_integration, only: compile_with_frontend, compile_with_frontend_debug, is_simple_fortran_file
     use debug_state, only: get_debug_flags
-    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path
+    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, mkdir_p
     use, intrinsic :: iso_fortran_env, only: int64
     implicit none
     private
@@ -207,15 +207,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
                 print '(a)', 'Cache miss: Setting up new build'
             end if
 
-            command = 'mkdir -p "'//trim(project_dir)//'/app"'
-            call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
-
-            if (cmdstat /= 0 .or. exitstat /= 0) then
-                print '(a)', 'Error: Failed to create project directory'
-                call release_lock(cache_dir, basename)
-                exit_code = 1
-                return
-            end if
+            call mkdir_p(trim(project_dir)//'/app')
 
             ! Copy source files and generate FPM project only on cache miss
             if (present(custom_flags)) then
@@ -471,7 +463,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         end if
 
         build_dir = trim(project_dir)//'/build'
-        call execute_command_line('mkdir -p "'//trim(build_dir)//'"')
+        call mkdir_p(trim(build_dir))
 
         ! Check each dependency module for cached versions
         do i = 1, n_modules
@@ -577,8 +569,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         end if
 
         ! Create src directory
-        command = 'mkdir -p "'//trim(project_dir)//'/src"'
-        call execute_command_line(command)
+        call mkdir_p(trim(project_dir)//'/src')
 
         ! Copy all .f90 files except the main file (only files, not directories)
     command = 'find "' // trim(source_dir) // '" -maxdepth 1 -type f \( -name "*.f90" -o -name "*.F90" \) | ' // &

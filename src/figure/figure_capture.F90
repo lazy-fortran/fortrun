@@ -1,4 +1,5 @@
 module figure_capture
+    use temp_utils, only: mkdir_p
     implicit none
     private
 
@@ -34,15 +35,14 @@ contains
             temp_figure_dir = trim(custom_dir)
         else
             temp_figure_dir = './fortran_figures'
-            call execute_command_line('mkdir -p '//trim(temp_figure_dir))
+            call mkdir_p(trim(temp_figure_dir))
         end if
 
         ! Create temporary directory for figures (if not already created)
         if (.not. present(custom_dir)) then
             ! Directory already created by create_temp_dir
         else
-            command = 'mkdir -p "'//trim(temp_figure_dir)//'"'
-            call execute_command_line(command)
+            call mkdir_p(trim(temp_figure_dir))
         end if
 
         ! Reset figure counter

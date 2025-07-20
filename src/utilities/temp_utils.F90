@@ -5,7 +5,8 @@ module temp_utils
     implicit none
     private
     public :: create_temp_dir, cleanup_temp_dir, get_temp_file_path, temp_dir_manager, &
-              get_system_temp_dir, get_current_directory, get_project_root, path_join
+              get_system_temp_dir, get_current_directory, get_project_root, path_join, &
+              mkdir_p
 
     ! Type for managing temporary directories with automatic cleanup
     type :: temp_dir_manager
@@ -370,5 +371,48 @@ contains
         end if
 
     end function path_join
+
+    subroutine mkdir_p(directory)
+        character(len=*), intent(in) :: directory
+        integer :: exitstat
+        character(len=1024) :: command
+
+#ifdef _WIN32
+        ! Check if running under MSYS2
+        block
+            character(len=256) :: msystem
+            integer :: status
+            integer :: i
+            character(len=1024) :: current_dir
+
+            call get_environment_variable('MSYSTEM', msystem, status=status)
+            if (status == 0 .and. len_trim(msystem) > 0) then
+                ! MSYS2 environment - use Unix-style command
+                command = 'mkdir -p "'//trim(directory)//'"'
+            else
+                ! Native Windows - need to create parent directories
+                ! Windows mkdir doesn't support -p, so we need to create parents manually
+                current_dir = ''
+                do i = 1, len_trim(directory)
+                    if (directory(i:i) == '\' .or. directory(i:i) == '/') then
+                        if (len_trim(current_dir) > 0) then
+                            command = 'cmd /c mkdir "'//trim(current_dir)//'" 2>nul'
+                            call execute_command_line(trim(command), exitstat=exitstat)
+                        end if
+                    end if
+                    current_dir = directory(1:i)
+                end do
+                ! Create the final directory
+                command = 'cmd /c mkdir "'//trim(directory)//'" 2>nul'
+            end if
+        end block
+#else
+        ! Unix/Linux/macOS
+        command = 'mkdir -p "'//trim(directory)//'"'
+#endif
+
+        call execute_command_line(trim(command), exitstat=exitstat)
+
+    end subroutine mkdir_p
 
 end module temp_utils
