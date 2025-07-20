@@ -519,11 +519,16 @@ contains
         character(len=512) :: command
         integer :: exit_code
 
-        ! Build with FPM
-        command = 'cd '//trim(project_dir)//' && fpm build 2>&1'
+        ! Build with FPM (with timeout to prevent hanging)
+        command = 'cd '//trim(project_dir)//' && timeout 30 fpm build'
         call execute_and_capture(command, error_msg, exit_code)
 
         success = (exit_code == 0)
+
+        ! Handle timeout error specifically
+        if (exit_code == 124) then
+            error_msg = "Build timed out after 30 seconds"
+        end if
 
     end subroutine build_notebook_project
 
@@ -539,8 +544,8 @@ contains
         ! Initialize figure capture
         call init_figure_capture()
 
-        ! Execute the notebook
-        command = 'cd '//trim(project_dir)//' && fpm run 2>&1'
+        ! Execute the notebook (with timeout to prevent hanging)
+        command = 'cd '//trim(project_dir)//' && timeout 30 fpm run'
         call execute_and_capture(command, output, exit_code)
 
         ! Read actual output from notebook_output module
