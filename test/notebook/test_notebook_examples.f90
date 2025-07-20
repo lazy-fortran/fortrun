@@ -2,7 +2,7 @@ program test_notebook_examples
     use notebook_parser
     use notebook_executor
     use notebook_renderer
-    use temp_utils, only: temp_dir_manager
+    use temp_utils, only: temp_dir_manager, mkdir_p
     implicit none
 
     logical :: all_tests_passed
@@ -48,7 +48,7 @@ contains
             type(temp_dir_manager) :: temp_mgr
             temp_mgr = temp_dir_manager("test_notebook_examples")
             test_cache_dir = temp_mgr%get_path()
-            call execute_command_line("mkdir -p "//trim(test_cache_dir))
+            call mkdir_p(trim(test_cache_dir))
 
             ! Read the simple_math.f example
             call read_example_file("example/scientific/notebook/simple_math.f", content)
@@ -134,7 +134,7 @@ contains
             type(temp_dir_manager) :: temp_mgr
             temp_mgr = temp_dir_manager("test_notebook_examples_arrays")
             test_cache_dir = temp_mgr%get_path()
-            call execute_command_line("mkdir -p "//trim(test_cache_dir))
+            call mkdir_p(trim(test_cache_dir))
 
             ! Read the arrays_loops.f example
            call read_example_file("example/scientific/notebook/arrays_loops.f", content)
@@ -220,7 +220,7 @@ contains
             type(temp_dir_manager) :: temp_mgr
             temp_mgr = temp_dir_manager("test_notebook_examples_control")
             test_cache_dir = temp_mgr%get_path()
-            call execute_command_line("mkdir -p "//trim(test_cache_dir))
+            call mkdir_p(trim(test_cache_dir))
 
             ! Read the control_flow.f example
            call read_example_file("example/scientific/notebook/control_flow.f", content)

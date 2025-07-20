@@ -1,6 +1,6 @@
 program test_runner_edge_cases
     use runner, only: run_fortran_file
-    use temp_utils, only: create_temp_dir, get_temp_file_path
+    use temp_utils, only: create_temp_dir, get_temp_file_path, mkdir_p
     implicit none
 
     logical :: all_tests_passed
@@ -162,8 +162,8 @@ test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_runner_emp
         custom_cache = create_temp_dir('fortran_test_runner_custom_cache')
         custom_config = create_temp_dir('fortran_test_runner_custom_config')
 
-        call execute_command_line("mkdir -p "//trim(custom_cache))
-        call execute_command_line("mkdir -p "//trim(custom_config))
+        call mkdir_p(trim(custom_cache))
+        call mkdir_p(trim(custom_config))
 
         call run_fortran_file(test_file, exit_code, &
                               verbose_level=1, custom_cache_dir=custom_cache, &

@@ -1,7 +1,7 @@
 program test_registry_resolver_comprehensive
     use registry_resolver
     use config, only: get_config_dir
-  use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, get_system_temp_dir
+  use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, get_system_temp_dir, mkdir_p
     implicit none
 
     logical :: all_tests_passed
@@ -300,7 +300,7 @@ contains
         ! Create custom config directory
         custom_config_dir = create_temp_dir('test_custom_registry_dir')
         call execute_command_line('rm -rf '//trim(custom_config_dir))
-        call execute_command_line('mkdir -p '//trim(custom_config_dir))
+        call mkdir_p(trim(custom_config_dir))
 
         ! Create custom registry
         registry_path = trim(custom_config_dir)//'/registry.toml'

@@ -1,6 +1,6 @@
 program test_benchmarks
     use, intrinsic :: iso_fortran_env, only: int64
-    use temp_utils, only: create_temp_dir, get_temp_file_path
+    use temp_utils, only: create_temp_dir, get_temp_file_path, mkdir_p
     implicit none
 
     integer :: n_passed, n_failed
@@ -296,8 +296,7 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
         character(len=512) :: command
 
         ! Create directory
-        command = 'mkdir -p "'//trim(dir_path)//'"'
-        call execute_command_line(command)
+        call mkdir_p(trim(dir_path))
 
         ! Create module1.f90
         open (newunit=unit, file=trim(dir_path)//'/module1.f90', status='replace')

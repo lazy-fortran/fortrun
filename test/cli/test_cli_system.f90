@@ -1,7 +1,7 @@
 program test_cli_system
     use, intrinsic :: iso_fortran_env, only: error_unit
     use cache, only: get_cache_dir
-    use temp_utils, only: temp_dir_manager
+    use temp_utils, only: temp_dir_manager, mkdir_p
     implicit none
 
     character(len=512) :: command, test_file
@@ -405,7 +405,7 @@ contains
         custom_config_dir = temp_mgr%get_file_path('custom_config')
 
         ! Create a custom config directory with registry
-        call execute_command_line('mkdir -p "'//custom_config_dir//'"')
+        call mkdir_p(custom_config_dir)
         call execute_command_line('cp registry.toml "'//custom_config_dir//'"/')
 
     command = 'fpm run fortran -- --config-dir "' // custom_config_dir // '" ' // trim(test_file) // &

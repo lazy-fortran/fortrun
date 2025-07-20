@@ -1,7 +1,7 @@
 program test_registry_enhancement
     use, intrinsic :: iso_fortran_env, only: error_unit
     use cache, only: get_cache_dir
-    use temp_utils, only: create_temp_dir, get_temp_file_path, get_project_root
+    use temp_utils, only: create_temp_dir, get_temp_file_path, get_project_root, mkdir_p
     implicit none
 
     print *, '=== Registry Enhancement Tests ===\'
@@ -25,7 +25,7 @@ contains
 
         ! Create test directory
         test_dir = create_temp_dir('fortran_test_registry')
-        call execute_command_line('mkdir -p '//trim(test_dir))
+        call mkdir_p(trim(test_dir))
 
         ! First, update registry to have a package with multiple modules
         call update_registry_for_test(test_dir)

@@ -7,7 +7,7 @@ module cache
     use fpm_filesystem, only: list_files, read_lines, mkdir, join_path, exists, run
     use fpm_environment, only: get_os_type, OS_WINDOWS
     use fpm_strings, only: string_t, fnv_1a
-    use temp_utils, only: create_temp_dir, get_temp_file_path
+    use temp_utils, only: create_temp_dir, get_temp_file_path, mkdir_p
     implicit none
     private
   public :: get_cache_dir, ensure_cache_dir, ensure_cache_structure, get_cache_subdir, &
@@ -54,8 +54,6 @@ contains
     subroutine ensure_cache_dir(cache_dir, success)
         character(len=*), intent(in) :: cache_dir
         logical, intent(out) :: success
-        integer :: exitstat
-        character(len=1024) :: command
 
         ! Check if directory already exists
         if (exists(trim(cache_dir))) then
@@ -63,41 +61,8 @@ contains
             return
         end if
 
-        ! Create directory using platform-specific commands
-#ifdef _WIN32
-        block
-            character(len=256) :: msystem
-            integer :: status
-            integer :: i
-            character(len=1024) :: parent_dir, current_dir
-
-            call get_environment_variable('MSYSTEM', msystem, status=status)
-            if (status == 0 .and. len_trim(msystem) > 0) then
-                ! MSYS2 environment - use Unix-style command
-                command = 'mkdir -p "'//trim(cache_dir)//'"'
-            else
-                ! Native Windows - need to create parent directories
-                ! Windows mkdir doesn't support -p, so we need to create parents manually
-                current_dir = ''
-                do i = 1, len_trim(cache_dir)
-                    if (cache_dir(i:i) == '\' .or. cache_dir(i:i) == '/') then
-                        if (len_trim(current_dir) > 0) then
-                            command = 'cmd /c mkdir "'//trim(current_dir)//'" 2>nul'
-                            call execute_command_line(trim(command), exitstat=exitstat)
-                        end if
-                    end if
-                    current_dir = cache_dir(1:i)
-                end do
-                ! Create the final directory
-                command = 'cmd /c mkdir "'//trim(cache_dir)//'" 2>nul'
-            end if
-        end block
-#else
-        ! Unix/Linux/macOS
-        command = 'mkdir -p "'//trim(cache_dir)//'"'
-#endif
-
-        call execute_command_line(trim(command), exitstat=exitstat)
+        ! Create directory using cross-platform mkdir_p from temp_utils
+        call mkdir_p(trim(cache_dir))
 
         ! Check if directory was created successfully
         success = exists(trim(cache_dir))

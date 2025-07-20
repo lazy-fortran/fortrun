@@ -1,7 +1,7 @@
 program test_examples
     use, intrinsic :: iso_fortran_env, only: error_unit
     use cache, only: get_cache_dir
-    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, get_project_root, path_join
+    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, get_project_root, path_join, mkdir_p
     implicit none
 
     character(len=256), dimension(:), allocatable :: example_files
@@ -524,8 +524,7 @@ contains
         print '(a,a)', 'Using temporary source: ', trim(temp_source_file)
 
         ! Create temporary source directory
-        copy_command = 'mkdir -p "'//trim(temp_source_dir)//'"'
-        call execute_command_line(trim(copy_command))
+        call mkdir_p(trim(temp_source_dir))
 
         ! Copy the entire interdependent directory to temp location
         copy_command = 'cp -r '//path_join(get_project_root(), &

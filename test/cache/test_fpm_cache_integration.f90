@@ -5,7 +5,7 @@ program test_fpm_cache_integration
     use fpm_strings, only: string_t
     use fpm_error, only: error_t
     use, intrinsic :: iso_fortran_env, only: error_unit
-    use temp_utils, only: temp_dir_manager
+    use temp_utils, only: temp_dir_manager, mkdir_p
     implicit none
 
     print *, '=== FPM Cache Integration Tests ===\'
@@ -38,7 +38,8 @@ contains
             test_file = test_dir//'/app/test.f90'
         end block
         print *, 'Creating test directory: ', test_dir
-       call execute_command_line('rm -rf '//test_dir//' && mkdir -p '//test_dir//'/app')
+        call execute_command_line('rm -rf '//test_dir)
+        call mkdir_p(test_dir//'/app')
 
         ! Create a test source file in app/ subdirectory
         print *, 'Creating file: ', test_file
@@ -99,7 +100,7 @@ contains
             test_dir = temp_mgr%path
             test_file = test_dir//'/hello.f90'
         end block
-        call execute_command_line('mkdir -p '//test_dir)
+        call mkdir_p(test_dir)
 
         ! Create a test source file
         open (newunit=unit, file=test_file, status='replace')
