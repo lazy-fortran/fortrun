@@ -1,7 +1,7 @@
 program test_registry_enhancement
     use, intrinsic :: iso_fortran_env, only: error_unit
     use cache, only: get_cache_dir
-    use temp_utils, only: create_temp_dir, get_temp_file_path
+    use temp_utils, only: create_temp_dir, get_temp_file_path, get_project_root
     implicit none
 
     print *, '=== Registry Enhancement Tests ===\'
@@ -50,10 +50,14 @@ contains
             output_file = get_temp_file_path(test_dir, 'multiple_output.txt')
             exit_file = get_temp_file_path(test_dir, 'multiple_exit.txt')
 
-            command = 'cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+            block
+                character(len=:), allocatable :: project_root
+                project_root = get_project_root()
+                command = 'cd "'//project_root//'" && '// &
               'fpm run fortran -- --config-dir "'//trim(test_dir)//'" --cache-dir "'// &
-                      trim(cache_dir)//'" -v "'// &
+                          trim(cache_dir)//'" -v "'// &
             trim(test_file)//'" > "'//output_file//'" 2>&1; echo $? > "'//exit_file//'"'
+            end block
             call execute_command_line(command)
 
             ! Check that both modules were detected and mapped to packages

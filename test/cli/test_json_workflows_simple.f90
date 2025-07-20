@@ -1,5 +1,5 @@
 program test_json_workflows_simple
-    use temp_utils, only: get_system_temp_dir, create_temp_dir
+    use temp_utils, only: get_system_temp_dir, create_temp_dir, get_project_root
     implicit none
 
     logical :: all_passed
@@ -42,10 +42,14 @@ contains
         close (unit)
 
         ! Generate tokens JSON
-  call execute_command_line('cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+        block
+            character(len=:), allocatable :: project_root
+            project_root = get_project_root()
+            call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
-                                  'test_tokens.f --debug-tokens > /dev/null 2>&1', &
-                                  wait=.true., exitstat=iostat)
+                                      'test_tokens.f --debug-tokens > /dev/null 2>&1', &
+                                      wait=.true., exitstat=iostat)
+        end block
 
         if (iostat == 0) then
             ! Check if tokens JSON was created
@@ -80,17 +84,25 @@ contains
         close (unit)
 
         ! Generate AST JSON (through tokens first)
-  call execute_command_line('cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+        block
+            character(len=:), allocatable :: project_root
+            project_root = get_project_root()
+            call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
-                                  'test_ast.f --debug-tokens > /dev/null 2>&1', &
-                                  wait=.true., exitstat=iostat)
+                                      'test_ast.f --debug-tokens > /dev/null 2>&1', &
+                                      wait=.true., exitstat=iostat)
+        end block
 
         if (iostat == 0) then
             ! Now parse tokens to AST
-  call execute_command_line('cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+            block
+                character(len=:), allocatable :: project_root
+                project_root = get_project_root()
+                call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
                     'test_ast_tokens.json --from-tokens --debug-ast > /dev/null 2>&1', &
-                                      wait=.true., exitstat=iostat)
+                                          wait=.true., exitstat=iostat)
+            end block
 
             if (iostat == 0) then
                 inquire (file='test_ast_tokens_ast.json', exist=test_ast_json_creation)
@@ -133,10 +145,14 @@ contains
         close (unit)
 
         ! Process tokens JSON
-  call execute_command_line('cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+        block
+            character(len=:), allocatable :: project_root
+            project_root = get_project_root()
+            call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
                                   'direct_tokens.json --from-tokens > /dev/null 2>&1', &
-                                  wait=.true., exitstat=iostat)
+                                      wait=.true., exitstat=iostat)
+        end block
 
         if (iostat == 0) then
             print *, '  PASS: JSON from tokens processed successfully'

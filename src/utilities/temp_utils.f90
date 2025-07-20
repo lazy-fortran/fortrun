@@ -2,10 +2,11 @@ module temp_utils
 #ifdef _OPENMP
     use omp_lib, only: omp_get_thread_num
 #endif
+    use, intrinsic :: iso_c_binding
     implicit none
     private
     public :: create_temp_dir, cleanup_temp_dir, get_temp_file_path, temp_dir_manager, &
-              get_system_temp_dir
+              get_system_temp_dir, get_current_directory, get_project_root, path_join
 
     ! Type for managing temporary directories with automatic cleanup
     type :: temp_dir_manager
@@ -18,6 +19,16 @@ module temp_utils
         procedure :: cleanup => temp_dir_cleanup
         final :: temp_dir_destroy
     end type temp_dir_manager
+
+    ! Interface for POSIX getcwd function
+    interface
+        function c_getcwd(buf, size) bind(C, name="getcwd")
+            import :: c_ptr, c_int
+            type(c_ptr), value :: buf
+            integer(c_int), value :: size
+            type(c_ptr) :: c_getcwd
+        end function c_getcwd
+    end interface
 
 contains
 
@@ -191,5 +202,105 @@ contains
 #endif
 
     end function get_system_temp_dir
+
+    function get_current_directory() result(cwd)
+        character(len=:), allocatable :: cwd
+        character(kind=c_char), dimension(512), target :: buffer
+        type(c_ptr) :: result_ptr
+        integer :: i
+
+        ! Call POSIX getcwd
+        result_ptr = c_getcwd(c_loc(buffer), 512)
+
+        if (.not. c_associated(result_ptr)) then
+            ! Fallback to environment variable
+            block
+                character(len=512) :: pwd_env
+                integer :: status
+                call get_environment_variable('PWD', pwd_env, status=status)
+                if (status == 0) then
+                    cwd = trim(pwd_env)
+                else
+                    ! Ultimate fallback
+                    cwd = '.'
+                end if
+            end block
+            return
+        end if
+
+        ! Convert C string to Fortran string
+        do i = 1, 512
+            if (buffer(i) == c_null_char) exit
+        end do
+
+        allocate (character(len=i - 1) :: cwd)
+        cwd = transfer(buffer(1:i - 1), cwd)
+
+    end function get_current_directory
+
+    function get_project_root() result(root_dir)
+        character(len=:), allocatable :: root_dir
+        character(len=:), allocatable :: current_dir
+        character(len=512) :: test_path
+        logical :: exists
+        integer :: i, last_slash
+
+        ! Get current directory
+        current_dir = get_current_directory()
+
+        ! Search upward for project markers (fpm.toml or .git)
+        root_dir = current_dir
+        do i = 1, 10  ! Limit search depth
+            ! Check for fpm.toml
+            test_path = trim(root_dir)//'/fpm.toml'
+            inquire (file=test_path, exist=exists)
+            if (exists) return
+
+            ! Check for .git directory
+            test_path = trim(root_dir)//'/.git'
+            inquire (file=test_path, exist=exists)
+            if (exists) return
+
+            ! Move up one directory
+            last_slash = 0
+            do last_slash = len_trim(root_dir), 1, -1
+                if (root_dir(last_slash:last_slash) == '/') exit
+            end do
+
+            if (last_slash <= 1) then
+                ! Reached root directory, use original current directory
+                root_dir = current_dir
+                return
+            end if
+
+            root_dir = root_dir(1:last_slash - 1)
+        end do
+
+        ! If not found, use current directory
+        root_dir = current_dir
+
+    end function get_project_root
+
+    function path_join(path1, path2) result(joined_path)
+        character(len=*), intent(in) :: path1, path2
+        character(len=:), allocatable :: joined_path
+
+        if (len_trim(path1) == 0) then
+            joined_path = trim(path2)
+        else if (len_trim(path2) == 0) then
+            joined_path = trim(path1)
+        else if (path2(1:1) == '/') then
+            ! path2 is absolute
+            joined_path = trim(path2)
+        else
+            ! Join with separator
+            if (path1(len_trim(path1):len_trim(path1)) == '/') then
+                joined_path = trim(path1)//trim(path2)
+            else
+                joined_path = trim(path1)//'/'//trim(path2)
+            end if
+        end if
+
+    end function path_join
 
 end module temp_utils

@@ -1,7 +1,7 @@
 program test_examples
     use, intrinsic :: iso_fortran_env, only: error_unit
     use cache, only: get_cache_dir
-    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path
+    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, get_project_root, path_join
     implicit none
 
     character(len=256), dimension(:), allocatable :: example_files
@@ -264,6 +264,7 @@ program test_examples
 contains
 
     subroutine run_example(filename, output, exit_code)
+        use temp_utils, only: get_project_root
         character(len=*), intent(in) :: filename
         character(len=*), intent(out) :: output
         integer, intent(out) :: exit_code
@@ -295,15 +296,19 @@ contains
             character(len=:), allocatable :: temp_output_file, temp_cache_dir
             temp_cache_dir = create_temp_dir('fortran_example_cache')
             temp_output_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_output.tmp')
+            block
+                character(len=:), allocatable :: project_root
+                project_root = get_project_root()
 #ifdef _WIN32
-            command = 'cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+                command = 'cd "'//project_root//'" && '// &
                       'fpm run fortran -- --cache-dir "'//trim(temp_cache_dir)//'" '// &
-                      trim(filename)//' > "'//temp_output_file//'" 2>&1'
+                          trim(filename)//' > "'//temp_output_file//'" 2>&1'
 #else
-            command = 'cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+                command = 'cd "'//project_root//'" && '// &
                       'fpm run fortran -- --cache-dir "'//trim(temp_cache_dir)//'" '// &
-                      trim(filename)//' > "'//temp_output_file//'" 2>&1'
+                          trim(filename)//' > "'//temp_output_file//'" 2>&1'
 #endif
+            end block
             call execute_command_line(trim(command), exitstat=exit_code)
 
             ! Read output
@@ -439,6 +444,7 @@ contains
     end subroutine test_incremental_compilation
 
     subroutine run_example_with_cache(filename, cache_dir, output, exit_code)
+        use temp_utils, only: get_project_root
         character(len=*), intent(in) :: filename, cache_dir
         character(len=*), intent(out) :: output
         integer, intent(out) :: exit_code
@@ -451,7 +457,7 @@ contains
         temp_output_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_cache_output.tmp')
 
         ! Run with verbose flag and custom cache directory
-        command = 'cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+        command = 'cd "'//get_project_root()//'" && '// &
                   'fpm run fortran -- -v --cache-dir "'//trim(cache_dir)//'" '// &
                   trim(filename)//' > "'//trim(temp_output_file)//'" 2>&1'
         call execute_command_line(trim(command), exitstat=exit_code)
@@ -489,6 +495,7 @@ contains
     end function get_test_timestamp
 
     subroutine test_source_modification_with_cached_deps(n_passed, n_failed)
+        use temp_utils, only: get_project_root, path_join
         integer, intent(inout) :: n_passed, n_failed
         character(len=1024) :: output1, output2, output3
         integer :: exit_code1, exit_code2, exit_code3
@@ -521,7 +528,9 @@ contains
         call execute_command_line(trim(copy_command))
 
         ! Copy the entire interdependent directory to temp location
-  copy_command = 'cp -r example/modules/interdependent/* "'//trim(temp_source_dir)//'/"'
+        copy_command = 'cp -r '//path_join(get_project_root(), &
+                                           'example/modules/interdependent/*')// &
+                       ' "'//trim(temp_source_dir)//'/"'
         call execute_command_line(trim(copy_command))
 
         ! First run - should compile everything
