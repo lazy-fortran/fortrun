@@ -2,7 +2,7 @@ program test_examples
     use, intrinsic :: iso_fortran_env, only: error_unit
     use cache, only: get_cache_dir
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, get_project_root, path_join
-    use temp_utils, only: mkdir
+    use temp_utils, only: mkdir, create_test_cache_dir
     implicit none
 
     character(len=256), dimension(:), allocatable :: example_files
@@ -295,7 +295,7 @@ contains
         ! Run the example with a temporary cache directory
         block
             character(len=:), allocatable :: temp_output_file, temp_cache_dir
-            temp_cache_dir = create_temp_dir('fortran_example_cache')
+            temp_cache_dir = create_test_cache_dir('example_run')
             temp_output_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_output.tmp')
             block
                 character(len=:), allocatable :: project_root
@@ -358,7 +358,7 @@ contains
         print *
 
         ! Create temporary cache directory
-        temp_cache_dir = create_temp_dir('fortran_test_cache')
+        temp_cache_dir = create_test_cache_dir('example_incremental')
         print '(a,a)', 'Using temporary cache: ', trim(temp_cache_dir)
 
         ! First run - should compile
@@ -517,7 +517,7 @@ contains
         call replace_spaces_with_underscores(timestamp)
 
         ! Create temporary directories and files
-        temp_cache_dir = create_temp_dir('fortran_test_cache')
+        temp_cache_dir = create_test_cache_dir('example_source_mod')
         temp_source_dir = create_temp_dir('fortran_test_source')
         temp_source_file = trim(temp_source_dir)//'/main.f90'
 
@@ -681,7 +681,7 @@ contains
         call replace_spaces_with_underscores(timestamp)
 
         ! Create temporary directories
-        temp_cache_dir = create_temp_dir('fortran_complex_dep_cache')
+        temp_cache_dir = create_test_cache_dir('example_complex_dep')
         temp_source_dir = create_temp_dir('fortran_complex_dep_source')
 
         print '(a,a)', 'Using temporary cache: ', trim(temp_cache_dir)
@@ -871,7 +871,7 @@ contains
         ! Create a clean timestamp
         timestamp = get_test_timestamp()
         call replace_spaces_with_underscores(timestamp)
-        temp_cache_dir = create_temp_dir('fortran_preproc_test')
+        temp_cache_dir = create_test_cache_dir('example_preproc')
 
         print '(a,a)', 'Using temporary cache: ', trim(temp_cache_dir)
 

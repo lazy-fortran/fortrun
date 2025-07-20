@@ -103,8 +103,13 @@ contains
         ! Find all lock files in cache directory
         temp_locks_file = get_temp_file_path(create_temp_dir('fortran_locks'), &
                                              'fortran_locks.tmp')
+#ifdef _WIN32
+        command = 'dir /s /b "'//trim(cache_dir)//'"\*.lock > "'// &
+                  trim(temp_locks_file)//'" 2>nul'
+#else
         command = 'find "'//trim(cache_dir)//'" -name "*.lock" -type f > "'// &
                   trim(temp_locks_file)//'" 2>/dev/null'
+#endif
         call execute_command_line(command)
 
         open (newunit=unit, file=trim(temp_locks_file), status='old', iostat=iostat)
@@ -166,9 +171,28 @@ contains
             inquire (file=lock_file, exist=file_exists)
             if (file_exists) then
                 ! Lock already exists, can't create
+#ifdef _WIN32
+                call execute_command_line('del /f "'//trim(temp_file)//'" 2>nul')
+#else
                 call execute_command_line('rm -f "'//trim(temp_file)//'"')
+#endif
                 success = .false.
             else
+#ifdef _WIN32
+                ! On Windows, use move command which is atomic within same drive
+           command = 'move /Y "'//trim(temp_file)//'" "'//trim(lock_file)//'" >nul 2>&1'
+                call execute_command_line(command, exitstat=iostat)
+
+                if (iostat == 0) then
+                    ! Double-check that we really created the lock
+                    inquire (file=lock_file, exist=file_exists)
+                    success = file_exists
+                else
+                    success = .false.
+                    ! Clean up temp file if move failed
+                    call execute_command_line('del /f "'//trim(temp_file)//'" 2>nul')
+                end if
+#else
                 ! Use ln to create hard link atomically, then remove temp
               command = 'ln "'//trim(temp_file)//'" "'//trim(lock_file)//'" 2>/dev/null'
                 call execute_command_line(command, exitstat=iostat)
@@ -182,6 +206,7 @@ contains
                 end if
                 ! Always clean up temp file
                 call execute_command_line('rm -f "'//trim(temp_file)//'"')
+#endif
             end if
         end if
 
@@ -244,7 +269,11 @@ contains
         character(len=*), intent(in) :: lock_file
         character(len=512) :: command
 
+#ifdef _WIN32
+        command = 'del /f "'//trim(lock_file)//'" 2>nul'
+#else
         command = 'rm -f "'//trim(lock_file)//'"'
+#endif
         call execute_command_line(command)
 
     end subroutine remove_lock
@@ -293,8 +322,14 @@ contains
         character(len=128) :: command
         integer :: exitstat
 
+#ifdef _WIN32
+        ! On Windows, use tasklist to check if process is running
+        write (command, '(a,i0,a)') 'tasklist /FI "PID eq ', pid, '" 2>nul | find "', pid, '" >nul'
+        call execute_command_line(command, exitstat=exitstat)
+#else
         write (command, '(a,i0,a)') 'kill -0 ', pid, ' 2>/dev/null'
         call execute_command_line(command, exitstat=exitstat)
+#endif
 
         running = (exitstat == 0)
 
@@ -304,7 +339,12 @@ contains
         integer, intent(in) :: seconds
         character(len=32) :: command
 
+#ifdef _WIN32
+        ! On Windows, use timeout command
+        write (command, '(a,i0,a)') 'timeout /t ', seconds, ' /nobreak >nul'
+#else
         write (command, '(a,i0)') 'sleep ', seconds
+#endif
         call execute_command_line(command)
 
     end subroutine sleep

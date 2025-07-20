@@ -1,5 +1,5 @@
 program test_cli_integration
-    use temp_utils, only: create_temp_dir, get_temp_file_path
+    use temp_utils, only: create_temp_dir, get_temp_file_path, create_test_cache_dir
     implicit none
 
     logical :: all_passed
@@ -38,9 +38,10 @@ contains
 
             ! Create a simple .f file (lazy fortran)
             character(len=256) :: test_file, output_file, cmd
-            character(len=256) :: test_dir, cache_dir
+            character(len=256) :: test_dir
+            character(len=:), allocatable :: cache_dir
             test_dir = create_temp_dir('fortran_test')
-            cache_dir = create_temp_dir('fortran_test_cache')
+            cache_dir = create_test_cache_dir('cli_integration_basic')
             test_file = get_temp_file_path(test_dir, 'test_simple.f')
 
             open (newunit=unit, file=test_file, action='write', iostat=iostat)
@@ -82,11 +83,12 @@ contains
             integer :: iostat
             integer :: unit
             character(len=256) :: test_file, output_file, cmd
-            character(len=256) :: test_dir, cache_dir
+            character(len=256) :: test_dir
+            character(len=:), allocatable :: cache_dir
 
             ! Create a simple .f file
             test_dir = create_temp_dir('fortran_test')
-            cache_dir = create_temp_dir('fortran_debug_cache')
+            cache_dir = create_test_cache_dir('cli_integration_debug')
             test_file = get_temp_file_path(test_dir, 'test_debug.f')
             open (newunit=unit, file=test_file, action='write', iostat=iostat)
             if (iostat /= 0) then
@@ -159,11 +161,12 @@ contains
             integer :: iostat
             integer :: unit
             character(len=256) :: json_file, cmd
-            character(len=256) :: test_dir, cache_dir
+            character(len=256) :: test_dir
+            character(len=:), allocatable :: cache_dir
 
             ! Create minimal tokens JSON
             test_dir = create_temp_dir('fortran_test')
-            cache_dir = create_temp_dir('fortran_json_cache')
+            cache_dir = create_test_cache_dir('cli_integration_json')
             json_file = get_temp_file_path(test_dir, 'pipeline_tokens.json')
             open (newunit=unit, file=json_file, action='write', iostat=iostat)
             if (iostat /= 0) then
@@ -216,9 +219,10 @@ contains
         ! Test non-existent file
         block
             integer :: iostat
-            character(len=256) :: test_file, cmd, cache_dir
+            character(len=256) :: test_file, cmd
+            character(len=:), allocatable :: cache_dir
 
-            cache_dir = create_temp_dir('fortran_error_cache')
+            cache_dir = create_test_cache_dir('cli_integration_error')
        test_file = '/tmp/definitely_nonexistent_file_that_should_not_exist_9876543210.f'
             cmd = 'fpm run fortran -- --cache-dir '//trim(cache_dir)//' '// &
                   trim(test_file)//' > /dev/null 2>&1'
@@ -237,9 +241,10 @@ contains
             integer :: unit
 
             character(len=256) :: json_file, cmd
-            character(len=256) :: test_dir, cache_dir
+            character(len=256) :: test_dir
+            character(len=:), allocatable :: cache_dir
             test_dir = create_temp_dir('fortran_test')
-            cache_dir = create_temp_dir('fortran_json_error_cache')
+            cache_dir = create_test_cache_dir('cli_integration_json_error')
             json_file = get_temp_file_path(test_dir, 'invalid.json')
             open (newunit=unit, file=json_file, action='write', iostat=iostat)
             write (unit, '(a)') 'invalid json content'
