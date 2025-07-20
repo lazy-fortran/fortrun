@@ -51,7 +51,10 @@ jobs:
       shell: powershell
 
     - name: Build project
-      run: fpm build --compiler gfortran --flag="-cpp"
+      run: |
+        # Clean build to ensure temp_utils.F90 changes are included
+        rm -rf build
+        fpm build --compiler gfortran --flag="-cpp"
       shell: msys2 {0}
 
     - name: Run unit tests
@@ -177,7 +180,10 @@ jobs:
         fpm --version
 
     - name: Build project
-      run: fpm build --compiler gfortran --flag="-cpp"
+      run: |
+        # Clean build to ensure temp_utils.F90 changes are included
+        rm -rf build
+        fpm build --compiler gfortran --flag="-cpp"
       shell: msys2 {0}
 
     - name: Download artifacts
