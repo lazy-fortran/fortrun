@@ -2,11 +2,12 @@ module temp_utils
 #ifdef _OPENMP
     use omp_lib, only: omp_get_thread_num
 #endif
+    use fpm_filesystem, only: join_path, mkdir, get_temp_filename
+    use fpm_environment, only: get_env, get_os_type, OS_WINDOWS
     implicit none
     private
     public :: create_temp_dir, cleanup_temp_dir, get_temp_file_path, temp_dir_manager, &
-              get_system_temp_dir, get_current_directory, get_project_root, path_join, &
-              mkdir_p
+              get_system_temp_dir, get_current_directory, get_project_root, path_join
 
     ! Type for managing temporary directories with automatic cleanup
     type :: temp_dir_manager
@@ -22,47 +23,6 @@ module temp_utils
 
 contains
 
-    ! Define mkdir_p first as it's used by other functions
-    subroutine mkdir_p(directory)
-        character(len=*), intent(in) :: directory
-        integer :: exitstat
-        character(len=1024) :: command
-        logical :: dir_exists
-        integer :: i, last_sep
-        character(len=1024) :: parent_dir
-
-        ! Check if directory already exists
-        inquire (file=trim(directory)//'/.', exist=dir_exists)
-        if (dir_exists) return
-
-        ! Find parent directory
-        last_sep = 0
-        do i = len_trim(directory), 1, -1
-            if (directory(i:i) == '/' .or. directory(i:i) == '\') then
-                last_sep = i - 1
-                exit
-            end if
-        end do
-
-        ! Recursively create parent if needed
-        if (last_sep > 0) then
-            parent_dir = directory(1:last_sep)
-            call mkdir_p(parent_dir)
-        end if
-
-#ifdef _WIN32
-        ! On Windows, always use cmd.exe to avoid path issues
-        ! This works correctly in both native Windows and MSYS2 environments
-        command = 'cmd /c mkdir "'//trim(directory)//'" 2>nul'
-#else
-        ! Unix/Linux/macOS - create single directory (parent already exists)
-        command = 'mkdir "'//trim(directory)//'" 2>/dev/null'
-#endif
-
-        call execute_command_line(trim(command), exitstat=exitstat)
-
-    end subroutine mkdir_p
-
     function create_temp_dir(prefix) result(temp_dir)
         character(len=*), intent(in) :: prefix
         character(len=:), allocatable :: temp_dir
@@ -70,56 +30,26 @@ contains
         character(len=256) :: base_temp_dir
         integer :: ios
 
-        ! Get system temp directory (cross-platform)
-        call get_environment_variable('TMPDIR', base_temp_dir, status=ios)
-        if (ios /= 0) then
-            call get_environment_variable('TMP', base_temp_dir, status=ios)
-            if (ios /= 0) then
-                call get_environment_variable('TEMP', base_temp_dir, status=ios)
-                if (ios /= 0) then
+        ! Get system temp directory using FPM's get_env
+        base_temp_dir = get_env('TMPDIR', '')
+        if (len_trim(base_temp_dir) == 0) then
+            base_temp_dir = get_env('TMP', '')
+            if (len_trim(base_temp_dir) == 0) then
+                base_temp_dir = get_env('TEMP', '')
+                if (len_trim(base_temp_dir) == 0) then
                     base_temp_dir = get_system_temp_dir()
                 end if
             end if
         end if
 
-        ! Normalize the base_temp_dir path
-#ifdef _WIN32
-        ! On Windows, ensure we have consistent path separators
-        block
-            integer :: i
-            do i = 1, len_trim(base_temp_dir)
-                if (base_temp_dir(i:i) == '/') base_temp_dir(i:i) = '\'
-            end do
-        end block
-#endif
-
         ! Generate random suffix using system time and process ID
         call generate_random_suffix(random_suffix)
 
-        ! Create unique temp directory path (cross-platform path separator)
-#ifdef _WIN32
-        ! Always use Windows-style paths on Windows to avoid confusion
-        temp_dir = trim(base_temp_dir)//char(92)//trim(prefix)//'_'//trim(random_suffix)
-#else
-        temp_dir = trim(base_temp_dir)//'/'//trim(prefix)//'_'//trim(random_suffix)
-#endif
+        ! Create unique temp directory path using FPM's join_path
+       temp_dir = join_path(trim(base_temp_dir), trim(prefix)//'_'//trim(random_suffix))
 
-        ! Create the directory using our cross-platform function
-        call mkdir_p(temp_dir)
-
-        ! Verify it was created
-        ios = 0
-        block
-            logical :: dir_exists
-            inquire (file=trim(temp_dir)//'/.', exist=dir_exists)
-            if (.not. dir_exists) then
-                ios = 1
-            end if
-        end block
-
-        if (ios /= 0) then
-            error stop 'Failed to create temporary directory: '//temp_dir
-        end if
+        ! Create the directory using FPM's mkdir (handles cross-platform)
+        call mkdir(temp_dir)
 
     end function create_temp_dir
 
@@ -160,12 +90,8 @@ contains
         character(len=*), intent(in) :: temp_dir, filename
         character(len=:), allocatable :: file_path
 
-#ifdef _WIN32
-        ! Always use Windows-style paths on Windows
-        file_path = trim(temp_dir)//char(92)//trim(filename)
-#else
-        file_path = trim(temp_dir)//'/'//trim(filename)
-#endif
+        ! Use FPM's cross-platform join_path
+        file_path = join_path(trim(temp_dir), trim(filename))
 
     end function get_temp_file_path
 
@@ -410,5 +336,14 @@ contains
         end if
 
     end function path_join
+
+    !> Simple wrapper around FPM's join_path for path construction
+    function path_join_simple(path1, path2) result(joined_path)
+        character(len=*), intent(in) :: path1, path2
+        character(len=:), allocatable :: joined_path
+
+        joined_path = join_path(trim(path1), trim(path2))
+
+    end function path_join_simple
 
 end module temp_utils

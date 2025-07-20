@@ -8,7 +8,8 @@ program test_module_cache_integration
     use fpm_error, only: error_t
     use fpm_filesystem, only: exists, mkdir, join_path, delete_file, list_files
     use module_scanner, only: scan_modules, module_info
-    use temp_utils, only: temp_dir_manager, mkdir_p
+    use temp_utils, only: temp_dir_manager
+    use fpm_filesystem, only: mkdir
     implicit none
 
     logical :: all_pass
@@ -65,8 +66,8 @@ contains
             test_dir = temp_mgr%path
             build_dir = test_dir//'/build'
         end block
-        call mkdir_p(trim(test_dir))
-        call mkdir_p(trim(build_dir))
+        call mkdir(trim(test_dir))
+        call mkdir(trim(build_dir))
 
         ! Create a real Fortran module
         src_file = trim(test_dir)//'/math_utils.f90'
@@ -174,8 +175,8 @@ contains
             test_dir = temp_mgr%path
             build_dir = test_dir//'/build'
         end block
-        call mkdir_p(trim(test_dir))
-        call mkdir_p(trim(build_dir))
+        call mkdir(trim(test_dir))
+        call mkdir(trim(build_dir))
 
         ! Create base module
         open (newunit=unit, file=trim(test_dir)//'/base.f90', status='replace')
@@ -312,10 +313,10 @@ contains
             proj1_dir = temp_mgr1%path
             proj2_dir = temp_mgr2%path
         end block
-        call mkdir_p(trim(proj1_dir))
-        call mkdir_p(trim(proj2_dir))
-        call mkdir_p(trim(proj1_dir)//'/build')
-        call mkdir_p(trim(proj2_dir)//'/build')
+        call mkdir(trim(proj1_dir))
+        call mkdir(trim(proj2_dir))
+        call mkdir(trim(proj1_dir)//'/build')
+        call mkdir(trim(proj2_dir)//'/build')
 
         ! Create identical module in project 1
         src_file = trim(proj1_dir)//'/shared_utils.f90'

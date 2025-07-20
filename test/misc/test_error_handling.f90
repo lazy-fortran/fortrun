@@ -1,6 +1,7 @@
 program test_error_handling
     use, intrinsic :: iso_fortran_env, only: error_unit
-    use temp_utils, only: get_system_temp_dir, mkdir_p
+    use temp_utils, only: get_system_temp_dir
+    use fpm_filesystem, only: mkdir
     implicit none
 
     print *, '=== Error Handling Tests ==='
@@ -29,7 +30,7 @@ contains
 
         ! Create test directory
         test_dir = get_system_temp_dir()//'/test_unknown_module'
-        call mkdir_p(trim(test_dir))
+        call mkdir(trim(test_dir))
 
         ! Create test file with unknown module
         test_file = trim(test_dir)//'/test_unknown.f90'
@@ -72,7 +73,7 @@ contains
 
         ! Create test directory
         test_dir = get_system_temp_dir()//'/test_module_error'
-        call mkdir_p(trim(test_dir))
+        call mkdir(trim(test_dir))
 
         ! Create test file with nonexistent module
         test_file = trim(test_dir)//'/test_error.f90'
@@ -115,7 +116,7 @@ contains
 
         ! Create test directory
         test_dir = get_system_temp_dir()//'/test_fpm_error'
-        call mkdir_p(trim(test_dir))
+        call mkdir(trim(test_dir))
 
         ! Create test file with syntax error
         test_file = trim(test_dir)//'/test_syntax.f90'

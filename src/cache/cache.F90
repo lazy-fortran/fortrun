@@ -7,7 +7,8 @@ module cache
     use fpm_filesystem, only: list_files, read_lines, mkdir, join_path, exists, run
     use fpm_environment, only: get_os_type, OS_WINDOWS
     use fpm_strings, only: string_t, fnv_1a
-    use temp_utils, only: create_temp_dir, get_temp_file_path, mkdir_p
+    use temp_utils, only: create_temp_dir, get_temp_file_path
+    use fpm_filesystem, only: mkdir
     implicit none
     private
   public :: get_cache_dir, ensure_cache_dir, ensure_cache_structure, get_cache_subdir, &
@@ -61,8 +62,8 @@ contains
             return
         end if
 
-        ! Create directory using cross-platform mkdir_p from temp_utils
-        call mkdir_p(trim(cache_dir))
+        ! Create directory using FPM's cross-platform mkdir
+        call mkdir(trim(cache_dir))
 
         ! Check if directory was created successfully
         success = exists(trim(cache_dir))

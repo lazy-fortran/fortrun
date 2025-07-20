@@ -1,5 +1,5 @@
 module config
-    use temp_utils, only: mkdir_p
+    use fpm_filesystem, only: mkdir
     implicit none
     private
     public :: get_config_dir, ensure_config_dir, get_registry_path
@@ -43,8 +43,8 @@ contains
         character(len=512) :: command
         integer :: exitstat, cmdstat
 
-        ! Create directory with parents (-p flag)
-        call mkdir_p(trim(config_dir))
+        ! Create directory using FPM's cross-platform mkdir
+        call mkdir(trim(config_dir))
 
         ! Check if directory exists
         inquire (file=trim(config_dir)//'/.', exist=success)

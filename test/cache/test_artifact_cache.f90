@@ -1,7 +1,8 @@
 program test_artifact_cache
    use cache, only: get_content_hash, store_build_artifacts, retrieve_build_artifacts, &
                    cache_exists, invalidate_cache, get_cache_dir, ensure_cache_structure
-    use temp_utils, only: create_temp_dir, get_temp_file_path, mkdir_p
+    use temp_utils, only: create_temp_dir, get_temp_file_path
+    use fpm_filesystem, only: mkdir
     use, intrinsic :: iso_fortran_env, only: error_unit
     implicit none
 
@@ -31,7 +32,7 @@ contains
 
         ! Create test directory with source
         test_dir = create_temp_dir('fortran_hash_test')
-        call mkdir_p(trim(test_dir))
+        call mkdir(trim(test_dir))
 
         test_file = trim(test_dir)//'/test.f90'
         open (newunit=unit, file=trim(test_file), status='replace')
@@ -83,9 +84,9 @@ contains
         build_dir = create_temp_dir('fortran_store_test_build')
         target_dir = create_temp_dir('fortran_store_test_target')
 
-        call mkdir_p(trim(test_dir))
-        call mkdir_p(trim(build_dir))
-        call mkdir_p(trim(target_dir))
+        call mkdir(trim(test_dir))
+        call mkdir(trim(build_dir))
+        call mkdir(trim(target_dir))
 
         ! Create source file
         test_file = trim(test_dir)//'/main.f90'
@@ -168,7 +169,7 @@ contains
         end if
 
         ! Create dummy cache entry
-        call mkdir_p(trim(get_cache_dir())//'/builds/'//trim(hash_key))
+        call mkdir(trim(get_cache_dir())//'/builds/'//trim(hash_key))
     call execute_command_line('touch "' // trim(get_cache_dir()) // '/builds/' // trim(hash_key) // '/dummy"')
 
         ! Should now exist

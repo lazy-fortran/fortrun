@@ -1,7 +1,7 @@
 program test_fpm_generator
     use fpm_generator, only: generate_fpm_with_deps
     use module_scanner, only: scan_modules, module_info
-    use temp_utils, only: mkdir_p
+    use fpm_filesystem, only: mkdir
     use, intrinsic :: iso_fortran_env, only: error_unit
     implicit none
 
@@ -22,7 +22,7 @@ program test_fpm_generator
 
     ! Create test directory
     call execute_command_line('rm -rf '//trim(output_dir))
-    call mkdir_p(trim(output_dir))
+    call mkdir(trim(output_dir))
 
     ! Create test file that uses pyplot
     call create_pyplot_example(test_file)
@@ -77,7 +77,7 @@ program test_fpm_generator
     test_file = 'test_multi_deps.f90'
     call create_multi_deps_example(test_file)
 
-    call mkdir_p(trim(output_dir))
+    call mkdir(trim(output_dir))
     call scan_modules(test_file, modules, n_modules)
   call generate_fpm_with_deps(output_dir, 'test_multi', modules, n_modules, .false., '')
 

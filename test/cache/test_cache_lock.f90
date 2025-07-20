@@ -1,6 +1,7 @@
 program test_cache_lock
     use cache_lock
-    use temp_utils, only: create_temp_dir, get_temp_file_path, mkdir_p
+    use temp_utils, only: create_temp_dir, get_temp_file_path
+    use fpm_filesystem, only: mkdir
     implicit none
 
     character(len=256) :: temp_cache_dir
@@ -9,7 +10,7 @@ program test_cache_lock
 
     ! Create temporary directory for testing
     temp_cache_dir = create_temp_dir('fortran_cache_lock_test')
-    call mkdir_p(trim(temp_cache_dir))
+    call mkdir(trim(temp_cache_dir))
 
     print '(a)', 'Testing cache lock functionality...'
 

@@ -11,7 +11,8 @@ module runner
     use fpm_error, only: error_t
   use frontend_integration, only: compile_with_frontend, compile_with_frontend_debug, is_simple_fortran_file
     use debug_state, only: get_debug_flags
-    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, mkdir_p
+    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path
+    use fpm_filesystem, only: mkdir
     use, intrinsic :: iso_fortran_env, only: int64
     implicit none
     private
@@ -207,7 +208,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
                 print '(a)', 'Cache miss: Setting up new build'
             end if
 
-            call mkdir_p(trim(project_dir)//'/app')
+            call mkdir(trim(project_dir)//'/app')
 
             ! Copy source files and generate FPM project only on cache miss
             if (present(custom_flags)) then
@@ -463,7 +464,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         end if
 
         build_dir = trim(project_dir)//'/build'
-        call mkdir_p(trim(build_dir))
+        call mkdir(trim(build_dir))
 
         ! Check each dependency module for cached versions
         do i = 1, n_modules
@@ -569,7 +570,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         end if
 
         ! Create src directory
-        call mkdir_p(trim(project_dir)//'/src')
+        call mkdir(trim(project_dir)//'/src')
 
         ! Copy all .f90 files except the main file (only files, not directories)
     command = 'find "' // trim(source_dir) // '" -maxdepth 1 -type f \( -name "*.f90" -o -name "*.F90" \) | ' // &

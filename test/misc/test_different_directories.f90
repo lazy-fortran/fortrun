@@ -1,6 +1,7 @@
 program test_different_directories
     use, intrinsic :: iso_fortran_env, only: error_unit
-    use temp_utils, only: create_temp_dir, get_temp_file_path, mkdir_p
+    use temp_utils, only: create_temp_dir, get_temp_file_path
+    use fpm_filesystem, only: mkdir
     implicit none
 
     character(len=512) :: command
@@ -13,7 +14,7 @@ program test_different_directories
     test_dir = create_temp_dir('fortran_test_different_dirs')
     sub_dir = trim(test_dir)//'/subdir'
 
-    call mkdir_p(trim(sub_dir))
+    call mkdir(trim(sub_dir))
 
     ! Create a simple Fortran file in subdirectory
     call create_test_file(trim(sub_dir)//'/hello.f90')
