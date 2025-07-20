@@ -63,10 +63,18 @@ jobs:
         FORTRAN_EXE=$(find build -name "fortran.exe" | head -1)
         echo "Found executable: $FORTRAN_EXE"
 
-        # Run basic smoke test
-        echo "program test; print *, 'x = 42'; end program" > test_windows.f
-        $FORTRAN_EXE test_windows.f
-        rm -f test_windows.f
+        # Get the current directory
+        CURRENT_DIR=$(pwd)
+        echo "Current directory: $CURRENT_DIR"
+
+        # Run basic smoke test with absolute path
+        TEST_FILE="$CURRENT_DIR/test_windows.f"
+        echo "program test; print *, 'x = 42'; end program" > "$TEST_FILE"
+        echo "Test file created at: $TEST_FILE"
+
+        # Run the executable with the test file
+        $FORTRAN_EXE "$TEST_FILE"
+        rm -f "$TEST_FILE"
 
         # Test version flag
         $FORTRAN_EXE --version
@@ -87,35 +95,49 @@ jobs:
           New-Item -ItemType Directory -Path "$env:LOCALAPPDATA\fortran\cache" -Force
         }
 
-        # Test fortran executable
-        .\build\gfortran_*\app\fortran.exe --version
+        # Find the fortran executable
+        $fortran_exe = Get-ChildItem -Path "build" -Recurse -Filter "fortran.exe" | Select-Object -First 1
+        Write-Host "Found executable: $($fortran_exe.FullName)"
 
-        # Test with a simple example
-        echo 'real :: x = 3.14' > test_windows.f
-        .\build\gfortran_*\app\fortran.exe test_windows.f
+        # Test version
+        & $fortran_exe.FullName --version
+
+        # Test with a simple example using full path
+        $test_file = Join-Path $pwd "test_windows.f"
+        Set-Content -Path $test_file -Value 'real :: x = 3.14'
+        Write-Host "Test file created at: $test_file"
+
+        & $fortran_exe.FullName $test_file
 
         # Clean up
-        Remove-Item test_windows.f -Force
+        Remove-Item $test_file -Force
       shell: powershell
 
     - name: Test module resolution
       run: |
         # Test module resolution functionality
-        mkdir test_modules
-        echo 'module test_mod' > test_modules/test.f90
-        echo '  implicit none' >> test_modules/test.f90
-        echo '  real :: pi = 3.14159' >> test_modules/test.f90
-        echo 'end module test_mod' >> test_modules/test.f90
+        New-Item -ItemType Directory -Path "test_modules" -Force
 
-        echo 'program test_prog' > test_modules/main.f90
-        echo '  use test_mod' >> test_modules/main.f90
-        echo '  implicit none' >> test_modules/main.f90
-        echo '  print *, pi' >> test_modules/main.f90
-        echo 'end program test_prog' >> test_modules/main.f90
+        # Create module file
+        "module test_mod" | Out-File -FilePath "test_modules\test.f90" -Encoding ASCII
+        "  implicit none" | Out-File -FilePath "test_modules\test.f90" -Append -Encoding ASCII
+        "  real :: pi = 3.14159" | Out-File -FilePath "test_modules\test.f90" -Append -Encoding ASCII
+        "end module test_mod" | Out-File -FilePath "test_modules\test.f90" -Append -Encoding ASCII
 
-        cd test_modules
-        ..\build\gfortran_*\app\fortran.exe main.f90
-        cd ..
+        # Create main program
+        "program test_prog" | Out-File -FilePath "test_modules\main.f90" -Encoding ASCII
+        "  use test_mod" | Out-File -FilePath "test_modules\main.f90" -Append -Encoding ASCII
+        "  implicit none" | Out-File -FilePath "test_modules\main.f90" -Append -Encoding ASCII
+        "  print *, pi" | Out-File -FilePath "test_modules\main.f90" -Append -Encoding ASCII
+        "end program test_prog" | Out-File -FilePath "test_modules\main.f90" -Append -Encoding ASCII
+
+        # Find the fortran executable
+        $fortran_exe = Get-ChildItem -Path "build" -Recurse -Filter "fortran.exe" | Select-Object -First 1
+
+        # Run from test_modules directory
+        Push-Location test_modules
+        & $fortran_exe.FullName main.f90
+        Pop-Location
 
         # Clean up
         Remove-Item -Recurse test_modules -Force
@@ -166,50 +188,49 @@ jobs:
 
     - name: Test example programs
       run: |
-        # Test various example programs
-        $fortran_exe = "build\gfortran_*\app\fortran.exe"
+        # Find the fortran executable
+        $fortran_exe = Get-ChildItem -Path "build" -Recurse -Filter "fortran.exe" | Select-Object -First 1
+        Write-Host "Found executable: $($fortran_exe.FullName)"
 
         # Test hello world
-        & $fortran_exe example/hello.f
+        & $fortran_exe.FullName example/hello.f
 
         # Test type inference
-        & $fortran_exe example/type_inference/calculate.f
+        & $fortran_exe.FullName example/type_inference/calculate.f
 
         # Test with comments
-        & $fortran_exe example/with_comments.f
+        & $fortran_exe.FullName example/with_comments.f
 
         # Test preprocessor examples
-        & $fortran_exe example/preprocessor/hello.f
+        & $fortran_exe.FullName example/preprocessor/hello.f
 
         Write-Host "All examples tested successfully on Windows"
       shell: powershell
 
     - name: Performance test
       run: |
-        # Run a simple performance test
-        $fortran_exe = "build\gfortran_*\app\fortran.exe"
+        # Find the fortran executable
+        $fortran_exe = Get-ChildItem -Path "build" -Recurse -Filter "fortran.exe" | Select-Object -First 1
 
         # Create a performance test file
-        @"
-        program perf_test
-          implicit none
-          integer :: i, n
-          real :: sum_val
-
-          n = 1000000
-          sum_val = 0.0
-
-          do i = 1, n
-            sum_val = sum_val + real(i)
-          end do
-
-          print *, 'Sum:', sum_val
-        end program perf_test
-        "@ | Out-File -FilePath perf_test.f -Encoding ASCII
+        "program perf_test" | Out-File -FilePath perf_test.f -Encoding ASCII
+        "  implicit none" | Out-File -FilePath perf_test.f -Append -Encoding ASCII
+        "  integer :: i, n" | Out-File -FilePath perf_test.f -Append -Encoding ASCII
+        "  real :: sum_val" | Out-File -FilePath perf_test.f -Append -Encoding ASCII
+        "" | Out-File -FilePath perf_test.f -Append -Encoding ASCII
+        "  n = 1000000" | Out-File -FilePath perf_test.f -Append -Encoding ASCII
+        "  sum_val = 0.0" | Out-File -FilePath perf_test.f -Append -Encoding ASCII
+        "" | Out-File -FilePath perf_test.f -Append -Encoding ASCII
+        "  do i = 1, n" | Out-File -FilePath perf_test.f -Append -Encoding ASCII
+        "    sum_val = sum_val + real(i)" | Out-File -FilePath perf_test.f -Append -Encoding ASCII
+        "  end do" | Out-File -FilePath perf_test.f -Append -Encoding ASCII
+        "" | Out-File -FilePath perf_test.f -Append -Encoding ASCII
+        "  print *, 'Sum:', sum_val" | Out-File -FilePath perf_test.f -Append -Encoding ASCII
+        "end program perf_test" | Out-File -FilePath perf_test.f -Append -Encoding ASCII
 
         # Time the execution
         $start = Get-Date
-        & $fortran_exe perf_test.f
+        & $fortran_exe.FullName perf_test.f
         $end = Get-Date
 
         $elapsed = ($end - $start).TotalMilliseconds
