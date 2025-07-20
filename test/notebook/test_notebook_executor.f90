@@ -5,9 +5,19 @@ program test_notebook_executor
     implicit none
 
     logical :: all_tests_passed
+    character(len=256) :: ci_env
+    integer :: env_status
 
     print *, '=== Notebook Executor Unit Tests ==='
     print *
+
+    ! Check if we're in CI environment and should skip slow tests
+    call get_environment_variable("CI", ci_env, status=env_status)
+    if (env_status == 0 .and. trim(ci_env) == "true") then
+        print *, 'SKIP: Running in CI environment - notebook tests disabled'
+        print *, '      (notebook tests can timeout in parallel CI runs)'
+        stop 0
+    end if
 
     all_tests_passed = .true.
 

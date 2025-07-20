@@ -532,6 +532,8 @@ contains
         ! Handle timeout error specifically
         if (exit_code == 124) then
             error_msg = "Build timed out after 30 seconds"
+        else if (exit_code /= 0 .and. len_trim(error_msg) == 0) then
+            error_msg = "Build failed with unknown error"
         end if
 
     end subroutine build_notebook_project
