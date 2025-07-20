@@ -22,6 +22,50 @@ module temp_utils
 
 contains
 
+    ! Define mkdir_p first as it's used by other functions
+    subroutine mkdir_p(directory)
+        character(len=*), intent(in) :: directory
+        integer :: exitstat
+        character(len=1024) :: command
+
+#ifdef _WIN32
+        ! Check if running under MSYS2
+        block
+            character(len=256) :: msystem
+            integer :: status
+            integer :: i
+            character(len=1024) :: current_dir
+
+            call get_environment_variable('MSYSTEM', msystem, status=status)
+            if (status == 0 .and. len_trim(msystem) > 0) then
+                ! MSYS2 environment - use Unix-style command
+                command = 'mkdir -p "'//trim(directory)//'"'
+            else
+                ! Native Windows - need to create parent directories
+                ! Windows mkdir doesn't support -p, so we need to create parents manually
+                current_dir = ''
+                do i = 1, len_trim(directory)
+                    if (directory(i:i) == '\' .or. directory(i:i) == '/') then
+                        if (len_trim(current_dir) > 0) then
+                            command = 'cmd /c mkdir "'//trim(current_dir)//'" 2>nul'
+                            call execute_command_line(trim(command), exitstat=exitstat)
+                        end if
+                    end if
+                    current_dir = directory(1:i)
+                end do
+                ! Create the final directory
+                command = 'cmd /c mkdir "'//trim(directory)//'" 2>nul'
+            end if
+        end block
+#else
+        ! Unix/Linux/macOS
+        command = 'mkdir -p "'//trim(directory)//'"'
+#endif
+
+        call execute_command_line(trim(command), exitstat=exitstat)
+
+    end subroutine mkdir_p
+
     function create_temp_dir(prefix) result(temp_dir)
         character(len=*), intent(in) :: prefix
         character(len=:), allocatable :: temp_dir
@@ -52,12 +96,11 @@ contains
             integer :: status
             call get_environment_variable('MSYSTEM', msystem, status=status)
             if (status == 0 .and. len_trim(msystem) > 0) then
-                ! MSYS2 environment - use Unix-style paths and commands
+                ! MSYS2 environment - use Unix-style paths
                 temp_dir = trim(base_temp_dir)//'/'//trim(prefix)// &
                            '_'//trim(random_suffix)
-                call execute_command_line('mkdir -p "'//temp_dir//'"', exitstat=ios)
             else
-                ! Native Windows - normalize paths and use Windows commands
+                ! Native Windows - normalize paths
                 block
                     integer :: i
                     character(len=256) :: normalized_base
@@ -68,16 +111,25 @@ contains
                     temp_dir = trim(normalized_base)//'\'//trim(prefix)// &
                                '_'//trim(random_suffix)
                 end block
-                call execute_command_line('cmd /c mkdir "'//temp_dir// &
-                                          '" 2>nul', exitstat=ios)
             end if
         end block
 #else
         temp_dir = trim(base_temp_dir)//'/'//trim(prefix)//'_'//trim(random_suffix)
-
-        ! Create the directory (Unix)
-        call execute_command_line('mkdir -p "'//temp_dir//'"', exitstat=ios)
 #endif
+
+        ! Create the directory using our cross-platform function
+        call mkdir_p(temp_dir)
+
+        ! Verify it was created
+        ios = 0
+        block
+            logical :: dir_exists
+            inquire (file=trim(temp_dir)//'/.', exist=dir_exists)
+            if (.not. dir_exists) then
+                ios = 1
+            end if
+        end block
+
         if (ios /= 0) then
             error stop 'Failed to create temporary directory: '//temp_dir
         end if
