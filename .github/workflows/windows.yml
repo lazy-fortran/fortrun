@@ -56,7 +56,7 @@ jobs:
       run: |
         echo Building project...
         if exist build rmdir /s /q build
-        fpm build --compiler gfortran --flag="-cpp"
+        fpm build --compiler gfortran --flag="-cpp -D_WIN32"
       shell: cmd
 
     - name: List build directory
@@ -204,7 +204,7 @@ jobs:
       run: |
         echo Building project...
         if exist build rmdir /s /q build
-        fpm build --compiler gfortran --flag="-cpp"
+        fpm build --compiler gfortran --flag="-cpp -D_WIN32"
       shell: cmd
 
     - name: Download artifacts
