@@ -154,16 +154,24 @@ function format_parameter_list(params, options) result(formatted)
 ## 🎯 Testing Requirements for Each Feature
 
 ### Testing Infrastructure
-**Use the parallel test runner for faster feedback:**
+**⚠️ MANDATORY: Use parallel test runner for all testing ⚠️**
 ```bash
 # Before implementing a feature, run existing tests
 ./test/run_tests_parallel.sh
 
+# Debug failing tests with full output
+./test/run_tests_parallel.sh --full-output --filter failing_test
+
 # After implementation, run focused tests
 ./test/run_tests_parallel.sh --filter your_new_test
 
+# Save outputs for analysis
+./test/run_tests_parallel.sh --output-dir test_results/
+
 # For CI/CD integration
 ./test/run_tests_parallel.sh || exit 1
+
+# NEVER use fpm test for multiple tests!
 ```
 
 ### For Every New Feature:
@@ -189,11 +197,21 @@ function format_parameter_list(params, options) result(formatted)
 - JSON serialization: 100% working ✅
 - Parallel testing: 100% working ✅
 
-**Run tests faster with:**
+**⚠️ CRITICAL: Test Execution Policy ⚠️**
 ```bash
-./test/run_tests_parallel.sh              # All tests in parallel
+# ALWAYS use parallel test runner for multiple tests:
+./test/run_tests_parallel.sh                    # All tests in parallel
+./test/run_tests_parallel.sh --full-output      # Like fpm test output
 ./test/run_tests_parallel.sh --filter frontend  # Just frontend tests
-./test/run_tests_parallel.sh -j 8         # Use 8 cores
+./test/run_tests_parallel.sh -j 8               # Use 8 cores
+./test/run_tests_parallel.sh --output-dir logs/ # Save all outputs
+
+# ONLY use fpm test for single tests:
+fpm test test_specific_name                     # OK for one test
+
+# NEVER use:
+# ❌ fpm test                                   # Too slow!
+# ❌ fpm test > /dev/null                       # Use -q flag instead
 ```
 
 **Remaining Issues:**

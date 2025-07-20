@@ -1,6 +1,8 @@
 # Parallel Test Runner
 
-The `run_tests_parallel.sh` script runs FPM tests in parallel across multiple CPU cores to speed up test execution.
+⚠️ **CRITICAL: This is the ONLY approved method for running multiple tests** ⚠️
+
+The `run_tests_parallel.sh` script runs FPM tests in parallel across multiple CPU cores to speed up test execution. It provides all the functionality of `fpm test` with better performance and additional features.
 
 ## Usage
 
@@ -11,7 +13,11 @@ The `run_tests_parallel.sh` script runs FPM tests in parallel across multiple CP
 ## Options
 
 - `-j, --jobs N`: Use N parallel jobs (default: CPU count)
-- `-v, --verbose`: Show detailed test output
+- `-v, --verbose`: Show detailed test output inline
+- `-q, --quiet`: Suppress progress output (only show summary)
+- `-d, --debug`: Show debug information
+- `--full-output`: Show full test output exactly like `fpm test`
+- `--output-dir DIR`: Save individual test outputs to directory
 - `--filter PATTERN`: Filter tests by pattern
 - `-h, --help`: Show help
 
@@ -22,14 +28,29 @@ Run all tests using all available cores:
 ./test/run_tests_parallel.sh
 ```
 
+Run with full output (exactly like `fpm test`):
+```bash
+./test/run_tests_parallel.sh --full-output
+```
+
 Run tests matching "frontend" on 8 cores:
 ```bash
 ./test/run_tests_parallel.sh -j 8 --filter frontend
 ```
 
+Debug failing tests with saved outputs:
+```bash
+./test/run_tests_parallel.sh --full-output --output-dir failures/ --filter "failing_test"
+```
+
+Quiet mode for CI/CD:
+```bash
+./test/run_tests_parallel.sh -q
+```
+
 Run specific test with verbose output:
 ```bash
-./test/run_tests_parallel.sh -v test_parse_multi_decl
+./test/run_tests_parallel.sh -v --filter test_parse_multi_decl
 ```
 
 ## How it works
@@ -44,6 +65,15 @@ Run specific test with verbose output:
 ## Performance
 
 On a typical 8-core machine, this can reduce test time by 6-7x compared to sequential execution.
+
+## Usage Policy
+
+⚠️ **IMPORTANT**:
+- **ALWAYS** use this script for running multiple tests
+- **NEVER** use `fpm test` without arguments (it's too slow)
+- **ONLY** use `fpm test test_name` for running a single specific test
+
+This ensures consistent test execution and optimal performance across the project.
 
 ## Requirements
 

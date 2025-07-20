@@ -48,10 +48,18 @@ fpm run fortran -- --clear-cache  # Clear cache (CRITICAL before testing fronten
 fpm clean --skip                  # Clean build directory without prompting
 
 # Testing
-./test/run_tests_parallel.sh      # Run all tests in parallel (RECOMMENDED)
-fpm test                          # Run all tests sequentially
-fpm test test_name                # Run specific test
-fpm test > /dev/null              # Run tests quietly (recommended during development)
+# ⚠️ CRITICAL: ALWAYS USE PARALLEL TEST RUNNER FOR MULTIPLE TESTS ⚠️
+./test/run_tests_parallel.sh              # Run all tests in parallel (DEFAULT)
+./test/run_tests_parallel.sh --full-output # Show full test output like fpm test
+./test/run_tests_parallel.sh -q           # Quiet mode (only show summary)
+./test/run_tests_parallel.sh --output-dir results/  # Save all test outputs
+
+# Only use fpm test directly for single tests:
+fpm test test_specific_name               # Run single test only
+
+# NEVER use these for multiple tests:
+# ❌ fpm test                             # Use ./test/run_tests_parallel.sh instead
+# ❌ fpm test > /dev/null                 # Use ./test/run_tests_parallel.sh -q instead
 
 # Cache Management
 fpm run fortran -- --clear-cache  # Clear all cached files
@@ -184,24 +192,31 @@ end function deep_copy
 ## Test Categories
 
 ```bash
+# ⚠️ ALWAYS USE PARALLEL TEST RUNNER ⚠️
+
 # Run all tests in parallel (fastest)
 ./test/run_tests_parallel.sh
+
+# Run with full output (like fpm test)
+./test/run_tests_parallel.sh --full-output
 
 # Run specific test categories in parallel
 ./test/run_tests_parallel.sh --filter frontend
 ./test/run_tests_parallel.sh --filter lexer
 ./test/run_tests_parallel.sh -j 8 --filter parser  # Use 8 cores
 
-# Sequential testing (fallback)
-fpm test test_frontend_lexer_*
-fpm test test_frontend_parser_*
-fpm test test_frontend_semantic_*
-fpm test test_frontend_codegen_*
+# Save test outputs for analysis
+./test/run_tests_parallel.sh --output-dir test_results/
+./test/run_tests_parallel.sh --full-output --output-dir failures/ --filter failed_tests
 
-# Other systems
-fpm test test_cli_comprehensive
-fpm test test_runner_comprehensive
-fpm test test_cache
+# Verbose modes
+./test/run_tests_parallel.sh -v           # Show test outputs inline
+./test/run_tests_parallel.sh --full-output # Show everything like fpm test
+./test/run_tests_parallel.sh -d           # Debug mode
+
+# ONLY use fpm test for single specific tests:
+fpm test test_frontend_lexer_basic        # OK for single test
+fpm test test_specific_failure            # OK for debugging one test
 ```
 
 ## JSON Test Structure
@@ -243,8 +258,10 @@ example/frontend_test_cases/single_assignment/
 ## Critical Notes
 
 - **Clear cache before testing frontend**: `fpm run fortran -- --clear-cache`
-- **Run tests in parallel**: `./test/run_tests_parallel.sh`
-- **Run tests quietly**: `fpm test > /dev/null`
+- **Run tests in parallel**: `./test/run_tests_parallel.sh` (ALWAYS use this)
+- **Run tests quietly**: `./test/run_tests_parallel.sh -q`
+- **Full output mode**: `./test/run_tests_parallel.sh --full-output`
+- **Save test outputs**: `./test/run_tests_parallel.sh --output-dir results/`
 - **Fortran 95 standard**: https://wg5-fortran.org/N1151-N1200/N1191.pdf
 - **CLI options documented in**: doc/index.md
 
