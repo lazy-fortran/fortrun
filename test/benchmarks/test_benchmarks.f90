@@ -1,6 +1,6 @@
 program test_benchmarks
     use, intrinsic :: iso_fortran_env, only: int64
-    use temp_utils, only: create_temp_dir, get_temp_file_path
+    use temp_utils, only: create_temp_dir, get_temp_file_path, create_test_cache_dir
     use temp_utils, only: mkdir
     implicit none
 
@@ -48,7 +48,7 @@ contains
         call create_simple_test_file(test_file)
 
         ! Use temporary cache
-        cache_dir = create_temp_dir('fortran_test_bench_cache_simple')
+        cache_dir = create_test_cache_dir('bench_simple')
 
         ! First run - should compile
         block
@@ -116,7 +116,7 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
         call create_modules_test_files(test_dir)
 
         ! Use temporary cache
-        cache_dir = create_temp_dir('fortran_test_bench_cache_modules')
+        cache_dir = create_test_cache_dir('bench_modules')
         ! cache_dir is temporary, no need to remove
 
         ! First run - should compile modules
@@ -186,7 +186,7 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
         call create_modules_test_files(test_dir)
 
         ! Use temporary cache
-        cache_dir = create_temp_dir('fortran_test_bench_cache_incremental')
+        cache_dir = create_test_cache_dir('bench_incremental')
         ! cache_dir is temporary, no need to remove
 
         ! Initial build (establish cache)

@@ -8,7 +8,7 @@ program test_module_cache_unit
     use fpm_strings, only: string_t
     use fpm_error, only: error_t
     use fpm_filesystem, only: delete_file, exists, join_path
-    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path
+    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, create_test_cache_dir
     implicit none
 
     ! Note: setenv/unsetenv C bindings removed for Windows compatibility
@@ -220,7 +220,7 @@ contains
         print '(a)', 'Test 4: Cache hit detection'
 
         ! Setup with unique cache directory
-        test_cache_dir = create_temp_dir('fortran_cache_hit')
+        test_cache_dir = create_test_cache_dir('module_cache_hit')
 
         call new_compiler(compiler, 'gfortran', 'gcc', 'g++', .true., .false.)
         compiler%id = id_gcc

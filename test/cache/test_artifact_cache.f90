@@ -1,7 +1,7 @@
 program test_artifact_cache
    use cache, only: get_content_hash, store_build_artifacts, retrieve_build_artifacts, &
                    cache_exists, invalidate_cache, get_cache_dir, ensure_cache_structure
-    use temp_utils, only: create_temp_dir, get_temp_file_path
+    use temp_utils, only: create_temp_dir, get_temp_file_path, create_test_cache_dir
     use temp_utils, only: mkdir
     use, intrinsic :: iso_fortran_env, only: error_unit
     implicit none
@@ -24,7 +24,7 @@ contains
         print *, 'Test 1: Content-based hashing'
 
         ! Setup cache structure
-        call ensure_cache_structure(get_cache_dir(), success)
+        call ensure_cache_structure(create_test_cache_dir('artifact_hash'), success)
         if (.not. success) then
             write (error_unit, *) 'Error: Could not create cache structure'
             stop 1

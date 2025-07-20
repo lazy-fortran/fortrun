@@ -1,6 +1,6 @@
 program test_runner_edge_cases
     use runner, only: run_fortran_file
-    use temp_utils, only: create_temp_dir, get_temp_file_path
+    use temp_utils, only: create_temp_dir, get_temp_file_path, create_test_cache_dir
     use temp_utils, only: mkdir
     implicit none
 
@@ -160,7 +160,7 @@ test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_runner_emp
         close (unit)
 
         ! Test with custom cache directory
-        custom_cache = create_temp_dir('fortran_test_runner_custom_cache')
+        custom_cache = create_test_cache_dir('runner_edge_custom')
         custom_config = create_temp_dir('fortran_test_runner_custom_config')
 
         call mkdir(trim(custom_cache))

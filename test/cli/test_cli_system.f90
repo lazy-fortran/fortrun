@@ -1,7 +1,7 @@
 program test_cli_system
     use, intrinsic :: iso_fortran_env, only: error_unit
     use cache, only: get_cache_dir
-    use temp_utils, only: temp_dir_manager
+    use temp_utils, only: temp_dir_manager, create_test_cache_dir
     use temp_utils, only: mkdir
     implicit none
 
@@ -203,7 +203,7 @@ contains
             character(len=256) :: cache_dir, basename
             integer :: last_slash, last_dot
 
-            cache_dir = get_cache_dir()
+            cache_dir = create_test_cache_dir('cli_system_v_flag')
 
             ! Extract basename without extension from test_file
             last_slash = index(test_file, '/', back=.true.)

@@ -1,5 +1,6 @@
 program test_windows_cache
     use cache
+    use temp_utils, only: create_test_cache_dir
     implicit none
 
     call test_windows_cache_paths()
@@ -15,7 +16,7 @@ contains
         print *, "Testing cross-platform cache path generation..."
 
         ! Get cache directory (will use appropriate path for current OS)
-        cache_dir = get_cache_dir()
+        cache_dir = create_test_cache_dir('windows_cache_paths')
 
         ! Check that we get a valid path
         if (len_trim(cache_dir) > 0) then

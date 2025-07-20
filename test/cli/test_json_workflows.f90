@@ -1,5 +1,5 @@
 program test_json_workflows
-    use temp_utils, only: get_system_temp_dir, create_temp_dir, get_project_root
+    use temp_utils, only: get_system_temp_dir, create_temp_dir, get_project_root, create_test_cache_dir
     implicit none
 
     logical :: all_passed
@@ -34,7 +34,7 @@ contains
 
         test_simple_assignment_workflow = .true.
         temp_dir = get_system_temp_dir()
-        cache_dir = create_temp_dir('fortran_json_cache')
+        cache_dir = create_test_cache_dir('json_basic')
 
         print *, 'Testing simple assignment workflow...'
 
@@ -121,7 +121,7 @@ contains
 
         test_function_workflow = .true.
         temp_dir = get_system_temp_dir()
-        cache_dir = create_temp_dir('fortran_func_cache')
+        cache_dir = create_test_cache_dir('json_functions')
 
         print *, 'Testing function workflow...'
 
@@ -195,7 +195,7 @@ contains
 
         test_control_flow_workflow = .true.
         temp_dir = get_system_temp_dir()
-        cache_dir = create_temp_dir('fortran_flow_cache')
+        cache_dir = create_test_cache_dir('json_control_flow')
 
         print *, 'Testing control flow workflow...'
 
@@ -260,7 +260,7 @@ contains
 
         test_round_trip_workflow = .true.
         temp_dir = get_system_temp_dir()
-        cache_dir = create_temp_dir('fortran_round_cache')
+        cache_dir = create_test_cache_dir('json_roundtrip')
 
         print *, 'Testing round-trip workflow...'
 

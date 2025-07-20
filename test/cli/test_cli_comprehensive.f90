@@ -1,5 +1,5 @@
 program test_cli_comprehensive
-    use temp_utils, only: create_temp_dir, get_temp_file_path
+    use temp_utils, only: create_temp_dir, get_temp_file_path, create_test_cache_dir
     implicit none
 
     logical :: all_tests_passed
@@ -279,7 +279,7 @@ contains
         ! Test --cache-dir
         block
             character(len=:), allocatable :: temp_cache_dir
-            temp_cache_dir = create_temp_dir('fortran_test_mycache')
+            temp_cache_dir = create_test_cache_dir('cli_comprehensive_custom1')
             call setup_test_command_line('--cache-dir '//temp_cache_dir//' test.f90')
             call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                              custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
@@ -407,7 +407,7 @@ contains
         ! Test multiple flags together
         block
             character(len=:), allocatable :: temp_cache_dir
-            temp_cache_dir = create_temp_dir('fortran_test_cache')
+            temp_cache_dir = create_test_cache_dir('cli_comprehensive_custom2')
       call setup_test_command_line('-vv --cache-dir ' // temp_cache_dir // ' --jobs 4 --no-wait test.f90')
             call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                              custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
@@ -471,7 +471,7 @@ contains
         ! Test very long directory path
         block
             character(len=:), allocatable :: temp_very_long_dir
-      temp_very_long_dir = create_temp_dir('fortran_test_very_long_path_to_cache_directory_that_might_cause_issues')
+            temp_very_long_dir = create_test_cache_dir('cli_comprehensive_long_path')
            call setup_test_command_line('--cache-dir '//temp_very_long_dir//' test.f90')
             call parse_arguments(filename, show_help, verbose_level, custom_cache_dir, &
                              custom_config_dir, parallel_jobs, no_wait, notebook_mode, &

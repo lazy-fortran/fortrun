@@ -1,5 +1,5 @@
 program test_json_workflows_simple
-    use temp_utils, only: get_system_temp_dir, create_temp_dir, get_project_root
+    use temp_utils, only: get_system_temp_dir, create_temp_dir, get_project_root, create_test_cache_dir
     implicit none
 
     logical :: all_passed
@@ -32,7 +32,7 @@ contains
 
         test_tokens_json_creation = .true.
         temp_dir = get_system_temp_dir()
-        cache_dir = create_temp_dir('fortran_json_simple_cache')
+        cache_dir = create_test_cache_dir('json_simple_basic')
 
         print *, 'Testing token JSON creation...'
 
@@ -74,7 +74,7 @@ contains
 
         test_ast_json_creation = .true.
         temp_dir = get_system_temp_dir()
-        cache_dir = create_temp_dir('fortran_ast_simple_cache')
+        cache_dir = create_test_cache_dir('json_simple_ast')
 
         print *, 'Testing AST JSON creation...'
 
@@ -130,7 +130,7 @@ contains
 
         test_json_from_tokens = .true.
         temp_dir = get_system_temp_dir()
-        cache_dir = create_temp_dir('fortran_from_tokens_cache')
+        cache_dir = create_test_cache_dir('json_simple_tokens')
 
         print *, 'Testing JSON from tokens workflow...'
 

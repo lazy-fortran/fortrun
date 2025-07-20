@@ -1,7 +1,7 @@
 program test_registry_enhancement
     use, intrinsic :: iso_fortran_env, only: error_unit
     use cache, only: get_cache_dir
-    use temp_utils, only: create_temp_dir, get_temp_file_path, get_project_root
+    use temp_utils, only: create_temp_dir, get_temp_file_path, get_project_root, create_test_cache_dir
     use temp_utils, only: mkdir
     implicit none
 
@@ -43,7 +43,7 @@ contains
         close (unit)
 
         ! Create a unique cache directory for this test
-        cache_dir = create_temp_dir('fortran_test_cache_registry')
+        cache_dir = create_test_cache_dir('registry_enhancement')
 
         ! Run the program with custom config dir (will fail but should show dependencies)
         block
