@@ -51,20 +51,9 @@ contains
         end if
 
 #ifdef _WIN32
-        ! Check if running under MSYS2
-        block
-            character(len=256) :: msystem
-            integer :: status
-
-            call get_environment_variable('MSYSTEM', msystem, status=status)
-            if (status == 0 .and. len_trim(msystem) > 0) then
-                ! MSYS2 environment - create single directory (parent already exists)
-                command = 'mkdir "'//trim(directory)//'" 2>/dev/null'
-            else
-                ! Native Windows
-                command = 'cmd /c mkdir "'//trim(directory)//'" 2>nul'
-            end if
-        end block
+        ! On Windows, always use cmd.exe to avoid path issues
+        ! This works correctly in both native Windows and MSYS2 environments
+        command = 'cmd /c mkdir "'//trim(directory)//'" 2>nul'
 #else
         ! Unix/Linux/macOS - create single directory (parent already exists)
         command = 'mkdir "'//trim(directory)//'" 2>/dev/null'
