@@ -102,7 +102,7 @@ contains
         arena = create_ast_stack()
         call parse_tokens(tokens, arena, prog_index, error_msg)
         if (error_msg /= "") return
-        ! if (options%debug_ast) call debug_output_ast(input_file, arena, prog_index)
+        if (options%debug_ast) call debug_output_ast(input_file, arena, prog_index)
 
         ! Phase 3: Semantic Analysis (only for lowercase fortran)
         sem_ctx = create_semantic_context()
@@ -146,7 +146,7 @@ contains
         arena = create_ast_stack()
         call parse_tokens(tokens, arena, prog_index, error_msg)
         if (error_msg /= "") return
-        ! if (options%debug_ast) call debug_output_ast(tokens_json_file, arena, prog_index)
+       if (options%debug_ast) call debug_output_ast(tokens_json_file, arena, prog_index)
 
         ! Phase 3: Semantic Analysis (only for lowercase fortran)
         sem_ctx = create_semantic_context()
@@ -184,7 +184,7 @@ contains
         ! Read AST from JSON - simplified for now
         arena = create_ast_stack()
 prog_index = push_literal(arena, "! JSON loading not implemented", LITERAL_STRING, 1, 1)
-        ! if (options%debug_ast) call debug_output_ast(ast_json_file, arena, prog_index)
+        if (options%debug_ast) call debug_output_ast(ast_json_file, arena, prog_index)
 
         ! Phase 3: Semantic Analysis
         sem_ctx = create_semantic_context()
@@ -272,7 +272,10 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
                     exit  ! Found explicit program unit
          else if (tokens(i)%text == "function" .or. tokens(i)%text == "subroutine") then
                     ! Check if it's a function/subroutine definition (not a call)
-                 if (i == 1 .or. (i > 1 .and. tokens(i - 1)%line < tokens(i)%line)) then
+                    if (i == 1) then
+                        has_explicit_program_unit = .true.
+                        exit
+                    else if (i > 1 .and. tokens(i - 1)%line < tokens(i)%line) then
                         ! At start of file or start of new line
                         has_explicit_program_unit = .true.
                         exit

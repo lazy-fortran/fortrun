@@ -441,6 +441,8 @@ contains
         integer :: current_kind, current_intent
         integer, allocatable :: temp_params(:)
         integer :: line, column
+        character(len=:), allocatable :: type_expr
+        integer :: paren_count
 
         param_count = 0
         allocate (param_indices(0))
@@ -475,25 +477,48 @@ contains
                 column = token%column
                 token = parser%consume()
 
-                ! Check for kind specification (e.g., real(8))
+                ! Check for kind specification (e.g., real(8)) or type specification (e.g., type(name))
                 token = parser%peek()
                 if (token%kind == TK_OPERATOR .and. token%text == "(") then
                     token = parser%consume()  ! consume '('
 
-                    token = parser%peek()
-                    if (token%kind == TK_NUMBER) then
-                        read (token%text, *) current_kind
-                        token = parser%consume()
-                    else if (token%kind == TK_IDENTIFIER) then
-                        ! For type(typename)
-                        current_type = current_type//"("//token%text//")"
-                        token = parser%consume()
-                    end if
+                    ! For type keywords, parse the complete type expression including nested parentheses
+                    if (current_type == "type") then
+                        type_expr = ""
+                        paren_count = 1  ! We already consumed the opening parenthesis
 
-                    ! Consume ')'
-                    token = parser%peek()
-                    if (token%kind == TK_OPERATOR .and. token%text == ")") then
-                        token = parser%consume()
+                        do while (.not. parser%is_at_end() .and. paren_count > 0)
+                            token = parser%peek()
+                            if (token%kind == TK_OPERATOR .and. token%text == "(") then
+                                paren_count = paren_count + 1
+                                type_expr = type_expr//token%text
+                                token = parser%consume()
+                        else if (token%kind == TK_OPERATOR .and. token%text == ")") then
+                                paren_count = paren_count - 1
+                                if (paren_count > 0) then
+                                    type_expr = type_expr//token%text
+                                end if
+                                token = parser%consume()
+                            else
+                                type_expr = type_expr//token%text
+                                token = parser%consume()
+                            end if
+                        end do
+
+                        current_type = current_type//"("//type_expr//")"
+                    else
+                        ! For non-type keywords, expect a simple number for kind specification
+                        token = parser%peek()
+                        if (token%kind == TK_NUMBER) then
+                            read (token%text, *) current_kind
+                            token = parser%consume()
+                        end if
+
+                        ! Consume closing ')'
+                        token = parser%peek()
+                        if (token%kind == TK_OPERATOR .and. token%text == ")") then
+                            token = parser%consume()
+                        end if
                     end if
                 end if
 

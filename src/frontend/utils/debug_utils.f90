@@ -33,10 +33,11 @@ contains
         call json_write_tokens_to_file(tokens, json_file)
     end subroutine debug_output_tokens
 
-    subroutine debug_output_ast(input_file, ast_tree)
-        use json_writer, only: json_write_ast_to_file
+    subroutine debug_output_ast(input_file, arena, prog_index)
+        use ast_core, only: ast_arena_t
         character(len=*), intent(in) :: input_file
-        class(ast_node), intent(in) :: ast_tree
+        type(ast_arena_t), intent(in) :: arena
+        integer, intent(in) :: prog_index
         character(len=:), allocatable :: json_file
 
         ! Create AST filename in same directory as input file
@@ -48,8 +49,8 @@ contains
 
         print *, "DEBUG: Writing AST to: ", trim(json_file)
 
-        ! Use json_writer for proper AST serialization
-        call json_write_ast_to_file(ast_tree, json_file)
+        ! Write arena-based AST
+        call write_arena_ast_json(arena, prog_index, json_file)
     end subroutine debug_output_ast
 
     subroutine debug_output_semantic(input_file, arena, prog_index)
@@ -66,11 +67,10 @@ contains
         end if
         json_file = json_file//"_semantic.json"
 
-  print *, "DEBUG: Semantic analysis completed (arena-based output not implemented yet)"
-        print *, "DEBUG: Would write to: ", trim(json_file)
+        print *, "DEBUG: Writing semantic analysis to: ", trim(json_file)
 
-        ! For now, write arena summary since semantic analysis is disabled
-        call write_arena_summary(arena, prog_index, json_file)
+        ! Write arena with type annotations
+        call write_arena_semantic_json(arena, prog_index, json_file)
     end subroutine debug_output_semantic
 
     subroutine debug_output_standardize(input_file, arena, prog_index)
@@ -210,5 +210,157 @@ contains
         write (unit, '(a)') '}'
         close (unit)
     end subroutine write_arena_summary
+
+    ! Helper subroutine to write detailed AST JSON from arena
+    subroutine write_arena_ast_json(arena, prog_index, filename)
+      use ast_core, only: ast_arena_t, identifier_node, literal_node, assignment_node, &
+                            declaration_node, parameter_declaration_node, program_node
+        type(ast_arena_t), intent(in) :: arena
+        integer, intent(in) :: prog_index
+        character(len=*), intent(in) :: filename
+        integer :: unit, i
+
+        open (newunit=unit, file=filename, status='replace')
+        write (unit, '(a)') '{'
+        write (unit, '(a,i0,a)') '  "arena_size": ', arena%size, ','
+        write (unit, '(a,i0,a)') '  "program_index": ', prog_index, ','
+        write (unit, '(a)') '  "nodes": ['
+
+        do i = 1, arena%size
+            if (allocated(arena%entries(i)%node)) then
+                write (unit, '(a)') '    {'
+                write (unit, '(a,i0,a)') '      "index": ', i, ','
+       write (unit, '(a,a,a)') '      "type": "', trim(arena%entries(i)%node_type), '",'
+
+                ! Add node-specific details
+                select type (node => arena%entries(i)%node)
+                type is (identifier_node)
+                    write (unit, '(a,a,a)') '      "name": "', trim(node%name), '"'
+                type is (literal_node)
+                    write (unit, '(a,a,a)') '      "value": "', trim(node%value), '"'
+                type is (assignment_node)
+                    write (unit, '(a,i0,a,i0,a)') '      "target": ', node%target_index, ', "value": ', node%value_index, ''
+                type is (declaration_node)
+                write (unit, '(a,a,a)') '      "var_name": "', trim(node%var_name), '",'
+               write (unit, '(a,a,a)') '      "type_name": "', trim(node%type_name), '"'
+                type is (parameter_declaration_node)
+                    write (unit, '(a,a,a)') '      "name": "', trim(node%name), '",'
+               write (unit, '(a,a,a)') '      "type_name": "', trim(node%type_name), '"'
+                type is (program_node)
+                    write (unit, '(a,a,a)') '      "name": "', trim(node%name), '"'
+                class default
+                    write (unit, '(a)') '      "details": "unknown"'
+                end select
+
+                if (i < arena%size) then
+                    write (unit, '(a)') '    },'
+                else
+                    write (unit, '(a)') '    }'
+                end if
+            end if
+        end do
+
+        write (unit, '(a)') '  ]'
+        write (unit, '(a)') '}'
+        close (unit)
+    end subroutine write_arena_ast_json
+
+    ! Helper subroutine to write semantic analysis JSON from arena with type annotations
+    subroutine write_arena_semantic_json(arena, prog_index, filename)
+      use ast_core, only: ast_arena_t, identifier_node, literal_node, assignment_node, &
+                            declaration_node, parameter_declaration_node, program_node
+        use type_system_hm, only: mono_type_t
+        type(ast_arena_t), intent(in) :: arena
+        integer, intent(in) :: prog_index
+        character(len=*), intent(in) :: filename
+        integer :: unit, i
+
+        open (newunit=unit, file=filename, status='replace')
+        write (unit, '(a)') '{'
+        write (unit, '(a,a,a)') '  "phase": "semantic",'
+        write (unit, '(a,i0,a)') '  "arena_size": ', arena%size, ','
+        write (unit, '(a,i0,a)') '  "program_index": ', prog_index, ','
+        write (unit, '(a)') '  "nodes": ['
+
+        do i = 1, arena%size
+            if (allocated(arena%entries(i)%node)) then
+                write (unit, '(a)') '    {'
+                write (unit, '(a,i0,a)') '      "index": ', i, ','
+       write (unit, '(a,a,a)') '      "type": "', trim(arena%entries(i)%node_type), '",'
+
+                ! Add node-specific details with type annotations
+                select type (node => arena%entries(i)%node)
+                type is (identifier_node)
+                    write (unit, '(a,a,a)') '      "name": "', trim(node%name), '",'
+                    if (allocated(node%inferred_type)) then
+                        write (unit, '(a,a,a)') '      "inferred_type": "', &
+                            trim(node%inferred_type%to_string()), '"'
+                    else
+                        write (unit, '(a)') '      "inferred_type": null'
+                    end if
+                type is (literal_node)
+                    write (unit, '(a,a,a)') '      "value": "', trim(node%value), '",'
+                    if (allocated(node%inferred_type)) then
+                        write (unit, '(a,a,a)') '      "inferred_type": "', &
+                            trim(node%inferred_type%to_string()), '"'
+                    else
+                        write (unit, '(a)') '      "inferred_type": null'
+                    end if
+                type is (assignment_node)
+                  write (unit, '(a,i0,a,i0,a)') '      "target": ', node%target_index, &
+                        ', "value": ', node%value_index, ','
+                    if (allocated(node%inferred_type)) then
+                        write (unit, '(a,a,a)') '      "inferred_type": "', &
+                            trim(node%inferred_type%to_string()), '"'
+                    else
+                        write (unit, '(a)') '      "inferred_type": null'
+                    end if
+                type is (declaration_node)
+                write (unit, '(a,a,a)') '      "var_name": "', trim(node%var_name), '",'
+              write (unit, '(a,a,a)') '      "type_name": "', trim(node%type_name), '",'
+                    if (allocated(node%inferred_type)) then
+                        write (unit, '(a,a,a)') '      "inferred_type": "', &
+                            trim(node%inferred_type%to_string()), '"'
+                    else
+                        write (unit, '(a)') '      "inferred_type": null'
+                    end if
+                type is (parameter_declaration_node)
+                    write (unit, '(a,a,a)') '      "name": "', trim(node%name), '",'
+              write (unit, '(a,a,a)') '      "type_name": "', trim(node%type_name), '",'
+                    if (allocated(node%inferred_type)) then
+                        write (unit, '(a,a,a)') '      "inferred_type": "', &
+                            trim(node%inferred_type%to_string()), '"'
+                    else
+                        write (unit, '(a)') '      "inferred_type": null'
+                    end if
+                type is (program_node)
+                    write (unit, '(a,a,a)') '      "name": "', trim(node%name), '",'
+                    if (allocated(node%inferred_type)) then
+                        write (unit, '(a,a,a)') '      "inferred_type": "', &
+                            trim(node%inferred_type%to_string()), '"'
+                    else
+                        write (unit, '(a)') '      "inferred_type": null'
+                    end if
+                class default
+                    if (allocated(arena%entries(i)%node%inferred_type)) then
+                        write (unit, '(a,a,a)') '      "inferred_type": "', &
+                            trim(arena%entries(i)%node%inferred_type%to_string()), '"'
+                    else
+                        write (unit, '(a)') '      "inferred_type": null'
+                    end if
+                end select
+
+                if (i < arena%size) then
+                    write (unit, '(a)') '    },'
+                else
+                    write (unit, '(a)') '    }'
+                end if
+            end if
+        end do
+
+        write (unit, '(a)') '  ]'
+        write (unit, '(a)') '}'
+        close (unit)
+    end subroutine write_arena_semantic_json
 
 end module debug_utils

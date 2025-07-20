@@ -1,0 +1,31 @@
+{
+  "phase": "semantic",
+  "arena_size": 4,
+  "program_index": 4,
+  "nodes": [
+    {
+      "index": 1,
+      "type": "identifier",
+      "name": "x",
+      "inferred_type": "real(8)"
+    },
+    {
+      "index": 2,
+      "type": "literal",
+      "value": "5.0",
+      "inferred_type": "real(8)"
+    },
+    {
+      "index": 3,
+      "type": "assignment",
+      "target": 1, "value": 2,
+      "inferred_type": "real(8)"
+    },
+    {
+      "index": 4,
+      "type": "program",
+      "name": "main",
+      "inferred_type": null
+    }
+  ]
+}

@@ -237,6 +237,7 @@ contains
                             end if
                             declarations = declarations//stmt_code
                             has_declarations = .true.
+                            has_var_declarations = .true.
                         end if
                     type is (parameter_declaration_node)
                         ! Parameter declarations are handled like regular declarations in body
