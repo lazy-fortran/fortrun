@@ -123,23 +123,19 @@ contains
 
                 test_name = tests(test_idx)%name
 
-                ! Show progress (thread-safe)
-                if (.not. options%quiet) then
-                    call omp_set_lock(output_lock)
-                    write (output_unit, '(A)', advance='no') char(13)
-                    write (output_unit, '(A,I0,A,A,A,I0,A,I0,A)', advance='no') &
-                        'Thread ', thread_id, ': Running ', trim(test_name), ' (', completed_tests, '/', num_tests, ')'
-                    call flush (output_unit)
-                    call omp_unset_lock(output_lock)
-                end if
-
                 ! Run the test
                 call run_single_test(tests(test_idx)%executable, results(test_idx))
 
-                ! Update completion counter (thread-safe)
-                call omp_set_lock(queue_lock)
+                ! Update completion counter and show progress (thread-safe)
+                call omp_set_lock(output_lock)
                 completed_tests = completed_tests + 1
-                call omp_unset_lock(queue_lock)
+                if (.not. options%quiet) then
+                    write (output_unit, '(A)', advance='no') char(13)
+                    write (output_unit, '(A,I0,A,I0,A)', advance='no') &
+                        'Completed: ', completed_tests, '/', num_tests, ' tests'
+                    call flush (output_unit)
+                end if
+                call omp_unset_lock(output_lock)
             end do
         end subroutine run_tests_worker
 
