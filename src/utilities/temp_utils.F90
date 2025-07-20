@@ -27,39 +27,47 @@ contains
         character(len=*), intent(in) :: directory
         integer :: exitstat
         character(len=1024) :: command
+        logical :: dir_exists
+        integer :: i, last_sep
+        character(len=1024) :: parent_dir
+
+        ! Check if directory already exists
+        inquire (file=trim(directory)//'/.', exist=dir_exists)
+        if (dir_exists) return
+
+        ! Find parent directory
+        last_sep = 0
+        do i = len_trim(directory), 1, -1
+            if (directory(i:i) == '/' .or. directory(i:i) == '\') then
+                last_sep = i - 1
+                exit
+            end if
+        end do
+
+        ! Recursively create parent if needed
+        if (last_sep > 0) then
+            parent_dir = directory(1:last_sep)
+            call mkdir_p(parent_dir)
+        end if
 
 #ifdef _WIN32
         ! Check if running under MSYS2
         block
             character(len=256) :: msystem
             integer :: status
-            integer :: i
-            character(len=1024) :: current_dir
 
             call get_environment_variable('MSYSTEM', msystem, status=status)
             if (status == 0 .and. len_trim(msystem) > 0) then
-                ! MSYS2 environment - use Unix-style command
-                command = 'mkdir -p "'//trim(directory)//'"'
+                ! MSYS2 environment - create single directory (parent already exists)
+                command = 'mkdir "'//trim(directory)//'" 2>/dev/null'
             else
-                ! Native Windows - need to create parent directories
-                ! Windows mkdir doesn't support -p, so we need to create parents manually
-                current_dir = ''
-                do i = 1, len_trim(directory)
-                    if (directory(i:i) == '\' .or. directory(i:i) == '/') then
-                        if (len_trim(current_dir) > 0) then
-                            command = 'cmd /c mkdir "'//trim(current_dir)//'" 2>nul'
-                            call execute_command_line(trim(command), exitstat=exitstat)
-                        end if
-                    end if
-                    current_dir = directory(1:i)
-                end do
-                ! Create the final directory
+                ! Native Windows
                 command = 'cmd /c mkdir "'//trim(directory)//'" 2>nul'
             end if
         end block
 #else
-        ! Unix/Linux/macOS
-        command = 'mkdir -p "'//trim(directory)//'"'
+        ! Unix/Linux/macOS - create single directory (parent already exists)
+        command = 'mkdir "'//trim(directory)//'" 2>/dev/null'
 #endif
 
         call execute_command_line(trim(command), exitstat=exitstat)
