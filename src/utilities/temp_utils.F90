@@ -99,7 +99,7 @@ contains
         ! Create unique temp directory path (cross-platform path separator)
 #ifdef _WIN32
         ! Always use Windows-style paths on Windows to avoid confusion
-        temp_dir = trim(base_temp_dir)//'\'//trim(prefix)//'_'//trim(random_suffix)
+        temp_dir = trim(base_temp_dir)//char(92)//trim(prefix)//'_'//trim(random_suffix)
 #else
         temp_dir = trim(base_temp_dir)//'/'//trim(prefix)//'_'//trim(random_suffix)
 #endif
@@ -162,7 +162,7 @@ contains
 
 #ifdef _WIN32
         ! Always use Windows-style paths on Windows
-        file_path = trim(temp_dir)//'\'//trim(filename)
+        file_path = trim(temp_dir)//char(92)//trim(filename)
 #else
         file_path = trim(temp_dir)//'/'//trim(filename)
 #endif
