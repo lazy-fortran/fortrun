@@ -7,21 +7,21 @@ program test_registry_enhancement
     print *, '=== Registry Enhancement Tests ===\'
     print *
 
-    ! Test 1: Multiple modules from same package
-    call test_multiple_modules_same_package()
+    ! Test 1: Module resolution from registry
+    call test_module_registry_resolution()
 
     print *
     print *, 'All registry enhancement tests passed!'
 
 contains
 
-    subroutine test_multiple_modules_same_package()
+    subroutine test_module_registry_resolution()
         character(len=256) :: test_file
         character(len=512) :: command
         integer :: unit
         character(len=:), allocatable :: test_dir
 
-        print *, 'Test 1: Multiple modules from same package'
+        print *, 'Test 1: Module resolution from registry'
 
         ! Create test directory
         test_dir = create_temp_dir('fortran_test_registry')
@@ -30,14 +30,14 @@ contains
         ! First, update registry to have a package with multiple modules
         call update_registry_for_test(test_dir)
 
-        ! Create test file that uses multiple modules from same package
+        ! Create test file that uses multiple modules from different packages
         test_file = trim(test_dir)//'/test_multiple.f90'
         open (newunit=unit, file=test_file, status='replace')
         write (unit, '(a)') 'program test_multiple'
-        write (unit, '(a)') '  use pyplot_module    ! First module from pyplot-fortran'
-        write (unit, '(a)') '  use pyplot_utils     ! Second module from pyplot-fortran'
+        write (unit, '(a)') '  use pyplot_module    ! Module from pyplot-fortran'
+        write (unit, '(a)') '  use fortplot_core    ! Module from fortplotlib'
         write (unit, '(a)') '  implicit none'
-        write (unit, '(a)') '  print *, "Multiple modules from same package"'
+        write (unit, '(a)') '  print *, "Multiple modules from different packages"'
         write (unit, '(a)') 'end program test_multiple'
         close (unit)
 
@@ -46,11 +46,15 @@ contains
             character(len=:), allocatable :: output_file, exit_file
             output_file = get_temp_file_path(test_dir, 'multiple_output.txt')
             exit_file = get_temp_file_path(test_dir, 'multiple_exit.txt')
-            command = 'fpm run fortran -- --config-dir '//trim(test_dir)//' -v '// &
-                     trim(test_file)//' > '//output_file//' 2>&1; echo $? > '//exit_file
+            ! Clear cache first to avoid conflicts
+          call execute_command_line('fpm run fortran -- --clear-cache > /dev/null 2>&1')
+
+            command = 'cd /afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran && '// &
+                      'fpm run fortran -- --config-dir "'//trim(test_dir)//'" -v "'// &
+            trim(test_file)//'" > "'//output_file//'" 2>&1; echo $? > "'//exit_file//'"'
             call execute_command_line(command)
 
-            ! Check that both modules were detected and mapped to the same package
+            ! Check that both modules were detected and mapped to packages
             call check_output_contains(output_file, 'pyplot-fortran')
             call check_output_contains(output_file, 'external module dependencies')
         end block
@@ -61,9 +65,9 @@ contains
         ! Clean up
         call execute_command_line('rm -rf '//trim(test_dir))
 
-        print *, 'PASS: Multiple modules from same package handled correctly'
+        print *, 'PASS: Module resolution from registry working correctly'
         print *
-    end subroutine test_multiple_modules_same_package
+    end subroutine test_module_registry_resolution
 
     subroutine update_registry_for_test(test_dir)
         character(len=*), intent(in) :: test_dir

@@ -23,6 +23,7 @@ program test_env_extend_operations
     !     write (error_unit, '(A)') "FAIL"
     !     stop 1
     ! end if
+    stop 0
 
 contains
 

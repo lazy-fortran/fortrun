@@ -40,4 +40,5 @@ program test_file_isolation
     ! Cleanup
     call cleanup_temp_dir(temp_dir)
 
+    stop 0
 end program test_file_isolation

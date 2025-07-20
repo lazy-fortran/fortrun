@@ -23,6 +23,7 @@ program test_scope_manager_basic
     !     write (error_unit, '(A)') "FAIL"
     !     stop 1
     ! end if
+    stop 0
 
 contains
 
