@@ -2,7 +2,6 @@ module temp_utils
 #ifdef _OPENMP
     use omp_lib, only: omp_get_thread_num
 #endif
-    use, intrinsic :: iso_c_binding
     implicit none
     private
     public :: create_temp_dir, cleanup_temp_dir, get_temp_file_path, temp_dir_manager, &
@@ -19,16 +18,6 @@ module temp_utils
         procedure :: cleanup => temp_dir_cleanup
         final :: temp_dir_destroy
     end type temp_dir_manager
-
-    ! Interface for POSIX getcwd function
-    interface
-        function c_getcwd(buf, size) bind(C, name="getcwd")
-            import :: c_ptr, c_int
-            type(c_ptr), value :: buf
-            integer(c_int), value :: size
-            type(c_ptr) :: c_getcwd
-        end function c_getcwd
-    end interface
 
 contains
 
@@ -205,36 +194,31 @@ contains
 
     function get_current_directory() result(cwd)
         character(len=:), allocatable :: cwd
-        character(kind=c_char), dimension(512), target :: buffer
-        type(c_ptr) :: result_ptr
-        integer :: i
+        character(len=512) :: pwd_env
+        integer :: status, unit, iostat
 
-        ! Call POSIX getcwd
-        result_ptr = c_getcwd(c_loc(buffer), 512)
-
-        if (.not. c_associated(result_ptr)) then
-            ! Fallback to environment variable
-            block
-                character(len=512) :: pwd_env
-                integer :: status
-                call get_environment_variable('PWD', pwd_env, status=status)
-                if (status == 0) then
-                    cwd = trim(pwd_env)
-                else
-                    ! Ultimate fallback
-                    cwd = '.'
-                end if
-            end block
+        ! First try environment variable
+        call get_environment_variable('PWD', pwd_env, status=status)
+        if (status == 0) then
+            cwd = trim(pwd_env)
             return
         end if
 
-        ! Convert C string to Fortran string
-        do i = 1, 512
-            if (buffer(i) == c_null_char) exit
-        end do
+        ! Try getting current directory via system command
+        call execute_command_line('pwd > /tmp/fortran_pwd.tmp', wait=.true.)
+        open (newunit=unit, file='/tmp/fortran_pwd.tmp', status='old', iostat=iostat)
+        if (iostat == 0) then
+            read (unit, '(A)', iostat=iostat) pwd_env
+            close (unit)
+            call execute_command_line('rm -f /tmp/fortran_pwd.tmp', wait=.true.)
+            if (iostat == 0) then
+                cwd = trim(pwd_env)
+                return
+            end if
+        end if
 
-        allocate (character(len=i - 1) :: cwd)
-        cwd = transfer(buffer(1:i - 1), cwd)
+        ! Ultimate fallback
+        cwd = '.'
 
     end function get_current_directory
 
