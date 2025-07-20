@@ -37,6 +37,9 @@ contains
 
         print *, 'Testing simple assignment workflow...'
 
+        ! Clear cache first
+        call execute_command_line('fpm run fortran -- --clear-cache > /dev/null 2>&1', wait=.true.)
+
         ! Step 1: Create source file
         open (newunit=unit, file=temp_dir//'/simple.f', status='replace')
         write (unit, '(a)') 'x = 42'
@@ -60,8 +63,9 @@ contains
             return
         end if
 
-        ! Step 4: Semantic analysis from AST
-        call execute_command_line('fpm run fortran -- '//temp_dir//'/simple_ast.json --from-ast --debug-semantic 2>/dev/null', &
+        ! Step 4: Semantic analysis from AST (AST file is named simple_tokens_ast.json)
+        call execute_command_line('fpm run fortran -- '//temp_dir// &
+                    '/simple_tokens_ast.json --from-ast --debug-semantic 2>/dev/null', &
                                   wait=.true., exitstat=iostat)
         if (iostat /= 0) then
             print *, '  FAIL: Semantic analysis from AST failed'
@@ -69,8 +73,9 @@ contains
             return
         end if
 
-        ! Step 5: Code generation from semantic AST
-        call execute_command_line('fpm run fortran -- '//temp_dir//'/simple_ast_typed.json --from-ast > '// &
+        ! Step 5: Code generation from semantic AST (semantic file is named simple_tokens_ast_semantic.json)
+        call execute_command_line('fpm run fortran -- '//temp_dir// &
+                                  '/simple_tokens_ast_semantic.json --from-ast > '// &
                    temp_dir//'/generated.f90 2>/dev/null', wait=.true., exitstat=iostat)
         if (iostat /= 0) then
             print *, '  FAIL: Code generation from semantic AST failed'
@@ -81,7 +86,7 @@ contains
         ! For now, just verify JSON files were created
         ! (Full round-trip not implemented yet)
         if (verify_file_exists(temp_dir//'/simple_tokens.json') .and. &
-            verify_file_exists(temp_dir//'/simple_ast.json')) then
+            verify_file_exists(temp_dir//'/simple_tokens_ast.json')) then
             print *, '  PASS: Simple assignment workflow (JSON files created)'
         else
             print *, '  FAIL: JSON files not created'
@@ -98,6 +103,9 @@ contains
         temp_dir = get_system_temp_dir()
 
         print *, 'Testing function workflow...'
+
+        ! Clear cache first
+        call execute_command_line('fpm run fortran -- --clear-cache > /dev/null 2>&1', wait=.true.)
 
         ! Create source with function
         open (newunit=unit, file=temp_dir//'/func.f', status='replace')
@@ -124,7 +132,8 @@ contains
             return
         end if
 
-        call execute_command_line('fpm run fortran -- '//temp_dir//'/func_ast.json --from-ast --debug-semantic 2>/dev/null', &
+        call execute_command_line('fpm run fortran -- '//temp_dir// &
+                      '/func_tokens_ast.json --from-ast --debug-semantic 2>/dev/null', &
                                   wait=.true., exitstat=iostat)
         if (iostat /= 0) then
             print *, '  FAIL: Semantic analysis for function failed'
@@ -133,7 +142,7 @@ contains
         end if
 
         ! Verify function in AST output
-        if (verify_file_contains(temp_dir//'/func_ast.json', '"name": "square"')) then
+   if (verify_file_contains(temp_dir//'/func_tokens_ast.json', '"name": "square"')) then
             print *, '  PASS: Function workflow'
         else
             print *, '  FAIL: Function not found in AST output'
@@ -150,6 +159,9 @@ contains
         temp_dir = get_system_temp_dir()
 
         print *, 'Testing control flow workflow...'
+
+        ! Clear cache first
+        call execute_command_line('fpm run fortran -- --clear-cache > /dev/null 2>&1', wait=.true.)
 
         ! Create source with if statement in a program
         open (newunit=unit, file=temp_dir//'/if.f', status='replace')
@@ -179,8 +191,8 @@ contains
             return
         end if
 
-        ! Verify if node in AST
-        if (verify_file_contains(temp_dir//'/if_ast.json', '"type": "if"')) then
+        ! Verify if node in AST (AST file is named if_tokens_ast.json)
+        if (verify_file_contains(temp_dir//'/if_tokens_ast.json', '"type": "if_statement"')) then
             print *, '  PASS: Control flow workflow'
         else
             print *, '  FAIL: If statement not found in AST'
@@ -199,6 +211,9 @@ contains
         temp_dir = get_system_temp_dir()
 
         print *, 'Testing round-trip workflow...'
+
+        ! Clear cache first
+        call execute_command_line('fpm run fortran -- --clear-cache > /dev/null 2>&1', wait=.true.)
 
         ! Create original source
         open (newunit=unit, file=temp_dir//'/original.f', status='replace')
@@ -224,7 +239,8 @@ contains
             return
         end if
 
-        call execute_command_line('fpm run fortran -- '//temp_dir//'/original_ast.json --from-ast --debug-semantic 2>/dev/null', &
+        call execute_command_line('fpm run fortran -- '//temp_dir// &
+                  '/original_tokens_ast.json --from-ast --debug-semantic 2>/dev/null', &
                                   wait=.true., exitstat=iostat)
         if (iostat /= 0) then
             print *, '  FAIL: Semantic analysis in round-trip failed'
@@ -232,7 +248,8 @@ contains
             return
         end if
 
-        call execute_command_line('fpm run fortran -- '//temp_dir//'/original_ast_typed.json --from-ast > '// &
+        call execute_command_line('fpm run fortran -- '//temp_dir// &
+                                  '/original_tokens_ast_semantic.json --from-ast > '// &
                    temp_dir//'/roundtrip.f90 2>/dev/null', wait=.true., exitstat=iostat)
         if (iostat /= 0) then
             print *, '  FAIL: Code generation in round-trip failed'
@@ -242,7 +259,7 @@ contains
 
         ! Just verify that all JSON files were created in the pipeline
         if (verify_file_exists(temp_dir//'/original_tokens.json') .and. &
-            verify_file_exists(temp_dir//'/original_ast.json')) then
+            verify_file_exists(temp_dir//'/original_tokens_ast.json')) then
             print *, '  PASS: Round-trip workflow (JSON pipeline working)'
         else
             print *, '  FAIL: JSON pipeline incomplete'

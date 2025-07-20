@@ -59,6 +59,13 @@ contains
             formatted_code = code  ! Return original on error
         end if
 
+        ! Sanity check: if input was non-empty but output is empty, return original
+        if (len_trim(code) > 0 .and. len_trim(formatted_code) == 0) then
+            print *, 'WARNING: fprettify produced empty output for non-empty input, returning original'
+            print *, 'This can happen with syntactically invalid code'
+            formatted_code = code
+        end if
+
         ! Clean up
         call cleanup_temp_dir(temp_dir)
 

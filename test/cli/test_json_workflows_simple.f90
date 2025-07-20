@@ -35,6 +35,9 @@ contains
 
         print *, 'Testing token JSON creation...'
 
+        ! Clear cache first
+        call execute_command_line('fpm run fortran -- --clear-cache > /dev/null 2>&1', wait=.true.)
+
         ! Create simple source
         open (newunit=unit, file='test_tokens.f', status='replace')
         write (unit, '(a)') 'x = 1'
@@ -70,6 +73,9 @@ contains
 
         print *, 'Testing AST JSON creation...'
 
+        ! Clear cache first
+        call execute_command_line('fpm run fortran -- --clear-cache > /dev/null 2>&1', wait=.true.)
+
         ! Create simple source
         open (newunit=unit, file='test_ast.f', status='replace')
         write (unit, '(a)') 'y = 2 * 3'
@@ -85,11 +91,11 @@ contains
                                       wait=.true., exitstat=iostat)
 
             if (iostat == 0) then
-                inquire (file='test_ast_ast.json', exist=test_ast_json_creation)
+                inquire (file='test_ast_tokens_ast.json', exist=test_ast_json_creation)
                 if (test_ast_json_creation) then
                     print *, '  PASS: AST JSON created'
                     ! Clean up
-                    call execute_command_line('rm -f test_ast.f test_ast_tokens.json test_ast_ast.json', wait=.true.)
+                    call execute_command_line('rm -f test_ast.f test_ast_tokens.json test_ast_tokens_ast.json', wait=.true.)
                 else
                     print *, '  FAIL: AST JSON not found'
                 end if

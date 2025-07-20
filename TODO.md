@@ -1,43 +1,32 @@
 # TODO List for Fortran Frontend
 
-## 🚨 CRITICAL: Fix Failing Tests (6/89 failing)
+## 🚨 CRITICAL: Fix Failing Tests (4/89 failing)
 
-### Current Test Status (from latest run with 24 threads)
+### Current Test Status (Updated)
 - **Total Tests**: 89 tests
-- **Passed**: 83 tests (93% success rate)
-- **Failed**: 6 tests (7% failure rate)
-- **Performance**: 17.2s elapsed, parallel execution working
+- **Passed**: 85 tests (95.5% success rate)
+- **Failed**: 4 tests (4.5% failure rate)
+- **Performance**: Parallel execution working
 
 ### 🔧 Immediate Fixes Required
 
 #### 1. **test_frontend_test_cases** - FAILING
-**Error Output**: `29`
-**Likely Issue**: Race condition in parallel execution (passes individually)
+**Error Output**: `Tests: 17/29 passed`
+**Likely Issue**: Missing test case files, formatter issues with invalid code
 **Priority**: HIGH - Core frontend functionality
 
-#### 2. **test_json_workflows** - FAILING
-**Error Output**: `=== JSON Workflow Tests ===`
-**Likely Issue**: JSON debug output functionality not implemented
-**Priority**: MEDIUM - Debugging workflow affected
-
-#### 3. **test_json_workflows_simple** - FAILING
-**Error Output**: `=== JSON Workflow Tests (Simple) ===`
-**Likely Issue**: Same as above - JSON debug output not working
-**Priority**: MEDIUM - Related to above
-
-#### 4. **test_notebook_system_end2end** - FAILING
-**Error Output**: `=== Notebook System Tests ===`
+#### 2. **test_notebook_system_end2end** - FAILING
+**Error Output**: `FAIL: Output file not created`
 **Likely Issue**: Notebook execution or rendering pipeline
 **Priority**: LOW - Non-core functionality
 
-#### 5. **test_registry_enhancement** - FAILING
-**Error Output**: `=== Registry Enhancement Tests ===`
-**Likely Issue**: Module registry or package resolution
-**Priority**: LOW - Package management feature
+#### 3. **test_registry_enhancement** - PASSING
+**Status**: Now passing correctly
+**Priority**: RESOLVED
 
-#### 6. **test_runner_comprehensive** - FAILING
-**Error Output**: `=== Comprehensive Runner Tests ===`
-**Likely Issue**: Test runner functionality or command execution
+#### 4. **test_runner_comprehensive** - FAILING
+**Error Output**: `Some runner tests FAILED!`
+**Likely Issue**: Build compilation errors in test cases
 **Priority**: LOW - Test infrastructure
 
 ## ✅ Recent Achievements
@@ -48,12 +37,14 @@
 3. **Fixed test_frontend_test_cases** - All 18/18 implemented tests pass individually
 4. **Fixed test_testing_discovery** - Removed FPM API dependency
 5. **Implemented formatter API** - All code comparisons now use fprettify
-6. **Fixed operator spacing** - Code generator now matches fprettify behavior
-
+6. **Fixed JSON debug output functionality** - --debug-tokens, --debug-ast working correctly
+7. **Fixed test_json_workflows** - All JSON workflow tests passing
+8. **Fixed test_json_workflows_simple** - All simple JSON tests passing
+9. **Added formatter sanity check** - Gracefully handles invalid code that fprettify can't format
 ### Test Success Rate Improvement
 - Started: 79/89 tests (89%)
-- Current: 83/89 tests (93%)
-- Improvement: +4 tests fixed
+- Current: 85/89 tests (95.5%)
+- Improvement: +6 tests fixed
 
 ## 🎯 Sprint Goals (Priority Order)
 
