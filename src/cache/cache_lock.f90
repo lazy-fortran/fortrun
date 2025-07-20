@@ -1,6 +1,7 @@
 module cache_lock
     use iso_c_binding, only: c_int
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path
+    use fpm_environment, only: get_os_type, OS_WINDOWS
     implicit none
     private
     public :: acquire_lock, release_lock, is_locked, cleanup_stale_locks
@@ -104,13 +105,13 @@ contains
         ! Find all lock files in cache directory
         temp_locks_file = get_temp_file_path(create_temp_dir('fortran_locks'), &
                                              'fortran_locks.tmp')
-#ifdef _WIN32
-        command = 'dir /s /b "'//trim(cache_dir)//'"\*.lock > "'// &
-                  trim(temp_locks_file)//'" 2>nul'
-#else
-        command = 'find "'//trim(cache_dir)//'" -name "*.lock" -type f > "'// &
-                  trim(temp_locks_file)//'" 2>/dev/null'
-#endif
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'dir /s /b "'//trim(cache_dir)//'"\*.lock > "'// &
+                      trim(temp_locks_file)//'" 2>nul'
+        else
+            command = 'find "'//trim(cache_dir)//'" -name "*.lock" -type f > "'// &
+                      trim(temp_locks_file)//'" 2>/dev/null'
+        end if
         call execute_command_line(command)
 
         open (newunit=unit, file=trim(temp_locks_file), status='old', iostat=iostat)
@@ -136,11 +137,11 @@ contains
         character(len=*), intent(in) :: cache_dir, project_name
         character(len=512) :: lock_file
 
-#ifdef _WIN32
-        lock_file = trim(cache_dir)//'\'//trim(project_name)//'.lock'
-#else
-        lock_file = trim(cache_dir)//'/'//trim(project_name)//'.lock'
-#endif
+        if (get_os_type() == OS_WINDOWS) then
+            lock_file = trim(cache_dir)//'\'//trim(project_name)//'.lock'
+        else
+            lock_file = trim(cache_dir)//'/'//trim(project_name)//'.lock'
+        end if
 
     end function get_lock_file_path
 
@@ -172,42 +173,42 @@ contains
             inquire (file=lock_file, exist=file_exists)
             if (file_exists) then
                 ! Lock already exists, can't create
-#ifdef _WIN32
-                call execute_command_line('del /f "'//trim(temp_file)//'" 2>nul')
-#else
-                call execute_command_line('rm -f "'//trim(temp_file)//'"')
-#endif
+                if (get_os_type() == OS_WINDOWS) then
+                    call execute_command_line('del /f "'//trim(temp_file)//'" 2>nul')
+                else
+                    call execute_command_line('rm -f "'//trim(temp_file)//'"')
+                end if
                 success = .false.
             else
-#ifdef _WIN32
-                ! On Windows, use move command which is atomic within same drive
+                if (get_os_type() == OS_WINDOWS) then
+                    ! On Windows, use move command which is atomic within same drive
            command = 'move /Y "'//trim(temp_file)//'" "'//trim(lock_file)//'" >nul 2>&1'
-                call execute_command_line(command, exitstat=iostat)
+                    call execute_command_line(command, exitstat=iostat)
 
-                if (iostat == 0) then
-                    ! Double-check that we really created the lock
-                    inquire (file=lock_file, exist=file_exists)
-                    success = file_exists
+                    if (iostat == 0) then
+                        ! Double-check that we really created the lock
+                        inquire (file=lock_file, exist=file_exists)
+                        success = file_exists
+                    else
+                        success = .false.
+                        ! Clean up temp file if move failed
+                       call execute_command_line('del /f "'//trim(temp_file)//'" 2>nul')
+                    end if
                 else
-                    success = .false.
-                    ! Clean up temp file if move failed
-                    call execute_command_line('del /f "'//trim(temp_file)//'" 2>nul')
-                end if
-#else
-                ! Use ln to create hard link atomically, then remove temp
+                    ! Use ln to create hard link atomically, then remove temp
               command = 'ln "'//trim(temp_file)//'" "'//trim(lock_file)//'" 2>/dev/null'
-                call execute_command_line(command, exitstat=iostat)
+                    call execute_command_line(command, exitstat=iostat)
 
-                if (iostat == 0) then
-                    ! Double-check that we really created the lock
-                    inquire (file=lock_file, exist=file_exists)
-                    success = file_exists
-                else
-                    success = .false.
+                    if (iostat == 0) then
+                        ! Double-check that we really created the lock
+                        inquire (file=lock_file, exist=file_exists)
+                        success = file_exists
+                    else
+                        success = .false.
+                    end if
+                    ! Always clean up temp file
+                    call execute_command_line('rm -f "'//trim(temp_file)//'"')
                 end if
-                ! Always clean up temp file
-                call execute_command_line('rm -f "'//trim(temp_file)//'"')
-#endif
             end if
         end if
 
@@ -270,35 +271,32 @@ contains
         character(len=*), intent(in) :: lock_file
         character(len=512) :: command
 
-#ifdef _WIN32
-        command = 'del /f "'//trim(lock_file)//'" 2>nul'
-#else
-        command = 'rm -f "'//trim(lock_file)//'"'
-#endif
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'del /f "'//trim(lock_file)//'" 2>nul'
+        else
+            command = 'rm -f "'//trim(lock_file)//'"'
+        end if
         call execute_command_line(command)
 
     end subroutine remove_lock
 
     subroutine get_pid(pid)
         integer, intent(out) :: pid
+        real :: r
 
-#ifdef _WIN32
-        interface
-            function GetCurrentProcessId() bind(c, name='GetCurrentProcessId')
-                import :: c_int
-                integer(c_int) :: GetCurrentProcessId
-            end function GetCurrentProcessId
-        end interface
-        pid = GetCurrentProcessId()
-#else
-        interface
-            function getpid() bind(c, name='getpid')
-                import :: c_int
-                integer(c_int) :: getpid
-            end function getpid
-        end interface
-        pid = getpid()
-#endif
+        if (get_os_type() == OS_WINDOWS) then
+            ! Simple fallback for Windows - just use a random number
+            call random_number(r)
+            pid = int(r*99999)
+        else
+            interface
+                function getpid() bind(c, name='getpid')
+                    import :: c_int
+                    integer(c_int) :: getpid
+                end function getpid
+            end interface
+            pid = getpid()
+        end if
 
     end subroutine get_pid
 
@@ -331,14 +329,14 @@ contains
         character(len=128) :: command
         integer :: exitstat
 
-#ifdef _WIN32
-        ! On Windows, skip process checking as it's unreliable in CI
-        ! Just assume process is not running to avoid hanging
-        exitstat = 1  ! Process not found
-#else
-        write (command, '(a,i0,a)') 'kill -0 ', pid, ' 2>/dev/null'
-        call execute_command_line(command, exitstat=exitstat)
-#endif
+        if (get_os_type() == OS_WINDOWS) then
+            ! On Windows, skip process checking as it's unreliable in CI
+            ! Just assume process is not running to avoid hanging
+            exitstat = 1  ! Process not found
+        else
+            write (command, '(a,i0,a)') 'kill -0 ', pid, ' 2>/dev/null'
+            call execute_command_line(command, exitstat=exitstat)
+        end if
 
         running = (exitstat == 0)
 
@@ -348,12 +346,12 @@ contains
         integer, intent(in) :: seconds
         character(len=32) :: command
 
-#ifdef _WIN32
-        ! On Windows, use ping for sleep (more reliable than timeout)
-        write (command, '(a,i0,a)') 'ping -n ', seconds + 1, ' 127.0.0.1 >nul'
-#else
-        write (command, '(a,i0)') 'sleep ', seconds
-#endif
+        if (get_os_type() == OS_WINDOWS) then
+            ! On Windows, use ping for sleep (more reliable than timeout)
+            write (command, '(a,i0,a)') 'ping -n ', seconds + 1, ' 127.0.0.1 >nul'
+        else
+            write (command, '(a,i0)') 'sleep ', seconds
+        end if
         call execute_command_line(command)
 
     end subroutine sleep
