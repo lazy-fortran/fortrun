@@ -282,15 +282,23 @@ contains
     subroutine get_pid(pid)
         integer, intent(out) :: pid
 
+#ifdef _WIN32
+        interface
+            function GetCurrentProcessId() bind(c, name='GetCurrentProcessId')
+                import :: c_int
+                integer(c_int) :: GetCurrentProcessId
+            end function GetCurrentProcessId
+        end interface
+        pid = GetCurrentProcessId()
+#else
         interface
             function getpid() bind(c, name='getpid')
                 import :: c_int
                 integer(c_int) :: getpid
             end function getpid
         end interface
-
-        ! Use C getpid function for portability
         pid = getpid()
+#endif
 
     end subroutine get_pid
 
