@@ -1,7 +1,7 @@
 program test_runner_edge_cases
     use runner, only: run_fortran_file
     use temp_utils, only: create_temp_dir, get_temp_file_path
-    use fpm_filesystem, only: mkdir
+    use temp_utils, only: mkdir
     implicit none
 
     logical :: all_tests_passed

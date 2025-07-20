@@ -1,7 +1,7 @@
 program test_different_directories
     use, intrinsic :: iso_fortran_env, only: error_unit
     use temp_utils, only: create_temp_dir, get_temp_file_path
-    use fpm_filesystem, only: mkdir
+    use temp_utils, only: mkdir
     implicit none
 
     character(len=512) :: command

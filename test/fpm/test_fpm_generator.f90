@@ -1,7 +1,7 @@
 program test_fpm_generator
     use fpm_generator, only: generate_fpm_with_deps
     use module_scanner, only: scan_modules, module_info
-    use fpm_filesystem, only: mkdir
+    use temp_utils, only: mkdir
     use, intrinsic :: iso_fortran_env, only: error_unit
     implicit none
 

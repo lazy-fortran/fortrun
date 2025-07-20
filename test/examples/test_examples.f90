@@ -2,7 +2,7 @@ program test_examples
     use, intrinsic :: iso_fortran_env, only: error_unit
     use cache, only: get_cache_dir
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, get_project_root, path_join
-    use fpm_filesystem, only: mkdir
+    use temp_utils, only: mkdir
     implicit none
 
     character(len=256), dimension(:), allocatable :: example_files

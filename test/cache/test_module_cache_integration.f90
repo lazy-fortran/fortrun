@@ -6,10 +6,10 @@ program test_module_cache_integration
     use fpm_model, only: srcfile_t, FPM_UNIT_MODULE, FPM_SCOPE_LIB
     use fpm_strings, only: string_t
     use fpm_error, only: error_t
-    use fpm_filesystem, only: exists, mkdir, join_path, delete_file, list_files
+    use fpm_filesystem, only: exists, join_path, delete_file, list_files
     use module_scanner, only: scan_modules, module_info
     use temp_utils, only: temp_dir_manager
-    use fpm_filesystem, only: mkdir
+    use temp_utils, only: mkdir
     implicit none
 
     logical :: all_pass

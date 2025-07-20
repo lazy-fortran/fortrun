@@ -6,7 +6,7 @@ program test_fpm_cache_integration
     use fpm_error, only: error_t
     use, intrinsic :: iso_fortran_env, only: error_unit
     use temp_utils, only: temp_dir_manager
-    use fpm_filesystem, only: mkdir
+    use temp_utils, only: mkdir
     implicit none
 
     print *, '=== FPM Cache Integration Tests ===\'

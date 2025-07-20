@@ -1,7 +1,7 @@
 program test_benchmarks
     use, intrinsic :: iso_fortran_env, only: int64
     use temp_utils, only: create_temp_dir, get_temp_file_path
-    use fpm_filesystem, only: mkdir
+    use temp_utils, only: mkdir
     implicit none
 
     integer :: n_passed, n_failed

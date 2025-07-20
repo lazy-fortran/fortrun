@@ -2,7 +2,7 @@ program test_registry_resolver_comprehensive
     use registry_resolver
     use config, only: get_config_dir
   use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, get_system_temp_dir
-    use fpm_filesystem, only: mkdir
+    use temp_utils, only: mkdir
     implicit none
 
     logical :: all_tests_passed

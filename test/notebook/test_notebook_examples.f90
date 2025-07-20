@@ -3,7 +3,7 @@ program test_notebook_examples
     use notebook_executor
     use notebook_renderer
     use temp_utils, only: temp_dir_manager
-    use fpm_filesystem, only: mkdir
+    use temp_utils, only: mkdir
     implicit none
 
     logical :: all_tests_passed

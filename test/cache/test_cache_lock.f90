@@ -1,7 +1,7 @@
 program test_cache_lock
     use cache_lock
     use temp_utils, only: create_temp_dir, get_temp_file_path
-    use fpm_filesystem, only: mkdir
+    use temp_utils, only: mkdir
     implicit none
 
     character(len=256) :: temp_cache_dir

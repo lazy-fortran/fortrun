@@ -7,7 +7,7 @@ program test_module_cache_unit
     use fpm_model, only: srcfile_t, FPM_UNIT_MODULE
     use fpm_strings, only: string_t
     use fpm_error, only: error_t
-    use fpm_filesystem, only: delete_file, exists, mkdir, join_path
+    use fpm_filesystem, only: delete_file, exists, join_path
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path
     implicit none
 

@@ -2,7 +2,7 @@ program test_artifact_cache
    use cache, only: get_content_hash, store_build_artifacts, retrieve_build_artifacts, &
                    cache_exists, invalidate_cache, get_cache_dir, ensure_cache_structure
     use temp_utils, only: create_temp_dir, get_temp_file_path
-    use fpm_filesystem, only: mkdir
+    use temp_utils, only: mkdir
     use, intrinsic :: iso_fortran_env, only: error_unit
     implicit none
 

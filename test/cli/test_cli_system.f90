@@ -2,7 +2,7 @@ program test_cli_system
     use, intrinsic :: iso_fortran_env, only: error_unit
     use cache, only: get_cache_dir
     use temp_utils, only: temp_dir_manager
-    use fpm_filesystem, only: mkdir
+    use temp_utils, only: mkdir
     implicit none
 
     character(len=512) :: command, test_file
