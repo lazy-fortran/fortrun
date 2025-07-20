@@ -3,20 +3,27 @@ program test_notebook_system
     implicit none
 
     logical :: all_tests_passed
+    ! Shared variable to store output file path between tests
+    character(len=512) :: shared_output_file
+    ! Keep temp directory alive for the entire test
+    type(temp_dir_manager) :: shared_temp_mgr
 
     print *, '=== Notebook System Tests ==='
     print *
 
     all_tests_passed = .true.
 
+    ! Create a shared temp directory that stays alive for all tests
+    call shared_temp_mgr%create('notebook_test')
+
     ! Test 1: CLI help message includes notebook options
     call test_cli_help_includes_notebook(all_tests_passed)
 
     ! Test 2: Notebook CLI execution produces output file
-    call test_notebook_cli_execution(all_tests_passed)
+ call test_notebook_cli_execution(all_tests_passed, shared_output_file, shared_temp_mgr)
 
     ! Test 3: Output file contains expected content
-    call test_output_file_content(all_tests_passed)
+    call test_output_file_content(all_tests_passed, shared_output_file)
 
     ! Test 4: Cache performance (second run should be faster)
     call test_cache_performance(all_tests_passed)
@@ -68,27 +75,24 @@ contains
 
     end subroutine test_cli_help_includes_notebook
 
-    subroutine test_notebook_cli_execution(passed)
+    subroutine test_notebook_cli_execution(passed, output_file_path, temp_mgr)
         logical, intent(inout) :: passed
+        character(len=*), intent(out) :: output_file_path
+        type(temp_dir_manager), intent(in) :: temp_mgr
         character(len=512) :: command
         character(len=:), allocatable :: output
         integer :: exit_code
         logical :: file_exists
+        character(len=:), allocatable :: output_file
 
         print *, 'Test 2: Notebook CLI execution'
 
-        ! Clean up any existing test output
-        block
-            type(temp_dir_manager) :: temp_mgr
-            character(len=:), allocatable :: output_file
+        output_file = temp_mgr%get_file_path('test_system_notebook.md')
+        output_file_path = output_file  ! Save for next test
 
-            call temp_mgr%create('notebook_test')
-            output_file = temp_mgr%get_file_path('test_system_notebook.md')
-
-            ! Execute notebook command
-            command = 'fpm run fortran -- --notebook '// &
-                      'example/notebook/simple_math.f -o "'//output_file//'"'
-        end block
+        ! Execute notebook command
+        command = 'fpm run fortran -- --notebook '// &
+                  'example/notebook/simple_math.f -o "'//output_file//'"'
         call execute_and_capture(command, output, exit_code)
 
         ! Check command succeeded
@@ -100,14 +104,7 @@ contains
         end if
 
         ! Check output file was created
-        block
-            type(temp_dir_manager) :: temp_mgr
-            character(len=:), allocatable :: output_file
-
-            call temp_mgr%create('notebook_test')
-            output_file = temp_mgr%get_file_path('test_system_notebook.md')
-            inquire (file=output_file, exist=file_exists)
-        end block
+        inquire (file=output_file, exist=file_exists)
         if (.not. file_exists) then
             print *, '  FAIL: Output file not created'
             passed = .false.
@@ -118,21 +115,18 @@ contains
 
     end subroutine test_notebook_cli_execution
 
-    subroutine test_output_file_content(passed)
+    subroutine test_output_file_content(passed, output_file_path)
         logical, intent(inout) :: passed
+        character(len=*), intent(in) :: output_file_path
         character(len=:), allocatable :: content
 
         print *, 'Test 3: Output file content validation'
+        print *, 'Reading file:', trim(output_file_path)
 
         ! Read the output file
-        block
-            type(temp_dir_manager) :: temp_mgr
-            character(len=:), allocatable :: output_file
+        call read_file_content(output_file_path, content)
 
-            call temp_mgr%create('notebook_test')
-            output_file = temp_mgr%get_file_path('test_system_notebook.md')
-            call read_file_content(output_file, content)
-        end block
+        print *, 'Content length:', len(content)
 
         if (len(content) == 0) then
             print *, '  FAIL: Output file is empty'
@@ -262,6 +256,8 @@ contains
         logical :: file_exists
 
         inquire (file=filename, exist=file_exists, size=file_size)
+
+      print *, 'DEBUG read_file_content: file exists=', file_exists, ' size=', file_size
 
         if (.not. file_exists .or. file_size <= 0) then
             content = ""

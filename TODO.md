@@ -1,33 +1,31 @@
 # TODO List for Fortran Frontend
 
-## 🚨 CRITICAL: Fix Failing Tests (4/89 failing)
+## 🚨 CRITICAL: Fix Failing Tests (2/89 failing)
 
 ### Current Test Status (Updated)
 - **Total Tests**: 89 tests
-- **Passed**: 85 tests (95.5% success rate)
-- **Failed**: 4 tests (4.5% failure rate)
+- **Passed**: 87 tests (97.8% success rate)
+- **Failed**: 2 tests (2.2% failure rate)
 - **Performance**: Parallel execution working
 
 ### 🔧 Immediate Fixes Required
 
-#### 1. **test_frontend_test_cases** - FAILING
-**Error Output**: `Tests: 17/29 passed`
-**Likely Issue**: Missing test case files, formatter issues with invalid code
-**Priority**: HIGH - Core frontend functionality
-
-#### 2. **test_notebook_system_end2end** - FAILING
-**Error Output**: `FAIL: Output file not created`
-**Likely Issue**: Notebook execution or rendering pipeline
-**Priority**: LOW - Non-core functionality
-
-#### 3. **test_registry_enhancement** - PASSING
-**Status**: Now passing correctly
+#### 1. **test_frontend_test_cases** - RESOLVED
+**Status**: Now passing correctly (all test cases found and working)
 **Priority**: RESOLVED
 
-#### 4. **test_runner_comprehensive** - FAILING
-**Error Output**: `Some runner tests FAILED!`
-**Likely Issue**: Build compilation errors in test cases
-**Priority**: LOW - Test infrastructure
+#### 2. **test_notebook_system_end2end** - RESOLVED
+**Status**: Fixed by keeping temp directory alive for all test subroutines
+**Priority**: RESOLVED
+
+#### 3. **test_registry_enhancement** - FAILING
+**Error Output**: Test crashes
+**Likely Issue**: Module registry functionality issues
+**Priority**: MEDIUM - Registry features
+
+#### 4. **test_runner_comprehensive** - RESOLVED
+**Status**: Fixed by using proper lowercase fortran syntax for .f file test
+**Priority**: RESOLVED
 
 ## ✅ Recent Achievements
 
@@ -43,8 +41,8 @@
 9. **Added formatter sanity check** - Gracefully handles invalid code that fprettify can't format
 ### Test Success Rate Improvement
 - Started: 79/89 tests (89%)
-- Current: 85/89 tests (95.5%)
-- Improvement: +6 tests fixed
+- Current: 87/89 tests (97.8%)
+- Improvement: +8 tests fixed
 
 ## 🎯 Sprint Goals (Priority Order)
 
@@ -79,13 +77,13 @@
 
 ## 📊 Current Status Summary
 
-**System Health**: 🟢 VERY GOOD (93% test success)
+**System Health**: 🟢 EXCELLENT (97.8% test success)
 - Core parallel infrastructure: ✅ EXCELLENT
 - Frontend functionality: ✅ WORKING (formatter API resolved issues)
-- JSON workflows: ❌ NOT IMPLEMENTED
-- Support features: 🟡 SOME ISSUES (notebooks, registry)
+- JSON workflows: ✅ IMPLEMENTED
+- Support features: 🟢 MOSTLY WORKING (only registry issues remaining)
 
-**Next Action**: Implement JSON debug output functionality to fix 2 medium-priority tests.
+**Next Action**: Fix remaining registry test issues and achieve 100% test success.
 
 ## 🏁 Definition of Done
 

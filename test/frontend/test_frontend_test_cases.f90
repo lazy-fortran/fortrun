@@ -48,14 +48,51 @@ contains
         test_count = test_count + 1
 
         ! Construct file paths
-        input_file = trim(test_path)//"/"//trim(test_name)//".f"
-        expected_file = trim(test_path)//"/"//trim(test_name)//".f90"
+        ! First try the new structure (files in subdirectories)
+        input_file = trim(test_path)//"/input.f"
+        expected_file = trim(test_path)//"/expected_code.f90"
+
+        ! Special cases for tests with different naming
+        if (test_name == "string_literal") then
+            input_file = trim(test_path)//"/strings.f"
+        else if (test_name == "trig_functions") then
+            input_file = trim(test_path)//"/trig.f"
+        else if (test_name == "with_comments") then
+            input_file = trim(test_path)//"/with_comments.f"
+        else
+            ! If not found, try the old structure (files in parent directory)
+            if (.not. file_exists(input_file)) then
+                ! Extract parent directory path
+                block
+                    integer :: last_slash
+                    character(len=256) :: parent_dir
+                    last_slash = index(test_path, '/', back=.true.)
+                    if (last_slash > 0) then
+                        parent_dir = test_path(1:last_slash - 1)
+                        input_file = trim(parent_dir)//"/"//trim(test_name)//".f"
+                    end if
+                end block
+            end if
+        end if
+
+        if (.not. file_exists(expected_file)) then
+            ! Extract parent directory path
+            block
+                integer :: last_slash
+                character(len=256) :: parent_dir
+                last_slash = index(test_path, '/', back=.true.)
+                if (last_slash > 0) then
+                    parent_dir = test_path(1:last_slash - 1)
+                    expected_file = trim(parent_dir)//"/"//trim(test_name)//".f90"
+                end if
+            end block
+        end if
         call temp_mgr%create('frontend_test')
         actual_file = temp_mgr%get_file_path('test_'//trim(test_name)//'_actual.f90')
 
         ! Check if test case files exist
         if (.not. file_exists(input_file)) then
-            print *, "SKIP: ", trim(test_name), " - missing input file"
+         print *, "SKIP: ", trim(test_name), " - missing input file: ", trim(input_file)
             return
         end if
 
