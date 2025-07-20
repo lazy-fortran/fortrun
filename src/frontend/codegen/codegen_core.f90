@@ -163,8 +163,13 @@ contains
             right_code = "???"
         end if
 
-        ! Combine with operator - always use spaces for standard Fortran
-        code = left_code//" "//node%operator//" "//right_code
+        ! Combine with operator - match fprettify spacing rules
+        ! fprettify: * and / get no spaces, +/- and comparisons get spaces
+        if (trim(node%operator) == '*' .or. trim(node%operator) == '/') then
+            code = left_code//node%operator//right_code
+        else
+            code = left_code//" "//node%operator//" "//right_code
+        end if
     end function generate_code_binary_op
 
     ! Generate code for program node
