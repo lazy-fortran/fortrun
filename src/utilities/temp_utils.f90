@@ -205,17 +205,28 @@ contains
         end if
 
         ! Try getting current directory via system command
-        call execute_command_line('pwd > /tmp/fortran_pwd.tmp', wait=.true.)
-        open (newunit=unit, file='/tmp/fortran_pwd.tmp', status='old', iostat=iostat)
-        if (iostat == 0) then
-            read (unit, '(A)', iostat=iostat) pwd_env
-            close (unit)
-            call execute_command_line('rm -f /tmp/fortran_pwd.tmp', wait=.true.)
+        block
+            character(len=:), allocatable :: temp_file, pwd_cmd, rm_cmd
+            temp_file = trim(get_system_temp_dir())//'/fortran_pwd.tmp'
+#ifdef _WIN32
+            pwd_cmd = 'cd > "'//temp_file//'"'
+            rm_cmd = 'del /f "'//temp_file//'"'
+#else
+            pwd_cmd = 'pwd > "'//temp_file//'"'
+            rm_cmd = 'rm -f "'//temp_file//'"'
+#endif
+            call execute_command_line(pwd_cmd, wait=.true.)
+            open (newunit=unit, file=temp_file, status='old', iostat=iostat)
             if (iostat == 0) then
-                cwd = trim(pwd_env)
-                return
+                read (unit, '(A)', iostat=iostat) pwd_env
+                close (unit)
+                call execute_command_line(rm_cmd, wait=.true.)
+                if (iostat == 0) then
+                    cwd = trim(pwd_env)
+                    return
+                end if
             end if
-        end if
+        end block
 
         ! Ultimate fallback
         cwd = '.'
@@ -248,7 +259,12 @@ contains
             ! Move up one directory
             last_slash = 0
             do last_slash = len_trim(root_dir), 1, -1
+#ifdef _WIN32
+                if (root_dir(last_slash:last_slash) == '/' .or. &
+                    root_dir(last_slash:last_slash) == '\') exit
+#else
                 if (root_dir(last_slash:last_slash) == '/') exit
+#endif
             end do
 
             if (last_slash <= 1) then
@@ -273,16 +289,25 @@ contains
             joined_path = trim(path2)
         else if (len_trim(path2) == 0) then
             joined_path = trim(path1)
-        else if (path2(1:1) == '/') then
-            ! path2 is absolute
+        else if (path2(1:1) == '/' .or. (len(path2) >= 2 .and. path2(2:2) == ':')) then
+            ! path2 is absolute (Unix or Windows C:\...)
             joined_path = trim(path2)
         else
             ! Join with separator
+#ifdef _WIN32
+            if (path1(len_trim(path1):len_trim(path1)) == '/' .or. &
+                path1(len_trim(path1):len_trim(path1)) == '\') then
+                joined_path = trim(path1)//trim(path2)
+            else
+                joined_path = trim(path1)//'\'//trim(path2)
+            end if
+#else
             if (path1(len_trim(path1):len_trim(path1)) == '/') then
                 joined_path = trim(path1)//trim(path2)
             else
                 joined_path = trim(path1)//'/'//trim(path2)
             end if
+#endif
         end if
 
     end function path_join
