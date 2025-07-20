@@ -323,9 +323,8 @@ contains
         integer :: exitstat
 
 #ifdef _WIN32
-        ! On Windows, use wmic to check if process is running
-        ! wmic exits with code 1 if process not found
-        write (command, '(a,i0,a)') 'wmic process where processid=', pid, ' get processid >nul 2>&1'
+        ! On Windows, use PowerShell to check if process is running
+        write (command, '(a,i0,a)') 'powershell -Command "Get-Process -Id ', pid, ' -ErrorAction SilentlyContinue; exit $LASTEXITCODE" >nul 2>&1'
         call execute_command_line(command, exitstat=exitstat)
 #else
         write (command, '(a,i0,a)') 'kill -0 ', pid, ' 2>/dev/null'
@@ -341,8 +340,8 @@ contains
         character(len=32) :: command
 
 #ifdef _WIN32
-        ! On Windows, use timeout command
-        write (command, '(a,i0,a)') 'timeout /t ', seconds, ' /nobreak >nul'
+        ! On Windows, use PowerShell sleep
+  write (command, '(a,i0,a)') 'powershell -Command "Start-Sleep -Seconds ', seconds, '"'
 #else
         write (command, '(a,i0)') 'sleep ', seconds
 #endif

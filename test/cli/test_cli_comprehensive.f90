@@ -477,7 +477,7 @@ contains
                              custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
                 notebook_output, preprocess_only, custom_flags, clear_cache, cache_info)
 
-            if (index(custom_cache_dir, 'very_long_path') == 0) then
+            if (index(custom_cache_dir, 'cli_comprehensive_long_path') == 0) then
                 print *, "  FAIL: Long directory path failed"
                 passed = .false.
                 return
