@@ -42,16 +42,14 @@ jobs:
         Move-Item -Path "fpm.exe" -Destination "C:\msys64\mingw64\bin\fpm.exe"
         & "C:\msys64\mingw64\bin\fpm.exe" --version
 
-    - name: Test Windows cache directory creation
+    - name: Test Windows environment
       run: |
-        # Test cache directory creation with Windows paths
-        $env:LOCALAPPDATA = "C:\Users\Test\AppData\Local"
-        if (Test-Path $env:LOCALAPPDATA) {
-          Write-Host "LOCALAPPDATA environment variable set correctly"
-        } else {
-          Write-Host "Creating test LOCALAPPDATA directory"
-          New-Item -ItemType Directory -Path "C:\Users\Test\AppData\Local" -Force
-        }
+        Write-Host "Environment diagnostics:"
+        Write-Host "TEMP: $env:TEMP"
+        Write-Host "TMP: $env:TMP"
+        Write-Host "LOCALAPPDATA: $env:LOCALAPPDATA"
+        Write-Host "USERPROFILE: $env:USERPROFILE"
+        Write-Host "Current directory: $pwd"
       shell: powershell
 
     - name: Build project
@@ -72,7 +70,13 @@ jobs:
         echo Running unit tests...
 
         REM Find the built executable
+        set "FORTRAN_EXE="
         for /r build %%i in (fortran.exe) do set "FORTRAN_EXE=%%i"
+        if "%FORTRAN_EXE%"=="" (
+          echo ERROR: Could not find fortran.exe in build directory
+          dir /s /b build
+          exit /b 1
+        )
         echo Found executable: %FORTRAN_EXE%
 
         REM Get the current directory
@@ -100,13 +104,10 @@ jobs:
 
     - name: Test cache functionality
       run: |
-        # Test basic cache creation
-        if (Test-Path $env:LOCALAPPDATA\fortran) {
-          Write-Host "Cache directory exists"
-        } else {
-          Write-Host "Creating cache directory"
-          New-Item -ItemType Directory -Path "$env:LOCALAPPDATA\fortran\cache" -Force
-        }
+        # Create a local cache directory
+        $cache_dir = Join-Path $pwd "test_cache"
+        Write-Host "Creating cache directory at: $cache_dir"
+        New-Item -ItemType Directory -Path $cache_dir -Force | Out-Null
 
         # Find the fortran executable
         $fortran_exe = Get-ChildItem -Path "build" -Recurse -Filter "fortran.exe" | Select-Object -First 1
@@ -119,15 +120,17 @@ jobs:
         # Test version
         & $fortran_exe.FullName --version
 
-        # Test with a simple example using full path
+        # Test with a simple example using custom cache
         $test_file = Join-Path $pwd "test_windows.f"
         Set-Content -Path $test_file -Value 'real :: x = 3.14'
         Write-Host "Test file created at: $test_file"
 
-        & $fortran_exe.FullName $test_file
+        # Run with custom cache directory
+        & $fortran_exe.FullName --cache-dir $cache_dir $test_file
 
         # Clean up
         Remove-Item $test_file -Force
+        Remove-Item $cache_dir -Recurse -Force
       shell: powershell
 
     - name: Test module resolution
