@@ -126,8 +126,9 @@ contains
                 ! Show progress (thread-safe)
                 if (.not. options%quiet) then
                     call omp_set_lock(output_lock)
+                    write (output_unit, '(A)', advance='no') char(13)
                     write (output_unit, '(A,I0,A,A,A,I0,A,I0,A)', advance='no') &
-                        char(13), thread_id, ': Running ', trim(test_name), ' (', completed_tests, '/', num_tests, ')'
+                        'Thread ', thread_id, ': Running ', trim(test_name), ' (', completed_tests, '/', num_tests, ')'
                     call flush (output_unit)
                     call omp_unset_lock(output_lock)
                 end if
@@ -153,25 +154,41 @@ contains
 
         integer :: i
 
-        if (.not. options%quiet) then
-            write (output_unit, '(A)') ""
-            write (output_unit, '(A)') "=== Test Results ==="
-        end if
-
         total_passed = 0
         total_failed = 0
 
+        ! Count results
         do i = 1, num_tests
             if (results(i)%status == TEST_PASSED) then
                 total_passed = total_passed + 1
-                if (options%verbose) then
-                    write (output_unit, '(A,A)') " ✓ PASS: ", trim(results(i)%name)
-                end if
             else if (results(i)%status == TEST_FAILED) then
                 total_failed = total_failed + 1
-                write (output_unit, '(A,A)') " ✗ FAIL: ", trim(results(i)%name)
             end if
         end do
+
+        ! Clear progress line
+        if (.not. options%quiet) then
+            write (output_unit, '(A)') ""
+        end if
+
+        ! Show failed tests (always)
+        if (total_failed > 0) then
+            do i = 1, num_tests
+                if (results(i)%status == TEST_FAILED) then
+                    write (output_unit, '(A,A)') " ✗ FAIL: ", trim(results(i)%name)
+                end if
+            end do
+        end if
+
+        ! Show passed tests only in verbose mode
+        if (options%verbose .and. total_passed > 0) then
+            if (total_failed > 0) write (output_unit, '(A)') ""
+            do i = 1, num_tests
+                if (results(i)%status == TEST_PASSED) then
+                    write (output_unit, '(A,A)') " ✓ PASS: ", trim(results(i)%name)
+                end if
+            end do
+        end if
 
         ! Show failed test details
         if (total_failed > 0) then
@@ -208,12 +225,11 @@ contains
         write (output_unit, '(A,F0.1,A)') "Time: ", total_time, "s"
 
         ! Final status
+        write (output_unit, '(A)') ""
         if (total_failed == 0) then
-            write (output_unit, '(A)') ""
             write (output_unit, '(A)') "All tests passed!"
         else
-            write (output_unit, '(A)') ""
-            write (output_unit, '(A,I0,A)') total_failed, " test(s) failed!"
+            write (output_unit, '(A,I0,A)') "FAILED: ", total_failed, " test(s) failed!"
         end if
     end subroutine display_results
 

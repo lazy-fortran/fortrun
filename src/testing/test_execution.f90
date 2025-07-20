@@ -34,6 +34,8 @@ contains
         character(len=MAX_OUTPUT_LEN) :: output_buffer
         integer :: unit, ios, idx
         real :: test_start, test_end
+        character(len=50) :: temp_file
+        integer :: thread_id
 
         ! Initialize result - extract name from executable path
         idx = index(test_executable, '/', back=.true.)
@@ -50,22 +52,24 @@ contains
 
         test_start = omp_get_wtime()
 
+        ! Create unique temp file for this thread
+        thread_id = omp_get_thread_num()
+        write (temp_file, '(A,I0,A)') "/tmp/fortran_test_", thread_id, ".txt"
+
         ! Create command to run test executable directly
-        command = "timeout 60 "//trim(test_executable)//" 2>&1"
+        command = "timeout 60 "//trim(test_executable)//" > "//trim(temp_file)//" 2>&1"
 
         ! Run test and capture output
-        open (newunit=unit, file="/tmp/fortran_test_output.txt", status="replace")
-        call execute_command_line(trim(command) // " > /tmp/fortran_test_output.txt", exitstat=result%exit_code)
-        close (unit)
+        call execute_command_line(trim(command), exitstat=result%exit_code)
 
         ! Read output
         output_buffer = ""
-      open (newunit=unit, file="/tmp/fortran_test_output.txt", status="old", iostat=ios)
+        open (newunit=unit, file=trim(temp_file), status="old", iostat=ios)
         if (ios == 0) then
             read (unit, '(A)', iostat=ios) output_buffer
             close (unit)
         end if
-        call execute_command_line("rm -f /tmp/fortran_test_output.txt")
+        call execute_command_line("rm -f "//trim(temp_file))
 
         test_end = omp_get_wtime()
         result%duration = test_end - test_start
