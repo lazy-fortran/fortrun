@@ -82,8 +82,14 @@ jobs:
           /usr/bin/mkdir "$TEMP_CACHE"
         fi
 
+        # Convert MSYS2 paths to Windows paths for the executable
+        TEMP_CACHE_WIN=$(cygpath -w "$TEMP_CACHE")
+        TEST_FILE_WIN=$(cygpath -w "$TEST_FILE")
+        echo "Windows cache path: $TEMP_CACHE_WIN"
+        echo "Windows test file: $TEST_FILE_WIN"
+
         # Run the executable with the test file using custom cache
-        $FORTRAN_EXE --cache-dir "$TEMP_CACHE" "$TEST_FILE"
+        $FORTRAN_EXE --cache-dir "$TEMP_CACHE_WIN" "$TEST_FILE_WIN"
         rm -f "$TEST_FILE"
 
         # Test version flag
