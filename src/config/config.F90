@@ -1,5 +1,4 @@
 module config
-    use temp_utils, only: mkdir
     implicit none
     private
     public :: get_config_dir, ensure_config_dir, get_registry_path
