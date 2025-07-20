@@ -1,13 +1,5 @@
 module test_discovery
     use iso_fortran_env, only: error_unit
-    use fpm, only: build_model
-    use fpm_model, only: fpm_model_t, FPM_SCOPE_TEST
-    use fpm_command_line, only: fpm_build_settings
-    use fpm_manifest, only: get_package_data, package_config_t
-    use fpm_targets, only: targets_from_sources, build_target_t, build_target_ptr, FPM_TARGET_EXECUTABLE
-    use fpm_filesystem, only: exists
-    use fpm_error, only: error_t
-    use fpm_strings, only: string_t
     implicit none
     private
 
@@ -30,87 +22,65 @@ contains
         logical, intent(in) :: quiet
         logical, intent(out) :: success
 
-        type(fpm_model_t) :: model
-        type(fpm_build_settings) :: settings
-        type(package_config_t) :: package
-        type(error_t), allocatable :: error
-        type(build_target_ptr), allocatable :: targets(:)
-        integer :: i
-        character(len=MAX_PATH_LEN) :: test_name
+        character(len=1024) :: command, line
+        integer :: unit, ios, idx
 
         success = .false.
         num_tests = 0
 
-        ! Initialize build settings
-        settings%profile = "release"
-        settings%prune = .true.
-        settings%build_tests = .true.
-
-        ! Get package manifest
-        call get_package_data(package, ".", error, apply_defaults=.true.)
-        if (allocated(error)) then
-     if (.not. quiet) write (error_unit, '(A)') "ERROR: Failed to read package manifest"
+        ! Build tests first
+        if (.not. quiet) write (*, '(A)') "Building tests..."
+        command = "fpm build --tests > /dev/null 2>&1"
+        call execute_command_line(trim(command), exitstat=ios)
+        if (ios /= 0) then
+            if (.not. quiet) write (error_unit, '(A)') "ERROR: Failed to build tests"
             return
         end if
 
-        ! Build model
-        call build_model(model, settings, package, error)
-        if (allocated(error)) then
-            if (.not. quiet) write (error_unit, '(A)') "ERROR: Failed to build model"
-            return
-        end if
-
-        ! Generate targets
-       call targets_from_sources(targets, model, settings%prune, package%library, error)
-        if (allocated(error)) then
-          if (.not. quiet) write (error_unit, '(A)') "ERROR: Failed to generate targets"
-            return
-        end if
-
-        ! Extract test executables
+        ! Discover test executables using fpm test --runner echo
         if (.not. quiet) write (*, '(A)') "Discovering tests..."
 
-        do i = 1, size(targets)
-            ! Check if this is a test executable
-            if (targets(i)%ptr%target_type == FPM_TARGET_EXECUTABLE .and. &
-                allocated(targets(i)%ptr%source) .and. &
-                targets(i)%ptr%source%unit_scope == FPM_SCOPE_TEST) then
+        open (newunit=unit, file="/tmp/fortran_test_list.txt", status="replace")
+        command = "fpm test --runner echo 2>/dev/null | grep -E '^build/' | sort | uniq > /tmp/fortran_test_list.txt"
+        call execute_command_line(trim(command))
+        close (unit)
 
-                ! Extract test name from output file path
-                test_name = extract_test_name(targets(i)%ptr%output_file)
+        ! Read test list
+        open (newunit=unit, file="/tmp/fortran_test_list.txt", status="old", iostat=ios)
+        if (ios /= 0) then
+            if (.not. quiet) write (error_unit, '(A)') "ERROR: Failed to read test list"
+            return
+        end if
 
-                ! Apply filter if specified
-                if (len_trim(filter) > 0) then
-                    if (index(test_name, trim(filter)) == 0) cycle
-                end if
+        do
+            read (unit, '(A)', iostat=ios) line
+            if (ios /= 0) exit
 
-                ! Check if executable exists
-                if (.not. exists(targets(i)%ptr%output_file)) cycle
+            line = trim(line)
+            if (len_trim(line) == 0) cycle
 
-                ! Add to test list
-                if (num_tests < size(tests)) then
-                    num_tests = num_tests + 1
-                    tests(num_tests)%name = trim(test_name)
-                    tests(num_tests)%executable = trim(targets(i)%ptr%output_file)
-                end if
+            ! Extract test name from path
+            idx = index(line, '/', back=.true.)
+            if (idx > 0) then
+                tests(num_tests + 1)%name = line(idx + 1:)
+            else
+                tests(num_tests + 1)%name = trim(line)
             end if
+            tests(num_tests + 1)%executable = trim(line)
+
+            ! Apply filter if specified
+            if (len_trim(filter) > 0) then
+                if (index(tests(num_tests + 1)%name, trim(filter)) == 0) cycle
+            end if
+
+            num_tests = num_tests + 1
+            if (num_tests >= size(tests)) exit
         end do
+
+        close (unit)
+        call execute_command_line("rm -f /tmp/fortran_test_list.txt")
 
         success = .true.
     end subroutine discover_fpm_tests
-
-    function extract_test_name(output_file) result(test_name)
-        character(len=*), intent(in) :: output_file
-        character(len=MAX_PATH_LEN) :: test_name
-        integer :: idx
-
-        ! Extract just the filename from the path
-        idx = index(output_file, '/', back=.true.)
-        if (idx > 0) then
-            test_name = output_file(idx + 1:)
-        else
-            test_name = trim(output_file)
-        end if
-    end function extract_test_name
 
 end module test_discovery

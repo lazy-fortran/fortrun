@@ -24,8 +24,8 @@ contains
         real, intent(out) :: total_time
 
         integer, parameter :: MAX_TESTS = 200
-        type(test_case_t) :: tests(MAX_TESTS)
-        type(test_result_t) :: results(MAX_TESTS)
+        type(test_case_t), allocatable :: tests(:)
+        type(test_result_t), allocatable :: results(:)
         integer :: num_tests, i
         logical :: success
 
@@ -40,6 +40,10 @@ contains
         total_passed = 0
         total_failed = 0
         total_time = 0.0
+
+        ! Allocate arrays
+        allocate (tests(MAX_TESTS))
+        allocate (results(MAX_TESTS))
 
         ! Discover tests
        call discover_fpm_tests(tests, num_tests, options%filter, options%quiet, success)
@@ -201,7 +205,7 @@ contains
         write (output_unit, '(A,I0)') "Tests run: ", num_tests
         write (output_unit, '(A,I0)') "Passed: ", total_passed
         write (output_unit, '(A,I0)') "Failed: ", total_failed
-        write(output_unit, '(A,F0.1,A,I0,A)') "Time: ", total_time, "s (using ", omp_get_max_threads(), " threads)"
+        write (output_unit, '(A,F0.1,A)') "Time: ", total_time, "s"
 
         ! Final status
         if (total_failed == 0) then
