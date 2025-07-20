@@ -1,9 +1,9 @@
 program test_cache
     use, intrinsic :: iso_fortran_env, only: error_unit
-    use temp_utils, only: create_temp_dir, get_temp_file_path, temp_dir_manager
+    use temp_utils, only: create_temp_dir, get_temp_file_path, temp_dir_manager, create_test_cache_dir
     implicit none
 
-    character(len=256) :: test_cache_dir, test_program
+    character(len=:), allocatable :: test_cache_dir, test_program
     character(len=1024) :: output1, output2
     integer :: exit_code
     logical :: cache_exists
@@ -14,12 +14,9 @@ program test_cache
     call temp_mgr%create('fortran_test_cache')
     temp_dir = temp_mgr%path
 
-    ! Create test cache directory
-    test_cache_dir = './test_cache_tmp'
-    test_program = 'test_cache_hello.f90'
-
-    ! Clean up any existing test cache
-    call execute_command_line('rm -rf '//trim(test_cache_dir))
+    ! Create unique test cache directory to avoid race conditions
+    test_cache_dir = create_test_cache_dir('cache_basic')
+    test_program = trim(temp_dir)//'/test_cache_hello.f90'
 
     ! Create test program
     call create_test_program(test_program)
@@ -78,9 +75,7 @@ inquire (file=trim(test_cache_dir)//'/test_hello_'//repeat('*', 10), exist=cache
 
     print *, 'PASS: Program output consistent across runs'
 
-    ! Clean up
-    call execute_command_line('rm -rf '//trim(test_cache_dir))
-    call execute_command_line('rm -f '//trim(test_program))
+    ! No manual cleanup needed - temp directories auto-cleanup
 
     print *, ''
     print *, 'All cache tests passed!'

@@ -8,7 +8,7 @@ module temp_utils
     private
     public :: create_temp_dir, cleanup_temp_dir, get_temp_file_path, temp_dir_manager, &
               get_system_temp_dir, get_current_directory, get_project_root, path_join, &
-              mkdir
+              mkdir, create_test_cache_dir
 
     ! Type for managing temporary directories with automatic cleanup
     type :: temp_dir_manager
@@ -370,5 +370,23 @@ contains
 
         call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
     end subroutine mkdir
+
+    !> Create a unique test cache directory to avoid race conditions in parallel tests
+    function create_test_cache_dir(test_name) result(cache_dir)
+        character(len=*), intent(in) :: test_name
+        character(len=:), allocatable :: cache_dir
+        character(len=32) :: random_suffix
+        character(len=:), allocatable :: temp_base
+
+        ! Get temp directory base
+        temp_base = create_temp_dir('test_cache_'//trim(test_name))
+
+        ! Use this as the cache directory
+        cache_dir = temp_base
+
+        ! Ensure it exists
+        call mkdir(cache_dir)
+
+    end function create_test_cache_dir
 
 end module temp_utils
