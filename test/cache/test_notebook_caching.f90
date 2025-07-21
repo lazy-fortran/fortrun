@@ -47,21 +47,10 @@ contains
 
         print *, 'Test 1: Cache directory creation'
 
-        ! Set up unique cache directory with timestamp and PID
+        ! Set up cache directory
         block
             type(temp_dir_manager) :: temp_mgr
-            character(len=64) :: unique_name
-            integer :: values(8), pid_val
-
-            call date_and_time(values=values)
-            if (get_os_type() == OS_WINDOWS) then
-                pid_val = values(7)*1000 + values(8)
-            else
-                pid_val = getpid()
-            end if
-            write (unique_name, '(a,i0,"_",i0,"_",i0)') 'test_notebook_caching_', &
-                values(7), values(8), pid_val
-            call temp_mgr%create(trim(unique_name))
+            call temp_mgr%create('test_notebook_caching')
             test_cache_dir = temp_mgr%path
         end block
 
@@ -104,15 +93,7 @@ contains
         ! Set up cache directory
         block
             type(temp_dir_manager) :: temp_mgr
-            character(len=64) :: unique_name
-            integer :: values(8), pid_val
-
-            call date_and_time(values=values)
-            ! Use time-based ID instead of PID to avoid potential CI issues
-            pid_val = values(7)*1000 + values(8)
-            write (unique_name, '(a,i0,"_",i0,"_",i0)') 'test_notebook_reuse_', &
-                values(6), values(7), values(8)
-            call temp_mgr%create(trim(unique_name))
+            call temp_mgr%create('test_notebook_reuse')
             test_cache_dir = temp_mgr%path
         end block
 
@@ -168,15 +149,7 @@ nb2%cells(1)%content = "value = 456.0"//new_line('a')//"print *, 'value =', valu
         ! Set up cache directory
         block
             type(temp_dir_manager) :: temp_mgr
-            character(len=64) :: unique_name
-            integer :: values(8), pid_val
-
-            call date_and_time(values=values)
-            ! Use time-based ID instead of PID to avoid potential CI issues
-            pid_val = values(7)*1000 + values(8)
-            write (unique_name, '(a,i0,"_",i0,"_",i0)') 'test_notebook_invalidation_', &
-                values(6), values(7), values(8)
-            call temp_mgr%create(trim(unique_name))
+            call temp_mgr%create('test_notebook_invalidation')
             test_cache_dir = temp_mgr%path
         end block
 

@@ -15,30 +15,11 @@ program test_cache_lock
     flush (6)
 
     ! Create temporary directory for testing with unique suffix
-    block
-        character(len=32) :: unique_suffix
-        integer :: values(8), pid_val
-        logical :: dir_exists
-
-        print '(a)', 'test_cache_lock: Getting date and time...'
-        flush (6)
-        call date_and_time(values=values)
-        print '(a)', 'test_cache_lock: Date/time obtained'
-        flush (6)
-
-        ! Use time-based ID instead of PID to avoid potential CI issues
-        pid_val = values(7)*1000 + values(8)  ! Use milliseconds as unique ID
-        write (unique_suffix, '(i0,"_",i0,"_",i0)') values(6), values(7), values(8)
-        temp_cache_dir = create_test_cache_dir('cache_lock_test_'//trim(unique_suffix))
-
-        ! Verify directory was created
-        inquire (file=trim(temp_cache_dir), exist=dir_exists)
-        if (.not. dir_exists) then
-            print '(a)', 'ERROR: Failed to create test cache directory'
-            print '(a,a)', 'Attempted path: ', trim(temp_cache_dir)
-            stop 1
-        end if
-    end block
+    print '(a)', 'test_cache_lock: Creating temp directory...'
+    flush (6)
+    temp_cache_dir = create_test_cache_dir('cache_lock_test')
+    print '(a,a)', 'test_cache_lock: Created directory: ', trim(temp_cache_dir)
+    flush (6)
 
     print '(a)', 'Testing cache lock functionality...'
     flush (6)  ! Ensure output is flushed

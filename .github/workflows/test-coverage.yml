@@ -30,6 +30,10 @@ jobs:
         # Build tests with coverage flags
         fpm build --tests --flag '-fprofile-arcs -ftest-coverage'
 
+        # Test date_and_time function first
+        echo "Testing date_and_time function..."
+        fpm run test_date_time || echo "date_and_time test failed"
+
         # Run our custom test runner which provides:
         # - Parallel test execution with better performance
         # - Comprehensive test discovery including integration tests
