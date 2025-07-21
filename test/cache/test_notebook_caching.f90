@@ -17,7 +17,6 @@ program test_notebook_caching
     logical :: all_tests_passed
 
     print *, '=== Notebook Caching Tests ==='
-    print '(a,i0)', ' Process ID: ', getpid()
     print *
 
     all_tests_passed = .true.
@@ -70,8 +69,6 @@ contains
             test_cache_dir = temp_mgr%path
         end block
 
-        print *, '  Test directory: ', trim(test_cache_dir)
-
         ! Create simple notebook
         nb%num_cells = 1
         allocate (nb%cells(1))
@@ -79,9 +76,7 @@ contains
         nb%cells(1)%content = "x = 123.0"//new_line('a')//"print *, 'x =', x"
 
         ! Execute notebook
-        print *, '  Calling execute_notebook with cache dir: ', trim(test_cache_dir)
         call execute_notebook(nb, results, test_cache_dir)
-        print *, '  execute_notebook returned'
 
         ! Check that cache directory was created
         inquire (file=test_cache_dir, exist=dir_exists)
@@ -90,8 +85,6 @@ contains
             print *, '  Expected directory: ', trim(test_cache_dir)
             passed = .false.
             goto 99
-        else
-            print *, '  Cache directory created successfully'
         end if
 
         print *, '  PASS'
@@ -149,11 +142,8 @@ nb2%cells(1)%content = "value = 456.0"//new_line('a')//"print *, 'value =', valu
         ! Check that results structure is valid (execution may fail but structure should be there)
         if (.not. allocated(results1%cells)) then
             print *, '  FAIL: First execution results not allocated'
-            print *, '  DEBUG: Cache directory was: ', trim(test_cache_dir)
             passed = .false.
             goto 99
-        else
-            print *, '  First execution results allocated'
         end if
 
         if (.not. allocated(results2%cells)) then

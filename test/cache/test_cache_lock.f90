@@ -63,14 +63,6 @@ program test_cache_lock
         call list_lock_files(temp_cache_dir)
     else
         print '(a)', '  ✗ Failed to acquire lock'
-        ! Additional debugging
-        print '(a)', '  DEBUG: Checking if directory still exists...'
-        block
-            logical :: dir_exists
-            inquire (file=trim(temp_cache_dir), exist=dir_exists)
-            print '(a,l)', '  DEBUG: Directory exists = ', dir_exists
-        end block
-        call list_lock_files(temp_cache_dir)
         stop 1
     end if
 

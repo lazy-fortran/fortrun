@@ -53,17 +53,12 @@ contains
             end if
         end if
 
-    write (error_unit, *) 'DEBUG: create_temp_dir - base_temp_dir:', trim(base_temp_dir)
-        write (error_unit, *) 'DEBUG: create_temp_dir - prefix:', trim(prefix)
-
         ! Generate random suffix using system time and process ID
         call generate_random_suffix(random_suffix)
-    write (error_unit, *) 'DEBUG: create_temp_dir - random_suffix:', trim(random_suffix)
 
         ! Create unique temp directory path using FPM's join_path
         temp_dir = join_path(trim(base_temp_dir), &
                              trim(prefix)//'_'//trim(random_suffix))
-        write (error_unit, *) 'DEBUG: create_temp_dir - full path:', trim(temp_dir)
 
         ! Create the directory
         call mkdir(temp_dir)
@@ -396,7 +391,6 @@ contains
 
         ! Skip if directory already exists
         if (exists(dir_path)) then
-        write (error_unit, *) 'DEBUG: mkdir - directory already exists:', trim(dir_path)
             return
         end if
 
@@ -404,28 +398,14 @@ contains
         if (len_trim(dir_path) == 0) return
         if (index(dir_path, '/dev/null') > 0) return
 
-        write (error_unit, *) 'DEBUG: mkdir - creating directory:', trim(dir_path)
-
         ! Use runtime OS detection instead of preprocessor
         if (get_os_type() == OS_WINDOWS) then
       command = 'if not exist "'//trim(dir_path)//'" mkdir "'//trim(dir_path)//'" 2>nul'
-            write (error_unit, *) 'DEBUG: mkdir - Windows command:', trim(command)
         else
             command = 'mkdir -p "'//trim(dir_path)//'" 2>/dev/null'
-            write (error_unit, *) 'DEBUG: mkdir - Unix command:', trim(command)
         end if
 
         call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
-        write (error_unit, *) 'DEBUG: mkdir - exitstat:', exitstat, 'cmdstat:', cmdstat
-
-        ! Verify directory was actually created
-        if (.not. exists(dir_path)) then
-   write (error_unit, *) 'ERROR: mkdir - directory creation failed for:', trim(dir_path)
-            write (error_unit, *) 'ERROR: mkdir - command was:', trim(command)
-       write (error_unit, *) 'ERROR: mkdir - exitstat:', exitstat, ', cmdstat:', cmdstat
-        else
-            write (error_unit, *) 'DEBUG: mkdir - directory successfully created'
-        end if
     end subroutine mkdir
 
     !> Create a unique test cache directory to avoid race conditions in parallel tests
