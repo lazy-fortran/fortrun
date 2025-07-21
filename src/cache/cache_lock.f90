@@ -93,9 +93,18 @@ contains
         character(len=*), intent(in) :: cache_dir, project_name
         logical :: locked
         character(len=512) :: lock_file
+        integer :: unit, iostat
 
         lock_file = get_lock_file_path(cache_dir, project_name)
-        inquire (file=lock_file, exist=locked)
+
+        ! Use file open instead of inquire to properly handle symlinks
+        ! inquire(exist=...) can fail to detect symlinks on some systems
+        locked = .false.
+        open (newunit=unit, file=lock_file, status='old', action='read', iostat=iostat)
+        if (iostat == 0) then
+            locked = .true.
+            close (unit)
+        end if
 
         ! Only check for stale locks when explicitly requested, not during normal checks
         ! This prevents race conditions where a fresh lock is incorrectly considered stale
