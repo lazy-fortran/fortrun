@@ -3,6 +3,7 @@ program test_cache_lock
     use temp_utils, only: create_temp_dir, get_temp_file_path, create_test_cache_dir, path_join
     use temp_utils, only: mkdir
     use system_utils, only: sys_remove_dir
+    use fpm_environment, only: get_os_type, OS_WINDOWS
     implicit none
 
     character(len=256) :: temp_cache_dir
@@ -23,7 +24,7 @@ program test_cache_lock
     if (success) then
         print '(a)', '  ✓ Lock acquired successfully'
         ! List directory contents right after acquiring lock
-        call system('ls -la '//path_join(temp_cache_dir, '*.lock 2>&1 | head -10'))
+        call list_lock_files(temp_cache_dir)
     else
         print '(a)', '  ✗ Failed to acquire lock'
         stop 1
@@ -64,7 +65,7 @@ program test_cache_lock
             ! Debug: check if lock file exists
             inquire (file=path_join(temp_cache_dir, 'test_project2.lock'), exist=locked)
             print '(a,l)', '  Debug: Lock file exists = ', locked
-            call system('ls -la '//path_join(temp_cache_dir, '*.lock'))
+            call list_lock_files(temp_cache_dir)
             stop 1
         end if
 
@@ -122,32 +123,27 @@ program test_cache_lock
 
 contains
 
+    subroutine list_lock_files(cache_dir)
+        character(len=*), intent(in) :: cache_dir
+        character(len=512) :: command
+        integer :: exit_code
+
+        ! Cross-platform directory listing for lock files
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'dir "'//trim(cache_dir)//'\*.lock" 2>nul'
+        else
+            command = 'ls -la "'//trim(cache_dir)//'/"*.lock 2>&1 | head -10'
+        end if
+        
+        call execute_command_line(command, exitstat=exit_code)
+    end subroutine list_lock_files
+
     subroutine get_temp_dir(dir)
         character(len=*), intent(out) :: dir
         integer :: unit, iostat, last_char
 
-        block
-            character(len=256) :: temp_file
- temp_file = get_temp_file_path(create_temp_dir('fortran_test'), 'fortran_test_dir.tmp')
-            call system('mktemp -d > '//trim(temp_file))
-            open (newunit=unit, file=temp_file, status='old', iostat=iostat)
-            if (iostat == 0) then
-                read (unit, '(a)') dir
-                close (unit)
-                ! Cleanup handled by temp_utils
-
-                ! Remove trailing newline if present
-                last_char = len_trim(dir)
-                if (last_char > 0) then
-                    if (iachar(dir(last_char:last_char)) == 10 .or. &
-                        iachar(dir(last_char:last_char)) == 13) then
-                        dir = dir(1:last_char - 1)
-                    end if
-                end if
-            else
-                dir = create_test_cache_dir('cache_lock_test_thread')
-            end if
-        end block
+        ! Use temp_utils for cross-platform temp directory creation
+        dir = create_test_cache_dir('cache_lock_test_thread')
     end subroutine get_temp_dir
 
     subroutine create_stale_lock(cache_dir, project_name)

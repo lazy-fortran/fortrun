@@ -3,6 +3,7 @@ program test_benchmarks
     use temp_utils, only: create_temp_dir, get_temp_file_path, create_test_cache_dir, path_join
     use temp_utils, only: mkdir
     use system_utils, only: sys_remove_file, sys_remove_dir, sys_get_path_separator
+    use fpm_environment, only: get_os_type, OS_WINDOWS
     implicit none
 
     integer :: n_passed, n_failed
@@ -57,9 +58,8 @@ contains
             temp_dir = create_temp_dir('fortran_test')
             bench1_output = get_temp_file_path(temp_dir, 'bench1_output.txt')
 
-            command = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" -v "'// &
-                      trim(test_file)//'" > '//bench1_output//' 2>&1'
-            call execute_command_line(command, exitstat=exit_code)
+            call run_fortran_command_with_output('--cache-dir "'//trim(cache_dir)//'" -v "'// &
+                      trim(test_file)//'"', bench1_output, exit_code)
 
             call read_file_content(bench1_output, output1)
 first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  done.') > 0
@@ -73,9 +73,8 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
 
             ! Second run - should use cache
             bench1_output = get_temp_file_path(temp_dir, 'bench2_output.txt')
-            command = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" -v "'// &
-                      trim(test_file)//'" > '//bench1_output//' 2>&1'
-            call execute_command_line(command, exitstat=exit_code)
+            call run_fortran_command_with_output('--cache-dir "'//trim(cache_dir)//'" -v "'// &
+                      trim(test_file)//'"', bench1_output, exit_code)
 
             call read_file_content(bench1_output, output2)
         end block
@@ -126,11 +125,10 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
             temp_dir = create_temp_dir('fortran_test')
             bench_mod1_output = get_temp_file_path(temp_dir, 'bench_mod1_output.txt')
 
-            command = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" -v "'// &
+            call run_fortran_command_with_output('--cache-dir "'//trim(cache_dir)//'" -v "'// &
                       path_join(test_dir, 'module1.f90')//'\" \"'// &
                       path_join(test_dir, 'module2.f90')//'\" \"'// &
-                    path_join(test_dir, 'main.f90')//'\" > '//bench_mod1_output//' 2>&1'
-            call execute_command_line(command, exitstat=exit_code)
+                    path_join(test_dir, 'main.f90')//'"', bench_mod1_output, exit_code)
 
             call read_file_content(bench_mod1_output, output1)
             modules_compiled = index(output1, 'Cache miss') > 0 .and. &
@@ -145,11 +143,10 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
 
             ! Second run - should use cache
             bench_mod1_output = get_temp_file_path(temp_dir, 'bench_mod2_output.txt')
-            command = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" -v "'// &
+            call run_fortran_command_with_output('--cache-dir "'//trim(cache_dir)//'" -v "'// &
                       path_join(test_dir, 'module1.f90')//'\" \"'// &
                       path_join(test_dir, 'module2.f90')//'\" \"'// &
-                    path_join(test_dir, 'main.f90')//'\" > '//bench_mod1_output//' 2>&1'
-            call execute_command_line(command, exitstat=exit_code)
+                    path_join(test_dir, 'main.f90')//'"', bench_mod1_output, exit_code)
 
             call read_file_content(bench_mod1_output, output2)
         end block
@@ -200,11 +197,10 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
             temp_dir = create_temp_dir('fortran_test')
             bench_inc1_output = get_temp_file_path(temp_dir, 'bench_inc1_output.txt')
 
-            command = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" -v "'// &
+            call run_fortran_command_with_output('--cache-dir "'//trim(cache_dir)//'" -v "'// &
                       path_join(test_dir, 'module1.f90')//'\" \"'// &
                       path_join(test_dir, 'module2.f90')//'\" \"'// &
-                    path_join(test_dir, 'main.f90')//'\" > '//bench_inc1_output//' 2>&1'
-            call execute_command_line(command, exitstat=exit_code)
+                    path_join(test_dir, 'main.f90')//'"', bench_inc1_output, exit_code)
 
             call read_file_content(bench_inc1_output, output1)
     initial_compiled = index(output1, 'Cache miss') > 0 .and. index(output1, '.f90  done.') > 0
@@ -221,11 +217,10 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
 
             ! Incremental build - should recompile main but cache modules
             bench_inc1_output = get_temp_file_path(temp_dir, 'bench_inc2_output.txt')
-            command = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" -v "'// &
+            call run_fortran_command_with_output('--cache-dir "'//trim(cache_dir)//'" -v "'// &
                       path_join(test_dir, 'module1.f90')//'\" \"'// &
                       path_join(test_dir, 'module2.f90')//'\" \"'// &
-                    path_join(test_dir, 'main.f90')//'\" > '//bench_inc1_output//' 2>&1'
-            call execute_command_line(command, exitstat=exit_code)
+                    path_join(test_dir, 'main.f90')//'"', bench_inc1_output, exit_code)
 
             call read_file_content(bench_inc1_output, output2)
         end block
@@ -269,13 +264,9 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
         ! Create temp output file
 output_file = get_temp_file_path(create_temp_dir('fortran_bench'), 'measure_output.txt')
 
-        ! Build command
-        command = 'fpm run fortran -- --cache-dir "'// &
-           trim(cache_dir)//'" "'//trim(file_path)//'" > "'//trim(output_file)//'" 2>&1'
-
         ! Measure execution time
         call system_clock(count_start, count_rate)
-        call execute_command_line(trim(command), exitstat=exit_code)
+        call run_fortran_command_with_output('--cache-dir "'//trim(cache_dir)//'" "'//trim(file_path)//'"', output_file, exit_code)
         call system_clock(count_end)
 
         ! Clean up output file
@@ -384,5 +375,20 @@ output_file = get_temp_file_path(create_temp_dir('fortran_bench'), 'measure_outp
             close (unit)
         end if
     end subroutine read_file_content
+
+    subroutine run_fortran_command_with_output(args, output_file, exit_code)
+        character(len=*), intent(in) :: args, output_file
+        integer, intent(out) :: exit_code
+        character(len=1024) :: command
+
+        ! Cross-platform command execution with output redirection
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'fpm run fortran -- '//trim(args)//' > "'//trim(output_file)//'" 2>&1'
+        else
+            command = 'fpm run fortran -- '//trim(args)//' > "'//trim(output_file)//'" 2>&1'
+        end if
+        
+        call execute_command_line(trim(command), exitstat=exit_code)
+    end subroutine run_fortran_command_with_output
 
 end program test_benchmarks

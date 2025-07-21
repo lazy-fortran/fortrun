@@ -1,6 +1,8 @@
 program test_cache
     use, intrinsic :: iso_fortran_env, only: error_unit
     use temp_utils, only: create_temp_dir, get_temp_file_path, temp_dir_manager, create_test_cache_dir, path_join
+    use fpm_environment, only: get_os_type, OS_WINDOWS
+    use fpm_filesystem, only: exists
     implicit none
 
     character(len=:), allocatable :: test_cache_dir, test_program
@@ -29,9 +31,8 @@ program test_cache
         stop 1
     end if
 
-    ! Check if cache was created
-inquire (file=path_join(test_cache_dir, 'test_hello_')//repeat('*', 10), exist=cache_exists)
-  call execute_command_line('ls ' // trim(test_cache_dir) // ' > /dev/null 2>&1', exitstat=exit_code)
+    ! Check if cache was created - use cross-platform directory check
+    call check_cache_directory_exists(test_cache_dir, exit_code)
     if (exit_code /= 0) then
         write (error_unit, *) 'FAIL: Cache directory not created'
         stop 1
@@ -126,9 +127,41 @@ contains
             close (unit)
         end if
 
-        ! Clean up
-        call execute_command_line('rm -f '//output_file)
+        ! Clean up - use cross-platform file removal
+        call cleanup_temp_file(output_file)
 
     end subroutine run_with_cache
+
+    subroutine check_cache_directory_exists(cache_dir, exit_code)
+        character(len=*), intent(in) :: cache_dir
+        integer, intent(out) :: exit_code
+        character(len=512) :: command
+
+        ! Cross-platform directory existence check
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'dir "'//trim(cache_dir)//'" >nul 2>&1'
+        else
+            command = 'ls "'//trim(cache_dir)//'" >/dev/null 2>&1'
+        end if
+        
+        call execute_command_line(command, exitstat=exit_code)
+    end subroutine check_cache_directory_exists
+
+    subroutine cleanup_temp_file(file_path)
+        character(len=*), intent(in) :: file_path
+        character(len=512) :: command
+        integer :: exit_code
+
+        if (len_trim(file_path) == 0) return
+
+        ! Cross-platform file removal
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'del /f /q "'//trim(file_path)//'" 2>nul'
+        else
+            command = 'rm -f "'//trim(file_path)//'"'
+        end if
+        
+        call execute_command_line(command, exitstat=exit_code)
+    end subroutine cleanup_temp_file
 
 end program test_cache
