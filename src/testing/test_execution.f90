@@ -41,26 +41,18 @@ contains
         integer :: thread_id
 
         ! Initialize result - extract name from executable path
-        if (get_os_type() == OS_WINDOWS) then
-            ! For Windows, handle both file paths and commands with arguments
-            idx = max(index(test_executable, '/', back=.true.), &
-                      index(test_executable, '\', back=.true.))
-            if (idx > 0) then
-                ! Extract filename from path
-                result%name = test_executable(idx + 1:)
-            else
-                ! For commands like "cmd /c ...", extract just the first word
-                idx = index(test_executable, ' ')
-                if (idx > 0) then
-                    result%name = test_executable(1:idx-1)
-                else
-                    result%name = trim(test_executable)
-                end if
-            end if
+        ! Handle both file paths and commands with arguments on all platforms
+        idx = max(index(test_executable, '/', back=.true.), &
+                  index(test_executable, '\', back=.true.))
+        if (idx > 0) then
+            ! Extract filename from path
+            result%name = test_executable(idx + 1:)
         else
-            idx = index(test_executable, '/', back=.true.)
+            ! For commands with arguments (like "cmd /c ..." or "/bin/false"),
+            ! extract just the first word (command name)
+            idx = index(test_executable, ' ')
             if (idx > 0) then
-                result%name = test_executable(idx + 1:)
+                result%name = test_executable(1:idx-1)
             else
                 result%name = trim(test_executable)
             end if
