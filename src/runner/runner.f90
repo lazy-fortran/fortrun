@@ -10,6 +10,7 @@ module runner
     use fpm_strings, only: string_t
     use fpm_error, only: error_t
     use fpm_filesystem, only: join_path
+    use fpm_environment, only: get_os_type, OS_WINDOWS
   use frontend_integration, only: compile_with_frontend, compile_with_frontend_debug, is_simple_fortran_file
     use debug_state, only: get_debug_flags
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, mkdir
@@ -21,6 +22,16 @@ module runner
     public :: run_fortran_file
 
 contains
+
+    function get_cd_command() result(cd_cmd)
+        character(len=32) :: cd_cmd
+
+        if (get_os_type() == OS_WINDOWS) then
+            cd_cmd = 'cd /d'  ! /d flag allows changing drive letters on Windows
+        else
+            cd_cmd = 'cd'
+        end if
+    end function get_cd_command
 
     subroutine run_fortran_file(filename, exit_code, verbose_level, custom_cache_dir, &
                                 custom_config_dir, parallel_jobs, no_wait, custom_flags)
@@ -249,29 +260,29 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
                 character(len=256) :: output_file
                 output_file = get_temp_file_path(create_temp_dir('fortran_build'), 'fpm_build_output.txt')
                 if (len_trim(flag_string) > 0) then
-                    command = 'cd "'//trim(project_dir)//'" && '// &
+                  command = trim(get_cd_command())//' "'//trim(project_dir)//'" && '// &
            'fpm build --flag "'//trim(flag_string)//'" > "'//trim(output_file)//'" 2>&1'
                 else
-                    command = 'cd "'//trim(project_dir)//'" && '// &
+                  command = trim(get_cd_command())//' "'//trim(project_dir)//'" && '// &
                               'fpm build > "'//trim(output_file)//'" 2>&1'
                 end if
             end block
         else if (verbose_level >= 2) then
             ! Very verbose: show detailed build output
             if (len_trim(flag_string) > 0) then
-                command = 'cd "'//trim(project_dir)//'" && '// &
+                command = trim(get_cd_command())//' "'//trim(project_dir)//'" && '// &
                           'fpm build --verbose --flag "'//trim(flag_string)//'"'
             else
-                command = 'cd "'//trim(project_dir)//'" && '// &
+                command = trim(get_cd_command())//' "'//trim(project_dir)//'" && '// &
                           'fpm build --verbose'
             end if
         else
             ! Normal verbose: show build progress
             if (len_trim(flag_string) > 0) then
-                command = 'cd "'//trim(project_dir)//'" && '// &
+                command = trim(get_cd_command())//' "'//trim(project_dir)//'" && '// &
                           'fpm build --flag "'//trim(flag_string)//'"'
             else
-                command = 'cd "'//trim(project_dir)//'" && '// &
+                command = trim(get_cd_command())//' "'//trim(project_dir)//'" && '// &
                           'fpm build'
             end if
         end if
@@ -298,8 +309,13 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         ! Cache newly compiled dependency modules after successful build
         call cache_build_artifacts(project_dir, verbose_level)
 
-        ! Run the executable directly
-        command = trim(project_dir)//'/build/gfortran_*/app/'//trim(basename)
+        ! Run the executable using fpm run
+        command = trim(get_cd_command())//' "'//trim(project_dir)//'" && fpm run '//trim(basename)
+
+        if (verbose_level >= 1) then
+            print '(a,a)', 'DEBUG: Running command: ', trim(command)
+        end if
+
      call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat, wait=.true.)
 
         if (cmdstat /= 0) then
