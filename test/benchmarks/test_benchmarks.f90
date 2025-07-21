@@ -126,8 +126,6 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
             bench_mod1_output = get_temp_file_path(temp_dir, 'bench_mod1_output.txt')
 
      call run_fortran_command_with_output('--cache-dir "'//trim(cache_dir)//'" -v "'// &
-                                         path_join(test_dir, 'module1.f90')//'\" \"'// &
-                                         path_join(test_dir, 'module2.f90')//'\" \"'// &
                      path_join(test_dir, 'main.f90')//'"', bench_mod1_output, exit_code)
 
             call read_file_content(bench_mod1_output, output1)
@@ -144,8 +142,6 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
             ! Second run - should use cache
             bench_mod1_output = get_temp_file_path(temp_dir, 'bench_mod2_output.txt')
      call run_fortran_command_with_output('--cache-dir "'//trim(cache_dir)//'" -v "'// &
-                                         path_join(test_dir, 'module1.f90')//'\" \"'// &
-                                         path_join(test_dir, 'module2.f90')//'\" \"'// &
                      path_join(test_dir, 'main.f90')//'"', bench_mod1_output, exit_code)
 
             call read_file_content(bench_mod1_output, output2)
@@ -198,8 +194,6 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
             bench_inc1_output = get_temp_file_path(temp_dir, 'bench_inc1_output.txt')
 
      call run_fortran_command_with_output('--cache-dir "'//trim(cache_dir)//'" -v "'// &
-                                         path_join(test_dir, 'module1.f90')//'\" \"'// &
-                                         path_join(test_dir, 'module2.f90')//'\" \"'// &
                      path_join(test_dir, 'main.f90')//'"', bench_inc1_output, exit_code)
 
             call read_file_content(bench_inc1_output, output1)
@@ -218,8 +212,6 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
             ! Incremental build - should recompile main but cache modules
             bench_inc1_output = get_temp_file_path(temp_dir, 'bench_inc2_output.txt')
      call run_fortran_command_with_output('--cache-dir "'//trim(cache_dir)//'" -v "'// &
-                                         path_join(test_dir, 'module1.f90')//'\" \"'// &
-                                         path_join(test_dir, 'module2.f90')//'\" \"'// &
                      path_join(test_dir, 'main.f90')//'"', bench_inc1_output, exit_code)
 
             call read_file_content(bench_inc1_output, output2)
