@@ -243,7 +243,7 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
 
         ! Copy project to cache using Windows-compatible command
         if (get_os_type() == OS_WINDOWS) then
-            command = 'xcopy /E /I /Y "'//trim(project_dir)//'\" "'//trim(cached_project_dir)//'" >nul 2>&1'
+            command = 'xcopy /E /I /Y "'//trim(project_dir)//'" "'//trim(cached_project_dir)//'" >nul 2>&1'
         else
             command = 'cp -r "'//trim(project_dir)//'" "'//trim(cached_project_dir)//'"'
         end if
