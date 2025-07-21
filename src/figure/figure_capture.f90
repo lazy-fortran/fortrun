@@ -1,5 +1,6 @@
 module figure_capture
     use temp_utils, only: mkdir
+    use iso_c_binding, only: c_int
     implicit none
     private
 
@@ -29,21 +30,21 @@ contains
     subroutine init_figure_capture(custom_dir)
         character(len=*), intent(in), optional :: custom_dir
         character(len=256) :: command
+        character(len=32) :: pid_str
+        integer :: pid
 
         ! Set figure directory (use custom if provided)
         if (present(custom_dir)) then
             temp_figure_dir = trim(custom_dir)
         else
-            temp_figure_dir = './fortran_figures'
-            call mkdir(trim(temp_figure_dir))
+            ! Use process ID to create unique directory for each test/process
+            call get_process_id(pid)
+            write (pid_str, '(i0)') pid
+            temp_figure_dir = './fortran_figures_'//trim(pid_str)
         end if
 
-        ! Create temporary directory for figures (if not already created)
-        if (.not. present(custom_dir)) then
-            ! Directory already created by create_temp_dir
-        else
-            call mkdir(trim(temp_figure_dir))
-        end if
+        ! Create directory
+        call mkdir(trim(temp_figure_dir))
 
         ! Reset figure counter
         figure_counter = 0
@@ -315,5 +316,18 @@ contains
         integer :: counter
         counter = figure_counter
     end function get_figure_counter
+
+    subroutine get_process_id(pid)
+        integer, intent(out) :: pid
+
+        interface
+            function c_getpid() bind(C, name="getpid")
+                import :: c_int
+                integer(c_int) :: c_getpid
+            end function c_getpid
+        end interface
+
+        pid = int(c_getpid())
+    end subroutine get_process_id
 
 end module figure_capture

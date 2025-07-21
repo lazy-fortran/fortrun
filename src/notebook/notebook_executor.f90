@@ -87,6 +87,7 @@ contains
 write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (NO WAIT)'
             write (*, '(a,a)') 'DEBUG: cache_dir = ', trim(cache_dir)
             write (*, '(a,a)') 'DEBUG: lock_name = ', 'notebook_'//trim(cache_key)
+            write (*, '(a,i0)') 'DEBUG: thread ID = ', get_process_id()
             call flush (6)
 
             ! Use no-wait mode to prevent hanging in CI
@@ -578,11 +579,13 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
         write (*, '(a)') 'DEBUG: About to execute notebook command:'
         write (*, '(a,a)') 'DEBUG: command = ', trim(command)
         write (*, '(a,a)') 'DEBUG: project_dir = ', trim(project_dir)
+        write (*, '(a,i0)') 'DEBUG: thread ID = ', get_process_id()
         call flush (6)
 
         call execute_and_capture(command, output, exit_code)
 
         write (*, '(a,i0)') 'DEBUG: Execution completed with exit_code = ', exit_code
+        write (*, '(a,i0)') 'DEBUG: thread ID = ', get_process_id()
         call flush (6)
 
         ! Read actual output from notebook_output module
@@ -815,11 +818,14 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
 
         write (*, '(a)') 'DEBUG: execute_and_capture starting'
         write (*, '(a,a)') 'DEBUG: full_command = ', trim(full_command)
+        write (*, '(a,i0)') 'DEBUG: thread ID = ', get_process_id()
+        write (*, '(a,a)') 'DEBUG: temp_file = ', trim(temp_file)
         call flush (6)
 
         call execute_command_line(full_command, exitstat=exit_code)
 
  write (*, '(a,i0)') 'DEBUG: execute_command_line returned with exit_code = ', exit_code
+        write (*, '(a,i0)') 'DEBUG: thread ID = ', get_process_id()
         call flush (6)
 
         inquire (file=temp_file, size=file_size)
