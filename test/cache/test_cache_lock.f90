@@ -4,23 +4,14 @@ program test_cache_lock
     use temp_utils, only: mkdir
     use system_utils, only: sys_remove_dir
     use fpm_environment, only: get_os_type, OS_WINDOWS
-    use iso_c_binding, only: c_int
     implicit none
-
-    ! Interface for getpid
-    interface
-        function getpid() bind(c, name="getpid")
-            import :: c_int
-            integer(c_int) :: getpid
-        end function getpid
-    end interface
 
     character(len=256) :: temp_cache_dir
     logical :: success, locked
     integer :: i, unit
 
     ! Output early message to ensure test is starting
-    print '(a)', 'test_cache_lock: Starting...'
+    print '(a)', 'test_cache_lock: Initialization complete'
     flush (6)
 
     ! Create temporary directory for testing with unique suffix
@@ -29,13 +20,15 @@ program test_cache_lock
         integer :: values(8), pid_val
         logical :: dir_exists
 
+        print '(a)', 'test_cache_lock: Getting date and time...'
+        flush (6)
         call date_and_time(values=values)
-        if (get_os_type() == OS_WINDOWS) then
-            pid_val = values(7)*1000 + values(8)  ! Use milliseconds as pseudo-PID
-        else
-            pid_val = getpid()
-        end if
-        write (unique_suffix, '(i0,"_",i0,"_",i0)') values(7), values(8), pid_val
+        print '(a)', 'test_cache_lock: Date/time obtained'
+        flush (6)
+
+        ! Use time-based ID instead of PID to avoid potential CI issues
+        pid_val = values(7)*1000 + values(8)  ! Use milliseconds as unique ID
+        write (unique_suffix, '(i0,"_",i0,"_",i0)') values(6), values(7), values(8)
         temp_cache_dir = create_test_cache_dir('cache_lock_test_'//trim(unique_suffix))
 
         ! Verify directory was created
@@ -49,8 +42,6 @@ program test_cache_lock
 
     print '(a)', 'Testing cache lock functionality...'
     flush (6)  ! Ensure output is flushed
-    print '(a,i0)', 'Process ID: ', getpid()
-    print '(a,a)', 'Test start time: ', trim(get_timestamp_str())
 
     ! Test 1: Basic lock acquisition and release
     print '(a)', ''

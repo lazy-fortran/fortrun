@@ -3,21 +3,12 @@ program test_notebook_caching
     use notebook_executor
     use temp_utils, only: temp_dir_manager
     use fpm_environment, only: get_os_type, OS_WINDOWS
-    use iso_c_binding, only: c_int
     implicit none
-
-    ! Interface for getpid
-    interface
-        function getpid() bind(c, name="getpid")
-            import :: c_int
-            integer(c_int) :: getpid
-        end function getpid
-    end interface
 
     logical :: all_tests_passed
 
     ! Output early message to ensure test is starting
-    print '(a)', 'test_notebook_caching: Starting...'
+    print '(a)', 'test_notebook_caching: Initialization complete'
     flush (6)
 
     print *, '=== Notebook Caching Tests ==='
@@ -117,13 +108,10 @@ contains
             integer :: values(8), pid_val
 
             call date_and_time(values=values)
-            if (get_os_type() == OS_WINDOWS) then
-                pid_val = values(7)*1000 + values(8)
-            else
-                pid_val = getpid()
-            end if
+            ! Use time-based ID instead of PID to avoid potential CI issues
+            pid_val = values(7)*1000 + values(8)
             write (unique_name, '(a,i0,"_",i0,"_",i0)') 'test_notebook_reuse_', &
-                values(7), values(8), pid_val
+                values(6), values(7), values(8)
             call temp_mgr%create(trim(unique_name))
             test_cache_dir = temp_mgr%path
         end block
@@ -184,13 +172,10 @@ nb2%cells(1)%content = "value = 456.0"//new_line('a')//"print *, 'value =', valu
             integer :: values(8), pid_val
 
             call date_and_time(values=values)
-            if (get_os_type() == OS_WINDOWS) then
-                pid_val = values(7)*1000 + values(8)
-            else
-                pid_val = getpid()
-            end if
+            ! Use time-based ID instead of PID to avoid potential CI issues
+            pid_val = values(7)*1000 + values(8)
             write (unique_name, '(a,i0,"_",i0,"_",i0)') 'test_notebook_invalidation_', &
-                values(7), values(8), pid_val
+                values(6), values(7), values(8)
             call temp_mgr%create(trim(unique_name))
             test_cache_dir = temp_mgr%path
         end block
