@@ -1,6 +1,6 @@
 module figure_capture
     use temp_utils, only: mkdir
-    use system_utils, only: sys_remove_file
+    use system_utils, only: sys_remove_file, sys_remove_dir
     use iso_c_binding, only: c_int
     implicit none
     private
