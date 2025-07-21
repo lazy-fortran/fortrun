@@ -234,7 +234,7 @@ contains
         ! Try getting current directory via system command
         block
             character(len=:), allocatable :: temp_file, pwd_cmd, rm_cmd
-            temp_file = trim(get_system_temp_dir())//'/fortran_pwd.tmp'
+            temp_file = join_path(get_system_temp_dir(), 'fortran_pwd.tmp')
 #ifdef _WIN32
             pwd_cmd = 'cd > "'//temp_file//'"'
             rm_cmd = 'del /f "'//temp_file//'"'

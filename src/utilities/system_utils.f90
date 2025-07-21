@@ -464,9 +464,22 @@ contains
     !> Get system temporary directory
     function sys_get_temp_dir() result(temp_dir)
         character(len=:), allocatable :: temp_dir
+        character(len=256) :: env_temp
+        integer :: length
 
         if (get_os_type() == OS_WINDOWS) then
-            temp_dir = '%TEMP%'
+            call get_environment_variable('TEMP', env_temp, length)
+            if (length > 0) then
+                temp_dir = trim(env_temp)
+            else
+                call get_environment_variable('TMP', env_temp, length)
+                if (length > 0) then
+                    temp_dir = trim(env_temp)
+                else
+                    ! Fallback to common Windows temp location
+                    temp_dir = 'C:\Windows\Temp'
+                end if
+            end if
         else
             temp_dir = '/tmp'
         end if
