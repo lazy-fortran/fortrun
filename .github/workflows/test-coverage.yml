@@ -27,47 +27,9 @@ jobs:
 
     - name: Run tests with coverage
       run: |
-        # Build tests with coverage flags
-        fpm build --tests --flag '-fprofile-arcs -ftest-coverage'
-
-        # Test date_and_time function first
-        echo "Testing date_and_time function..."
-        fpm run test_date_time || echo "date_and_time test failed"
-
-        # Test create_test_cache_dir function
-        echo "Testing create_test_cache_dir function..."
-        fpm run test_cache_dir || echo "cache_dir test failed"
-
-        # Test cache_lock functionality in minimal form
-        echo "Testing cache_lock minimal..."
-        fpm run test_cache_lock_minimal || echo "cache_lock_minimal test failed"
-
-        # Test progressive loading of modules
-        echo "Testing cache_lock progressive..."
-        fpm run test_cache_lock_progressive || echo "cache_lock_progressive test failed"
-
-        # Test exact structure match
-        echo "Testing cache_lock exact..."
-        fpm run test_cache_lock_exact || echo "cache_lock_exact test failed"
-
-        # Test step by step to isolate hang
-        echo "Testing cache_lock step by step..."
-        fpm run test_cache_lock_step_by_step || echo "cache_lock_step_by_step test failed"
-
-        # Test exact replica as app instead of test
-        echo "Testing cache_lock as app (exact replica of test)..."
-        fpm run test_cache_lock_as_app || echo "cache_lock_as_app test failed"
-
-        # Run our custom test runner which provides:
-        # - Parallel test execution with better performance
-        # - Comprehensive test discovery including integration tests
-        # - Detailed failure diagnostics and progress reporting
-        # Note: Some tests may have race conditions when run in parallel
-        # Run with limited threads to reduce race conditions
-        # Known issues:
-        # - test_frontend_test_cases: Has many skipped tests due to AST limitations
-        # - test_json_workflows: May fail intermittently in parallel execution
-        OMP_NUM_THREADS=4 fpm run fortran -- --test -v
+        # Run all tests using standard fpm test command with coverage flags
+        # This ensures consistent test execution and proper coverage reporting
+        fpm test --flag '-fprofile-arcs -ftest-coverage'
 
     - name: Test installed binary
       run: |
