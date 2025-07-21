@@ -558,8 +558,16 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
         character(len=:), allocatable :: output
         integer :: exit_code, i
 
-        ! Initialize figure capture
-        call init_figure_capture()
+        ! Initialize figure capture with unique directory
+        block
+            character(len=256) :: unique_figure_dir
+            character(len=32) :: pid_str
+
+            ! Create unique figure directory using process ID and cache key
+            write (pid_str, '(i0)') get_process_id()
+   unique_figure_dir = trim(cache_dir)//'/figures_'//trim(cache_key)//'_'//trim(pid_str)
+            call init_figure_capture(unique_figure_dir)
+        end block
 
         ! Execute the notebook (with timeout to prevent hanging on Unix)
 #ifdef _WIN32
@@ -567,7 +575,15 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
 #else
         command = 'cd '//trim(project_dir)//' && timeout 30 fpm run'
 #endif
+        write (*, '(a)') 'DEBUG: About to execute notebook command:'
+        write (*, '(a,a)') 'DEBUG: command = ', trim(command)
+        write (*, '(a,a)') 'DEBUG: project_dir = ', trim(project_dir)
+        call flush (6)
+
         call execute_and_capture(command, output, exit_code)
+
+        write (*, '(a,i0)') 'DEBUG: Execution completed with exit_code = ', exit_code
+        call flush (6)
 
         ! Read actual output from notebook_output module
         if (exit_code == 0) then
@@ -772,9 +788,12 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
     ! Reuse helper functions from old implementation
     subroutine create_temp_notebook_dir(temp_dir)
         character(len=:), allocatable, intent(out) :: temp_dir
+        character(len=32) :: pid_str
 
         ! Always use cross-platform temp directory creation
-        temp_dir = create_temp_dir('fortran_notebook')
+        ! Use PID to make directory name unique
+        write (pid_str, '(i0)') get_process_id()
+        temp_dir = create_temp_dir('fortran_notebook_'//trim(pid_str))
 
     end subroutine create_temp_notebook_dir
 
@@ -786,11 +805,22 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
         character(len=256) :: temp_file
         character(len=512) :: full_command
         integer :: unit, iostat, file_size
+        character(len=32) :: pid_str
 
-     temp_file = get_temp_file_path(create_temp_dir('fortran_exec'), 'fortran_exec.out')
+        ! Use PID in temp file to avoid conflicts
+        write (pid_str, '(i0)') get_process_id()
+        temp_file = get_temp_file_path(create_temp_dir('fortran_exec_'//trim(pid_str)), 'fortran_exec.out')
 
         full_command = trim(command)//' > '//trim(temp_file)//' 2>&1'
+
+        write (*, '(a)') 'DEBUG: execute_and_capture starting'
+        write (*, '(a,a)') 'DEBUG: full_command = ', trim(full_command)
+        call flush (6)
+
         call execute_command_line(full_command, exitstat=exit_code)
+
+ write (*, '(a,i0)') 'DEBUG: execute_command_line returned with exit_code = ', exit_code
+        call flush (6)
 
         inquire (file=temp_file, size=file_size)
 
