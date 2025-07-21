@@ -391,6 +391,16 @@ contains
 
         ! Skip if directory already exists
         if (exists(dir_path)) then
+            ! Check if it's actually a directory or a file
+            block
+                logical :: is_dir
+                ! Try to check for a file within the directory to see if it's a directory
+                inquire(file=trim(dir_path)//'/.', exist=is_dir)
+                if (.not. is_dir) then
+                    ! It exists but is not a directory - it's a file
+                    print '(a,a,a)', 'WARNING: mkdir called on existing file: ', trim(dir_path), ' (not a directory!)'
+                end if
+            end block
             return
         end if
 

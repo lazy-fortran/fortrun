@@ -146,6 +146,7 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
         integer :: unit, i, code_cell_count
 
         ! Create project directory structure
+        call mkdir(project_dir)
         call mkdir(trim(project_dir)//'/src')
         call mkdir(trim(project_dir)//'/app')
 

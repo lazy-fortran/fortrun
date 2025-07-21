@@ -203,6 +203,7 @@ contains
 
         test_file = temp_dir%get_file_path('test_cache_hit.f90')
         cache_dir = cache_temp_dir%path
+        
 
         open (newunit=unit, file=test_file)
         write (unit, '(a)') 'program test_cache'
