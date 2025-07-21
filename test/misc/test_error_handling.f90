@@ -1,7 +1,8 @@
 program test_error_handling
     use, intrinsic :: iso_fortran_env, only: error_unit
-    use temp_utils, only: get_system_temp_dir
+    use temp_utils, only: get_system_temp_dir, path_join
     use temp_utils, only: mkdir
+    use system_utils, only: sys_remove_dir, sys_remove_file
     implicit none
 
     print *, '=== Error Handling Tests ==='
@@ -29,11 +30,11 @@ contains
         print *, 'Test 1: Unknown module error message'
 
         ! Create test directory
-        test_dir = get_system_temp_dir()//'/test_unknown_module'
+        test_dir = path_join(get_system_temp_dir(), 'test_unknown_module')
         call mkdir(trim(test_dir))
 
         ! Create test file with unknown module
-        test_file = trim(test_dir)//'/test_unknown.f90'
+        test_file = path_join(test_dir, 'test_unknown.f90')
         open (newunit=unit, file=test_file, status='replace')
         write (unit, '(a)') 'program test_unknown'
         write (unit, '(a)') '  use nonexistent_module'
@@ -44,8 +45,8 @@ contains
 
         ! Run the program and capture output
         command = 'fpm run fortran -- '//trim(test_file)// &
-                ' > '//get_system_temp_dir()//'/unknown_output.txt 2>&1; echo $? > '// &
-                  get_system_temp_dir()//'/unknown_exit.txt'
+  ' > '//path_join(get_system_temp_dir(), 'unknown_output.txt')//' 2>&1; echo $? > '// &
+                  path_join(get_system_temp_dir(), 'unknown_exit.txt')
         call execute_command_line(command)
 
         ! Check that it failed with non-zero exit code

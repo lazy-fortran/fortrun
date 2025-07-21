@@ -2,7 +2,8 @@ program test_registry_resolver_comprehensive
     use registry_resolver
     use config, only: get_config_dir
   use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, get_system_temp_dir
-    use temp_utils, only: mkdir
+    use temp_utils, only: mkdir, path_join
+    use system_utils, only: sys_remove_dir, sys_remove_file
     implicit none
 
     logical :: all_tests_passed
@@ -45,18 +46,18 @@ contains
 
         ! Test ensure_registry_exists in custom directory
         test_config_dir = create_temp_dir('test_registry_config')
-        call execute_command_line('rm -rf '//trim(test_config_dir))
+        call sys_remove_dir(test_config_dir)
         call ensure_registry_exists_in_dir(test_config_dir)
 
         ! Verify custom registry was created
-        inquire (file=trim(test_config_dir)//'/registry.toml', exist=passed)
+        inquire (file=path_join(test_config_dir, 'registry.toml'), exist=passed)
         if (.not. passed) then
             print *, "  FAIL: Custom registry was not created"
             return
         end if
 
         ! Clean up
-        call execute_command_line('rm -rf '//trim(test_config_dir))
+        call sys_remove_dir(test_config_dir)
 
         print *, "  PASS: Registry creation works correctly"
         passed = .true.
@@ -92,7 +93,7 @@ contains
         call load_registry()
 
         ! Clean up
-        call execute_command_line('rm -f '//trim(test_registry_path))
+        call sys_remove_file(test_registry_path)
 
         print *, "  PASS: Registry loading works correctly"
         passed = .true.
@@ -175,7 +176,7 @@ contains
         end if
 
         ! Clean up
-        call execute_command_line('rm -f '//trim(test_registry_path))
+        call sys_remove_file(test_registry_path)
 
         print *, "  PASS: Module resolution works correctly"
         passed = .true.
@@ -227,7 +228,7 @@ contains
         ! Version resolution may work differently - we just test it doesn't crash
 
         ! Clean up
-        call execute_command_line('rm -f '//trim(test_registry_path))
+        call sys_remove_file(test_registry_path)
 
         print *, "  PASS: Version resolution works correctly"
         passed = .true.
@@ -300,11 +301,11 @@ contains
 
         ! Create custom config directory
         custom_config_dir = create_temp_dir('test_custom_registry_dir')
-        call execute_command_line('rm -rf '//trim(custom_config_dir))
+        call sys_remove_dir(custom_config_dir)
         call mkdir(trim(custom_config_dir))
 
         ! Create custom registry
-        registry_path = trim(custom_config_dir)//'/registry.toml'
+        registry_path = path_join(custom_config_dir, 'registry.toml')
         open (newunit=unit, file=registry_path)
         write (unit, '(a)') '[packages]'
         write (unit, '(a)') ''
@@ -326,7 +327,7 @@ contains
         end if
 
         ! Clean up
-        call execute_command_line('rm -rf '//trim(custom_config_dir))
+        call sys_remove_dir(custom_config_dir)
 
         print *, "  PASS: Custom registry paths work correctly"
         passed = .true.
@@ -392,7 +393,7 @@ contains
         ! This may or may not be found depending on implementation - just check it doesn't crash
 
         ! Clean up
-        call execute_command_line('rm -f '//trim(test_registry_path))
+        call sys_remove_file(test_registry_path)
 
         print *, "  PASS: Prefix matching works correctly"
         passed = .true.
@@ -444,7 +445,7 @@ contains
         ! Underscore inference may work differently - we just test it doesn't crash
 
         ! Clean up
-        call execute_command_line('rm -f '//trim(test_registry_path))
+        call sys_remove_file(test_registry_path)
 
         print *, "  PASS: Underscore inference works correctly"
         passed = .true.
@@ -548,7 +549,7 @@ contains
         ! Should handle gracefully
 
         ! Clean up
-        call execute_command_line('rm -f '//trim(test_registry_path))
+        call sys_remove_file(test_registry_path)
 
         print *, "  PASS: Edge cases handled correctly"
         passed = .true.

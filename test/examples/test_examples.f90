@@ -3,6 +3,7 @@ program test_examples
     use cache, only: get_cache_dir
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, get_project_root, path_join
     use temp_utils, only: mkdir, create_test_cache_dir
+    use system_utils, only: sys_copy_file, sys_remove_dir, sys_list_files
     implicit none
 
     character(len=256), dimension(:), allocatable :: example_files
@@ -519,7 +520,7 @@ contains
         ! Create temporary directories and files
         temp_cache_dir = create_test_cache_dir('example_source_mod')
         temp_source_dir = create_temp_dir('fortran_test_source')
-        temp_source_file = trim(temp_source_dir)//'/main.f90'
+        temp_source_file = path_join(temp_source_dir, 'main.f90')
 
         print '(a,a)', 'Using temporary cache: ', trim(temp_cache_dir)
         print '(a,a)', 'Using temporary source: ', trim(temp_source_file)

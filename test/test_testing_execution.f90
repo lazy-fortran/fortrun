@@ -1,5 +1,6 @@
 program test_testing_execution
     use test_execution, only: test_result_t, run_single_test, TEST_PASSED, TEST_FAILED
+    use fpm_environment, only: get_os_type, OS_WINDOWS
     implicit none
 
     type(test_result_t) :: result
@@ -8,7 +9,11 @@ program test_testing_execution
     write (*, '(A)') "Testing test execution..."
 
     ! Test with a simple command that should pass
-    test_executable = "/bin/true"
+    if (get_os_type() == OS_WINDOWS) then
+        test_executable = "cmd /c exit 0"
+    else
+        test_executable = "/bin/true"
+    end if
     call run_single_test(test_executable, result)
 
     if (result%status /= TEST_PASSED) then
@@ -21,10 +26,14 @@ program test_testing_execution
         stop 1
     end if
 
-    write (*, '(A,F0.3,A)') "PASS: /bin/true passed in ", result%duration, "s"
+    write (*, '(A,F0.3,A)') "PASS: Success command passed in ", result%duration, "s"
 
     ! Test with a command that should fail
-    test_executable = "/bin/false"
+    if (get_os_type() == OS_WINDOWS) then
+        test_executable = "cmd /c exit 1"
+    else
+        test_executable = "/bin/false"
+    end if
     call run_single_test(test_executable, result)
 
     if (result%status /= TEST_FAILED) then
@@ -37,12 +46,19 @@ program test_testing_execution
         stop 1
     end if
 
- write (*, '(A,F0.3,A)') "PASS: /bin/false failed as expected in ", result%duration, "s"
+ write (*, '(A,F0.3,A)') "PASS: Failure command failed as expected in ", result%duration, "s"
 
     ! Test name extraction
-    if (trim(result%name) /= "false") then
+    if (get_os_type() == OS_WINDOWS) then
+        if (trim(result%name) /= "cmd") then
+         write (*, '(A,A,A)') "FAIL: Expected name 'cmd', got '", trim(result%name), "'"
+            stop 1
+        end if
+    else
+        if (trim(result%name) /= "false") then
        write (*, '(A,A,A)') "FAIL: Expected name 'false', got '", trim(result%name), "'"
-        stop 1
+            stop 1
+        end if
     end if
 
     write (*, '(A)') "PASS: Name extraction works correctly"
