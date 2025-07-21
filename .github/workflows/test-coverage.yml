@@ -50,6 +50,14 @@ jobs:
         echo "Testing cache_lock exact..."
         fpm run test_cache_lock_exact || echo "cache_lock_exact test failed"
 
+        # Test step by step to isolate hang
+        echo "Testing cache_lock step by step..."
+        fpm run test_cache_lock_step_by_step || echo "cache_lock_step_by_step test failed"
+
+        # Test exact replica as app instead of test
+        echo "Testing cache_lock as app (exact replica of test)..."
+        fpm run test_cache_lock_as_app || echo "cache_lock_as_app test failed"
+
         # Run our custom test runner which provides:
         # - Parallel test execution with better performance
         # - Comprehensive test discovery including integration tests
