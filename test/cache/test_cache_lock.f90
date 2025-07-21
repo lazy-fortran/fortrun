@@ -19,10 +19,16 @@ program test_cache_lock
     logical :: success, locked
     integer :: i, unit
 
+    ! Output early message to ensure test is starting
+    print '(a)', 'test_cache_lock: Starting...'
+    flush (6)
+
     ! Create temporary directory for testing with unique suffix
     block
         character(len=32) :: unique_suffix
         integer :: values(8), pid_val
+        logical :: dir_exists
+
         call date_and_time(values=values)
         if (get_os_type() == OS_WINDOWS) then
             pid_val = values(7)*1000 + values(8)  ! Use milliseconds as pseudo-PID
@@ -31,10 +37,18 @@ program test_cache_lock
         end if
         write (unique_suffix, '(i0,"_",i0,"_",i0)') values(7), values(8), pid_val
         temp_cache_dir = create_test_cache_dir('cache_lock_test_'//trim(unique_suffix))
+
+        ! Verify directory was created
+        inquire (file=trim(temp_cache_dir), exist=dir_exists)
+        if (.not. dir_exists) then
+            print '(a)', 'ERROR: Failed to create test cache directory'
+            print '(a,a)', 'Attempted path: ', trim(temp_cache_dir)
+            stop 1
+        end if
     end block
-    call mkdir(trim(temp_cache_dir))
 
     print '(a)', 'Testing cache lock functionality...'
+    flush (6)  ! Ensure output is flushed
     print '(a,i0)', 'Process ID: ', getpid()
     print '(a,a)', 'Test start time: ', trim(get_timestamp_str())
 

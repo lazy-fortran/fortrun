@@ -16,7 +16,12 @@ program test_notebook_caching
 
     logical :: all_tests_passed
 
+    ! Output early message to ensure test is starting
+    print '(a)', 'test_notebook_caching: Starting...'
+    flush (6)
+
     print *, '=== Notebook Caching Tests ==='
+    flush (6)  ! Ensure output is flushed
     print *
 
     all_tests_passed = .true.
