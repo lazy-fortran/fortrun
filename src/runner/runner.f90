@@ -12,6 +12,8 @@ module runner
   use frontend_integration, only: compile_with_frontend, compile_with_frontend_debug, is_simple_fortran_file
     use debug_state, only: get_debug_flags
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, mkdir
+    use system_utils, only: sys_copy_file, sys_remove_file, sys_get_absolute_path, &
+                            sys_find_files, sys_list_files, sys_get_path_separator
     use, intrinsic :: iso_fortran_env, only: int64
     implicit none
     private
@@ -319,32 +321,10 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
     subroutine get_absolute_path(filename, absolute_path)
         character(len=*), intent(in) :: filename
         character(len=*), intent(out) :: absolute_path
-        character(len=512) :: command
-        integer :: unit, iostat
+        logical :: success
 
-        ! Get absolute path in OS-specific way
-        block
-            use fpm_environment, only: get_os_type, OS_WINDOWS
-            character(len=256) :: temp_file
-
- temp_file = get_temp_file_path(create_temp_dir('fortran_realpath'), 'fortran_path.tmp')
-
-            if (get_os_type() == OS_WINDOWS) then
-                ! Windows: Use PowerShell to get absolute path
-                command = 'powershell -Command "(Resolve-Path -Path '''//trim(filename)//''').Path" > "'//trim(temp_file)//'"'
-            else
-                ! Unix: Use realpath
-                command = 'realpath "'//trim(filename)//'" > "'//trim(temp_file)//'"'
-            end if
-            call execute_command_line(command)
-
-            open (newunit=unit, file=temp_file, status='old', iostat=iostat)
-        end block
-        if (iostat == 0) then
-            read (unit, '(a)') absolute_path
-            close (unit)
-            ! Cleanup handled by temp_utils
-        else
+        call sys_get_absolute_path(filename, absolute_path, success)
+        if (.not. success) then
             ! Fallback to original filename
             absolute_path = filename
         end if
@@ -581,24 +561,23 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         call mkdir(trim(project_dir)//'/src')
 
         ! Copy all .f90 files except the main file (only files, not directories)
-        ! Use Windows-compatible approach
         block
-            use fpm_environment, only: get_os_type, OS_WINDOWS
+            character(len=512) :: files(1000)
+            integer :: num_files, j
+            character(len=512) :: dest_file
+            logical :: success
 
-            if (get_os_type() == OS_WINDOWS) then
-                ! Windows: Use dir command and for loop
-                command = 'cmd /c "for %f in ("'//trim(source_dir)//'"\*.f90 "'//trim(source_dir)//'"\*.F90) do ' // &
-                          'if not "%~f"=="'//trim(main_file)//'" copy "%~f" "'//trim(project_dir)//'\src\" >nul 2>&1"'
-            else
-                ! Unix: Use find command
-                command = 'find "' // trim(source_dir) // '" -maxdepth 1 -type f \( -name "*.f90" -o -name "*.F90" \) | ' // &
-                          'while read f; do '// &
-                          '  if [ "$f" != "'//trim(main_file)//'" ]; then '// &
-                          '    cp "$f" "'//trim(project_dir)//'/src/"; '// &
-                          '  fi; '// &
-                          'done'
-            end if
-            call execute_command_line(command)
+            ! Get list of files to copy
+            call get_f90_files_except_main(source_dir, main_file, files, num_files)
+
+            ! Copy each file to the src directory
+            do j = 1, num_files
+                dest_file = trim(project_dir)//'/src/'//extract_basename(files(j))
+                call sys_copy_file(files(j), dest_file, success)
+                if (.not. success) then
+                    print '(a,a)', 'Warning: Failed to copy ', trim(files(j))
+                end if
+            end do
         end block
 
     end subroutine copy_local_modules
@@ -629,7 +608,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         close (unit)
 
         ! Clean up error file
-        call execute_command_line('rm -f '//trim(error_file))
+        call sys_remove_file(error_file)
 
     end subroutine provide_helpful_error_message
 
@@ -680,8 +659,19 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         integer :: exitstat, cmdstat
 
         ! Copy the source file to app directory
-       command = 'cp "'//trim(absolute_path)//'" "'//trim(project_dir)//'/app/main.f90"'
-        call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
+        block
+            logical :: copy_success
+            character(len=256) :: dest_file
+            dest_file = trim(project_dir)//'/app/main.f90'
+            call sys_copy_file(absolute_path, dest_file, copy_success)
+            if (copy_success) then
+                exitstat = 0
+                cmdstat = 0
+            else
+                exitstat = 1
+                cmdstat = 1
+            end if
+        end block
 
         if (cmdstat /= 0 .or. exitstat /= 0) then
             print '(a)', 'Error: Failed to copy source file'
@@ -728,8 +718,19 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         integer :: exitstat, cmdstat
 
         ! Update the main source file in the cached project
-       command = 'cp "'//trim(absolute_path)//'" "'//trim(project_dir)//'/app/main.f90"'
-        call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
+        block
+            logical :: copy_success
+            character(len=256) :: dest_file
+            dest_file = trim(project_dir)//'/app/main.f90'
+            call sys_copy_file(absolute_path, dest_file, copy_success)
+            if (copy_success) then
+                exitstat = 0
+                cmdstat = 0
+            else
+                exitstat = 1
+                cmdstat = 1
+            end if
+        end block
 
         if (cmdstat /= 0 .or. exitstat /= 0) then
             print '(a)', 'Warning: Failed to update main source file in cache'
@@ -782,44 +783,31 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         ! Get basename of main file for comparison
         main_basename = extract_basename(main_file)
 
-        ! Create temporary file to list .f90 files
-        temp_file = get_temp_file_path(create_temp_dir('fortran_f90_list'), 'fortran_f90_list.tmp')
-
-        ! Use OS-specific command to list files
+        ! Get list of Fortran files
         block
-            use fpm_environment, only: get_os_type, OS_WINDOWS
+            character(len=512) :: all_files(1000)
+            integer :: total_files, j
 
-            if (get_os_type() == OS_WINDOWS) then
-                ! Windows: Use dir command
-                command = 'cmd /c "dir /b "'//trim(source_dir)//'"\*.f90 "'//trim(source_dir)//'"\*.F90 2>nul > ' // &
-                          '"'//trim(temp_file)//'"'
-            else
-                ! Unix: Use find command
-                command = 'find "' // trim(source_dir) // '" -maxdepth 1 -name "*.f90" -o -name "*.F90" > ' // trim(temp_file)
+            ! First get .f90 files
+            call sys_list_files(source_dir, '*.f90', all_files, total_files)
+
+            ! Then get .F90 files and add to list
+            if (total_files < size(all_files)) then
+                call sys_list_files(source_dir, '*.F90', all_files(total_files + 1:), j)
+                total_files = total_files + j
             end if
-            call execute_command_line(command)
-        end block
 
-        ! Read file list and exclude main file
-        files = ''
-        num_files = 0
-        open (newunit=unit, file=temp_file, status='old', iostat=iostat)
-        if (iostat == 0) then
-            do i = 1, size(files)
-                read (unit, '(a)', iostat=iostat) line
-                if (iostat /= 0) exit
-
-                ! Skip if this is the main file
-                if (index(line, trim(main_basename)) > 0) cycle
-
-                num_files = num_files + 1
-                files(num_files) = trim(line)
+            ! Filter out the main file
+            num_files = 0
+            do i = 1, total_files
+                if (index(all_files(i), trim(main_basename)) == 0) then
+                    num_files = num_files + 1
+                    if (num_files <= size(files)) then
+                        files(num_files) = trim(all_files(i))
+                    end if
+                end if
             end do
-            close (unit)
-        end if
-
-        ! Clean up
-        call execute_command_line('rm -f '//trim(temp_file))
+        end block
 
     end subroutine get_f90_files_except_main
 

@@ -2,6 +2,8 @@ module cache_lock
     use iso_c_binding, only: c_int
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, mkdir
     use fpm_environment, only: get_os_type, OS_WINDOWS
+    use system_utils, only: sys_remove_file, sys_move_file, sys_find_files, &
+                            sys_create_symlink, sys_process_exists, sys_sleep
     implicit none
     private
     public :: acquire_lock, release_lock, is_locked, cleanup_stale_locks
@@ -66,7 +68,7 @@ contains
             end if
 
             ! Wait and retry
-            call sleep(1)
+            call sys_sleep(1)
             wait_time = wait_time + 1
 
             if (wait_time >= MAX_WAIT_TIME) then
@@ -101,37 +103,18 @@ contains
 
     subroutine cleanup_stale_locks(cache_dir)
         character(len=*), intent(in) :: cache_dir
-        character(len=512) :: command, temp_locks_file
-        integer :: unit, iostat
-        character(len=512) :: lock_file
+        character(len=512) :: lock_files(1000)
+        integer :: num_files, i
 
         ! Find all lock files in cache directory
-        temp_locks_file = get_temp_file_path(create_temp_dir('fortran_locks'), &
-                                             'fortran_locks.tmp')
-        if (get_os_type() == OS_WINDOWS) then
-            ! Use simpler dir command for Windows
-            command = 'cmd /c dir /b "'//trim(cache_dir)//'\*.lock" > "'// &
-                      trim(temp_locks_file)//'" 2>nul'
-        else
-            command = 'find "'//trim(cache_dir)//'" -name "*.lock" -type f > "'// &
-                      trim(temp_locks_file)//'" 2>/dev/null'
-        end if
-        call execute_command_line(command)
+      call sys_find_files(cache_dir, '*.lock', lock_files, num_files, recursive=.false.)
 
-        open (newunit=unit, file=trim(temp_locks_file), status='old', iostat=iostat)
-        if (iostat == 0) then
-            do
-                read (unit, '(a)', iostat=iostat) lock_file
-                if (iostat /= 0) exit
-
-                if (is_lock_stale(trim(lock_file))) then
-                    call remove_lock(trim(lock_file))
-                end if
-            end do
-            close (unit)
-        end if
-
-        ! Cleanup handled by temp_utils
+        ! Check each lock file
+        do i = 1, num_files
+            if (is_lock_stale(trim(lock_files(i)))) then
+                call remove_lock(trim(lock_files(i)))
+            end if
+        end do
 
     end subroutine cleanup_stale_locks
 
@@ -177,69 +160,32 @@ contains
             inquire (file=lock_file, exist=file_exists)
             if (file_exists) then
                 ! Lock already exists, can't create
-                if (get_os_type() == OS_WINDOWS) then
-                    print *, 'DEBUG: Deleting temp file:', trim(temp_file)
-                    command = 'del /f /q '//trim(temp_file)//' 2>nul'
-                    print *, 'DEBUG: Command being executed:', trim(command)
-                    call execute_command_line(command, exitstat=iostat)
-                    print *, 'DEBUG: Command exitstat:', iostat
-                    if (iostat /= 0) then
-       print *, 'DEBUG: Windows del command failed:', trim(command), 'exitstat:', iostat
-                    else
-                        print *, 'DEBUG: Windows del command succeeded'
-                    end if
-                else
-                    call execute_command_line('rm -f "'//trim(temp_file)//'"')
-                end if
+                ! Clean up temp file since lock already exists
+                print *, 'DEBUG: Deleting temp file:', trim(temp_file)
+                call sys_remove_file(temp_file)
                 success = .false.
             else
+                ! Try atomic move/link operation
+                print *, 'DEBUG: Moving temp file to lock file'
+                print *, 'DEBUG: From:', trim(temp_file)
+                print *, 'DEBUG: To:', trim(lock_file)
+
                 if (get_os_type() == OS_WINDOWS) then
-                    ! On Windows, use move command which is atomic within same drive
-                    print *, 'DEBUG: Moving temp file to lock file'
-                    print *, 'DEBUG: From:', trim(temp_file)
-                    print *, 'DEBUG: To:', trim(lock_file)
-                   command = 'move /Y '//trim(temp_file)//' '//trim(lock_file)//' 2>nul'
-                    print *, 'DEBUG: Move command:', trim(command)
-                    call execute_command_line(command, exitstat=iostat)
-                    print *, 'DEBUG: Move exitstat:', iostat
-                    if (iostat /= 0) then
-      print *, 'DEBUG: Windows move command failed:', trim(command), 'exitstat:', iostat
-                    else
-                        print *, 'DEBUG: Windows move command succeeded'
-                    end if
-
-                    if (iostat == 0) then
-                        ! Double-check that we really created the lock
-                        inquire (file=lock_file, exist=file_exists)
-                        success = file_exists
-                    else
-                        success = .false.
-                        ! Clean up temp file if move failed
-            print *, 'DEBUG: Cleaning up temp file after move failure:', trim(temp_file)
-                        command = 'del /f /q '//trim(temp_file)//' 2>nul'
-                        print *, 'DEBUG: Cleanup command:', trim(command)
-                        call execute_command_line(command, exitstat=iostat)
-                        print *, 'DEBUG: Cleanup exitstat:', iostat
-                        if (iostat /= 0) then
-       print *, 'DEBUG: Windows cleanup del failed:', trim(command), 'exitstat:', iostat
-                        else
-                            print *, 'DEBUG: Windows cleanup del succeeded'
-                        end if
-                    end if
+                    ! On Windows, use move which is atomic within same drive
+                    call sys_move_file(temp_file, lock_file, success)
                 else
-                    ! Use ln to create hard link atomically, then remove temp
-              command = 'ln "'//trim(temp_file)//'" "'//trim(lock_file)//'" 2>/dev/null'
-                    call execute_command_line(command, exitstat=iostat)
-
-                    if (iostat == 0) then
-                        ! Double-check that we really created the lock
-                        inquire (file=lock_file, exist=file_exists)
-                        success = file_exists
-                    else
-                        success = .false.
+                    ! On Unix, use symlink for atomic operation
+                    call sys_create_symlink(temp_file, lock_file, success)
+                    if (success) then
+                        ! Clean up temp file after successful link
+                        call sys_remove_file(temp_file)
                     end if
-                    ! Always clean up temp file
-                    call execute_command_line('rm -f "'//trim(temp_file)//'"')
+                end if
+
+                if (.not. success) then
+                    print *, 'DEBUG: Atomic lock creation failed'
+                    ! Clean up temp file if it still exists
+                    call sys_remove_file(temp_file)
                 end if
             end if
         end if
@@ -301,26 +247,14 @@ contains
 
     subroutine remove_lock(lock_file)
         character(len=*), intent(in) :: lock_file
-        character(len=512) :: command
-        integer :: iostat
+        logical :: success
 
-        if (get_os_type() == OS_WINDOWS) then
-            print *, 'DEBUG: Removing lock file:', trim(lock_file)
-            command = 'del /f /q '//trim(lock_file)//' 2>nul'
-            print *, 'DEBUG: Remove command:', trim(command)
-            call execute_command_line(command, exitstat=iostat)
-            print *, 'DEBUG: Remove exitstat:', iostat
-            if (iostat /= 0) then
-       print *, 'DEBUG: Remove lock command failed:', trim(command), 'exitstat:', iostat
-            else
-                print *, 'DEBUG: Remove lock command succeeded'
-            end if
+        print *, 'DEBUG: Removing lock file:', trim(lock_file)
+        call sys_remove_file(lock_file, success)
+        if (.not. success) then
+            print *, 'DEBUG: Failed to remove lock file:', trim(lock_file)
         else
-            command = 'rm -f "'//trim(lock_file)//'"'
-            call execute_command_line(command, exitstat=iostat)
-            if (iostat /= 0) then
-       print *, 'DEBUG: Remove lock command failed:', trim(command), 'exitstat:', iostat
-            end if
+            print *, 'DEBUG: Lock file removed successfully'
         end if
 
     end subroutine remove_lock
@@ -373,38 +307,9 @@ contains
     function is_process_running(pid) result(running)
         integer, intent(in) :: pid
         logical :: running
-        character(len=128) :: command
-        integer :: exitstat
 
-        if (get_os_type() == OS_WINDOWS) then
-            ! On Windows, skip process checking as it's unreliable in CI
-            ! Just assume process is not running to avoid hanging
-            exitstat = 1  ! Process not found
-        else
-            write (command, '(a,i0,a)') 'kill -0 ', pid, ' 2>/dev/null'
-            call execute_command_line(command, exitstat=exitstat)
-        end if
-
-        running = (exitstat == 0)
+        running = sys_process_exists(pid)
 
     end function is_process_running
-
-    subroutine sleep(seconds)
-        integer, intent(in) :: seconds
-        character(len=128) :: command
-        integer :: iostat
-
-        if (get_os_type() == OS_WINDOWS) then
-            ! On Windows, use ping for sleep (more reliable than timeout)
-            write (command, '(a,i0,a)') 'ping -n ', seconds + 1, ' 127.0.0.1'
-        else
-            write (command, '(a,i0)') 'sleep ', seconds
-        end if
-        call execute_command_line(command, exitstat=iostat)
-        if (iostat /= 0) then
-            print *, 'DEBUG: Sleep command failed:', trim(command), 'exitstat:', iostat
-        end if
-
-    end subroutine sleep
 
 end module cache_lock
