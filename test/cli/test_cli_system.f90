@@ -215,7 +215,7 @@ contains
             end if
 
             ! Remove all cache entries for this specific test file
-      call execute_command_line('rm -rf "'//trim(cache_dir)//'"/*'//trim(basename)//'*')
+      call execute_command_line('rm -rf "'//trim(cache_dir)//'/"*'//trim(basename)//'*')
         end block
 
         call temp_mgr%create('test_v_flag')

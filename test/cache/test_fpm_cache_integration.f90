@@ -81,7 +81,7 @@ contains
         ! Clean up
         call execute_command_line('rm -rf '//test_dir)
 
-        print *, 'PASS: FPM source discovery works, found', size(sources), 'sources'
+        print *, 'PASS: FPM source discovery works with long paths'
         print *
 
     end subroutine test_fpm_source_discovery
