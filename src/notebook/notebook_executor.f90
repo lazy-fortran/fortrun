@@ -7,7 +7,7 @@ module notebook_executor
     use, intrinsic :: iso_c_binding
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path
     use temp_utils, only: mkdir
-    use system_utils, only: sys_remove_file
+    use system_utils, only: sys_remove_file, sys_get_current_dir
     use fpm_environment, only: get_os_type, OS_WINDOWS
     implicit none
     private
@@ -489,7 +489,7 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
         character(len=256) :: current_dir
 
         ! Get current working directory
-        call getcwd(current_dir)
+        call sys_get_current_dir(current_dir)
 
         ! Set up source and destination paths
         source_file = trim(current_dir)//'/src/notebook/notebook_output.f90'
