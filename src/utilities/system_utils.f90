@@ -13,6 +13,7 @@ module system_utils
     public :: sys_run_command, sys_get_path_separator
     public :: sys_count_files, sys_sleep, sys_kill_process
     public :: sys_process_exists, sys_get_temp_dir
+    public :: sys_run_command_with_exit_code
 
 contains
 
@@ -484,5 +485,23 @@ contains
             temp_dir = '/tmp'
         end if
     end function sys_get_temp_dir
+
+    !> Run a command and capture output and exit code to files
+    !> This is a portable way to replace Unix "command > output 2>&1; echo $? > exit_file"
+    subroutine sys_run_command_with_exit_code(command, output_file, exit_file)
+        character(len=*), intent(in) :: command, output_file, exit_file
+        character(len=2048) :: full_command
+        integer :: exit_code, unit
+        
+        if (get_os_type() == OS_WINDOWS) then
+            ! Windows: Use cmd /c to run command and capture exit code
+            full_command = 'cmd /c "('//trim(command)//') > "'//trim(output_file)//'" 2>&1 & echo %ERRORLEVEL% > "'//trim(exit_file)//'"'
+        else
+            ! Unix: Use shell to run command and capture exit code
+            full_command = '('//trim(command)//') > "'//trim(output_file)//'" 2>&1; echo $? > "'//trim(exit_file)//'"'
+        end if
+        
+        call execute_command_line(full_command)
+    end subroutine sys_run_command_with_exit_code
 
 end module system_utils

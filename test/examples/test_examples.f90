@@ -3,7 +3,7 @@ program test_examples
     use cache, only: get_cache_dir
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, get_project_root, path_join
     use temp_utils, only: mkdir, create_test_cache_dir, path_join
-    use system_utils, only: sys_copy_file, sys_remove_dir, sys_list_files
+    use system_utils, only: sys_copy_file, sys_remove_dir, sys_list_files, sys_remove_file
     implicit none
 
     character(len=256), dimension(:), allocatable :: example_files
@@ -338,11 +338,7 @@ contains
             end if
 
             ! Clean up temp file
-#ifdef _WIN32
-            call execute_command_line('del /q "'//temp_output_file//'" 2>nul')
-#else
-            call execute_command_line('rm -f "'//temp_output_file//'"')
-#endif
+            call sys_remove_file(temp_output_file)
         end block
 
     end subroutine run_example

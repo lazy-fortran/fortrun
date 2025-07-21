@@ -104,9 +104,9 @@ contains
             content_hash = get_single_file_content_hash(absolute_path)
             if (content_hash == 'fallback_unknown') then
                 ! Fallback to basename if hashing fails
-           preprocessed_file = trim(cache_dir)//'/preprocessed_'//trim(basename)//'.f90'
+           preprocessed_file = join_path(cache_dir, 'preprocessed_'//trim(basename)//'.f90')
             else
-       preprocessed_file = trim(cache_dir)//'/preprocessed_'//trim(content_hash)//'.f90'
+       preprocessed_file = join_path(cache_dir, 'preprocessed_'//trim(content_hash)//'.f90')
             end if
 
             ! Check if already cached
@@ -208,7 +208,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         end if
 
         ! Check if project already exists (cache hit)
-        if (directory_exists(trim(project_dir)//'/build')) then
+        if (directory_exists(join_path(project_dir, 'build'))) then
             if (verbose_level >= 1) then
                 print '(a)', 'Cache hit: Using existing build'
             end if
@@ -221,7 +221,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
                 print '(a)', 'Cache miss: Setting up new build'
             end if
 
-            call mkdir(trim(project_dir)//'/app')
+            call mkdir(join_path(project_dir, 'app'))
 
             ! Copy source files and generate FPM project only on cache miss
             if (present(custom_flags)) then
@@ -468,7 +468,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
             print '(a)', 'Checking module cache for dependencies...'
         end if
 
-        build_dir = trim(project_dir)//'/build'
+        build_dir = join_path(project_dir, 'build')
         call mkdir(trim(build_dir))
 
         ! Check each dependency module for cached versions
@@ -594,7 +594,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         end if
 
         ! Create src directory
-        call mkdir(trim(project_dir)//'/src')
+        call mkdir(join_path(project_dir, 'src'))
 
         ! Copy all .f90 files except the main file (only files, not directories)
         block
@@ -611,7 +611,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
 
             ! Copy each file to the src directory
             do j = 1, num_files
-                dest_file = trim(project_dir)//'/src/'//extract_basename(files(j))
+                dest_file = join_path(join_path(project_dir, 'src'), extract_basename(files(j)))
                 call sys_copy_file(files(j), dest_file, success)
                 if (.not. success) then
                     print '(a,a)', 'Warning: Failed to copy ', trim(files(j))
@@ -684,7 +684,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         logical :: exists
 
         ! Check if directory exists by checking for current directory marker
-        inquire (file=trim(dir_path)//'/.', exist=exists)
+        inquire (file=join_path(dir_path, '.'), exist=exists)
 
     end function directory_exists
 
@@ -701,7 +701,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         block
             logical :: copy_success
             character(len=256) :: dest_file
-            dest_file = trim(project_dir)//'/app/main.f90'
+            dest_file = join_path(join_path(project_dir, 'app'), 'main.f90')
             call sys_copy_file(absolute_path, dest_file, copy_success)
             if (copy_success) then
                 exitstat = 0
@@ -760,7 +760,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         block
             logical :: copy_success
             character(len=256) :: dest_file
-            dest_file = trim(project_dir)//'/app/main.f90'
+            dest_file = join_path(join_path(project_dir, 'app'), 'main.f90')
             call sys_copy_file(absolute_path, dest_file, copy_success)
             if (copy_success) then
                 exitstat = 0

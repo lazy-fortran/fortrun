@@ -1,6 +1,7 @@
 program test_runner_comprehensive
     use runner, only: run_fortran_file
     use temp_utils, only: temp_dir_manager
+    use cache, only: clear_cache
     implicit none
 
     logical :: all_tests_passed
@@ -61,7 +62,8 @@ contains
 
     subroutine clear_test_cache()
         ! Clear cache before running tests to avoid module conflicts
-        call execute_command_line('rm -rf ~/.cache/fortran/*')
+        logical :: success
+        call clear_cache("", success)
     end subroutine clear_test_cache
 
     function test_file_not_found() result(passed)
