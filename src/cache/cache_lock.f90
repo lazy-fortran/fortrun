@@ -132,16 +132,15 @@ contains
             character(len=512) :: command
             integer :: exit_code
 
-            if (get_os_type() == OS_WINDOWS) then
-                ! On Windows, use dir command with proper redirection
-                command = 'dir "'//trim(lock_file)//'" >nul 2>&1'
-            else
-                ! On Unix, use test -L to detect symlinks even if they're dangling
-                command = 'test -L "'//trim(lock_file)//'" || test -e "'//trim(lock_file)//'"'
-            end if
-
+            write (error_unit, *) 'DEBUG: check_lock_file_exists called for:', trim(lock_file)
+            
+            ! Use dir command on all platforms for consistency - it works in MSYS2/Git Bash too
+            command = 'dir "'//trim(lock_file)//'" >nul 2>&1 || ls "'//trim(lock_file)//'" >/dev/null 2>&1'
+            
+            write (error_unit, *) 'DEBUG: Running command:', trim(command)
             call execute_command_line(command, exitstat=exit_code)
             exists = (exit_code == 0)
+            write (error_unit, *) 'DEBUG: Command exit code:', exit_code, ', exists:', exists
         end block
     end function check_lock_file_exists
 
