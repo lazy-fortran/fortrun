@@ -179,7 +179,7 @@ contains
                 ! Lock already exists, can't create
                 if (get_os_type() == OS_WINDOWS) then
                     print *, 'DEBUG: Deleting temp file:', trim(temp_file)
-                    command = 'del /f /q '//trim(temp_file)
+                    command = 'del /f /q '//trim(temp_file)//' 2>nul'
                     print *, 'DEBUG: Command being executed:', trim(command)
                     call execute_command_line(command, exitstat=iostat)
                     print *, 'DEBUG: Command exitstat:', iostat
@@ -198,7 +198,7 @@ contains
                     print *, 'DEBUG: Moving temp file to lock file'
                     print *, 'DEBUG: From:', trim(temp_file)
                     print *, 'DEBUG: To:', trim(lock_file)
-                    command = 'move /Y '//trim(temp_file)//' '//trim(lock_file)
+                   command = 'move /Y '//trim(temp_file)//' '//trim(lock_file)//' 2>nul'
                     print *, 'DEBUG: Move command:', trim(command)
                     call execute_command_line(command, exitstat=iostat)
                     print *, 'DEBUG: Move exitstat:', iostat
@@ -216,7 +216,7 @@ contains
                         success = .false.
                         ! Clean up temp file if move failed
             print *, 'DEBUG: Cleaning up temp file after move failure:', trim(temp_file)
-                        command = 'del /f /q '//trim(temp_file)
+                        command = 'del /f /q '//trim(temp_file)//' 2>nul'
                         print *, 'DEBUG: Cleanup command:', trim(command)
                         call execute_command_line(command, exitstat=iostat)
                         print *, 'DEBUG: Cleanup exitstat:', iostat
@@ -306,7 +306,7 @@ contains
 
         if (get_os_type() == OS_WINDOWS) then
             print *, 'DEBUG: Removing lock file:', trim(lock_file)
-            command = 'del /f /q '//trim(lock_file)
+            command = 'del /f /q '//trim(lock_file)//' 2>nul'
             print *, 'DEBUG: Remove command:', trim(command)
             call execute_command_line(command, exitstat=iostat)
             print *, 'DEBUG: Remove exitstat:', iostat
