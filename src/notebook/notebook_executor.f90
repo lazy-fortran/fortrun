@@ -468,9 +468,6 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
                   '[build]'//new_line('a')// &
                   'auto-executables = true'//new_line('a')// &
                   ''//new_line('a')// &
-                  '[dependencies]'//new_line('a')// &
-              'fpm = { git = "https://github.com/fortran-lang/fpm" }'//new_line('a')// &
-                  ''//new_line('a')// &
                   '[fortran]'//new_line('a')// &
                   'implicit-typing = false'//new_line('a')// &
                   'implicit-external = false'//new_line('a')// &
