@@ -1,33 +1,38 @@
 program test_cache
     use, intrinsic :: iso_fortran_env, only: error_unit
+    use temp_utils, only: create_temp_dir, get_temp_file_path, temp_dir_manager, create_test_cache_dir, path_join
+    use fpm_environment, only: get_os_type, OS_WINDOWS
+    use fpm_filesystem, only: exists
     implicit none
 
-    character(len=256) :: test_cache_dir, test_program
-    character(len=1024) :: output1, output2
+    character(len=:), allocatable :: test_cache_dir, test_program
+    character(len=8192) :: output1, output2
     integer :: exit_code
     logical :: cache_exists
+    character(len=:), allocatable :: temp_dir
+    type(temp_dir_manager) :: temp_mgr
 
-    ! Create test cache directory
-    test_cache_dir = './test_cache_tmp'
-    test_program = 'test_cache_hello.f90'
+    ! Create a temp directory for the test
+    call temp_mgr%create('fortran_test_cache')
+    temp_dir = temp_mgr%path
 
-    ! Clean up any existing test cache
-    call execute_command_line('rm -rf '//trim(test_cache_dir))
+    ! Create unique test cache directory to avoid race conditions
+    test_cache_dir = create_test_cache_dir('cache_basic')
+    test_program = path_join(temp_dir, 'test_cache_hello.f90')
 
     ! Create test program
     call create_test_program(test_program)
 
     print *, 'Test 1: First run with custom cache directory'
-    call run_with_cache(test_program, test_cache_dir, '-v', output1, exit_code)
+   call run_with_cache(test_program, test_cache_dir, '-v', output1, exit_code, temp_dir)
 
     if (exit_code /= 0) then
         write (error_unit, *) 'FAIL: First run failed'
         stop 1
     end if
 
-    ! Check if cache was created
-inquire (file=trim(test_cache_dir)//'/test_hello_'//repeat('*', 10), exist=cache_exists)
-  call execute_command_line('ls ' // trim(test_cache_dir) // ' > /dev/null 2>&1', exitstat=exit_code)
+    ! Check if cache was created - use cross-platform directory check
+    call check_cache_directory_exists(test_cache_dir, exit_code)
     if (exit_code /= 0) then
         write (error_unit, *) 'FAIL: Cache directory not created'
         stop 1
@@ -43,7 +48,7 @@ inquire (file=trim(test_cache_dir)//'/test_hello_'//repeat('*', 10), exist=cache
 
     print *, ''
     print *, 'Test 2: Second run should use cache'
-    call run_with_cache(test_program, test_cache_dir, '-v', output2, exit_code)
+   call run_with_cache(test_program, test_cache_dir, '-v', output2, exit_code, temp_dir)
 
     if (exit_code /= 0) then
         write (error_unit, *) 'FAIL: Second run failed'
@@ -71,9 +76,7 @@ inquire (file=trim(test_cache_dir)//'/test_hello_'//repeat('*', 10), exist=cache
 
     print *, 'PASS: Program output consistent across runs'
 
-    ! Clean up
-    call execute_command_line('rm -rf '//trim(test_cache_dir))
-    call execute_command_line('rm -f '//trim(test_program))
+    ! No manual cleanup needed - temp directories auto-cleanup
 
     print *, ''
     print *, 'All cache tests passed!'
@@ -92,25 +95,29 @@ contains
         close (unit)
     end subroutine create_test_program
 
-    subroutine run_with_cache(filename, cache_dir, flags, output, exit_code)
-        character(len=*), intent(in) :: filename, cache_dir, flags
+    subroutine run_with_cache(filename, cache_dir, flags, output, exit_code, temp_dir)
+        character(len=*), intent(in) :: filename, cache_dir, flags, temp_dir
         character(len=*), intent(out) :: output
         integer, intent(out) :: exit_code
 
         character(len=512) :: command
+        character(len=:), allocatable :: output_file
         integer :: unit, iostat
-        character(len=1024) :: line
+        character(len=2048) :: line
+
+        ! Create output file path
+        output_file = get_temp_file_path(temp_dir, 'test_output.tmp')
 
         ! Build command with custom cache
         command = 'fpm run fortran -- --cache-dir '//trim(cache_dir)// &
-                  ' '//trim(flags)//' '//trim(filename)//' > /tmp/test_output.tmp 2>&1'
+                  ' '//trim(flags)//' '//trim(filename)//' > '//output_file//' 2>&1'
 
         ! Run command
         call execute_command_line(trim(command), exitstat=exit_code)
 
         ! Read output
         output = ''
-        open (newunit=unit, file='/tmp/test_output.tmp', status='old', iostat=iostat)
+        open (newunit=unit, file=output_file, status='old', iostat=iostat)
         if (iostat == 0) then
             do
                 read (unit, '(a)', iostat=iostat) line
@@ -120,9 +127,41 @@ contains
             close (unit)
         end if
 
-        ! Clean up
-        call execute_command_line('rm -f /tmp/test_output.tmp')
+        ! Clean up - use cross-platform file removal
+        call cleanup_temp_file(output_file)
 
     end subroutine run_with_cache
+
+    subroutine check_cache_directory_exists(cache_dir, exit_code)
+        character(len=*), intent(in) :: cache_dir
+        integer, intent(out) :: exit_code
+        character(len=512) :: command
+
+        ! Cross-platform directory existence check
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'dir "'//trim(cache_dir)//'" >nul 2>&1'
+        else
+            command = 'ls "'//trim(cache_dir)//'" >/dev/null 2>&1'
+        end if
+
+        call execute_command_line(command, exitstat=exit_code)
+    end subroutine check_cache_directory_exists
+
+    subroutine cleanup_temp_file(file_path)
+        character(len=*), intent(in) :: file_path
+        character(len=512) :: command
+        integer :: exit_code
+
+        if (len_trim(file_path) == 0) return
+
+        ! Cross-platform file removal
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'del /f /q "'//trim(file_path)//'" 2>nul'
+        else
+            command = 'rm -f "'//trim(file_path)//'"'
+        end if
+
+        call execute_command_line(command, exitstat=exit_code)
+    end subroutine cleanup_temp_file
 
 end program test_cache

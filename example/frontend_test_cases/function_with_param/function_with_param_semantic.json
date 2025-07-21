@@ -1,0 +1,112 @@
+{
+  "phase": "semantic",
+  "arena_size": 18,
+  "program_index": 18,
+  "nodes": [
+    {
+      "index": 1,
+      "type": "identifier",
+      "name": "result",
+      "inferred_type": "'d"
+    },
+    {
+      "index": 2,
+      "type": "literal",
+      "value": "5.0",
+      "inferred_type": "real(8)"
+    },
+    {
+      "index": 3,
+      "type": "literal",
+      "value": "3.0",
+      "inferred_type": "real(8)"
+    },
+    {
+      "index": 4,
+      "type": "call_or_subscript",
+      "inferred_type": "'d"
+    },
+    {
+      "index": 5,
+      "type": "assignment",
+      "target": 1, "value": 4,
+      "inferred_type": "'d"
+    },
+    {
+      "index": 6,
+      "type": "identifier",
+      "name": "result",
+      "inferred_type": null
+    },
+    {
+      "index": 7,
+      "type": "print_statement",
+      "inferred_type": "integer"
+    },
+    {
+      "index": 8,
+      "type": "identifier",
+      "name": "a",
+      "inferred_type": null
+    },
+    {
+      "index": 9,
+      "type": "identifier",
+      "name": "b",
+      "inferred_type": null
+    },
+    {
+      "index": 10,
+      "type": "declaration",
+      "var_name": "a",
+      "type_name": "real",
+      "inferred_type": "real(8)"
+    },
+    {
+      "index": 11,
+      "type": "identifier",
+      "name": "add_numbers",
+      "inferred_type": "real(8)"
+    },
+    {
+      "index": 12,
+      "type": "identifier",
+      "name": "a",
+      "inferred_type": "real(8)"
+    },
+    {
+      "index": 13,
+      "type": "identifier",
+      "name": "b",
+      "inferred_type": "'f"
+    },
+    {
+      "index": 14,
+      "type": "binary_op",
+      "inferred_type": "real(8)"
+    },
+    {
+      "index": 15,
+      "type": "assignment",
+      "target": 11, "value": 14,
+      "inferred_type": "real(8)"
+    },
+    {
+      "index": 16,
+      "type": "identifier",
+      "name": "real",
+      "inferred_type": null
+    },
+    {
+      "index": 17,
+      "type": "function_def",
+      "inferred_type": "'e -> unknown"
+    },
+    {
+      "index": 18,
+      "type": "program",
+      "name": "main",
+      "inferred_type": null
+    }
+  ]
+}

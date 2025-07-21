@@ -1,0 +1,11 @@
+{
+  "input_file": "/afs/itp.tugraz.at/proj/plasma/CODE/ert/fortran/example/frontend_test_cases/simple_assignment/simple_assignment.f",
+  "generated_code": [
+    "program main",
+    "    implicit none",
+    "    real(8) :: x",
+    "",
+    "    x = 5.0d0",
+    "end program main"
+  ]
+}

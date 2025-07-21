@@ -5,7 +5,7 @@
 
 **Make Python Fortran again.** - A command-line tool that enables running Fortran programs without manual compilation, automatically resolving dependencies and applying modern defaults.
 
-Our experimental *lazy fortran* dialect pushes beyond all alternative scientific computing languages. We're so lazy, we can't even be bothered with uppercase letters in the language name!
+Our experimental *lowercase fortran* dialect pushes beyond all alternative scientific computing languages to combine Fortran's performance with modern expressiveness!
 
 ## Quick Start
 
@@ -13,10 +13,10 @@ Our experimental *lazy fortran* dialect pushes beyond all alternative scientific
 # Run any Fortran program instantly
 fortran hello.f90
 
-# *lazy fortran* .f files (no boilerplate needed!)
+# *lowercase fortran* .f files (no boilerplate needed!)
 fortran script.f
 
-# Notebook mode with figure capture
+# Notebook mode (figure capture WIP)
 fortran --notebook analysis.f
 
 # Verbose mode for debugging
@@ -28,7 +28,7 @@ fortran --clear-cache example.f90   # Clear cache and run
 fortran --cache-info                # Show cache statistics
 ```
 
-## *lazy fortran* Showcase
+## *lowercase fortran* Showcase
 
 Write fortran code with **zero boilerplate** - just the logic you need:
 
@@ -66,8 +66,8 @@ end function distance
 
 🎯 **Two Execution Modes**  
 - **Standard Fortran** (`.f90` files): Modern Fortran with no opinionated changes
-- ***lazy fortran*** (`.f` files): Compiler frontend with automatic type inference, no boilerplate, `real(8)` defaults
-- **Notebook Mode**: Interactive analysis with figure capture (`.f` files only)
+- ***lowercase fortran*** (`.f` files): Compiler frontend with automatic type inference, no boilerplate, `real(8)` defaults
+- **Notebook Mode**: Interactive analysis with figure capture (`.f` files only, figure capture WIP)
 
 📦 **Smart Dependencies**
 - Local modules: Auto-includes Fortran files from same directory
@@ -76,7 +76,7 @@ end function distance
 
 🚀 **Advanced Features**
 - **Type Inference**: Automatic variable declarations in `.f` files
-- **Notebook Mode**: Jupytext-style notebooks with figure capture
+- **Notebook Mode**: Jupytext-style notebooks with figure capture (figure capture WIP)
 - **Incremental Compilation**: Only rebuilds changed files
 - **Cache Management**: CLI commands to clear cache and view statistics
 
@@ -86,10 +86,10 @@ end function distance
 |---------|---------|------|
 | **Hello World** | Simple program | [hello.f90](example/hello/) |
 | **Local Modules** | Calculator with math module | [calculator.f90](example/calculator/) |
-| ***lazy fortran* Syntax** | Type inference showcase | [all_types.f](example/type_inference/) |
+| ***lowercase fortran* Syntax** | Type inference showcase | [all_types.f](example/type_inference/) |
 | **Interdependent Modules** | Complex dependency chain | [main.f90](example/interdependent/) |
 | **Notebook Mode** | Interactive analysis | [simple_math.f](example/notebook/) |
-| **Plotting** | Figure generation | [plotting_demo.f](example/notebook/) |
+| **Plotting (WIP)** | Figure generation | [plotting_demo.f](example/notebook/) |
 
 ## Installation
 
@@ -110,10 +110,10 @@ cd fortran
 ```bash
 # Two execution modes
 fortran program.f90           # Standard Fortran mode
-fortran script.f              # lazy fortran mode (compiler frontend)
+fortran script.f              # lowercase fortran mode (compiler frontend)
 
-# Notebook mode (lazy fortran .f files only)
-fortran --notebook analysis.f # Interactive analysis with figure capture
+# Notebook mode (lowercase fortran .f files only)
+fortran --notebook analysis.f # Interactive analysis (figure capture WIP)
 
 # Options
 fortran -v file.f90           # Verbose output
@@ -155,9 +155,10 @@ fortran --cache-dir /tmp/fortran-cache example.f90
 - ✅ Complete 4-phase compiler architecture (lexer → parser → semantic → codegen)
 - ✅ Hindley-Milner type inference system with Algorithm W
 - ✅ Smart caching system (2-4x speedup)
-- ✅ *lazy fortran* .f syntax with automatic type inference
-- ✅ Notebook mode with figure capture
+- ✅ *lowercase fortran* .f syntax with automatic type inference
+- ✅ Notebook mode with basic output capture (figure capture WIP)
 - ✅ Comprehensive test suite (30+ frontend tests)
+- ✅ Parallel test runner for faster development
 
 **Next**: FPM Registry integration and advanced language features
 

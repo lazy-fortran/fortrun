@@ -14,13 +14,15 @@ module-naming = false
 library = false
 test = false
 [dependencies]
+openmp = "*"
 fpm = { git = "https://github.com/krystophny/fpm.git", branch = "main" }
-json-fortran = { git = "https://github.com/jacobwilliams/json-fortran.git" }
+json-fortran = { git = "https://github.com/jacobwilliams/json-fortran.git", tag = "8.3.0" }
 
 [fortran]
 implicit-typing = false
 implicit-external = false
 source-form = "free"
+
 
 [extra.ford]
 project = "fortran"
@@ -37,4 +39,3 @@ graph = true
 search = true
 [extra.ford.extra_mods]
 iso_fortran_env = "https://gcc.gnu.org/onlinedocs/gfortran/ISO_005fFORTRAN_005fENV.html"
-

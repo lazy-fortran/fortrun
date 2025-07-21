@@ -27,6 +27,8 @@ jobs:
 
     - name: Run tests with coverage
       run: |
+        # Run all tests using standard fpm test command with coverage flags
+        # This ensures consistent test execution and proper coverage reporting
         fpm test --flag '-fprofile-arcs -ftest-coverage'
 
     - name: Test installed binary
