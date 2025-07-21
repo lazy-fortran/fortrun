@@ -178,10 +178,15 @@ contains
             if (file_exists) then
                 ! Lock already exists, can't create
                 if (get_os_type() == OS_WINDOWS) then
+                    print *, 'DEBUG: Deleting temp file:', trim(temp_file)
                     command = 'del /f /q '//trim(temp_file)
+                    print *, 'DEBUG: Command being executed:', trim(command)
                     call execute_command_line(command, exitstat=iostat)
+                    print *, 'DEBUG: Command exitstat:', iostat
                     if (iostat /= 0) then
        print *, 'DEBUG: Windows del command failed:', trim(command), 'exitstat:', iostat
+                    else
+                        print *, 'DEBUG: Windows del command succeeded'
                     end if
                 else
                     call execute_command_line('rm -f "'//trim(temp_file)//'"')
@@ -190,10 +195,17 @@ contains
             else
                 if (get_os_type() == OS_WINDOWS) then
                     ! On Windows, use move command which is atomic within same drive
+                    print *, 'DEBUG: Moving temp file to lock file'
+                    print *, 'DEBUG: From:', trim(temp_file)
+                    print *, 'DEBUG: To:', trim(lock_file)
                     command = 'move /Y '//trim(temp_file)//' '//trim(lock_file)
+                    print *, 'DEBUG: Move command:', trim(command)
                     call execute_command_line(command, exitstat=iostat)
+                    print *, 'DEBUG: Move exitstat:', iostat
                     if (iostat /= 0) then
       print *, 'DEBUG: Windows move command failed:', trim(command), 'exitstat:', iostat
+                    else
+                        print *, 'DEBUG: Windows move command succeeded'
                     end if
 
                     if (iostat == 0) then
@@ -203,10 +215,15 @@ contains
                     else
                         success = .false.
                         ! Clean up temp file if move failed
+            print *, 'DEBUG: Cleaning up temp file after move failure:', trim(temp_file)
                         command = 'del /f /q '//trim(temp_file)
+                        print *, 'DEBUG: Cleanup command:', trim(command)
                         call execute_command_line(command, exitstat=iostat)
+                        print *, 'DEBUG: Cleanup exitstat:', iostat
                         if (iostat /= 0) then
        print *, 'DEBUG: Windows cleanup del failed:', trim(command), 'exitstat:', iostat
+                        else
+                            print *, 'DEBUG: Windows cleanup del succeeded'
                         end if
                     end if
                 else
@@ -288,13 +305,22 @@ contains
         integer :: iostat
 
         if (get_os_type() == OS_WINDOWS) then
+            print *, 'DEBUG: Removing lock file:', trim(lock_file)
             command = 'del /f /q '//trim(lock_file)
+            print *, 'DEBUG: Remove command:', trim(command)
+            call execute_command_line(command, exitstat=iostat)
+            print *, 'DEBUG: Remove exitstat:', iostat
+            if (iostat /= 0) then
+       print *, 'DEBUG: Remove lock command failed:', trim(command), 'exitstat:', iostat
+            else
+                print *, 'DEBUG: Remove lock command succeeded'
+            end if
         else
             command = 'rm -f "'//trim(lock_file)//'"'
-        end if
-        call execute_command_line(command, exitstat=iostat)
-        if (iostat /= 0) then
+            call execute_command_line(command, exitstat=iostat)
+            if (iostat /= 0) then
        print *, 'DEBUG: Remove lock command failed:', trim(command), 'exitstat:', iostat
+            end if
         end if
 
     end subroutine remove_lock
