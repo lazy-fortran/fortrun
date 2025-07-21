@@ -122,7 +122,18 @@ contains
                 if (iostat /= 0) exit
                 if (num_files < size(files)) then
                     num_files = num_files + 1
-                    files(num_files) = trim(line)
+                    ! Both dir /b and ls might return just filenames, so always prepend directory
+                    if (index(line, '/') == 0 .and. index(line, '\') == 0) then
+                        ! Line contains just filename, prepend directory
+                        if (get_os_type() == OS_WINDOWS) then
+                            files(num_files) = trim(directory)//'\'//trim(line)
+                        else
+                            files(num_files) = trim(directory)//'/'//trim(line)
+                        end if
+                    else
+                        ! Line already contains full path
+                        files(num_files) = trim(line)
+                    end if
                 end if
             end do
             close (unit)
@@ -273,7 +284,18 @@ contains
                 if (iostat /= 0) exit
                 if (num_files < size(files)) then
                     num_files = num_files + 1
-                    files(num_files) = trim(line)
+                    ! Both dir /b and ls might return just filenames, so always prepend directory
+                    if (index(line, '/') == 0 .and. index(line, '\') == 0) then
+                        ! Line contains just filename, prepend directory
+                        if (get_os_type() == OS_WINDOWS) then
+                            files(num_files) = trim(directory)//'\'//trim(line)
+                        else
+                            files(num_files) = trim(directory)//'/'//trim(line)
+                        end if
+                    else
+                        ! Line already contains full path
+                        files(num_files) = trim(line)
+                    end if
                 end if
             end do
             close (unit)

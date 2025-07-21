@@ -1,5 +1,6 @@
 module figure_capture
     use temp_utils, only: mkdir
+    use system_utils, only: sys_remove_file
     use iso_c_binding, only: c_int
     implicit none
     private
@@ -192,7 +193,7 @@ contains
             output = ""
         end if
 
-        call execute_command_line('rm -f '//trim(temp_file))
+        call sys_remove_file(temp_file)
 
     end subroutine execute_and_capture_output
 
