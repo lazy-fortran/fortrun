@@ -16,6 +16,8 @@ module runner
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, mkdir
     use system_utils, only: sys_copy_file, sys_remove_file, sys_get_absolute_path, &
                             sys_find_files, sys_list_files, sys_get_path_separator
+    use logger_utils, only: debug_print, print_info, print_warning, print_error, &
+                            set_logger_verbose_level
     use, intrinsic :: iso_fortran_env, only: int64
     implicit none
     private
@@ -55,6 +57,9 @@ contains
         logical :: was_preprocessed
 
         exit_code = 0
+        
+        ! Initialize logger with current verbose level
+        call set_logger_verbose_level(verbose_level)
 
         ! Check if file exists
         inquire (file=filename, exist=file_exists)
@@ -674,8 +679,9 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
             print '(a,a)', 'Project structure hash: ', trim(structure_hash)
         end if
 
-        ! Create project directory based on structure hash
-     project_dir = join_path(trim(cache_dir), trim(basename)//'_'//trim(structure_hash))
+        ! Create project directory based on structure hash  
+        ! Use basename without extension to avoid path confusion
+        project_dir = join_path(trim(cache_dir), trim(extract_basename_no_ext(source_file))//'_'//trim(structure_hash))
 
     end subroutine get_project_hash_and_directory
 
@@ -800,12 +806,12 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
 
         ! If no local modules, use a simple hash based on the main file path
         if (len_trim(combined_dependencies) == 0) then
-            structure_hash = 'simple_'//extract_basename(main_file)
+            structure_hash = 'simple_'//extract_basename_no_ext(main_file)
         else
             ! Generate hash based on local module files (not their content, just structure)
             structure_hash = get_content_hash(all_files(1:num_files))
             if (structure_hash == 'fallback_unknown') then
-                structure_hash = 'struct_'//extract_basename(main_file)
+                structure_hash = 'struct_'//extract_basename_no_ext(main_file)
             end if
         end if
 
@@ -870,6 +876,29 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         end if
 
     end function extract_basename
+
+    function extract_basename_no_ext(filepath) result(basename)
+        character(len=*), intent(in) :: filepath
+        character(len=256) :: basename
+        integer :: last_slash, last_dot
+
+        last_slash = max(index(filepath, '/', back=.true.), index(filepath, '\', back=.true.))
+        last_dot = index(filepath, '.', back=.true.)
+        
+        if (last_slash > 0) then
+            if (last_dot > last_slash) then
+                basename = filepath(last_slash + 1:last_dot - 1)
+            else
+                basename = filepath(last_slash + 1:)
+            end if
+        else
+            if (last_dot > 0) then
+                basename = filepath(1:last_dot - 1)
+            else
+                basename = filepath
+            end if
+        end if
+    end function extract_basename_no_ext
 
     subroutine generate_flag_string(is_preprocessed_file, custom_flags, flag_string)
         logical, intent(in) :: is_preprocessed_file

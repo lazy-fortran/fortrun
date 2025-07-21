@@ -495,10 +495,12 @@ contains
         
         if (get_os_type() == OS_WINDOWS) then
             ! Windows: Use cmd /c to run command and capture exit code
-            full_command = 'cmd /c "('//trim(command)//') > "'//trim(output_file)//'" 2>&1 & echo %ERRORLEVEL% > "'//trim(exit_file)//'"'
+            full_command = 'cmd /c "('//trim(command)//') > "'//trim(output_file)//'"' &
+                         //' 2>&1 & echo %ERRORLEVEL% > "'//trim(exit_file)//'"'
         else
             ! Unix: Use shell to run command and capture exit code
-            full_command = '('//trim(command)//') > "'//trim(output_file)//'" 2>&1; echo $? > "'//trim(exit_file)//'"'
+            full_command = '('//trim(command)//') > "'//trim(output_file) &
+                         //'" 2>&1; echo $? > "'//trim(exit_file)//'"'
         end if
         
         call execute_command_line(full_command)
