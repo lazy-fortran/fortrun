@@ -919,6 +919,68 @@ contains
         end select
     end function same_node
 
+    ! Helper: Check if two declarations can be grouped together
+    function can_group_declarations(node1, node2) result(can_group)
+        type(declaration_node), intent(in) :: node1, node2
+        logical :: can_group
+
+        can_group = node1%type_name == node2%type_name .and. &
+                    node1%kind_value == node2%kind_value .and. &
+                    node1%has_kind .eqv. node2%has_kind .and. &
+                    ((node1%has_intent .and. node2%has_intent .and. &
+                      node1%intent == node2%intent) .or. &
+                     (.not. node1%has_intent .and. .not. node2%has_intent))
+    end function can_group_declarations
+
+    ! Helper: Check if two parameter declarations can be grouped together
+    function can_group_parameters(node1, node2) result(can_group)
+        type(parameter_declaration_node), intent(in) :: node1, node2
+        logical :: can_group
+
+        can_group = node1%type_name == node2%type_name .and. &
+                    node1%kind_value == node2%kind_value .and. &
+                    node1%intent == node2%intent
+    end function can_group_parameters
+
+    ! Helper: Build parameter name with array dimensions
+    function build_param_name_with_dims(arena, param_node) result(name_with_dims)
+        type(ast_arena_t), intent(in) :: arena
+        type(parameter_declaration_node), intent(in) :: param_node
+        character(len=:), allocatable :: name_with_dims
+        integer :: d
+        character(len=:), allocatable :: dim_code
+
+        name_with_dims = param_node%name
+        if (param_node%is_array .and. allocated(param_node%dimension_indices)) then
+            name_with_dims = name_with_dims//"("
+            do d = 1, size(param_node%dimension_indices)
+                if (d > 1) name_with_dims = name_with_dims//","
+             dim_code = generate_code_from_arena(arena, param_node%dimension_indices(d))
+                name_with_dims = name_with_dims//dim_code
+            end do
+            name_with_dims = name_with_dims//")"
+        end if
+    end function build_param_name_with_dims
+
+    ! Helper: Generate grouped declaration statement
+    function generate_grouped_declaration(type_name, kind_value, has_kind, intent, var_list) result(stmt)
+        character(len=*), intent(in) :: type_name
+        integer, intent(in) :: kind_value
+        logical, intent(in) :: has_kind
+        character(len=*), intent(in) :: intent
+        character(len=*), intent(in) :: var_list
+        character(len=:), allocatable :: stmt
+
+        stmt = type_name
+        if (has_kind) then
+            stmt = stmt//"("//trim(adjustl(int_to_string(kind_value)))//")"
+        end if
+        if (len_trim(intent) > 0) then
+            stmt = stmt//", intent("//intent//")"
+        end if
+        stmt = stmt//" :: "//var_list
+    end function generate_grouped_declaration
+
     ! Generate function/subroutine body with grouped declarations
     function generate_grouped_body(arena, body_indices, indent) result(code)
         type(ast_arena_t), intent(in) :: arena
@@ -958,19 +1020,11 @@ contains
                                 if (allocated(arena%entries(body_indices(j))%node)) then
                           select type (next_node => arena%entries(body_indices(j))%node)
                                     type is (declaration_node)
-                                        ! Check if same type, kind, and intent
-                                        if (next_node%type_name == group_type .and. &
-                                            next_node%kind_value == group_kind .and. &
-                                           next_node%has_kind .eqv. group_has_kind) then
-                                 if ((next_node%has_intent .and. node%has_intent .and. &
-                                                next_node%intent == group_intent) .or. &
-                          (.not. next_node%has_intent .and. .not. node%has_intent)) then
-                                                ! Add to group
+                                        ! Check if can be grouped
+                                       if (can_group_declarations(node, next_node)) then
+                                            ! Add to group
                                      var_list = var_list//", "//trim(next_node%var_name)
-                                                j = j + 1
-                                            else
-                                                exit
-                                            end if
+                                            j = j + 1
                                         else
                                             exit
                                         end if
@@ -986,14 +1040,8 @@ contains
                         end do
 
                         ! Generate grouped declaration
-                        stmt_code = group_type
-                        if (group_has_kind) then
-               stmt_code = stmt_code//"("//trim(adjustl(int_to_string(group_kind)))//")"
-                        end if
-                        if (len_trim(group_intent) > 0) then
-                            stmt_code = stmt_code//", intent("//group_intent//")"
-                        end if
-                        stmt_code = stmt_code//" :: "//var_list
+                      stmt_code = generate_grouped_declaration(group_type, group_kind, &
+                                                 group_has_kind, group_intent, var_list)
 
                         code = code//indent//stmt_code//new_line('a')
                         i = j  ! Skip processed declarations
@@ -1010,28 +1058,7 @@ contains
                         end if
 
                         ! Build variable name with array specification
-                        block
-                            character(len=:), allocatable :: param_name_with_dims
-                            param_name_with_dims = node%name
-                         if (node%is_array .and. allocated(node%dimension_indices)) then
-                                param_name_with_dims = param_name_with_dims//"("
-                                block
-                                    integer :: d
-                                    character(len=:), allocatable :: dim_code
-                                    do d = 1, size(node%dimension_indices)
-                             if (d > 1) param_name_with_dims = param_name_with_dims//","
-                                        block
-                                            integer :: dim_idx
-                                            dim_idx = node%dimension_indices(d)
-                                     dim_code = generate_code_from_arena(arena, dim_idx)
-                                        end block
-                                   param_name_with_dims = param_name_with_dims//dim_code
-                                    end do
-                                end block
-                                param_name_with_dims = param_name_with_dims//")"
-                            end if
-                            var_list = trim(param_name_with_dims)
-                        end block
+                        var_list = build_param_name_with_dims(arena, node)
 
                         ! Look ahead for more parameter declarations of same type
                         j = i + 1
@@ -1040,33 +1067,10 @@ contains
                                 if (allocated(arena%entries(body_indices(j))%node)) then
                           select type (next_node => arena%entries(body_indices(j))%node)
                                     type is (parameter_declaration_node)
-                                        ! Check if same type, kind, and intent
-                                        if (next_node%type_name == group_type .and. &
-                                            next_node%kind_value == group_kind .and. &
-                                            next_node%intent == group_intent) then
+                                        ! Check if can be grouped
+                                        if (can_group_parameters(node, next_node)) then
                                             ! Build next parameter name with array specification
-                                            block
-                                        character(len=:), allocatable :: next_param_name
-                                                next_param_name = next_node%name
-               if (next_node%is_array .and. allocated(next_node%dimension_indices)) then
-                                                  next_param_name = next_param_name//"("
-                                                    block
-                                                        integer :: d
-                                               character(len=:), allocatable :: dim_code
-                                             do d = 1, size(next_node%dimension_indices)
-                                       if (d > 1) next_param_name = next_param_name//","
-                                                            block
-                                                                integer :: dim_idx
-                                                dim_idx = next_node%dimension_indices(d)
-                                     dim_code = generate_code_from_arena(arena, dim_idx)
-                                                            end block
-                                             next_param_name = next_param_name//dim_code
-                                                        end do
-                                                    end block
-                                                  next_param_name = next_param_name//")"
-                                                end if
-                                        var_list = var_list//", "//trim(next_param_name)
-                                            end block
+                 var_list = var_list//", "//build_param_name_with_dims(arena, next_node)
                                             j = j + 1
                                         else
                                             exit
@@ -1083,14 +1087,8 @@ contains
                         end do
 
                         ! Generate grouped parameter declaration
-                        stmt_code = group_type
-                        if (group_has_kind) then
-               stmt_code = stmt_code//"("//trim(adjustl(int_to_string(group_kind)))//")"
-                        end if
-                        if (len_trim(group_intent) > 0) then
-                            stmt_code = stmt_code//", intent("//group_intent//")"
-                        end if
-                        stmt_code = stmt_code//" :: "//var_list
+                      stmt_code = generate_grouped_declaration(group_type, group_kind, &
+                                                 group_has_kind, group_intent, var_list)
 
                         code = code//indent//stmt_code//new_line('a')
                         i = j  ! Skip processed parameter declarations
