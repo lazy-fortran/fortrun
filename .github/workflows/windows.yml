@@ -67,13 +67,22 @@ jobs:
 
     - name: Run unit tests
       run: |
-        echo Running unit tests...
+        echo Running unit tests with FPM...
 
-        REM Debug: Show environment
-        echo DEBUG: PATH=%PATH%
-        echo DEBUG: Current directory: %CD%
-        echo DEBUG: TEMP=%TEMP%
-        echo DEBUG: TMP=%TMP%
+        REM Run all tests using fpm test
+        fpm test
+
+        if %ERRORLEVEL% NEQ 0 (
+          echo ERROR: Some tests failed
+          exit /b 1
+        )
+
+        echo All tests passed!
+      shell: cmd
+
+    - name: Run smoke tests
+      run: |
+        echo Running smoke tests...
 
         REM Find the built executable
         set "FORTRAN_EXE="
@@ -85,61 +94,32 @@ jobs:
         )
         echo Found executable: %FORTRAN_EXE%
 
-        REM Get the current directory
-        echo Current directory: %CD%
+        REM Test version flag
+        echo Testing --version flag...
+        "%FORTRAN_EXE%" --version
+        if %ERRORLEVEL% NEQ 0 (
+          echo ERROR: --version flag failed
+          exit /b 1
+        )
 
         REM Run basic smoke test
         echo program test; print *, 'x = 42'; end program > test_windows.f
-        echo Test file created at: %CD%\test_windows.f
-
-        REM Debug: Check if file was created
-        if exist test_windows.f (
-          echo DEBUG: test_windows.f exists
-          dir test_windows.f
-        ) else (
-          echo DEBUG: test_windows.f does NOT exist!
-        )
 
         REM Create a temp cache directory
-        echo DEBUG: Creating temp_cache directory...
         if not exist temp_cache mkdir temp_cache
 
-        REM Debug: Check if directory was created
-        if exist temp_cache (
-          echo DEBUG: temp_cache directory exists
-          dir temp_cache
-        ) else (
-          echo DEBUG: temp_cache directory does NOT exist!
-        )
-
-        REM Debug: Show full paths
-        echo DEBUG: Full path to test file: %CD%\test_windows.f
-        echo DEBUG: Full path to cache dir: %CD%\temp_cache
-        echo DEBUG: FORTRAN_EXE path: %FORTRAN_EXE%
-
         REM Run the executable with the test file using custom cache
-        echo DEBUG: Running fortran executable...
         "%FORTRAN_EXE%" --cache-dir "%CD%\temp_cache" "%CD%\test_windows.f"
-        echo DEBUG: Fortran executable exit code: %ERRORLEVEL%
-
-        REM Clean up test file
-        echo DEBUG: Deleting test file...
-        del /f test_windows.f
-        if exist test_windows.f (
-          echo DEBUG: test_windows.f still exists after delete!
-        ) else (
-          echo DEBUG: test_windows.f successfully deleted
+        if %ERRORLEVEL% NEQ 0 (
+          echo ERROR: Failed to run test file
+          exit /b 1
         )
 
-        REM Test version flag
-        echo DEBUG: Testing --version flag...
-        "%FORTRAN_EXE%" --version
-        echo DEBUG: Version command exit code: %ERRORLEVEL%
+        REM Clean up
+        del /f test_windows.f
+        rmdir /s /q temp_cache
 
-        REM Test help flag
-        "%FORTRAN_EXE%" --help
-
-        echo Basic Windows functionality tests passed
+        echo Smoke tests passed
       shell: cmd
 
     - name: Test cache functionality
