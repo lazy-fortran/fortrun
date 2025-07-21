@@ -339,7 +339,10 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         ! TODO: Add jobs_flag when FPM supports it
         ! Future: 'fpm build' // trim(jobs_flag) // '--flag ...
 
-     call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat, wait=.true.)
+        call debug_print('About to execute FPM build command: '//trim(command))
+        call debug_print('Project directory: '//trim(project_dir))
+        
+        call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat, wait=.true.)
 
         if (cmdstat /= 0 .or. exitstat /= 0) then
             if (verbose_level == 0) then
@@ -655,17 +658,37 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
             ! Get list of files to copy
             call get_f90_files_except_main(source_dir, main_file, files, num_files)
 
+            call debug_print('Module copying debug info:')
+            write(*, '(a,i0)') 'DEBUG: Found ', num_files, ' files to copy'
             do j = 1, num_files
+                write(*, '(a,i0,a,a)') 'DEBUG: File ', j, ': ', trim(files(j))
             end do
 
             ! Copy each file to the src directory
             do j = 1, num_files
                 dest_file = join_path(join_path(trim(project_dir), 'src'), extract_basename(files(j)))
+                call debug_print('Copying: '//trim(files(j))//' -> '//trim(dest_file))
                 call sys_copy_file(files(j), dest_file, success)
                 if (.not. success) then
                     print '(a,a)', 'Warning: Failed to copy ', trim(files(j))
+                    print '(a,a)', '  Destination was: ', trim(dest_file)
+                else
+                    call debug_print('Successfully copied: '//trim(extract_basename(files(j))))
                 end if
             end do
+            
+            ! Verify what files are now in the project src directory
+            call debug_print('Verifying files in project src directory:')
+            block
+                character(len=512) :: src_dir, verify_files(100)
+                integer :: num_verify_files, k
+                src_dir = join_path(trim(project_dir), 'src')
+                call sys_list_files(src_dir, '*.f90', verify_files, num_verify_files)
+                write(*, '(a,i0)') 'DEBUG: Files in project src: ', num_verify_files
+                do k = 1, num_verify_files
+                    write(*, '(a,i0,a,a)') 'DEBUG: Src file[', k, ']: ', trim(verify_files(k))
+                end do
+            end block
         end block
 
     end subroutine copy_local_modules
@@ -891,17 +914,23 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
             character(len=512) :: all_files(1000)
             integer :: total_files, j
 
+            write(*, '(a,a)') 'DEBUG: Searching in directory: ', trim(source_dir)
+            write(*, '(a,a)') 'DEBUG: Main file basename: ', trim(main_basename)
+
             ! First get .f90 files
             call sys_list_files(source_dir, '*.f90', all_files, total_files)
+            write(*, '(a,i0)') 'DEBUG: Found .f90 files: ', total_files
 
             ! Then get .F90 files and add to list
             if (total_files < size(all_files)) then
                 call sys_list_files(source_dir, '*.F90', all_files(total_files + 1:), j)
                 total_files = total_files + j
+                write(*, '(a,i0)') 'DEBUG: Total files after .F90 search: ', total_files
             end if
 
             ! Show all found files
             do i = 1, total_files
+                write(*, '(a,i0,a,a)') 'DEBUG: All files[', i, ']: ', trim(all_files(i))
             end do
 
             ! Filter out the main file
@@ -911,8 +940,10 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
                     num_files = num_files + 1
                     if (num_files <= size(files)) then
                         files(num_files) = trim(all_files(i))
+                        write(*, '(a,i0,a,a)') 'DEBUG: Added file[', num_files, ']: ', trim(files(num_files))
                     end if
                 else
+                    write(*, '(a,a,a)') 'DEBUG: Skipping main file: ', trim(all_files(i)), ' (contains main basename)'
                 end if
             end do
 
