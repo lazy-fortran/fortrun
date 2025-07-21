@@ -34,6 +34,10 @@ jobs:
         echo "Testing date_and_time function..."
         fpm run test_date_time || echo "date_and_time test failed"
 
+        # Test create_test_cache_dir function
+        echo "Testing create_test_cache_dir function..."
+        fpm run test_cache_dir || echo "cache_dir test failed"
+
         # Run our custom test runner which provides:
         # - Parallel test execution with better performance
         # - Comprehensive test discovery including integration tests
