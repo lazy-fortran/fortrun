@@ -17,7 +17,7 @@ program test_testing_execution
     call run_single_test(test_executable, result)
 
     if (result%status /= TEST_PASSED) then
-        write (*, '(A)') "FAIL: /bin/true should pass"
+        write (*, '(A)') "FAIL: Success command should pass"
         stop 1
     end if
 
@@ -37,12 +37,12 @@ program test_testing_execution
     call run_single_test(test_executable, result)
 
     if (result%status /= TEST_FAILED) then
-        write (*, '(A)') "FAIL: /bin/false should fail"
+        write (*, '(A)') "FAIL: Failure command should fail"
         stop 1
     end if
 
     if (result%exit_code == 0) then
-        write (*, '(A)') "FAIL: Expected non-zero exit code for /bin/false"
+        write (*, '(A)') "FAIL: Expected non-zero exit code for failure command"
         stop 1
     end if
 
