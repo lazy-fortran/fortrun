@@ -60,25 +60,14 @@ contains
         integer :: ios
 
         if (len_trim(temp_dir) > 0) then
-#ifdef _WIN32
-            ! Check if running under MSYS2
-            block
-                character(len=256) :: msystem
-                integer :: status
-                call get_environment_variable('MSYSTEM', msystem, status=status)
-                if (status == 0 .and. len_trim(msystem) > 0) then
-                    ! MSYS2 environment
-                    call execute_command_line('rm -rf "'//trim(temp_dir)//'"', &
-                                              exitstat=ios)
-                else
-                    ! Native Windows
-                    call execute_command_line('rmdir /s /q "'//trim(temp_dir)// &
-                                              '" 2>nul', exitstat=ios)
-                end if
-            end block
-#else
-            call execute_command_line('rm -rf "'//trim(temp_dir)//'"', exitstat=ios)
-#endif
+            if (get_os_type() == OS_WINDOWS) then
+                ! Windows system - use rmdir command
+                call execute_command_line('rmdir /s /q "'//trim(temp_dir)// &
+                                          '" 2>nul', exitstat=ios)
+            else
+                ! Unix/Linux system - use rm command
+                call execute_command_line('rm -rf "'//trim(temp_dir)//'"', exitstat=ios)
+            end if
             ! Don't error on cleanup failure - just warn
             if (ios /= 0) then
                 print *, 'Warning: Failed to cleanup temporary directory: '// &
@@ -189,33 +178,32 @@ contains
 
     function get_system_temp_dir() result(temp_dir)
         character(len=:), allocatable :: temp_dir
-        character(len=256) :: msystem
-        integer :: status
 
-#ifdef _WIN32
-        ! Always use Windows temp directory on Windows, even under MSYS2
-        ! This avoids path separator issues
-        block
-            character(len=256) :: temp_env
-            integer :: env_status
+        ! Use runtime OS detection instead of compile-time
+        if (get_os_type() == OS_WINDOWS) then
+            ! Windows system - try environment variables
+            block
+                character(len=256) :: temp_env
+                integer :: env_status
 
-            ! Try Windows environment variables first
-            call get_environment_variable('TEMP', temp_env, status=env_status)
-            if (env_status == 0 .and. len_trim(temp_env) > 0) then
-                temp_dir = trim(temp_env)
-            else
-                call get_environment_variable('TMP', temp_env, status=env_status)
+                ! Try Windows environment variables first
+                call get_environment_variable('TEMP', temp_env, status=env_status)
                 if (env_status == 0 .and. len_trim(temp_env) > 0) then
                     temp_dir = trim(temp_env)
                 else
-                    ! Fallback to Windows default
-                    temp_dir = 'C:\Windows\Temp'
+                    call get_environment_variable('TMP', temp_env, status=env_status)
+                    if (env_status == 0 .and. len_trim(temp_env) > 0) then
+                        temp_dir = trim(temp_env)
+                    else
+                        ! Fallback to Windows default
+                        temp_dir = 'C:\Windows\Temp'
+                    end if
                 end if
-            end if
-        end block
-#else
-        temp_dir = '/tmp'
-#endif
+            end block
+        else
+            ! Unix/Linux system
+            temp_dir = '/tmp'
+        end if
 
     end function get_system_temp_dir
 
@@ -235,13 +223,13 @@ contains
         block
             character(len=:), allocatable :: temp_file, pwd_cmd, rm_cmd
             temp_file = join_path(get_system_temp_dir(), 'fortran_pwd.tmp')
-#ifdef _WIN32
-            pwd_cmd = 'cd > "'//temp_file//'"'
-            rm_cmd = 'del /f "'//temp_file//'"'
-#else
-            pwd_cmd = 'pwd > "'//temp_file//'"'
-            rm_cmd = 'rm -f "'//temp_file//'"'
-#endif
+            if (get_os_type() == OS_WINDOWS) then
+                pwd_cmd = 'cd > "'//temp_file//'"'
+                rm_cmd = 'del /f "'//temp_file//'"'
+            else
+                pwd_cmd = 'pwd > "'//temp_file//'"'
+                rm_cmd = 'rm -f "'//temp_file//'"'
+            end if
             call execute_command_line(pwd_cmd, wait=.true.)
             open (newunit=unit, file=temp_file, status='old', iostat=iostat)
             if (iostat == 0) then
@@ -286,12 +274,12 @@ contains
             ! Move up one directory
             last_slash = 0
             do last_slash = len_trim(root_dir), 1, -1
-#ifdef _WIN32
-                if (root_dir(last_slash:last_slash) == '/' .or. &
-                    root_dir(last_slash:last_slash) == '\') exit
-#else
-                if (root_dir(last_slash:last_slash) == '/') exit
-#endif
+                if (get_os_type() == OS_WINDOWS) then
+                    if (root_dir(last_slash:last_slash) == '/' .or. &
+                        root_dir(last_slash:last_slash) == '\') exit
+                else
+                    if (root_dir(last_slash:last_slash) == '/') exit
+                end if
             end do
 
             if (last_slash <= 1) then
@@ -321,20 +309,20 @@ contains
             joined_path = trim(path2)
         else
             ! Join with separator
-#ifdef _WIN32
-            if (path1(len_trim(path1):len_trim(path1)) == '/' .or. &
-                path1(len_trim(path1):len_trim(path1)) == '\') then
-                joined_path = trim(path1)//trim(path2)
+            if (get_os_type() == OS_WINDOWS) then
+                if (path1(len_trim(path1):len_trim(path1)) == '/' .or. &
+                    path1(len_trim(path1):len_trim(path1)) == '\') then
+                    joined_path = trim(path1)//trim(path2)
+                else
+                    joined_path = trim(path1)//'\'//trim(path2)
+                end if
             else
-                joined_path = trim(path1)//'\'//trim(path2)
+                if (path1(len_trim(path1):len_trim(path1)) == '/') then
+                    joined_path = trim(path1)//trim(path2)
+                else
+                    joined_path = trim(path1)//'/'//trim(path2)
+                end if
             end if
-#else
-            if (path1(len_trim(path1):len_trim(path1)) == '/') then
-                joined_path = trim(path1)//trim(path2)
-            else
-                joined_path = trim(path1)//'/'//trim(path2)
-            end if
-#endif
         end if
 
     end function path_join
