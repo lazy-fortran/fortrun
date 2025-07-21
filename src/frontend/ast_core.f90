@@ -420,8 +420,14 @@ contains
         if (parent_idx == 0) then
             this%entries(this%size)%depth = 0
         else
-            parent_depth = this%entries(parent_idx)%depth
-            this%entries(this%size)%depth = parent_depth + 1
+            ! Validate parent index is within bounds
+            if (parent_idx < 1 .or. parent_idx > this%size - 1) then
+                ! Invalid parent index - treat as root node
+                this%entries(this%size)%depth = 0
+            else
+                parent_depth = this%entries(parent_idx)%depth
+                this%entries(this%size)%depth = parent_depth + 1
+            end if
         end if
 
         ! Update max depth
