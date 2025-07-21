@@ -147,8 +147,8 @@ contains
         write (unit, '(a)') 'git = "https://github.com/jacobwilliams/pyplot-fortran"'
         write (unit, '(a)') 'version = "v1.0.0"'
         write (unit, '(a)') ''
-        write (unit, '(a)') '[packages.fortplotlib]'
-        write (unit, '(a)') 'git = "https://github.com/krystophny/fortplotlib"'
+        write (unit, '(a)') '[packages.fortplot]'
+        write (unit, '(a)') 'git = "https://github.com/krystophny/fortplot"'
         write (unit, '(a)') 'prefix = "fortplot"'
         close (unit)
 

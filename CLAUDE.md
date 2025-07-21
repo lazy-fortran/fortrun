@@ -132,8 +132,8 @@ Experimental dialect features:
 
 Maps modules to FPM packages via `~/.config/fortran/registry.toml`:
 ```toml
-[packages.fortplotlib]
-git = "https://github.com/krystophny/fortplotlib"
+[packages.fortplot]
+git = "https://github.com/krystophny/fortplot"
 prefix = "fortplot"
 ```
 

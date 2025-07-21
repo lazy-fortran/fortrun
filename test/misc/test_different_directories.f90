@@ -1,7 +1,7 @@
 program test_different_directories
     use, intrinsic :: iso_fortran_env, only: error_unit
     use temp_utils, only: create_temp_dir, get_temp_file_path, path_join
-    use system_utils, only: sys_remove_dir, sys_remove_file
+    use system_utils, only: sys_remove_dir, sys_remove_file, sys_run_command_with_exit_code
     use temp_utils, only: mkdir
     implicit none
 
@@ -65,15 +65,16 @@ contains
             abs_exit_file = get_temp_file_path(temp_dir, 'abs_exit.txt')
 
       command = 'ORIGINAL_DIR=$(pwd) && cd ' // trim(test_dir) // ' && cd $ORIGINAL_DIR && fpm run fortran -- "' // &
-             trim(abs_path)//'" > '//abs_output_file//' 2>&1; echo $? > '//abs_exit_file
-            call execute_command_line(command)
+             trim(abs_path)//'"'
+            call sys_run_command_with_exit_code(command, abs_output_file, abs_exit_file)
 
             ! Check that it succeeded
             call check_exit_code(abs_exit_file, 0)
             call check_output_contains(abs_output_file, 'Hello from subdirectory!')
 
             ! Clean up
-            call execute_command_line('rm -f '//abs_output_file//' '//abs_exit_file)
+            call sys_remove_file(abs_output_file)
+            call sys_remove_file(abs_exit_file)
         end block
 
         print *, 'PASS: Absolute path works from different directory'
@@ -94,16 +95,16 @@ contains
             rel_exit_file = get_temp_file_path(temp_dir, 'rel_exit.txt')
 
             command = 'ORIGINAL_DIR=$(pwd) && cd '//trim(test_dir)// &
- ' && cd $ORIGINAL_DIR && fpm run fortran -- '//path_join(test_dir, 'subdir/hello.f90 ')// &
-                      '> '//rel_output_file//' 2>&1; echo $? > '//rel_exit_file
-            call execute_command_line(command)
+ ' && cd $ORIGINAL_DIR && fpm run fortran -- '//path_join(test_dir, 'subdir/hello.f90')
+            call sys_run_command_with_exit_code(command, rel_output_file, rel_exit_file)
 
             ! Check that it succeeded
             call check_exit_code(rel_exit_file, 0)
             call check_output_contains(rel_output_file, 'Hello from subdirectory!')
 
             ! Clean up
-            call execute_command_line('rm -f '//rel_output_file//' '//rel_exit_file)
+            call sys_remove_file(rel_output_file)
+            call sys_remove_file(rel_exit_file)
         end block
 
         print *, 'PASS: Relative path works from different directory'
@@ -128,15 +129,16 @@ character(len=:), allocatable :: temp_dir, diff_output_file, diff_exit_file, sys
             system_temp = create_temp_dir('system_temp')
 
       command = 'ORIGINAL_DIR=$(pwd) && cd ' // system_temp // ' && cd $ORIGINAL_DIR && fpm run fortran -- "' // &
-           trim(abs_path)//'" > '//diff_output_file//' 2>&1; echo $? > '//diff_exit_file
-            call execute_command_line(command)
+           trim(abs_path)//'"'
+            call sys_run_command_with_exit_code(command, diff_output_file, diff_exit_file)
 
             ! Check that it succeeded
             call check_exit_code(diff_exit_file, 0)
             call check_output_contains(diff_output_file, 'Hello from subdirectory!')
 
             ! Clean up
-            call execute_command_line('rm -f '//diff_output_file//' '//diff_exit_file)
+            call sys_remove_file(diff_output_file)
+            call sys_remove_file(diff_exit_file)
         end block
 
         print *, 'PASS: Works from completely different directory'

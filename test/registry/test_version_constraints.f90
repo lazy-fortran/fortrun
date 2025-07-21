@@ -42,15 +42,15 @@ call resolve_module_with_version('fortplot_test', package_name, git_url, version
         write (error_unit, *) 'Error: fortplot_test not found in registry'
         stop 1
     end if
-    if (trim(package_name) /= 'fortplotlib') then
-    write(error_unit, *) 'Error: fortplot_test should map to fortplotlib, got: ', trim(package_name)
+    if (trim(package_name) /= 'fortplot') then
+    write(error_unit, *) 'Error: fortplot_test should map to fortplot, got: ', trim(package_name)
         stop 1
     end if
     if (len_trim(version) /= 0) then
 write(error_unit, *) 'Error: fortplot_test should have no version, got: ', trim(version)
         stop 1
     end if
-    print *, 'PASS: fortplot_test -> fortplotlib (no version)'
+    print *, 'PASS: fortplot_test -> fortplot (no version)'
 
     ! Clean up
     call sys_remove_file(test_registry_path)
@@ -73,8 +73,8 @@ contains
         write (unit, '(a)') 'version = "v1.0.0"'
   write (unit, '(a)') '# This package provides multiple modules with version constraint'
         write (unit, '(a)') ''
-        write (unit, '(a)') '[packages.fortplotlib]'
-        write (unit, '(a)') 'git = "https://github.com/krystophny/fortplotlib"'
+        write (unit, '(a)') '[packages.fortplot]'
+        write (unit, '(a)') 'git = "https://github.com/krystophny/fortplot"'
         write (unit, '(a)') 'prefix = "fortplot"'
         write (unit, '(a)') '# This package has no version constraint'
         close (unit)

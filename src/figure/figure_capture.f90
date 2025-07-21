@@ -196,8 +196,8 @@ contains
 
     end subroutine execute_and_capture_output
 
-    ! Placeholder procedures for fortplotlib interface
-    ! These would be replaced by actual fortplotlib calls
+    ! Placeholder procedures for fortplot interface
+    ! These would be replaced by actual fortplot calls
     subroutine fortplot_show_original()
         ! Original show() implementation would go here
         ! For now, just print a message
@@ -207,7 +207,7 @@ contains
     subroutine fortplot_savefig(filename)
         character(len=*), intent(in) :: filename
 
-        ! This would call the actual fortplotlib savefig
+        ! This would call the actual fortplot savefig
         ! For now, create a placeholder PNG file
         call create_placeholder_png(filename)
 
@@ -218,7 +218,7 @@ contains
         character(len=512) :: command
 
         ! Create a simple placeholder PNG using convert (ImageMagick)
-        ! In a real implementation, this would be handled by fortplotlib
+        ! In a real implementation, this would be handled by fortplot
         command = 'convert -size 800x600 xc:lightblue -pointsize 24 '// &
                  '-fill black -gravity center -annotate +0+0 "Figure Placeholder" "'// &
                   trim(filename)//'"'

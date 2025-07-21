@@ -9,8 +9,8 @@
 
 [packages]
 
-[packages.fortplotlib]
-git = "https://github.com/krystophny/fortplotlib"
+[packages.fortplot]
+git = "https://github.com/krystophny/fortplot"
 prefix = "fortplot"  # Any module starting with "fortplot" belongs to this package
 
 [packages.pyplot-fortran]

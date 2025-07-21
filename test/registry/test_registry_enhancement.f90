@@ -2,7 +2,7 @@ program test_registry_enhancement
     use, intrinsic :: iso_fortran_env, only: error_unit
     use cache, only: get_cache_dir
     use temp_utils, only: create_temp_dir, get_temp_file_path, get_project_root, create_test_cache_dir, path_join
-    use system_utils, only: sys_remove_dir, sys_remove_file
+    use system_utils, only: sys_remove_dir, sys_remove_file, sys_run_command_with_exit_code, sys_run_command
     use temp_utils, only: mkdir
     implicit none
 
@@ -37,7 +37,7 @@ contains
         open (newunit=unit, file=test_file, status='replace')
         write (unit, '(a)') 'program test_multiple'
         write (unit, '(a)') '  use pyplot_module    ! Module from pyplot-fortran'
-        write (unit, '(a)') '  use fortplot_core    ! Module from fortplotlib'
+        write (unit, '(a)') '  use fortplot_core    ! Module from fortplot'
         write (unit, '(a)') '  implicit none'
         write (unit, '(a)') '  print *, "Multiple modules from different packages"'
         write (unit, '(a)') 'end program test_multiple'
@@ -58,9 +58,9 @@ contains
                 command = 'cd "'//project_root//'" && '// &
               'fpm run fortran -- --config-dir "'//trim(test_dir)//'" --cache-dir "'// &
                           trim(cache_dir)//'" -v "'// &
-            trim(test_file)//'" > "'//output_file//'" 2>&1; echo $? > "'//exit_file//'"'
+            trim(test_file)//'"'
             end block
-            call execute_command_line(command)
+            call sys_run_command_with_exit_code(command, output_file, exit_file)
 
             ! Check that both modules were detected and mapped to packages
             call check_output_contains(output_file, 'pyplot-fortran')
@@ -95,8 +95,8 @@ contains
         write (unit, '(a)') 'git = "https://github.com/jacobwilliams/pyplot-fortran"'
     write(unit, '(a)') '# This package provides multiple modules: pyplot_module, pyplot_utils, etc.'
         write (unit, '(a)') ''
-        write (unit, '(a)') '[packages.fortplotlib]'
-        write (unit, '(a)') 'git = "https://github.com/krystophny/fortplotlib"'
+        write (unit, '(a)') '[packages.fortplot]'
+        write (unit, '(a)') 'git = "https://github.com/krystophny/fortplot"'
         write (unit, '(a)') 'prefix = "fortplot"'
         close (unit)
 
@@ -149,8 +149,12 @@ contains
 
         ! Debug: list cache directory contents
      print *, 'Debug: Searching for fpm.toml in cache directory: ', trim(test_cache_dir)
-     call execute_command_line('find "'//trim(test_cache_dir)//'" -name "fpm.toml" '// &
-                                  '2>/dev/null | head -1 > '//fpm_path_file)
+     block
+            character(len=512) :: dummy_output
+            integer :: dummy_exit_code
+            call sys_run_command('find "'//trim(test_cache_dir)//'" -name "fpm.toml" '// &
+                                      '2>/dev/null | head -1 > '//fpm_path_file, dummy_output, dummy_exit_code)
+        end block
 
         open (newunit=unit, file=fpm_path_file, status='old', iostat=iostat)
         if (iostat /= 0) then
@@ -161,7 +165,7 @@ contains
 
         read (unit, '(a)', iostat=iostat) fpm_toml_path
         close (unit)
-        call execute_command_line('rm -f '//fpm_path_file)
+        call sys_remove_file(fpm_path_file)
 
         if (len_trim(fpm_toml_path) == 0) then
             print *, 'Note: Could not find generated fpm.toml (cache cleaned up)'

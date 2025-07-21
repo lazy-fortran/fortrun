@@ -98,8 +98,8 @@ contains
         output_file = temp_mgr%get_file_path('cli_test_output.txt')
         exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
 
-  command = 'fpm run fortran -- > "'//output_file//'" 2>&1; echo $? > "'//exit_file//'"'
-        call execute_command_line(command)
+  command = 'fpm run fortran --'
+        call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_help_output(output_file, test_passed)
         call check_exit_code(exit_file, 0, test_passed)
@@ -123,8 +123,8 @@ contains
         output_file = temp_mgr%get_file_path('cli_test_output.txt')
         exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
 
-    command = 'fpm run fortran -- --help > "' // output_file // '" 2>&1; echo $? > "' // exit_file // '"'
-        call execute_command_line(command)
+    command = 'fpm run fortran -- --help'
+        call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_help_output(output_file, test_passed)
         call check_exit_code(exit_file, 0, test_passed)
@@ -148,8 +148,8 @@ contains
         output_file = temp_mgr%get_file_path('cli_test_output.txt')
         exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
 
-    command = 'fpm run fortran -- -h > "' // output_file // '" 2>&1; echo $? > "' // exit_file // '"'
-        call execute_command_line(command)
+    command = 'fpm run fortran -- -h'
+        call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_help_output(output_file, test_passed)
         call check_exit_code(exit_file, 0, test_passed)
@@ -173,10 +173,9 @@ contains
         output_file = temp_mgr%get_file_path('cli_test_output.txt')
         exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
 
-        command = 'fpm run fortran -- "'//trim(test_file)//'" > "'//output_file// &
-                  '" 2>&1; echo $? > "'//exit_file//'"'
+        command = 'fpm run fortran -- "'//trim(test_file)//'"'
         print *, 'Executing command: ', trim(command)
-        call execute_command_line(command)
+        call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         ! Debug: Show what was actually captured
         call debug_output_file(output_file)
@@ -239,10 +238,10 @@ contains
 
         ! Test 5b: Warm cache (should use existing build)
         print *, '  Test 5b: Warm cache behavior'
-        command = 'fpm run fortran -- -v '//trim(test_file)// &
-   ' > "'//temp_mgr%get_file_path('cli_test_output_warm.txt')//'" 2>&1; echo $? > "'// &
-                  temp_mgr%get_file_path('cli_test_exit.txt')//'"'
-        call execute_command_line(command)
+        command = 'fpm run fortran -- -v '//trim(test_file)
+        call sys_run_command_with_exit_code(command, &
+                  temp_mgr%get_file_path('cli_test_output_warm.txt'), &
+                  temp_mgr%get_file_path('cli_test_exit.txt'))
 
     call check_program_output(temp_mgr%get_file_path('cli_test_output_warm.txt'), 'CLI System Test Output', test_passed)
     call check_warm_cache_verbose(temp_mgr%get_file_path('cli_test_output_warm.txt'), test_passed)
@@ -268,9 +267,8 @@ contains
         output_file = temp_mgr%get_file_path('cli_test_output.txt')
         exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
 
-        command = 'fpm run fortran -- -vv '//trim(test_file)// &
-                  ' > "'//output_file//'" 2>&1; echo $? > "'//exit_file//'"'
-        call execute_command_line(command)
+        command = 'fpm run fortran -- -vv '//trim(test_file)
+        call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_program_output(output_file, 'CLI System Test Output', test_passed)
         call check_verbose_output(output_file, 2, test_passed)
@@ -295,9 +293,8 @@ contains
         output_file = temp_mgr%get_file_path('cli_test_output.txt')
         exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
 
-        command = 'fpm run fortran -- --verbose '//trim(test_file)// &
-                  ' > "'//output_file//'" 2>&1; echo $? > "'//exit_file//'"'
-        call execute_command_line(command)
+        command = 'fpm run fortran -- --verbose '//trim(test_file)
+        call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_program_output(output_file, 'CLI System Test Output', test_passed)
         call check_verbose_output(output_file, 1, test_passed)
@@ -322,9 +319,8 @@ contains
         output_file = temp_mgr%get_file_path('cli_test_output.txt')
         exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
 
-        command = 'fpm run fortran -- --verbose 1 '//trim(test_file)// &
-                  ' > "'//output_file//'" 2>&1; echo $? > "'//exit_file//'"'
-        call execute_command_line(command)
+        command = 'fpm run fortran -- --verbose 1 '//trim(test_file)
+        call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_program_output(output_file, 'CLI System Test Output', test_passed)
         call check_verbose_output(output_file, 1, test_passed)
@@ -349,9 +345,8 @@ contains
         output_file = temp_mgr%get_file_path('cli_test_output.txt')
         exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
 
-        command = 'fpm run fortran -- --verbose 2 '//trim(test_file)// &
-                  ' > "'//output_file//'" 2>&1; echo $? > "'//exit_file//'"'
-        call execute_command_line(command)
+        command = 'fpm run fortran -- --verbose 2 '//trim(test_file)
+        call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_program_output(output_file, 'CLI System Test Output', test_passed)
         call check_verbose_output(output_file, 2, test_passed)
@@ -438,9 +433,8 @@ contains
         exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
 
         ! Test missing cache directory argument
-        command = 'fpm run fortran -- --cache-dir > "'//output_file//'" 2>&1; '// &
-                  'echo $? > "'//exit_file//'"'
-        call execute_command_line(command)
+        command = 'fpm run fortran -- --cache-dir'
+        call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_help_output(output_file, test_passed)
         call check_exit_code(exit_file, 0, test_passed)
@@ -735,9 +729,8 @@ contains
         write (unit, '(a)') "print *, 'Hello from .f file'"
         close (unit)
 
-        command = 'fpm run fortran -- "'//trim(test_f_file)//'" > "'// &
-                  output_file//'" 2>&1; echo $? > "'//exit_file//'"'
-        call execute_command_line(command, exitstat=exit_code)
+        command = 'fpm run fortran -- "'//trim(test_f_file)//'"'
+        call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_exit_code(exit_file, 0, exit_ok)
         call check_program_output(output_file, 'Hello from .f file', success)
@@ -771,9 +764,8 @@ contains
         write (unit, '(a)') "This is not a Fortran file"
         close (unit)
 
-        command = 'fpm run fortran -- "'//trim(test_txt_file)//'" > "'// &
-                  output_file//'" 2>&1; echo $? > "'//exit_file//'"'
-        call execute_command_line(command, exitstat=exit_code)
+        command = 'fpm run fortran -- "'//trim(test_txt_file)//'"'
+        call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_exit_code(exit_file, 1, exit_ok)
         call check_program_output(output_file, &
@@ -812,9 +804,8 @@ contains
         close (unit)
 
         ! Test with custom optimization flags
-        command = 'fpm run fortran -- --flag "-O2" "'//trim(test_flag_file)//'" > "'// &
-                  output_file//'" 2>&1; echo $? > "'//exit_file//'"'
-        call execute_command_line(command, exitstat=exit_code)
+        command = 'fpm run fortran -- --flag "-O2" "'//trim(test_flag_file)//'"'
+        call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_exit_code(exit_file, 0, exit_ok)
         call check_program_output(output_file, 'Flag test output', has_output)
@@ -835,9 +826,8 @@ contains
         write (unit, '(a)') 'print *, "Flag test output with .f file"'
         close (unit)
 
-      command = 'fpm run fortran -- --flag "-Wall" "'//trim(test_flag_file)//'" > "'// &
-                  output_file//'" 2>&1; echo $? > "'//exit_file//'"'
-        call execute_command_line(command, exitstat=exit_code)
+      command = 'fpm run fortran -- --flag "-Wall" "'//trim(test_flag_file)//'"'
+        call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_exit_code(exit_file, 0, exit_ok)
      call check_program_output(output_file, 'Flag test output with .f file', has_output)

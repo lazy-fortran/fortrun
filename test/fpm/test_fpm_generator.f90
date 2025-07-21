@@ -92,7 +92,7 @@ program test_fpm_generator
         read (unit, '(a)', iostat=iostat) line
         if (iostat /= 0) exit
 
-        if (index(line, 'fortplotlib') > 0) found_deps = .true.
+        if (index(line, 'fortplot') > 0) found_deps = .true.
         if (index(line, 'pyplot-fortran') > 0) found_pyplot = .true.
     end do
 

@@ -73,8 +73,8 @@ contains
         write (unit, '(a)') 'git = "https://github.com/jacobwilliams/pyplot-fortran"'
       write (unit, '(a)') '# This package provides multiple modules with pyplot_ prefix'
         write (unit, '(a)') ''
-        write (unit, '(a)') '[packages.fortplotlib]'
-        write (unit, '(a)') 'git = "https://github.com/krystophny/fortplotlib"'
+        write (unit, '(a)') '[packages.fortplot]'
+        write (unit, '(a)') 'git = "https://github.com/krystophny/fortplot"'
         write (unit, '(a)') 'prefix = "fortplot"'
         close (unit)
 

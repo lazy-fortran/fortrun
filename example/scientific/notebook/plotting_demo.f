@@ -79,11 +79,11 @@ print *, "Scale: -1.0 to +1.0 (left to right)"
 ! %% [markdown]
 ! ## Graphics Generation with Fortplotlib
 !
-! Generate plots using fortplotlib - the .show() calls will be automatically
+! Generate plots using fortplot - the .show() calls will be automatically
 ! converted to base64-encoded PNG images in notebook mode:
 
 ! %%
-use fortplotlib
+use fortplot
 
 ! Create a figure and plot the sine data
 call figure()
