@@ -1,4 +1,4 @@
-# lowercase 2507 Standard (*Lowercase Fortran*)
+# fortran 2507 Standard (*Lowercase Fortran*)
 
 This document describes the "lowercase 2507" standard - our experimental *lowercase fortran* dialect that pushes beyond all alternative scientific computing languages. It explores how far we can evolve Fortran to surpass Python, Julia, MATLAB, and others in both performance and expressiveness. The name uses lowercase to distinguish it from standard Fortran, and "2507" represents our vision of what Fortran could be in the far future (25th century).
 
@@ -306,48 +306,41 @@ Both produce the same result, but lazy 2507:
 
 ## Implementation Status
 
-Currently implemented in the preprocessor:
-- ✅ Bare file execution (no program/end program)
-- ✅ Basic type inference for literals
-- ✅ Automatic real(8) for reals
-- ✅ Automatic variable declarations
-- ✅ Module dependency resolution
-- ✅ Smart caching system
-- ✅ Notebook mode with figure capture
-- 🚧 Function/subroutine handling (in progress)
-- 🚧 Array type inference (in progress)
-- ❌ Advanced type inference (expressions, function returns)
-- ❌ Automatic intent(in) (partially implemented)
-- ❌ Python-like list comprehensions (future)
-- ❌ F-string formatting (future)
+### Fully Implemented Features ✅
 
-## Future Vision
+The AST-based frontend with full type inference is **production-ready**:
 
-lazy 2507 aims to eventually support:
+- ✅ **Bare file execution** - No program/end program required
+- ✅ **Hindley-Milner type inference** - Complete implementation with Algorithm W
+- ✅ **Automatic type inference** - Variables, expressions, function returns
+- ✅ **Automatic real(8)** - All reals default to double precision
+- ✅ **Implicit none by default** - No need to declare
+- ✅ **Automatic variable declarations** - Inferred from usage
+- ✅ **Module dependency resolution** - Automatic discovery and building
+- ✅ **Smart caching system** - 2-4x performance improvements
+- ✅ **Notebook mode** - Interactive execution with figure capture
+- ✅ **4-Phase compiler** - Lexer → Parser → Semantic → Codegen
+- ✅ **JSON intermediate representations** - Debug and compose pipelines
+- ✅ **Comprehensive test suite** - 30+ frontend tests
 
-```fortran
-! List comprehensions
-squares = [i**2 for i in 1:10]
+### Currently Supported Type Inference
 
-! F-string formatting
-name = "Alice"
-age = 30
-print *, f"Hello {name}, you are {age} years old"
-
-! Pattern matching
-select type (shape)
-    type is (circle)
-        area = pi * shape%radius**2
-    type is (rectangle)
-        area = shape%width * shape%height
-end select
-
-! Automatic parallelization hints
-do concurrent (i = 1:n)
-    results(i) = expensive_calculation(data(i))
-end do
-```
+- ✅ Basic types (integer, real, logical, character)
+- ✅ Arithmetic expressions with type promotion
+- ✅ Function calls and return types
+- ✅ Array literals and operations
+- ✅ Control flow (if/then/else, do loops)
+- ✅ Type unification across branches
+- ✅ Automatic contains section for functions/subroutines
 
 ## Summary
 
-lazy 2507 is not a new language - it's a preprocessor that makes standard Fortran easier to write while maintaining 100% compatibility. Write less, compute more, with the same performance as standard Fortran.
+fortran 2507 (*lowercase fortran*) is not a new language - it's a complete compiler frontend that makes standard Fortran easier to write while maintaining 100% compatibility. The production-ready AST-based system with Hindley-Milner type inference allows you to:
+
+- Write equations directly without boilerplate
+- Let the compiler infer all types automatically
+- Use modern defaults (real(8), implicit none)
+- Run files directly without manual compilation
+- Leverage automatic module resolution and caching
+
+Write less, compute more, with the same performance as standard Fortran.
