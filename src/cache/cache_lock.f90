@@ -107,8 +107,9 @@ contains
                 ! On Windows, use dir command with proper redirection
                 command = 'dir "'//trim(lock_file)//'" >nul 2>&1'
             else
-                ! On Unix, use test command which handles symlinks properly
-                command = 'test -e "'//trim(lock_file)//'"'
+                ! On Unix, use test -L to detect symlinks even if they're dangling
+                ! test -e fails on dangling symlinks, test -L succeeds
+          command = 'test -L "'//trim(lock_file)//'" || test -e "'//trim(lock_file)//'"'
             end if
 
             call execute_command_line(command, exitstat=exit_code)
