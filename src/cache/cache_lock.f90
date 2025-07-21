@@ -3,6 +3,7 @@ module cache_lock
     use iso_fortran_env, only: error_unit
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, mkdir
     use fpm_environment, only: get_os_type, OS_WINDOWS
+    use fpm_filesystem, only: join_path
     use system_utils, only: sys_remove_file, sys_move_file, sys_find_files, &
                             sys_create_symlink, sys_process_exists, sys_sleep
     implicit none
@@ -144,11 +145,7 @@ contains
         character(len=*), intent(in) :: cache_dir, project_name
         character(len=512) :: lock_file
 
-        if (get_os_type() == OS_WINDOWS) then
-            lock_file = trim(cache_dir)//'\'//trim(project_name)//'.lock'
-        else
-            lock_file = trim(cache_dir)//'/'//trim(project_name)//'.lock'
-        end if
+        lock_file = join_path(trim(cache_dir), trim(project_name)//'.lock')
 
     end function get_lock_file_path
 

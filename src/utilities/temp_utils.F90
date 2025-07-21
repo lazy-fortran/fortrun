@@ -361,13 +361,13 @@ contains
                     path1(len_trim(path1):len_trim(path1)) == '\') then
                     joined_path = trim(path1)//trim(path2)
                 else
-                    joined_path = trim(path1)//'\'//trim(path2)
+                    joined_path = join_path(trim(path1), trim(path2))
                 end if
             else
                 if (path1(len_trim(path1):len_trim(path1)) == '/') then
                     joined_path = trim(path1)//trim(path2)
                 else
-                    joined_path = trim(path1)//'/'//trim(path2)
+                    joined_path = join_path(trim(path1), trim(path2))
                 end if
             end if
         end if

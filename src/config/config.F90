@@ -53,7 +53,7 @@ contains
         ! Try to create directory using safe command approach
         ! This avoids FPM's mkdir which calls fpm_stop on failure
 #ifdef _WIN32
-        command = 'mkdir "'//trim(config_dir)//'" 2>nul'
+        command = 'md "'//trim(config_dir)//'" 2>nul'
 #else
         command = 'mkdir -p "'//trim(config_dir)//'" 2>/dev/null'
 #endif

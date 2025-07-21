@@ -9,6 +9,7 @@ module runner
     use fpm_model, only: srcfile_t
     use fpm_strings, only: string_t
     use fpm_error, only: error_t
+    use fpm_filesystem, only: join_path
   use frontend_integration, only: compile_with_frontend, compile_with_frontend_debug, is_simple_fortran_file
     use debug_state, only: get_debug_flags
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, mkdir
@@ -658,7 +659,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         end if
 
         ! Create project directory based on structure hash
-        project_dir = trim(cache_dir)//'/'//trim(basename)//'_'//trim(structure_hash)
+     project_dir = join_path(trim(cache_dir), trim(basename)//'_'//trim(structure_hash))
 
     end subroutine get_project_hash_and_directory
 
