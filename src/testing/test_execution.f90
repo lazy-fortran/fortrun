@@ -1,6 +1,9 @@
 module test_execution
     use iso_fortran_env, only: error_unit
     use omp_lib
+    use temp_utils, only: get_system_temp_dir, get_temp_file_path
+    use fpm_environment, only: get_os_type, OS_WINDOWS
+    use system_utils, only: sys_remove_file
     implicit none
     private
 
@@ -34,11 +37,16 @@ contains
         character(len=MAX_OUTPUT_LEN) :: output_buffer
         integer :: unit, ios, idx
         real :: test_start, test_end
-        character(len=50) :: temp_file
+        character(len=:), allocatable :: temp_file
         integer :: thread_id
 
         ! Initialize result - extract name from executable path
-        idx = index(test_executable, '/', back=.true.)
+        if (get_os_type() == OS_WINDOWS) then
+            idx = max(index(test_executable, '/', back=.true.), &
+                      index(test_executable, '\', back=.true.))
+        else
+            idx = index(test_executable, '/', back=.true.)
+        end if
         if (idx > 0) then
             result%name = test_executable(idx + 1:)
         else
@@ -54,10 +62,18 @@ contains
 
         ! Create unique temp file for this thread
         thread_id = omp_get_thread_num()
-        write (temp_file, '(A,I0,A)') "/tmp/fortran_test_", thread_id, ".txt"
+        block
+            character(len=32) :: temp_name
+            write (temp_name, '(A,I0,A)') 'fortran_test_', thread_id, '.txt'
+            temp_file = get_temp_file_path(get_system_temp_dir(), temp_name)
+        end block
 
         ! Create command to run test executable directly
-        command = "timeout 60 "//trim(test_executable)//" > "//trim(temp_file)//" 2>&1"
+        if (get_os_type() == OS_WINDOWS) then
+            command = trim(test_executable)//" > "//trim(temp_file)//" 2>&1"
+        else
+         command = "timeout 60 "//trim(test_executable)//" > "//trim(temp_file)//" 2>&1"
+        end if
 
         ! Run test and capture output
         call execute_command_line(trim(command), exitstat=result%exit_code)
@@ -69,7 +85,7 @@ contains
             read (unit, '(A)', iostat=ios) output_buffer
             close (unit)
         end if
-        call execute_command_line("rm -f "//trim(temp_file))
+        call sys_remove_file(temp_file)
 
         test_end = omp_get_wtime()
         result%duration = test_end - test_start
