@@ -355,20 +355,28 @@ contains
         integer :: exitstat, cmdstat
 
         ! Skip if directory already exists
-        if (exists(dir_path)) return
+        if (exists(dir_path)) then
+            print *, 'DEBUG: mkdir - directory already exists:', trim(dir_path)
+            return
+        end if
 
         ! Skip invalid paths that would cause problems
         if (len_trim(dir_path) == 0) return
         if (index(dir_path, '/dev/null') > 0) return
 
-        ! Use safe system commands
-#ifdef _WIN32
+        print *, 'DEBUG: mkdir - creating directory:', trim(dir_path)
+
+        ! Use runtime OS detection instead of preprocessor
+        if (get_os_type() == OS_WINDOWS) then
       command = 'if not exist "'//trim(dir_path)//'" mkdir "'//trim(dir_path)//'" 2>nul'
-#else
-        command = 'mkdir -p "'//trim(dir_path)//'" 2>/dev/null'
-#endif
+            print *, 'DEBUG: mkdir - Windows command:', trim(command)
+        else
+            command = 'mkdir -p "'//trim(dir_path)//'" 2>/dev/null'
+            print *, 'DEBUG: mkdir - Unix command:', trim(command)
+        end if
 
         call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
+        print *, 'DEBUG: mkdir - exitstat:', exitstat, 'cmdstat:', cmdstat
     end subroutine mkdir
 
     !> Create a unique test cache directory to avoid race conditions in parallel tests
