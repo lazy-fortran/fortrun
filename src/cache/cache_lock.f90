@@ -122,6 +122,29 @@ contains
 
     end function is_locked
 
+    ! Helper function to check lock file existence using same method as is_locked
+    ! This ensures consistency across the module and avoids race conditions on Windows
+    function check_lock_file_exists(lock_file) result(exists)
+        character(len=*), intent(in) :: lock_file
+        logical :: exists
+        
+        block
+            character(len=512) :: command
+            integer :: exit_code
+
+            if (get_os_type() == OS_WINDOWS) then
+                ! On Windows, use dir command with proper redirection
+                command = 'dir "'//trim(lock_file)//'" >nul 2>&1'
+            else
+                ! On Unix, use test -L to detect symlinks even if they're dangling
+                command = 'test -L "'//trim(lock_file)//'" || test -e "'//trim(lock_file)//'"'
+            end if
+
+            call execute_command_line(command, exitstat=exit_code)
+            exists = (exit_code == 0)
+        end block
+    end function check_lock_file_exists
+
     subroutine cleanup_stale_locks(cache_dir)
         character(len=*), intent(in) :: cache_dir
         character(len=512) :: lock_files(1000)
@@ -173,8 +196,8 @@ contains
             close (unit)
 
             ! Try to atomically move temp file to lock file
-            ! First check if lock file already exists
-            inquire (file=lock_file, exist=file_exists)
+            ! First check if lock file already exists using system command (consistent with is_locked)
+            file_exists = check_lock_file_exists(lock_file)
             if (file_exists) then
                 ! Lock already exists, can't create
                 ! Clean up temp file since lock already exists

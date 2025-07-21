@@ -42,15 +42,28 @@ contains
 
         ! Initialize result - extract name from executable path
         if (get_os_type() == OS_WINDOWS) then
+            ! For Windows, handle both file paths and commands with arguments
             idx = max(index(test_executable, '/', back=.true.), &
                       index(test_executable, '\', back=.true.))
+            if (idx > 0) then
+                ! Extract filename from path
+                result%name = test_executable(idx + 1:)
+            else
+                ! For commands like "cmd /c ...", extract just the first word
+                idx = index(test_executable, ' ')
+                if (idx > 0) then
+                    result%name = test_executable(1:idx-1)
+                else
+                    result%name = trim(test_executable)
+                end if
+            end if
         else
             idx = index(test_executable, '/', back=.true.)
-        end if
-        if (idx > 0) then
-            result%name = test_executable(idx + 1:)
-        else
-            result%name = trim(test_executable)
+            if (idx > 0) then
+                result%name = test_executable(idx + 1:)
+            else
+                result%name = trim(test_executable)
+            end if
         end if
         result%executable = trim(test_executable)
         result%status = TEST_RUNNING
