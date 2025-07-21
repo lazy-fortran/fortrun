@@ -134,7 +134,7 @@ contains
         else
             command = 'ls -la "'//trim(cache_dir)//'/"*.lock 2>&1 | head -10'
         end if
-        
+
         call execute_command_line(command, exitstat=exit_code)
     end subroutine list_lock_files
 

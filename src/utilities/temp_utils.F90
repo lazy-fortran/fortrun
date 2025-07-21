@@ -2,6 +2,7 @@ module temp_utils
 #ifdef _OPENMP
     use omp_lib, only: omp_get_thread_num
 #endif
+    use iso_fortran_env, only: error_unit
     use fpm_filesystem, only: join_path, get_temp_filename, exists
     use fpm_environment, only: get_env, get_os_type, OS_WINDOWS
     implicit none
@@ -344,7 +345,7 @@ contains
 
         ! Skip if directory already exists
         if (exists(dir_path)) then
-            print *, 'DEBUG: mkdir - directory already exists:', trim(dir_path)
+        write (error_unit, *) 'DEBUG: mkdir - directory already exists:', trim(dir_path)
             return
         end if
 
@@ -352,19 +353,19 @@ contains
         if (len_trim(dir_path) == 0) return
         if (index(dir_path, '/dev/null') > 0) return
 
-        print *, 'DEBUG: mkdir - creating directory:', trim(dir_path)
+        write (error_unit, *) 'DEBUG: mkdir - creating directory:', trim(dir_path)
 
         ! Use runtime OS detection instead of preprocessor
         if (get_os_type() == OS_WINDOWS) then
       command = 'if not exist "'//trim(dir_path)//'" mkdir "'//trim(dir_path)//'" 2>nul'
-            print *, 'DEBUG: mkdir - Windows command:', trim(command)
+            write (error_unit, *) 'DEBUG: mkdir - Windows command:', trim(command)
         else
             command = 'mkdir -p "'//trim(dir_path)//'" 2>/dev/null'
-            print *, 'DEBUG: mkdir - Unix command:', trim(command)
+            write (error_unit, *) 'DEBUG: mkdir - Unix command:', trim(command)
         end if
 
         call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
-        print *, 'DEBUG: mkdir - exitstat:', exitstat, 'cmdstat:', cmdstat
+        write (error_unit, *) 'DEBUG: mkdir - exitstat:', exitstat, 'cmdstat:', cmdstat
     end subroutine mkdir
 
     !> Create a unique test cache directory to avoid race conditions in parallel tests

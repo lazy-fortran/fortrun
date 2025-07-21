@@ -1,6 +1,7 @@
 program test_fortran95_passthrough
     use iso_fortran_env, only: error_unit
     use temp_utils, only: temp_dir_manager
+    use fpm_environment, only: get_os_type, OS_WINDOWS
     implicit none
 
     integer :: test_count, pass_count
@@ -64,8 +65,8 @@ contains
                 write (*, '(a)') '  ✗ FAIL: Compilation failed'
             end if
 
-            ! Clean up temporary files
-        call execute_command_line('rm -f "' // trim(temp_input) // '" "' // trim(temp_output) // '"', wait=.true.)
+            ! Clean up temporary files - cross-platform
+            call cleanup_files(temp_input, temp_output)
         end block
 
     end subroutine test_simple_program_passthrough
@@ -113,8 +114,8 @@ contains
                 write (*, '(a)') '  ✗ FAIL: Compilation failed'
             end if
 
-            ! Clean up temporary files
-        call execute_command_line('rm -f "' // trim(temp_input) // '" "' // trim(temp_output) // '"', wait=.true.)
+            ! Clean up temporary files - cross-platform
+            call cleanup_files(temp_input, temp_output)
         end block
 
     end subroutine test_module_passthrough
@@ -173,8 +174,8 @@ contains
                 write (*, '(a)') '  ✗ FAIL: Compilation failed'
             end if
 
-            ! Clean up temporary files
-        call execute_command_line('rm -f "' // trim(temp_input) // '" "' // trim(temp_output) // '"', wait=.true.)
+            ! Clean up temporary files - cross-platform
+            call cleanup_files(temp_input, temp_output)
         end block
 
     end subroutine test_complex_program_passthrough
@@ -184,9 +185,7 @@ contains
         character(len=*), intent(in) :: input_file, output_file
         integer :: exit_code
 
-        call execute_command_line('fpm run fortran -- "'//trim(input_file)//'"'// &
-                             ' --standardize > "'//trim(output_file)//'" 2>/dev/null', &
-                                  exitstat=exit_code)
+        call run_fortran_standardize(input_file, output_file, exit_code)
 
         compile_standard_fortran = (exit_code == 0)
     end function compile_standard_fortran
@@ -233,9 +232,58 @@ contains
     subroutine show_diff(file1, file2)
         character(len=*), intent(in) :: file1, file2
         write (*, '(a)') '    First 3 lines of input:'
-        call execute_command_line('head -3 "'//trim(file1)//'" | sed "s/^/      /"')
+        call show_file_head(file1)
         write (*, '(a)') '    First 3 lines of output:'
-        call execute_command_line('head -3 "'//trim(file2)//'" | sed "s/^/      /"')
+        call show_file_head(file2)
     end subroutine show_diff
+
+    subroutine cleanup_files(file1, file2)
+        character(len=*), intent(in) :: file1, file2
+        character(len=512) :: command
+
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'del /f /q "'//trim(file1)//'" "'//trim(file2)//'" 2>nul'
+        else
+            command = 'rm -f "'//trim(file1)//'" "'//trim(file2)//'"'
+        end if
+
+        call execute_command_line(trim(command), wait=.true.)
+    end subroutine cleanup_files
+
+    subroutine run_fortran_standardize(input_file, output_file, exit_code)
+        character(len=*), intent(in) :: input_file, output_file
+        integer, intent(out) :: exit_code
+        character(len=1024) :: command
+
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'fpm run fortran -- "'//trim(input_file)//'"'// &
+                      ' --standardize > "'//trim(output_file)//'" 2>nul'
+        else
+            command = 'fpm run fortran -- "'//trim(input_file)//'"'// &
+                      ' --standardize > "'//trim(output_file)//'" 2>/dev/null'
+        end if
+
+        call execute_command_line(trim(command), exitstat=exit_code)
+    end subroutine run_fortran_standardize
+
+    subroutine show_file_head(filename)
+        character(len=*), intent(in) :: filename
+        integer :: unit, iostat, line_count
+        character(len=512) :: line
+
+        open (newunit=unit, file=filename, status='old', iostat=iostat)
+        if (iostat == 0) then
+            line_count = 0
+            do
+                read (unit, '(a)', iostat=iostat) line
+                if (iostat /= 0 .or. line_count >= 3) exit
+                write (*, '(a)') '      '//trim(line)
+                line_count = line_count + 1
+            end do
+            close (unit)
+        else
+            write (*, '(a)') '      [Unable to read file]'
+        end if
+    end subroutine show_file_head
 
 end program test_fortran95_passthrough

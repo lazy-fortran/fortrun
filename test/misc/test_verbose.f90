@@ -5,7 +5,7 @@ program test_verbose
     implicit none
 
     integer :: exit_code
-    character(len=1024) :: output
+    character(len=8192) :: output
     character(len=256) :: test_program
     logical :: verbose_found, build_found
 
@@ -90,7 +90,7 @@ contains
         character(len=256) :: temp_cache
         character(len=:), allocatable :: temp_dir, temp_output_file
         integer :: unit, iostat
-        character(len=1024) :: line
+        character(len=2048) :: line
 
         ! Use temporary cache to ensure fresh builds
         temp_cache = './test_verbose_cache'
