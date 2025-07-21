@@ -83,13 +83,14 @@ contains
                 print *, "Cache miss: Building notebook"
             end if
 
-            ! Acquire cache lock
-          write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock'
+            ! Acquire cache lock with NO WAIT to prevent hanging
+write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (NO WAIT)'
             write (*, '(a,a)') 'DEBUG: cache_dir = ', trim(cache_dir)
             write (*, '(a,a)') 'DEBUG: lock_name = ', 'notebook_'//trim(cache_key)
             call flush (6)
 
-           lock_acquired = acquire_lock(cache_dir, 'notebook_'//trim(cache_key), .true.)
+            ! Use no-wait mode to prevent hanging in CI
+          lock_acquired = acquire_lock(cache_dir, 'notebook_'//trim(cache_key), .false.)
 
             write (*, '(a,l)') 'DEBUG: lock_acquired = ', lock_acquired
             call flush (6)

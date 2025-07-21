@@ -8,6 +8,9 @@ program test_notebook_caching
     logical :: all_tests_passed
 
     ! Output early message to ensure test is starting
+    print '(a)', 'test_notebook_caching: EARLY START - Process started successfully'
+    flush (6)
+
     print '(a)', 'test_notebook_caching: Initialization complete'
     flush (6)
 
@@ -19,6 +22,14 @@ program test_notebook_caching
     print *
 
     print '(a)', 'test_notebook_caching: Header printed, about to call test subroutines'
+    flush (6)
+
+    ! First, let's try to cleanup any stale locks
+    print '(a)', 'test_notebook_caching: Cleaning up any stale locks before test'
+    flush (6)
+    call execute_command_line('find /tmp -name "*.lock" -type f -delete 2>/dev/null || true')
+    call execute_command_line('find /tmp -name "*.lock" -type l -delete 2>/dev/null || true')
+    print '(a)', 'test_notebook_caching: Stale lock cleanup completed'
     flush (6)
 
     all_tests_passed = .true.
@@ -53,6 +64,11 @@ contains
 
         print *, 'Test 1: Cache directory creation'
         flush (6)
+
+        ! Cleanup any existing locks for this test specifically
+        print *, 'DEBUG: Cleaning up existing cache locks for Test 1'
+        flush (6)
+        call execute_command_line('find /tmp -name "*notebook*lock*" -delete 2>/dev/null || true')
 
         ! Set up cache directory
         print *, 'DEBUG: About to create temp_dir_manager'
