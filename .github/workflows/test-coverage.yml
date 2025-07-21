@@ -38,6 +38,10 @@ jobs:
         echo "Testing create_test_cache_dir function..."
         fpm run test_cache_dir || echo "cache_dir test failed"
 
+        # Test cache_lock functionality in minimal form
+        echo "Testing cache_lock minimal..."
+        fpm run test_cache_lock_minimal || echo "cache_lock_minimal test failed"
+
         # Run our custom test runner which provides:
         # - Parallel test execution with better performance
         # - Comprehensive test discovery including integration tests
