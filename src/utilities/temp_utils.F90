@@ -93,6 +93,8 @@ contains
         integer :: pid_estimate, thread_id
         integer :: random_num
         integer :: counter
+        real :: rand_val
+        integer :: rand_int
         save :: counter
         data counter/0/
 
@@ -113,10 +115,31 @@ contains
 #endif
         counter = counter + 1
 
-        ! Create unique random number combining time, thread, and counter
+        ! Add true randomness to avoid collisions when multiple processes start simultaneously
+        ! Initialize random seed with time-based values for better randomness
+        block
+            integer :: seed_size, i
+            integer, allocatable :: seed(:)
+
+            call random_seed(size=seed_size)
+            allocate (seed(seed_size))
+
+            ! Initialize seed with time values and counter
+            do i = 1, seed_size
+                seed(i) = time_vals(8) + time_vals(7)*60 + time_vals(6)*3600 + &
+                          counter*7919 + i*13 + thread_id*31
+            end do
+
+            call random_seed(put=seed)
+        end block
+
+        call random_number(rand_val)
+        rand_int = int(rand_val*999999)
+
+        ! Create unique random number combining time, thread, counter, and random value
         pid_estimate = time_vals(8)*1000 + time_vals(7)*100 + time_vals(6)
         random_num = time_vals(6)*1000000 + time_vals(7)*10000 + time_vals(8)*100
-        random_num = random_num + thread_id*1000000 + counter*10000 + pid_estimate
+   random_num = random_num + thread_id*1000000 + counter*10000 + pid_estimate + rand_int
 
         ! Convert to hex string for shorter but unique suffix
         write (suffix, '(z0)') abs(random_num)
