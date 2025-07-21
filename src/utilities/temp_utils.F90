@@ -5,11 +5,22 @@ module temp_utils
     use iso_fortran_env, only: error_unit
     use fpm_filesystem, only: join_path, get_temp_filename, exists
     use fpm_environment, only: get_env, get_os_type, OS_WINDOWS
+    use iso_c_binding, only: c_int
     implicit none
     private
     public :: create_temp_dir, cleanup_temp_dir, get_temp_file_path, temp_dir_manager, &
               get_system_temp_dir, get_current_directory, get_project_root, path_join, &
               mkdir, create_test_cache_dir
+
+    ! Interface for getpid (Unix/Linux only)
+#ifndef _WIN32
+    interface
+        function getpid() bind(c, name="getpid")
+            import :: c_int
+            integer(c_int) :: getpid
+        end function getpid
+    end interface
+#endif
 
     ! Type for managing temporary directories with automatic cleanup
     type :: temp_dir_manager
@@ -120,14 +131,26 @@ contains
         block
             integer :: seed_size, i
             integer, allocatable :: seed(:)
+            integer :: pid_val, clock_val
 
             call random_seed(size=seed_size)
             allocate (seed(seed_size))
 
-            ! Initialize seed with time values and counter
+            ! Get additional entropy sources
+            call system_clock(clock_val)
+            ! Use getpid if available, otherwise use a pseudo-pid based on time
+#ifndef _WIN32
+            pid_val = getpid()  ! Process ID for additional uniqueness
+#else
+            pid_val = time_vals(8)*1000 + time_vals(7)*60 + time_vals(6)  ! Pseudo-PID for Windows
+#endif
+
+            ! Initialize seed with multiple entropy sources
             do i = 1, seed_size
                 seed(i) = time_vals(8) + time_vals(7)*60 + time_vals(6)*3600 + &
-                          counter*7919 + i*13 + thread_id*31
+                          counter*7919 + i*13 + thread_id*31 + &
+                          clock_val*17 + pid_val*23 + &
+                          mod(loc(suffix), 65536)*29  ! Memory address for more entropy
             end do
 
             call random_seed(put=seed)
