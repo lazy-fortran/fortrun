@@ -6,7 +6,7 @@ program test_cache
     implicit none
 
     character(len=:), allocatable :: test_cache_dir, test_program
-    character(len=1024) :: output1, output2
+    character(len=8192) :: output1, output2
     integer :: exit_code
     logical :: cache_exists
     character(len=:), allocatable :: temp_dir
@@ -103,7 +103,7 @@ contains
         character(len=512) :: command
         character(len=:), allocatable :: output_file
         integer :: unit, iostat
-        character(len=1024) :: line
+        character(len=2048) :: line
 
         ! Create output file path
         output_file = get_temp_file_path(temp_dir, 'test_output.tmp')
@@ -143,7 +143,7 @@ contains
         else
             command = 'ls "'//trim(cache_dir)//'" >/dev/null 2>&1'
         end if
-        
+
         call execute_command_line(command, exitstat=exit_code)
     end subroutine check_cache_directory_exists
 
@@ -160,7 +160,7 @@ contains
         else
             command = 'rm -f "'//trim(file_path)//'"'
         end if
-        
+
         call execute_command_line(command, exitstat=exit_code)
     end subroutine cleanup_temp_file
 
