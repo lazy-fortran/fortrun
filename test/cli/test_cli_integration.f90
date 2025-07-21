@@ -1,5 +1,5 @@
 program test_cli_integration
-    use temp_utils, only: create_temp_dir, get_temp_file_path, create_test_cache_dir
+    use temp_utils, only: create_temp_dir, get_temp_file_path, create_test_cache_dir, get_system_temp_dir, path_join
     implicit none
 
     logical :: all_passed
@@ -223,7 +223,7 @@ contains
             character(len=:), allocatable :: cache_dir
 
             cache_dir = create_test_cache_dir('cli_integration_error')
-       test_file = '/tmp/definitely_nonexistent_file_that_should_not_exist_9876543210.f'
+       test_file = path_join(get_system_temp_dir(), 'definitely_nonexistent_file_that_should_not_exist_9876543210.f')
             cmd = 'fpm run fortran -- --cache-dir '//trim(cache_dir)//' '// &
                   trim(test_file)//' > /dev/null 2>&1'
             call execute_command_line(cmd, exitstat=iostat)

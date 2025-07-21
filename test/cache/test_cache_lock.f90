@@ -114,7 +114,7 @@ program test_cache_lock
     end if
 
     ! Cleanup
-    call system('rm -rf '//trim(temp_cache_dir))
+    call sys_remove_dir(temp_cache_dir)
 
     print '(a)', ''
     print '(a)', 'All cache lock tests passed!'
@@ -154,7 +154,7 @@ contains
         character(len=512) :: lock_file
         integer :: unit
 
-        lock_file = trim(cache_dir)//'/'//trim(project_name)//'.lock'
+        lock_file = path_join(cache_dir, trim(project_name)//'.lock')
 
         ! Create a lock file with old timestamp
         open (newunit=unit, file=lock_file, status='new')
