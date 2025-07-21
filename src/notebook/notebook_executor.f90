@@ -84,11 +84,21 @@ contains
             end if
 
             ! Acquire cache lock
+          write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock'
+            write (*, '(a,a)') 'DEBUG: cache_dir = ', trim(cache_dir)
+            write (*, '(a,a)') 'DEBUG: lock_name = ', 'notebook_'//trim(cache_key)
+            call flush (6)
+
            lock_acquired = acquire_lock(cache_dir, 'notebook_'//trim(cache_key), .true.)
+
+            write (*, '(a,l)') 'DEBUG: lock_acquired = ', lock_acquired
+            call flush (6)
 
             if (.not. lock_acquired) then
                 results%success = .false.
                 results%error_message = "Could not acquire cache lock"
+   write (*, '(a)') 'DEBUG: notebook_executor - failed to acquire lock, returning error'
+                call flush (6)
                 return
             end if
 

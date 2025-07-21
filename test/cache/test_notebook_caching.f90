@@ -52,6 +52,7 @@ contains
         logical :: dir_exists
 
         print *, 'Test 1: Cache directory creation'
+        flush (6)
 
         ! Set up cache directory
         print *, 'DEBUG: About to create temp_dir_manager'
@@ -65,6 +66,11 @@ contains
             flush (6)
             test_cache_dir = temp_mgr%path
             print *, 'DEBUG: test_cache_dir assigned: ', trim(test_cache_dir)
+            flush (6)
+
+            ! Debug: Check if directory actually exists
+            inquire (file=trim(test_cache_dir), exist=dir_exists)
+            print *, 'DEBUG: temp_cache_dir exists = ', dir_exists
             flush (6)
         end block
 
@@ -80,16 +86,40 @@ contains
 
         ! Execute notebook
         print *, 'DEBUG: About to call execute_notebook'
+        print *, 'DEBUG: test_cache_dir = ', trim(test_cache_dir)
+        print *, 'DEBUG: notebook content = ', trim(nb%cells(1)%content)
         flush (6)
+
         call execute_notebook(nb, results, test_cache_dir)
+
         print *, 'DEBUG: execute_notebook call completed'
+        print *, 'DEBUG: results%success = ', results%success
+        if (.not. results%success) then
+            print *, 'DEBUG: Error message = ', trim(results%error_message)
+        end if
+        print *, 'DEBUG: allocated(results%cells) = ', allocated(results%cells)
+        if (allocated(results%cells)) then
+            print *, 'DEBUG: size(results%cells) = ', size(results%cells)
+        end if
         flush (6)
 
         ! Check that cache directory was created
         inquire (file=test_cache_dir, exist=dir_exists)
+        print *, 'DEBUG: Final cache directory check - exists = ', dir_exists
+        flush (6)
         if (.not. dir_exists) then
             print *, '  FAIL: Cache directory not created'
             print *, '  Expected directory: ', trim(test_cache_dir)
+            passed = .false.
+            goto 99
+        end if
+
+        ! Additional check - see if the execution actually succeeded
+        if (.not. results%success) then
+            print *, '  FAIL: Notebook execution failed'
+            if (allocated(results%error_message)) then
+                print *, '  Error: ', trim(results%error_message)
+            end if
             passed = .false.
             goto 99
         end if
@@ -111,6 +141,7 @@ contains
         character(len=:), allocatable :: test_cache_dir
 
         print *, 'Test 2: Cache reuse with same content'
+        flush (6)
 
         ! Set up cache directory
         block
@@ -132,8 +163,23 @@ contains
 nb2%cells(1)%content = "value = 456.0"//new_line('a')//"print *, 'value =', value"  ! Same content
 
         ! Execute both notebooks
+        print *, 'DEBUG: About to execute first notebook'
+        flush (6)
         call execute_notebook(nb1, results1, test_cache_dir)
+        print *, 'DEBUG: First notebook executed, success = ', results1%success
+        if (.not. results1%success .and. allocated(results1%error_message)) then
+            print *, 'DEBUG: First notebook error: ', trim(results1%error_message)
+        end if
+        flush (6)
+
+        print *, 'DEBUG: About to execute second notebook'
+        flush (6)
         call execute_notebook(nb2, results2, test_cache_dir)
+        print *, 'DEBUG: Second notebook executed, success = ', results2%success
+        if (.not. results2%success .and. allocated(results2%error_message)) then
+            print *, 'DEBUG: Second notebook error: ', trim(results2%error_message)
+        end if
+        flush (6)
 
         ! Check that results structure is valid (execution may fail but structure should be there)
         if (.not. allocated(results1%cells)) then
@@ -188,8 +234,23 @@ nb2%cells(1)%content = "value = 456.0"//new_line('a')//"print *, 'value =', valu
         nb2%cells(1)%content = "second_value = 101112.0" // new_line('a') // "print *, 'second =', second_value"  ! Different content
 
         ! Execute both notebooks
+        print *, 'DEBUG: About to execute first invalidation notebook'
+        flush (6)
         call execute_notebook(nb1, results1, test_cache_dir)
+    print *, 'DEBUG: First invalidation notebook executed, success = ', results1%success
+        if (.not. results1%success .and. allocated(results1%error_message)) then
+     print *, 'DEBUG: First invalidation notebook error: ', trim(results1%error_message)
+        end if
+        flush (6)
+
+        print *, 'DEBUG: About to execute second invalidation notebook'
+        flush (6)
         call execute_notebook(nb2, results2, test_cache_dir)
+   print *, 'DEBUG: Second invalidation notebook executed, success = ', results2%success
+        if (.not. results2%success .and. allocated(results2%error_message)) then
+    print *, 'DEBUG: Second invalidation notebook error: ', trim(results2%error_message)
+        end if
+        flush (6)
 
         ! Check that results structure is valid (different content should create different cache keys)
         if (.not. allocated(results1%cells)) then
