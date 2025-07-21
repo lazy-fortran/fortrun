@@ -41,18 +41,24 @@ contains
         integer :: thread_id
 
         ! Initialize result - extract name from executable path
-        ! Handle both file paths and commands with arguments on all platforms
-        idx = max(index(test_executable, '/', back=.true.), &
-                  index(test_executable, '\', back=.true.))
+        ! First, try extracting the first word (handles commands with arguments)
+        idx = index(test_executable, ' ')
         if (idx > 0) then
-            ! Extract filename from path
-            result%name = test_executable(idx + 1:)
-        else
-            ! For commands with arguments (like "cmd /c ..." or "/bin/false"),
-            ! extract just the first word (command name)
-            idx = index(test_executable, ' ')
+            ! Command has arguments, extract first word
+            result%name = test_executable(1:idx-1)
+            ! Now check if the first word is actually a path
+            idx = max(index(result%name, '/', back=.true.), &
+                      index(result%name, '\', back=.true.))
             if (idx > 0) then
-                result%name = test_executable(1:idx-1)
+                ! First word is a path, extract just the filename
+                result%name = result%name(idx + 1:)
+            end if
+        else
+            ! No arguments, check if it's a path
+            idx = max(index(test_executable, '/', back=.true.), &
+                      index(test_executable, '\', back=.true.))
+            if (idx > 0) then
+                result%name = test_executable(idx + 1:)
             else
                 result%name = trim(test_executable)
             end if
