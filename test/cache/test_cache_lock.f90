@@ -4,14 +4,34 @@ program test_cache_lock
     use temp_utils, only: mkdir
     use system_utils, only: sys_remove_dir
     use fpm_environment, only: get_os_type, OS_WINDOWS
+    use iso_c_binding, only: c_int
     implicit none
+
+    ! Interface for getpid
+    interface
+        function getpid() bind(c, name="getpid")
+            import :: c_int
+            integer(c_int) :: getpid
+        end function getpid
+    end interface
 
     character(len=256) :: temp_cache_dir
     logical :: success, locked
     integer :: i, unit
 
-    ! Create temporary directory for testing
-    temp_cache_dir = create_test_cache_dir('cache_lock_test')
+    ! Create temporary directory for testing with unique suffix
+    block
+        character(len=32) :: unique_suffix
+        integer :: values(8), pid_val
+        call date_and_time(values=values)
+        if (get_os_type() == OS_WINDOWS) then
+            pid_val = values(7)*1000 + values(8)  ! Use milliseconds as pseudo-PID
+        else
+            pid_val = getpid()
+        end if
+        write (unique_suffix, '(i0,"_",i0,"_",i0)') values(7), values(8), pid_val
+        temp_cache_dir = create_test_cache_dir('cache_lock_test_'//trim(unique_suffix))
+    end block
     call mkdir(trim(temp_cache_dir))
 
     print '(a)', 'Testing cache lock functionality...'

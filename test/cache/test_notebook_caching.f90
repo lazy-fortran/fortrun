@@ -2,7 +2,17 @@ program test_notebook_caching
     use notebook_parser
     use notebook_executor
     use temp_utils, only: temp_dir_manager
+    use fpm_environment, only: get_os_type, OS_WINDOWS
+    use iso_c_binding, only: c_int
     implicit none
+
+    ! Interface for getpid
+    interface
+        function getpid() bind(c, name="getpid")
+            import :: c_int
+            integer(c_int) :: getpid
+        end function getpid
+    end interface
 
     logical :: all_tests_passed
 
@@ -41,10 +51,21 @@ contains
 
         print *, 'Test 1: Cache directory creation'
 
-        ! Set up unique cache directory
+        ! Set up unique cache directory with timestamp and PID
         block
             type(temp_dir_manager) :: temp_mgr
-            call temp_mgr%create('test_notebook_caching')
+            character(len=64) :: unique_name
+            integer :: values(8), pid_val
+
+            call date_and_time(values=values)
+            if (get_os_type() == OS_WINDOWS) then
+                pid_val = values(7)*1000 + values(8)
+            else
+                pid_val = getpid()
+            end if
+            write (unique_name, '(a,i0,"_",i0,"_",i0)') 'test_notebook_caching_', &
+                values(7), values(8), pid_val
+            call temp_mgr%create(trim(unique_name))
             test_cache_dir = temp_mgr%path
         end block
 
@@ -86,7 +107,18 @@ contains
         ! Set up cache directory
         block
             type(temp_dir_manager) :: temp_mgr
-            call temp_mgr%create('test_notebook_reuse')
+            character(len=64) :: unique_name
+            integer :: values(8), pid_val
+
+            call date_and_time(values=values)
+            if (get_os_type() == OS_WINDOWS) then
+                pid_val = values(7)*1000 + values(8)
+            else
+                pid_val = getpid()
+            end if
+            write (unique_name, '(a,i0,"_",i0,"_",i0)') 'test_notebook_reuse_', &
+                values(7), values(8), pid_val
+            call temp_mgr%create(trim(unique_name))
             test_cache_dir = temp_mgr%path
         end block
 
@@ -142,7 +174,18 @@ nb2%cells(1)%content = "value = 456.0"//new_line('a')//"print *, 'value =', valu
         ! Set up cache directory
         block
             type(temp_dir_manager) :: temp_mgr
-            call temp_mgr%create('test_notebook_invalidation')
+            character(len=64) :: unique_name
+            integer :: values(8), pid_val
+
+            call date_and_time(values=values)
+            if (get_os_type() == OS_WINDOWS) then
+                pid_val = values(7)*1000 + values(8)
+            else
+                pid_val = getpid()
+            end if
+            write (unique_name, '(a,i0,"_",i0,"_",i0)') 'test_notebook_invalidation_', &
+                values(7), values(8), pid_val
+            call temp_mgr%create(trim(unique_name))
             test_cache_dir = temp_mgr%path
         end block
 
