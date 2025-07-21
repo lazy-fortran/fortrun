@@ -1,6 +1,7 @@
 program test_module_scanner
     use module_scanner, only: scan_modules, module_info
     use, intrinsic :: iso_fortran_env, only: error_unit
+    use system_utils, only: sys_remove_file
     implicit none
 
     type(module_info), dimension(:), allocatable :: modules
