@@ -192,14 +192,15 @@ do i = 1, n_points
     y_sin(i) = sin(x_data(i))
 end do
 
-! Create plots with fortplotlib - auto-converted to base64 PNG in notebook mode
+! NOTE: Figure support in notebooks is work in progress
+! Create plots with fortplotlib (WIP - currently shows placeholder text)
 use fortplotlib
 call figure()
 call plot(x_data, y_sin, 'b-', label='sin(x)')
 call xlabel('x')
 call ylabel('y')
 call title('Sine Wave')
-call show()  ! Auto-converted to base64 PNG image
+call show()  ! WIP: Currently shows "(Plot would be shown here)"
 ```
 
 ```bash

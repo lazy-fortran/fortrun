@@ -16,7 +16,7 @@ fortran hello.f90
 # *lowercase fortran* .f files (no boilerplate needed!)
 fortran script.f
 
-# Notebook mode with figure capture
+# Notebook mode (figure capture WIP)
 fortran --notebook analysis.f
 
 # Verbose mode for debugging
@@ -67,7 +67,7 @@ end function distance
 🎯 **Two Execution Modes**  
 - **Standard Fortran** (`.f90` files): Modern Fortran with no opinionated changes
 - ***lowercase fortran*** (`.f` files): Compiler frontend with automatic type inference, no boilerplate, `real(8)` defaults
-- **Notebook Mode**: Interactive analysis with figure capture (`.f` files only)
+- **Notebook Mode**: Interactive analysis with figure capture (`.f` files only, figure capture WIP)
 
 📦 **Smart Dependencies**
 - Local modules: Auto-includes Fortran files from same directory
@@ -76,7 +76,7 @@ end function distance
 
 🚀 **Advanced Features**
 - **Type Inference**: Automatic variable declarations in `.f` files
-- **Notebook Mode**: Jupytext-style notebooks with figure capture
+- **Notebook Mode**: Jupytext-style notebooks with figure capture (figure capture WIP)
 - **Incremental Compilation**: Only rebuilds changed files
 - **Cache Management**: CLI commands to clear cache and view statistics
 
@@ -89,7 +89,7 @@ end function distance
 | ***lowercase fortran* Syntax** | Type inference showcase | [all_types.f](example/type_inference/) |
 | **Interdependent Modules** | Complex dependency chain | [main.f90](example/interdependent/) |
 | **Notebook Mode** | Interactive analysis | [simple_math.f](example/notebook/) |
-| **Plotting** | Figure generation | [plotting_demo.f](example/notebook/) |
+| **Plotting (WIP)** | Figure generation | [plotting_demo.f](example/notebook/) |
 
 ## Installation
 
@@ -113,7 +113,7 @@ fortran program.f90           # Standard Fortran mode
 fortran script.f              # lowercase fortran mode (compiler frontend)
 
 # Notebook mode (lowercase fortran .f files only)
-fortran --notebook analysis.f # Interactive analysis with figure capture
+fortran --notebook analysis.f # Interactive analysis (figure capture WIP)
 
 # Options
 fortran -v file.f90           # Verbose output
@@ -156,7 +156,7 @@ fortran --cache-dir /tmp/fortran-cache example.f90
 - ✅ Hindley-Milner type inference system with Algorithm W
 - ✅ Smart caching system (2-4x speedup)
 - ✅ *lowercase fortran* .f syntax with automatic type inference
-- ✅ Notebook mode with figure capture
+- ✅ Notebook mode with basic output capture (figure capture WIP)
 - ✅ Comprehensive test suite (30+ frontend tests)
 - ✅ Parallel test runner for faster development
 
