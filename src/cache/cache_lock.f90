@@ -1,5 +1,6 @@
 module cache_lock
     use iso_c_binding, only: c_int
+    use iso_fortran_env, only: error_unit
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, mkdir
     use fpm_environment, only: get_os_type, OS_WINDOWS
     use system_utils, only: sys_remove_file, sys_move_file, sys_find_files, &
@@ -72,7 +73,7 @@ contains
             wait_time = wait_time + 1
 
             if (wait_time >= MAX_WAIT_TIME) then
-                print *, 'DEBUG: Cache lock timeout after', MAX_WAIT_TIME, 'seconds for', trim(project_name)
+                write(error_unit, *) 'DEBUG: Cache lock timeout after', MAX_WAIT_TIME, 'seconds for', trim(project_name)
                 exit
             end if
         end do
@@ -161,14 +162,14 @@ contains
             if (file_exists) then
                 ! Lock already exists, can't create
                 ! Clean up temp file since lock already exists
-                print *, 'DEBUG: Deleting temp file:', trim(temp_file)
+                write (error_unit, *) 'DEBUG: Deleting temp file:', trim(temp_file)
                 call sys_remove_file(temp_file)
                 success = .false.
             else
                 ! Try atomic move/link operation
-                print *, 'DEBUG: Moving temp file to lock file'
-                print *, 'DEBUG: From:', trim(temp_file)
-                print *, 'DEBUG: To:', trim(lock_file)
+                write (error_unit, *) 'DEBUG: Moving temp file to lock file'
+                write (error_unit, *) 'DEBUG: From:', trim(temp_file)
+                write (error_unit, *) 'DEBUG: To:', trim(lock_file)
 
                 if (get_os_type() == OS_WINDOWS) then
                     ! On Windows, use move which is atomic within same drive
@@ -183,7 +184,7 @@ contains
                 end if
 
                 if (.not. success) then
-                    print *, 'DEBUG: Atomic lock creation failed'
+                    write (error_unit, *) 'DEBUG: Atomic lock creation failed'
                     ! Clean up temp file if it still exists
                     call sys_remove_file(temp_file)
                 end if
@@ -249,12 +250,12 @@ contains
         character(len=*), intent(in) :: lock_file
         logical :: success
 
-        print *, 'DEBUG: Removing lock file:', trim(lock_file)
+        write (error_unit, *) 'DEBUG: Removing lock file:', trim(lock_file)
         call sys_remove_file(lock_file, success)
         if (.not. success) then
-            print *, 'DEBUG: Failed to remove lock file:', trim(lock_file)
+            write (error_unit, *) 'DEBUG: Failed to remove lock file:', trim(lock_file)
         else
-            print *, 'DEBUG: Lock file removed successfully'
+            write (error_unit, *) 'DEBUG: Lock file removed successfully'
         end if
 
     end subroutine remove_lock

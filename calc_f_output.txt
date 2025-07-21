@@ -1,0 +1,49 @@
+Project is up to date
+ DEBUG: mkdir - creating directory:/tmp/sys_abspath_2B8AC39
+ DEBUG: mkdir - Unix command:mkdir -p "/tmp/sys_abspath_2B8AC39" 2>/dev/null
+ DEBUG: mkdir - exitstat:           0 cmdstat:           0
+ DEBUG: mkdir - creating directory:/tmp/sys_list_2B8E02D
+ DEBUG: mkdir - Unix command:mkdir -p "/tmp/sys_list_2B8E02D" 2>/dev/null
+ DEBUG: mkdir - exitstat:           0 cmdstat:           0
+ DEBUG: mkdir - creating directory:/tmp/sys_list_2B91421
+ DEBUG: mkdir - Unix command:mkdir -p "/tmp/sys_list_2B91421" 2>/dev/null
+ DEBUG: mkdir - exitstat:           0 cmdstat:           0
+ DEBUG: mkdir - creating directory:/tmp/sys_find_2B94C61
+ DEBUG: mkdir - Unix command:mkdir -p "/tmp/sys_find_2B94C61" 2>/dev/null
+ DEBUG: mkdir - exitstat:           0 cmdstat:           0
+ DEBUG: mkdir - directory already exists:/var/tmp/ert/XDG-cache/fortran
+ DEBUG: Moving temp file to lock file
+ DEBUG: From:/var/tmp/ert/XDG-cache/fortran/calculate.lock.tmp.3759194
+ DEBUG: To:/var/tmp/ert/XDG-cache/fortran/calculate.lock
+ DEBUG: mkdir - creating directory:/var/tmp/ert/XDG-cache/fortran/calculate_simple_calculate.f/app
+ DEBUG: mkdir - Unix command:mkdir -p "/var/tmp/ert/XDG-cache/fortran/calculate_simple_calculate.f/app" 2>/dev/null
+ DEBUG: mkdir - exitstat:           0 cmdstat:           0
+ DEBUG: mkdir - creating directory:/var/tmp/ert/XDG-cache/fortran/calculate_simple_calculate.f/src
+ DEBUG: mkdir - Unix command:mkdir -p "/var/tmp/ert/XDG-cache/fortran/calculate_simple_calculate.f/src" 2>/dev/null
+ DEBUG: mkdir - exitstat:           0 cmdstat:           0
+ DEBUG: mkdir - creating directory:/tmp/sys_list_2B9A2B5
+ DEBUG: mkdir - Unix command:mkdir -p "/tmp/sys_list_2B9A2B5" 2>/dev/null
+ DEBUG: mkdir - exitstat:           0 cmdstat:           0
+ DEBUG: mkdir - creating directory:/tmp/sys_list_2B9DAF5
+ DEBUG: mkdir - Unix command:mkdir -p "/tmp/sys_list_2B9DAF5" 2>/dev/null
+ DEBUG: mkdir - exitstat:           0 cmdstat:           0
+ DEBUG: mkdir - directory already exists:/var/tmp/ert/XDG-cache/fortran/modules
+ DEBUG: mkdir - directory already exists:/var/tmp/ert/XDG-cache/fortran/modules/gfortran
+ DEBUG: mkdir - directory already exists:/var/tmp/ert/XDG-cache/fortran/modules/gfortran/13.0.0
+ DEBUG: mkdir - creating directory:/tmp/fortran_build_2BA1781
+ DEBUG: mkdir - Unix command:mkdir -p "/tmp/fortran_build_2BA1781" 2>/dev/null
+ DEBUG: mkdir - exitstat:           0 cmdstat:           0
+ DEBUG: mkdir - creating directory:/tmp/sys_find_2BB5191
+ DEBUG: mkdir - Unix command:mkdir -p "/tmp/sys_find_2BB5191" 2>/dev/null
+ DEBUG: mkdir - exitstat:           0 cmdstat:           0
+ DEBUG: mkdir - creating directory:/tmp/sys_find_2BBA7E5
+ DEBUG: mkdir - Unix command:mkdir -p "/tmp/sys_find_2BBA7E5" 2>/dev/null
+ DEBUG: mkdir - exitstat:           0 cmdstat:           0
+ Label:Test Circle
+ Number of circles:           3
+ Radius:   5.0000000000000000
+ Area:   78.539749999999998
+ Circumference:   31.415900000000001
+ Is large? T
+ DEBUG: Removing lock file:/var/tmp/ert/XDG-cache/fortran/calculate.lock
+ DEBUG: Lock file removed successfully

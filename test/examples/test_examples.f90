@@ -485,6 +485,46 @@ contains
 
     end subroutine run_example_with_cache
 
+    ! Run example for output comparison - captures only stdout, not debug stderr
+    subroutine run_example_for_comparison(filename, cache_dir, output, exit_code)
+        use temp_utils, only: get_project_root
+        character(len=*), intent(in) :: filename, cache_dir
+        character(len=*), intent(out) :: output
+        integer, intent(out) :: exit_code
+        character(len=512) :: command, temp_output_file
+        integer :: unit, iostat
+        character(len=1024) :: line
+
+        ! Create temp output file path
+        temp_output_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_comparison_output.tmp')
+
+        ! Run WITHOUT verbose flag and capture only stdout (not stderr debug output)
+        command = 'cd "'//get_project_root()//'" && '// &
+                  'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+                  trim(filename)//' > "'//trim(temp_output_file)//'" 2>/dev/null'
+        call execute_command_line(trim(command), exitstat=exit_code)
+
+        ! Read only the program output (no debug messages)
+        output = ''
+        open (newunit=unit, file=trim(temp_output_file), status='old', iostat=iostat)
+        if (iostat == 0) then
+            do
+                read (unit, '(a)', iostat=iostat) line
+                if (iostat /= 0) exit
+                if (len_trim(output) > 0) then
+                    output = trim(output)//' | '//trim(adjustl(line))
+                else
+                    output = trim(adjustl(line))
+                end if
+            end do
+            close (unit)
+        end if
+
+        ! Clean up temp file
+        call execute_command_line('rm -f "'//trim(temp_output_file)//'"')
+
+    end subroutine run_example_for_comparison
+
     function get_test_timestamp() result(timestamp)
         character(len=16) :: timestamp
         integer :: time_values(8)
@@ -915,9 +955,9 @@ contains
 
         print '(a,a,a,a)', 'Testing: ', trim(f_file), ' vs ', trim(f90_file)
 
-        ! Run both files
-        call run_example_with_cache(f_file, cache_dir, f_output, exit_code_f)
-        call run_example_with_cache(f90_file, cache_dir, f90_output, exit_code_f90)
+        ! Run both files - use comparison function to avoid debug output differences
+        call run_example_for_comparison(f_file, cache_dir, f_output, exit_code_f)
+        call run_example_for_comparison(f90_file, cache_dir, f90_output, exit_code_f90)
 
         ! Check if both succeeded
         if (exit_code_f /= 0) then
