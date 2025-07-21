@@ -510,22 +510,40 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         integer, intent(in) :: verbose_level
 
         character(len=256) :: build_dir
-        character(len=512) :: command
-        integer :: exitstat
+        character(len=512) :: mod_files(100), obj_files(100)
+        integer :: num_mod_files, num_obj_files, i
 
         if (verbose_level >= 1) then
             print '(a)', 'Caching newly compiled dependency modules...'
         end if
 
-        build_dir = trim(project_dir)//'/build'
+        build_dir = trim(project_dir)//sys_get_path_separator()//'build'
 
         ! Find and cache all .mod files from dependencies directory
-   command = 'find "'//trim(build_dir)//'" -name "*.mod" -type f 2>/dev/null | head -10'
-        call execute_command_line(command)
+        call sys_find_files(build_dir, '*.mod', mod_files, num_mod_files, .true., 10)
+
+        if (verbose_level >= 2 .and. num_mod_files > 0) then
+            print '(a,i0,a)', 'Found ', num_mod_files, ' module files:'
+            do i = 1, min(10, num_mod_files)
+                print '(a,a)', '  ', trim(mod_files(i))
+            end do
+            if (num_mod_files > 10) then
+                print '(a)', '  ...'
+            end if
+        end if
 
         ! Find and cache all .o files from dependencies directory
-     command = 'find "'//trim(build_dir)//'" -name "*.o" -type f 2>/dev/null | head -10'
-        call execute_command_line(command)
+        call sys_find_files(build_dir, '*.o', obj_files, num_obj_files, .true., 10)
+
+        if (verbose_level >= 2 .and. num_obj_files > 0) then
+            print '(a,i0,a)', 'Found ', num_obj_files, ' object files:'
+            do i = 1, min(10, num_obj_files)
+                print '(a,a)', '  ', trim(obj_files(i))
+            end do
+            if (num_obj_files > 10) then
+                print '(a)', '  ...'
+            end if
+        end if
 
         if (verbose_level >= 1) then
             print '(a)', 'Module caching completed'

@@ -107,7 +107,7 @@ contains
         integer :: num_files, i
 
         ! Find all lock files in cache directory
-      call sys_find_files(cache_dir, '*.lock', lock_files, num_files, recursive=.false.)
+        call sys_find_files(cache_dir, '*.lock', lock_files, num_files, .false., 1)
 
         ! Check each lock file
         do i = 1, num_files

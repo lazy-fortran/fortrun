@@ -251,20 +251,27 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
         integer(int64) :: count_start, count_end, count_rate
         character(len=512) :: command
         integer :: exit_code
+        character(len=256) :: output_file
 
         ! Clear cache if requested
         if (clear_cache) then
             ! cache_dir is temporary, no need to remove
         end if
 
+        ! Create temp output file
+output_file = get_temp_file_path(create_temp_dir('fortran_bench'), 'measure_output.txt')
+
         ! Build command
         command = 'fpm run fortran -- --cache-dir "'// &
-                  trim(cache_dir)//'" "'//trim(file_path)//'" > /dev/null 2>&1'
+           trim(cache_dir)//'" "'//trim(file_path)//'" > "'//trim(output_file)//'" 2>&1'
 
         ! Measure execution time
         call system_clock(count_start, count_rate)
         call execute_command_line(trim(command), exitstat=exit_code)
         call system_clock(count_end)
+
+        ! Clean up output file
+        call sys_remove_file(output_file)
 
         if (exit_code == 0) then
             elapsed_time = real(count_end - count_start)/real(count_rate)
