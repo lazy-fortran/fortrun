@@ -6,7 +6,7 @@ program test_cache_lock
     use fpm_environment, only: get_os_type, OS_WINDOWS
     implicit none
 
-    character(len=256) :: temp_cache_dir
+    character(len=:), allocatable :: temp_cache_dir
     logical :: success, locked
     integer :: i, unit
 
@@ -20,7 +20,17 @@ program test_cache_lock
     ! Create temporary directory for testing with unique suffix
     print '(a)', 'test_cache_lock: Creating temp directory...'
     flush (6)
+
+    ! Add debug print before calling create_test_cache_dir
+    print '(a)', 'test_cache_lock: DEBUG - About to call create_test_cache_dir'
+    flush (6)
+
     temp_cache_dir = create_test_cache_dir('cache_lock_test')
+
+    ! Add debug print after successful call
+    print '(a)', 'test_cache_lock: DEBUG - create_test_cache_dir call completed'
+    flush (6)
+
     print '(a,a)', 'test_cache_lock: Created directory: ', trim(temp_cache_dir)
     flush (6)
 
@@ -35,16 +45,31 @@ program test_cache_lock
     ! Verify directory was created
     block
         logical :: dir_exists
+        print '(a)', 'test_cache_lock: DEBUG - About to check if directory exists'
+        flush (6)
+
         inquire (file=trim(temp_cache_dir), exist=dir_exists)
+
+   print '(a,l)', 'test_cache_lock: DEBUG - Directory exists check result: ', dir_exists
+        flush (6)
+
         if (.not. dir_exists) then
             print '(a)', '  ✗ CRITICAL: Cache directory was not created!'
+            print '(a,a)', '  DEBUG: Expected directory: ', trim(temp_cache_dir)
+            flush (6)
             stop 1
         else
             print '(a)', '  ✓ Cache directory exists'
         end if
     end block
     print '(a)', '  Attempting to acquire lock...'
+    print '(a)', 'test_cache_lock: DEBUG - About to call acquire_lock'
+    flush (6)
+
     success = acquire_lock(trim(temp_cache_dir), 'test_project', .false.)
+
+    print '(a)', 'test_cache_lock: DEBUG - acquire_lock call completed'
+    flush (6)
     print '(a,l)', '  acquire_lock returned: ', success
     if (success) then
         print '(a)', '  ✓ Lock acquired successfully'

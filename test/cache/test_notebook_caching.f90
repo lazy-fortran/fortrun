@@ -54,20 +54,36 @@ contains
         print *, 'Test 1: Cache directory creation'
 
         ! Set up cache directory
+        print *, 'DEBUG: About to create temp_dir_manager'
+        flush (6)
         block
             type(temp_dir_manager) :: temp_mgr
+            print *, 'DEBUG: temp_dir_manager created, calling create'
+            flush (6)
             call temp_mgr%create('test_notebook_caching')
+            print *, 'DEBUG: temp_mgr%create completed'
+            flush (6)
             test_cache_dir = temp_mgr%path
+            print *, 'DEBUG: test_cache_dir assigned: ', trim(test_cache_dir)
+            flush (6)
         end block
 
         ! Create simple notebook
+        print *, 'DEBUG: About to create notebook structure'
+        flush (6)
         nb%num_cells = 1
         allocate (nb%cells(1))
         nb%cells(1)%cell_type = CELL_CODE
         nb%cells(1)%content = "x = 123.0"//new_line('a')//"print *, 'x =', x"
+        print *, 'DEBUG: Notebook structure created'
+        flush (6)
 
         ! Execute notebook
+        print *, 'DEBUG: About to call execute_notebook'
+        flush (6)
         call execute_notebook(nb, results, test_cache_dir)
+        print *, 'DEBUG: execute_notebook call completed'
+        flush (6)
 
         ! Check that cache directory was created
         inquire (file=test_cache_dir, exist=dir_exists)
