@@ -11,9 +11,15 @@ program test_notebook_caching
     print '(a)', 'test_notebook_caching: Initialization complete'
     flush (6)
 
+    print '(a)', 'test_notebook_caching: About to print header'
+    flush (6)
+
     print *, '=== Notebook Caching Tests ==='
     flush (6)  ! Ensure output is flushed
     print *
+
+    print '(a)', 'test_notebook_caching: Header printed, about to call test subroutines'
+    flush (6)
 
     all_tests_passed = .true.
 

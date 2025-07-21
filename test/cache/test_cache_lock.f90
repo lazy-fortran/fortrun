@@ -14,6 +14,9 @@ program test_cache_lock
     print '(a)', 'test_cache_lock: Initialization complete'
     flush (6)
 
+    print '(a)', 'test_cache_lock: About to call create_test_cache_dir'
+    flush (6)
+
     ! Create temporary directory for testing with unique suffix
     print '(a)', 'test_cache_lock: Creating temp directory...'
     flush (6)

@@ -42,6 +42,14 @@ jobs:
         echo "Testing cache_lock minimal..."
         fpm run test_cache_lock_minimal || echo "cache_lock_minimal test failed"
 
+        # Test progressive loading of modules
+        echo "Testing cache_lock progressive..."
+        fpm run test_cache_lock_progressive || echo "cache_lock_progressive test failed"
+
+        # Test exact structure match
+        echo "Testing cache_lock exact..."
+        fpm run test_cache_lock_exact || echo "cache_lock_exact test failed"
+
         # Run our custom test runner which provides:
         # - Parallel test execution with better performance
         # - Comprehensive test discovery including integration tests
