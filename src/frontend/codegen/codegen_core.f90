@@ -265,6 +265,9 @@ contains
                     type is (subroutine_def_node)
                         ! Subroutines go after contains, not in executable section
                         continue
+                    type is (identifier_node)
+                        ! Skip standalone identifiers - they are not executable statements
+                        continue
                     class default
                         ! All other statements are executable
                         stmt_code = generate_code_from_arena(arena, child_indices(i))
