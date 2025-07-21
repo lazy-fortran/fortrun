@@ -452,7 +452,7 @@ contains
         integer :: exitstat
 
         if (get_os_type() == OS_WINDOWS) then
-            write(command, '(A,I0,A)') 'tasklist /FI "PID eq ', pid, '" 2>nul | find "', pid, '" >nul'
+            write(command, '(A,I0,A,I0,A)') 'tasklist /FI "PID eq ', pid, '" 2>nul | find "', pid, '" >nul'
         else
             write (command, '(A,I0,A)') 'kill -0 ', pid, ' 2>/dev/null'
         end if
