@@ -9,7 +9,7 @@ contains
                              custom_config_dir, parallel_jobs, no_wait, notebook_mode, &
                                notebook_output, standardize_only, custom_flags, &
       clear_cache, cache_info, debug_tokens, debug_ast, debug_semantic, debug_standardize, debug_codegen, &
-                               from_tokens, from_ast, from_semantic)
+                               from_tokens, from_ast, from_semantic, show_version)
         character(len=*), intent(out) :: filename
         logical, intent(out) :: show_help
         integer, intent(out) :: verbose_level
@@ -31,6 +31,7 @@ contains
         logical, intent(out) :: from_tokens
         logical, intent(out) :: from_ast
         logical, intent(out) :: from_semantic
+        logical, intent(out), optional :: show_version
 
         integer :: nargs, i, iostat
         character(len=256) :: arg
@@ -58,6 +59,9 @@ contains
         from_semantic = .false.
         if (present(custom_flags)) then
             custom_flags = ''
+        end if
+        if (present(show_version)) then
+            show_version = .false.
         end if
         filename_found = .false.
         expecting_cache_dir = .false.
@@ -102,6 +106,11 @@ contains
             else if (arg == '--help' .or. arg == '-h') then
                 show_help = .true.
                 return
+            else if (arg == '--version') then
+                if (present(show_version)) then
+                    show_version = .true.
+                    return
+                end if
             else if (arg == '-v') then
                 verbose_level = 1
             else if (arg == '-vv') then

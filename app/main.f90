@@ -16,7 +16,7 @@ program main
   character(len=256) :: filename, custom_cache_dir, custom_config_dir, notebook_output, custom_flags
   logical :: show_help, no_wait, notebook_mode, standardize_only, clear_cache_flag, cache_info_flag
     logical :: debug_tokens, debug_ast, debug_semantic, debug_standardize, debug_codegen
-    logical :: from_tokens, from_ast, from_semantic
+    logical :: from_tokens, from_ast, from_semantic, show_version
     integer :: exit_code, verbose_level, parallel_jobs
     type(notebook_t) :: notebook
     type(execution_result_t) :: results
@@ -35,13 +35,18 @@ program main
                       parallel_jobs, no_wait, notebook_mode, notebook_output, standardize_only, custom_flags, &
            clear_cache_flag, cache_info_flag, debug_tokens, debug_ast, debug_semantic, &
                          debug_standardize, debug_codegen, &
-                         from_tokens, from_ast, from_semantic)
+                         from_tokens, from_ast, from_semantic, show_version)
 
     ! Initialize logging based on verbose level
     call set_verbose_level(verbose_level)
 
     if (show_help) then
         call print_help()
+        stop 0
+    end if
+
+    if (show_version) then
+        print '(a)', 'fortran version 2025.07.git'
         stop 0
     end if
 
