@@ -93,18 +93,27 @@ contains
         character(len=*), intent(in) :: cache_dir, project_name
         logical :: locked
         character(len=512) :: lock_file
-        integer :: unit, iostat
 
         lock_file = get_lock_file_path(cache_dir, project_name)
 
-        ! Use file open instead of inquire to properly handle symlinks
-        ! inquire(exist=...) can fail to detect symlinks on some systems
-        locked = .false.
-        open (newunit=unit, file=lock_file, status='old', action='read', iostat=iostat)
-        if (iostat == 0) then
-            locked = .true.
-            close (unit)
-        end if
+        ! Cross-platform lock detection that handles symlinks properly
+        ! On some CI systems, Fortran's inquire and open don't handle symlinks correctly
+        ! Use system commands to check if lock file exists (including symlinks)
+        block
+            character(len=512) :: command
+            integer :: exit_code
+
+            if (get_os_type() == OS_WINDOWS) then
+                ! On Windows, use dir command with proper redirection
+                command = 'dir "'//trim(lock_file)//'" >nul 2>&1'
+            else
+                ! On Unix, use test command which handles symlinks properly
+                command = 'test -e "'//trim(lock_file)//'"'
+            end if
+
+            call execute_command_line(command, exitstat=exit_code)
+            locked = (exit_code == 0)
+        end block
 
         ! Only check for stale locks when explicitly requested, not during normal checks
         ! This prevents race conditions where a fresh lock is incorrectly considered stale
