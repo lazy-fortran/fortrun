@@ -35,18 +35,42 @@ program test_cache_lock
     call mkdir(trim(temp_cache_dir))
 
     print '(a)', 'Testing cache lock functionality...'
+    print '(a,i0)', 'Process ID: ', getpid()
+    print '(a,a)', 'Test start time: ', trim(get_timestamp_str())
 
     ! Test 1: Basic lock acquisition and release
     print '(a)', ''
     print '(a)', 'Test 1: Basic lock acquisition and release'
     print '(a,a)', 'Using cache dir: ', trim(temp_cache_dir)
+
+    ! Verify directory was created
+    block
+        logical :: dir_exists
+        inquire (file=trim(temp_cache_dir), exist=dir_exists)
+        if (.not. dir_exists) then
+            print '(a)', '  ✗ CRITICAL: Cache directory was not created!'
+            stop 1
+        else
+            print '(a)', '  ✓ Cache directory exists'
+        end if
+    end block
+    print '(a)', '  Attempting to acquire lock...'
     success = acquire_lock(trim(temp_cache_dir), 'test_project', .false.)
+    print '(a,l)', '  acquire_lock returned: ', success
     if (success) then
         print '(a)', '  ✓ Lock acquired successfully'
         ! List directory contents right after acquiring lock
         call list_lock_files(temp_cache_dir)
     else
         print '(a)', '  ✗ Failed to acquire lock'
+        ! Additional debugging
+        print '(a)', '  DEBUG: Checking if directory still exists...'
+        block
+            logical :: dir_exists
+            inquire (file=trim(temp_cache_dir), exist=dir_exists)
+            print '(a,l)', '  DEBUG: Directory exists = ', dir_exists
+        end block
+        call list_lock_files(temp_cache_dir)
         stop 1
     end if
 
