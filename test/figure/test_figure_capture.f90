@@ -47,13 +47,20 @@ contains
         ! Test initialization
         call init_figure_capture()
 
-        ! Check that temp directory was created (default is ./fortran_figures)
-        inquire (file='./fortran_figures', exist=dir_exists)
-        if (.not. dir_exists) then
-            print *, '  FAIL: Temp directory not created'
-            passed = .false.
-            return
-        end if
+        ! Check that directory was created by getting the directory name
+        block
+            character(len=256) :: fig_dir
+
+            call get_figure_directory(fig_dir)
+
+            ! Check if directory exists
+            inquire (file=trim(fig_dir), exist=dir_exists)
+            if (.not. dir_exists) then
+                print *, '  FAIL: Temp directory not created:', trim(fig_dir)
+                passed = .false.
+                return
+            end if
+        end block
 
         ! Test finalization
         call finalize_figure_capture()

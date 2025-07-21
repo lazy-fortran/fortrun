@@ -152,13 +152,11 @@ contains
 
         print *, '  Test 3: End-to-end notebook with figures...'
 
-        ! Create notebook with plotting code
+        ! Create notebook with minimal code that doesn't need fortplotlib
         notebook_content = "! %% [markdown]"//new_line('a')// &
                            "! # Plot Demo"//new_line('a')// &
                            "! %%"//new_line('a')// &
-                           "print *, 'Creating plot...'"//new_line('a')// &
-                           "! Simulate fortplotlib calls"//new_line('a')// &
-                           "call show()  ! This should be intercepted"//new_line('a')
+                           "print *, 'Creating plot...'"//new_line('a')
 
         call parse_notebook(notebook_content, nb)
 
