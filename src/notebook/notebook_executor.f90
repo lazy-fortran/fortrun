@@ -7,6 +7,8 @@ module notebook_executor
     use, intrinsic :: iso_c_binding
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path
     use temp_utils, only: mkdir
+    use system_utils, only: sys_remove_file
+    use fpm_environment, only: get_os_type, OS_WINDOWS
     implicit none
     private
 
@@ -239,8 +241,12 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
         ! Create cache directory
         call mkdir(trim(cache_dir))
 
-        ! Copy project to cache
-        command = 'cp -r "'//trim(project_dir)//'" "'//trim(cached_project_dir)//'"'
+        ! Copy project to cache using Windows-compatible command
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'xcopy /E /I /Y "'//trim(project_dir)//'\" "'//trim(cached_project_dir)//'" >nul 2>&1'
+        else
+            command = 'cp -r "'//trim(project_dir)//'" "'//trim(cached_project_dir)//'"'
+        end if
         call execute_command_line(command)
 
     end subroutine cache_notebook_build
@@ -479,15 +485,22 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
 
     subroutine copy_notebook_output_module(project_dir)
         character(len=*), intent(in) :: project_dir
-        character(len=512) :: command
+        character(len=512) :: command, source_file, dest_file
         character(len=256) :: current_dir
 
         ! Get current working directory
         call getcwd(current_dir)
 
-        ! Copy the notebook_output module to the project
-        command = 'cp "'//trim(current_dir)//'/src/notebook/notebook_output.f90" "'// &
-                  trim(project_dir)//'/src/"'
+        ! Set up source and destination paths
+        source_file = trim(current_dir)//'/src/notebook/notebook_output.f90'
+        dest_file = trim(project_dir)//'/src/notebook_output.f90'
+
+        ! Copy the notebook_output module to the project using Windows-compatible command
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'copy "'//trim(source_file)//'" "'//trim(dest_file)//'" >nul 2>&1'
+        else
+            command = 'cp "'//trim(source_file)//'" "'//trim(dest_file)//'"'
+        end if
         call execute_command_line(command)
 
     end subroutine copy_notebook_output_module
@@ -776,7 +789,7 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
             output = ""
         end if
 
-        call execute_command_line('rm -f '//trim(temp_file))
+        call sys_remove_file(temp_file)
 
     end subroutine execute_and_capture
 

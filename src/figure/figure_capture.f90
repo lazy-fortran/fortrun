@@ -56,11 +56,8 @@ contains
     end subroutine init_figure_capture
 
     subroutine finalize_figure_capture()
-        character(len=256) :: command
-
         ! Clean up temporary directory
-        command = 'rm -rf "'//trim(temp_figure_dir)//'"'
-        call execute_command_line(command)
+        call sys_remove_dir(temp_figure_dir)
 
         ! Disable capture
         capture_enabled = .false.
