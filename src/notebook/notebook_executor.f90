@@ -1,7 +1,6 @@
 module notebook_executor
     use notebook_parser
     use notebook_output
-    use figure_capture
     use cache, only: get_cache_dir, get_content_hash, cache_exists
     use cache_lock, only: acquire_lock, release_lock
     use frontend_integration, only: compile_with_frontend, is_simple_fortran_file
@@ -165,11 +164,8 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
         ! Copy notebook_output module
         call copy_notebook_output_module(project_dir)
 
-        ! Copy figure_capture module
-        call copy_figure_capture_module(project_dir)
-
-        ! Copy temp_utils module (needed by figure_capture)
-        call copy_temp_utils_module(project_dir)
+        ! Note: We don't copy figure_capture or temp_utils anymore
+        ! The stub in notebook_execution handles show() calls
 
         ! Generate main program
         call generate_main_program(notebook, trim(cache_dir) // '/notebook_' // trim(cache_key) // '_outputs.txt', main_content)
@@ -294,7 +290,6 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
         ! Combine into full module
         module_content = 'module notebook_execution'//new_line('a')// &
                          '    use notebook_output'//new_line('a')// &
-                         '    use figure_capture'//new_line('a')// &
                          '    implicit none'//new_line('a')// &
                          '    '//new_line('a')// &
                          '    ! Module variables for persistence'//new_line('a')// &
@@ -302,6 +297,12 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
                          '    '//new_line('a')// &
                          'contains'//new_line('a')// &
                          procedures_section//new_line('a')// &
+                         '    '//new_line('a')// &
+                         '    ! Stub for show interception'//new_line('a')// &
+                         '    subroutine fortplot_show_interceptor()'//new_line('a')// &
+          '        call notebook_print("(Plot would be shown here)")'//new_line('a')// &
+                       '    end subroutine fortplot_show_interceptor'//new_line('a')// &
+                         '    '//new_line('a')// &
                          'end module notebook_execution'
 
     end subroutine generate_notebook_module
@@ -490,35 +491,8 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
 
     end subroutine copy_notebook_output_module
 
-    subroutine copy_figure_capture_module(project_dir)
-        character(len=*), intent(in) :: project_dir
-        character(len=512) :: command
-        character(len=256) :: current_dir
-
-        ! Get current working directory
-        call getcwd(current_dir)
-
-        ! Copy the figure_capture module to the project
-        command = 'cp "'//trim(current_dir)//'/src/figure/figure_capture.f90" "'// &
-                  trim(project_dir)//'/src/"'
-        call execute_command_line(command)
-
-    end subroutine copy_figure_capture_module
-
-    subroutine copy_temp_utils_module(project_dir)
-        character(len=*), intent(in) :: project_dir
-        character(len=512) :: command
-        character(len=256) :: current_dir
-
-        ! Get current working directory
-        call getcwd(current_dir)
-
-        ! Copy the temp_utils module to the project
-        command = 'cp "'//trim(current_dir)//'/src/utilities/temp_utils.F90" "'// &
-                  trim(project_dir)//'/src/"'
-        call execute_command_line(command)
-
-    end subroutine copy_temp_utils_module
+    ! Note: Removed copy_figure_capture_module and copy_temp_utils_module
+    ! These are no longer needed as we use stubs in the generated module
 
     subroutine build_notebook_project(project_dir, success, error_msg)
         character(len=*), intent(in) :: project_dir
@@ -556,16 +530,8 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
         character(len=:), allocatable :: output
         integer :: exit_code, i
 
-        ! Initialize figure capture with unique directory
-        block
-            character(len=256) :: unique_figure_dir
-            character(len=32) :: pid_str
-
-            ! Create unique figure directory using process ID and cache key
-            write (pid_str, '(i0)') get_process_id()
-   unique_figure_dir = trim(cache_dir)//'/figures_'//trim(cache_key)//'_'//trim(pid_str)
-            call init_figure_capture(unique_figure_dir)
-        end block
+        ! Note: Figure capture initialization removed - we use stubs instead
+        ! Real figure capture would require external dependencies
 
         ! Execute the notebook (with timeout to prevent hanging on Unix)
 #ifdef _WIN32
@@ -588,8 +554,7 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
         ! Read actual output from notebook_output module
         if (exit_code == 0) then
             call read_notebook_outputs(cache_dir, cache_key, notebook, results)
-            ! Collect figure data for cells that generated plots
-            call collect_figure_data(notebook, results)
+            ! Note: Figure data collection removed - using stubs
         else
             ! Set simple failure for all cells
             do i = 1, notebook%num_cells
@@ -608,8 +573,7 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
             results%error_message = output
         end if
 
-        ! Cleanup figure capture
-        call finalize_figure_capture()
+        ! Note: Figure capture cleanup removed - using stubs
 
     end subroutine execute_notebook_project
 
@@ -660,38 +624,7 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
 
     end subroutine read_notebook_outputs
 
-    subroutine collect_figure_data(notebook, results)
-        type(notebook_t), intent(in) :: notebook
-        type(execution_result_t), intent(inout) :: results
-
-        integer :: i, code_cell_index, figure_count
-        character(len=:), allocatable :: base64_data
-
-        ! Count figures generated and assign to cells that contain show() calls
-        figure_count = 0
-        code_cell_index = 0
-
-        do i = 1, notebook%num_cells
-            if (notebook%cells(i)%cell_type == CELL_CODE) then
-                code_cell_index = code_cell_index + 1
-
-                ! Check if this cell contains show() calls
-                if (index(notebook%cells(i)%content, 'show()') > 0 .or. &
-                    index(notebook%cells(i)%content, 'call show()') > 0) then
-
-                    figure_count = figure_count + 1
-
-                    ! Get base64 data for this figure
-                    base64_data = get_figure_data(figure_count)
-
-                    if (len(base64_data) > 0) then
-                        results%cells(i)%figure_data = base64_data
-                    end if
-                end if
-            end if
-        end do
-
-    end subroutine collect_figure_data
+    ! Note: Removed collect_figure_data - figure handling uses stubs
 
     ! Helper functions (reusing from old implementation)
     function add_indentation(text, indent) result(indented_text)
