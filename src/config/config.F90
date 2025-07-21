@@ -53,7 +53,7 @@ contains
         ! Try to create directory using safe command approach
         ! This avoids FPM's mkdir which calls fpm_stop on failure
 #ifdef _WIN32
-        command = 'md "'//trim(config_dir)//'" 2>nul'
+        command = 'powershell -Command "New-Item -ItemType Directory -Force -Path '''//trim(config_dir)//'''" >nul 2>&1'
 #else
         command = 'mkdir -p "'//trim(config_dir)//'" 2>/dev/null'
 #endif
