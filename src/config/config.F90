@@ -1,5 +1,6 @@
 module config
     use fpm_filesystem, only: join_path
+    use fpm_environment, only: get_os_type, OS_WINDOWS
     implicit none
     private
     public :: get_config_dir, ensure_config_dir, get_registry_path
@@ -52,8 +53,30 @@ contains
 
         ! Try to create directory using safe command approach
         ! This avoids FPM's mkdir which calls fpm_stop on failure
-        ! Use mkdir -p on all platforms - MSYS2 on Windows supports it
-        command = 'mkdir -p "'//trim(config_dir)//'" 2>/dev/null || exit 0'
+        if (get_os_type() == OS_WINDOWS) then
+            ! Windows: Need to create parent directories too
+            ! First create parent, then target directory
+            block
+                character(len=512) :: parent_dir
+                integer :: last_sep
+
+                ! Find last path separator
+                last_sep = max(index(config_dir, '\', back=.true.), &
+                               index(config_dir, '/', back=.true.))
+
+                if (last_sep > 0) then
+                    parent_dir = config_dir(1:last_sep - 1)
+                    ! Create parent directory first
+ command = 'cmd /C if not exist "'//trim(parent_dir)//'" mkdir "'//trim(parent_dir)//'"'
+                  call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
+                end if
+
+                ! Now create target directory
+ command = 'cmd /C if not exist "'//trim(config_dir)//'" mkdir "'//trim(config_dir)//'"'
+            end block
+        else
+            command = 'mkdir -p "'//trim(config_dir)//'" 2>/dev/null'
+        end if
 
         call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
 
