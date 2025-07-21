@@ -127,6 +127,8 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
             bench_mod1_output = get_temp_file_path(temp_dir, 'bench_mod1_output.txt')
 
             command = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" -v "'// &
+                      path_join(test_dir, 'module1.f90')//'\" \"'// &
+                      path_join(test_dir, 'module2.f90')//'\" \"'// &
                     path_join(test_dir, 'main.f90')//'\" > '//bench_mod1_output//' 2>&1'
             call execute_command_line(command, exitstat=exit_code)
 
@@ -144,6 +146,8 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
             ! Second run - should use cache
             bench_mod1_output = get_temp_file_path(temp_dir, 'bench_mod2_output.txt')
             command = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" -v "'// &
+                      path_join(test_dir, 'module1.f90')//'\" \"'// &
+                      path_join(test_dir, 'module2.f90')//'\" \"'// &
                     path_join(test_dir, 'main.f90')//'\" > '//bench_mod1_output//' 2>&1'
             call execute_command_line(command, exitstat=exit_code)
 
@@ -197,6 +201,8 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
             bench_inc1_output = get_temp_file_path(temp_dir, 'bench_inc1_output.txt')
 
             command = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" -v "'// &
+                      path_join(test_dir, 'module1.f90')//'\" \"'// &
+                      path_join(test_dir, 'module2.f90')//'\" \"'// &
                     path_join(test_dir, 'main.f90')//'\" > '//bench_inc1_output//' 2>&1'
             call execute_command_line(command, exitstat=exit_code)
 
@@ -216,6 +222,8 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
             ! Incremental build - should recompile main but cache modules
             bench_inc1_output = get_temp_file_path(temp_dir, 'bench_inc2_output.txt')
             command = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" -v "'// &
+                      path_join(test_dir, 'module1.f90')//'\" \"'// &
+                      path_join(test_dir, 'module2.f90')//'\" \"'// &
                     path_join(test_dir, 'main.f90')//'\" > '//bench_inc1_output//' 2>&1'
             call execute_command_line(command, exitstat=exit_code)
 
