@@ -12,15 +12,13 @@ module temp_utils
               get_system_temp_dir, get_current_directory, get_project_root, path_join, &
               mkdir, create_test_cache_dir
 
-    ! Interface for getpid (Unix/Linux only)
-#ifndef _WIN32
+    ! Interface for getpid
     interface
         function getpid() bind(c, name="getpid")
             import :: c_int
             integer(c_int) :: getpid
         end function getpid
     end interface
-#endif
 
     ! Type for managing temporary directories with automatic cleanup
     type :: temp_dir_manager
@@ -138,12 +136,14 @@ contains
 
             ! Get additional entropy sources
             call system_clock(clock_val)
-            ! Use getpid if available, otherwise use a pseudo-pid based on time
-#ifndef _WIN32
-            pid_val = getpid()  ! Process ID for additional uniqueness
-#else
-            pid_val = time_vals(8)*1000 + time_vals(7)*60 + time_vals(6)  ! Pseudo-PID for Windows
-#endif
+            ! Use getpid if available (runtime check for Windows)
+            if (get_os_type() == OS_WINDOWS) then
+                ! Windows: use time-based pseudo-PID
+                pid_val = time_vals(8)*1000 + time_vals(7)*60 + time_vals(6) + clock_val
+            else
+                ! Unix/Linux: use real PID
+                pid_val = getpid()
+            end if
 
             ! Initialize seed with multiple entropy sources
             do i = 1, seed_size
