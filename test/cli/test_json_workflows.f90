@@ -39,7 +39,7 @@ contains
         print *, 'Testing simple assignment workflow...'
 
         ! Step 1: Create source file
-        open (newunit=unit, file=temp_dir//'/simple.f', status='replace')
+        open (newunit=unit, file=path_join(temp_dir, 'simple.f'), status='replace')
         write (unit, '(a)') 'x = 42'
         close (unit)
 

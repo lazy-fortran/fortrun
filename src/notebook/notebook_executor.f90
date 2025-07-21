@@ -761,20 +761,9 @@ contains
     ! Reuse helper functions from old implementation
     subroutine create_temp_notebook_dir(temp_dir)
         character(len=:), allocatable, intent(out) :: temp_dir
-        character(len=:), allocatable :: output
-        integer :: exit_code
 
-        call execute_and_capture('mktemp -d', output, exit_code)
-
-        if (exit_code == 0) then
-            temp_dir = trim(adjustl(output))
-     if (len(temp_dir) > 0 .and. temp_dir(len(temp_dir):len(temp_dir)) == char(10)) then
-                temp_dir = temp_dir(1:len(temp_dir) - 1)
-            end if
-        else
-            temp_dir = create_temp_dir('fortran_notebook')
-            ! Directory already created by create_temp_dir
-        end if
+        ! Always use cross-platform temp directory creation
+        temp_dir = create_temp_dir('fortran_notebook')
 
     end subroutine create_temp_notebook_dir
 
