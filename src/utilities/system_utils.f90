@@ -107,7 +107,7 @@ contains
         if (get_os_type() == OS_WINDOWS) then
             command = 'cmd /c "dir /b "'//trim(directory)//'\'//trim(pattern)//'" 2>nul > "'//trim(temp_file)//'"'
         else
-            command = 'ls "'//trim(directory)//'/'//trim(pattern)//'" 2>/dev/null > "'//trim(temp_file)//'"'
+            command = 'ls "'//trim(directory)//'"/'//trim(pattern)//' 2>/dev/null > "'//trim(temp_file)//'"'
         end if
 
         call execute_command_line(command)

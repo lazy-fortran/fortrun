@@ -555,6 +555,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
     end subroutine cache_build_artifacts
 
     subroutine copy_local_modules(main_file, project_dir)
+        use iso_fortran_env, only: error_unit
         character(len=*), intent(in) :: main_file, project_dir
         character(len=256) :: source_dir
         character(len=512) :: command
@@ -587,6 +588,9 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
 
             ! Get list of files to copy
             call get_f90_files_except_main(source_dir, main_file, files, num_files)
+
+            do j = 1, num_files
+            end do
 
             ! Copy each file to the src directory
             do j = 1, num_files
@@ -791,6 +795,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
     end function get_project_structure_hash
 
     subroutine get_f90_files_except_main(source_dir, main_file, files, num_files)
+        use iso_fortran_env, only: error_unit
         character(len=*), intent(in) :: source_dir, main_file
         character(len=*), intent(out) :: files(:)
         integer, intent(out) :: num_files
@@ -801,6 +806,10 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         ! Get basename of main file for comparison
         main_basename = extract_basename(main_file)
 
+  write (error_unit, *) 'DEBUG get_f90_files_except_main: source_dir=', trim(source_dir)
+    write (error_unit, *) 'DEBUG get_f90_files_except_main: main_file=', trim(main_file)
+        write(error_unit, *) 'DEBUG get_f90_files_except_main: main_basename=', trim(main_basename)
+
         ! Get list of Fortran files
         block
             character(len=512) :: all_files(1000)
@@ -808,23 +817,36 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
 
             ! First get .f90 files
             call sys_list_files(source_dir, '*.f90', all_files, total_files)
+write(error_unit, *) 'DEBUG get_f90_files_except_main: found', total_files, '.f90 files'
 
             ! Then get .F90 files and add to list
             if (total_files < size(all_files)) then
                 call sys_list_files(source_dir, '*.F90', all_files(total_files + 1:), j)
                 total_files = total_files + j
+                write(error_unit, *) 'DEBUG get_f90_files_except_main: found', j, '.F90 files, total=', total_files
             end if
+
+            ! Show all found files
+            do i = 1, total_files
+                write(error_unit, *) 'DEBUG get_f90_files_except_main: all_files(', i, ')=', trim(all_files(i))
+            end do
 
             ! Filter out the main file
             num_files = 0
             do i = 1, total_files
+                write(error_unit, *) 'DEBUG get_f90_files_except_main: checking', trim(all_files(i)), 'vs', trim(main_basename)
                 if (index(all_files(i), trim(main_basename)) == 0) then
                     num_files = num_files + 1
                     if (num_files <= size(files)) then
                         files(num_files) = trim(all_files(i))
+   write (error_unit, *) 'DEBUG get_f90_files_except_main: INCLUDED', trim(all_files(i))
                     end if
+                else
+   write (error_unit, *) 'DEBUG get_f90_files_except_main: EXCLUDED', trim(all_files(i))
                 end if
             end do
+
+    write (error_unit, *) 'DEBUG get_f90_files_except_main: final num_files=', num_files
         end block
 
     end subroutine get_f90_files_except_main
