@@ -1,7 +1,8 @@
 program test_registry_enhancement
     use, intrinsic :: iso_fortran_env, only: error_unit
     use cache, only: get_cache_dir
-    use temp_utils, only: create_temp_dir, get_temp_file_path, get_project_root, create_test_cache_dir
+    use temp_utils, only: create_temp_dir, get_temp_file_path, get_project_root, create_test_cache_dir, path_join
+    use system_utils, only: sys_remove_dir, sys_remove_file
     use temp_utils, only: mkdir
     implicit none
 
@@ -32,7 +33,7 @@ contains
         call update_registry_for_test(test_dir)
 
         ! Create test file that uses multiple modules from different packages
-        test_file = trim(test_dir)//'/test_multiple.f90'
+        test_file = path_join(test_dir, 'test_multiple.f90')
         open (newunit=unit, file=test_file, status='replace')
         write (unit, '(a)') 'program test_multiple'
         write (unit, '(a)') '  use pyplot_module    ! Module from pyplot-fortran'
@@ -72,7 +73,7 @@ contains
         print *, 'Note: Module detection and mapping verified through output'
 
         ! Clean up
-        call execute_command_line('rm -rf '//trim(test_dir))
+        call sys_remove_dir(test_dir)
 
         print *, 'PASS: Module resolution from registry working correctly'
         print *
@@ -84,7 +85,7 @@ contains
         integer :: unit
 
         ! Create a test registry in the test directory
-        registry_path = trim(test_dir)//'/registry.toml'
+        registry_path = path_join(test_dir, 'registry.toml')
         open (newunit=unit, file=registry_path, status='replace')
         write (unit, '(a)') '# Test registry for multiple modules from same package'
         write (unit, '(a)') ''

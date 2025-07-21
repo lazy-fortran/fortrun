@@ -1,6 +1,6 @@
 program test_config_extended
     use config
-    use temp_utils, only: temp_dir_manager
+    use temp_utils, only: temp_dir_manager, path_join
     implicit none
 
     logical :: all_tests_passed
@@ -52,7 +52,7 @@ contains
 
             call setenv_wrapper('XDG_CONFIG_HOME', test_xdg)
             config_dir = get_config_dir()
-            if (index(config_dir, trim(test_xdg)//'/fortran') == 0) then
+            if (index(config_dir, path_join(test_xdg, 'fortran')) == 0) then
                 print *, "  WARNING: XDG_CONFIG_HOME test may not work properly"
             end if
 
@@ -60,7 +60,7 @@ contains
             call unsetenv_wrapper('XDG_CONFIG_HOME')
             call setenv_wrapper('HOME', test_home)
             config_dir = get_config_dir()
-            if (index(config_dir, trim(test_home)//'/.config/fortran') == 0) then
+            if (index(config_dir, path_join(test_home, '.config/fortran')) == 0) then
                 print *, "  WARNING: HOME test may not work properly"
             end if
         end block

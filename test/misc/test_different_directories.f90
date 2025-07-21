@@ -1,6 +1,7 @@
 program test_different_directories
     use, intrinsic :: iso_fortran_env, only: error_unit
-    use temp_utils, only: create_temp_dir, get_temp_file_path
+    use temp_utils, only: create_temp_dir, get_temp_file_path, path_join
+    use system_utils, only: sys_remove_dir, sys_remove_file
     use temp_utils, only: mkdir
     implicit none
 
@@ -12,12 +13,12 @@ program test_different_directories
 
     ! Create test directory structure
     test_dir = create_temp_dir('fortran_test_different_dirs')
-    sub_dir = trim(test_dir)//'/subdir'
+    sub_dir = path_join(test_dir, 'subdir')
 
     call mkdir(trim(sub_dir))
 
     ! Create a simple Fortran file in subdirectory
-    call create_test_file(trim(sub_dir)//'/hello.f90')
+    call create_test_file(path_join(sub_dir, 'hello.f90'))
 
     ! Test 1: Run from parent directory using absolute path
     call test_absolute_path()
@@ -29,7 +30,7 @@ program test_different_directories
     call test_different_directory()
 
     ! Clean up
-    call execute_command_line('rm -rf '//trim(test_dir))
+    call sys_remove_dir(test_dir)
 
     print *, 'All different directory tests passed!'
 
@@ -54,7 +55,7 @@ contains
 
         print *, 'Test 1: Run from parent directory using absolute path'
 
-        abs_path = trim(sub_dir)//'/hello.f90'
+        abs_path = path_join(sub_dir, 'hello.f90')
 
         ! Change to parent directory and run with absolute path
         block
@@ -93,7 +94,7 @@ contains
             rel_exit_file = get_temp_file_path(temp_dir, 'rel_exit.txt')
 
             command = 'ORIGINAL_DIR=$(pwd) && cd '//trim(test_dir)// &
- ' && cd $ORIGINAL_DIR && fpm run fortran -- '//trim(test_dir)//'/subdir/hello.f90 '// &
+ ' && cd $ORIGINAL_DIR && fpm run fortran -- '//path_join(test_dir, 'subdir/hello.f90 ')// &
                       '> '//rel_output_file//' 2>&1; echo $? > '//rel_exit_file
             call execute_command_line(command)
 
@@ -116,7 +117,7 @@ contains
 
         print *, 'Test 3: Run from completely different directory'
 
-        abs_path = trim(sub_dir)//'/hello.f90'
+        abs_path = path_join(sub_dir, 'hello.f90')
 
         ! Change to system temp and run with absolute path
         block

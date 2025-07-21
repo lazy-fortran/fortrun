@@ -1,5 +1,5 @@
 program test_json_workflows
-    use temp_utils, only: get_system_temp_dir, create_temp_dir, get_project_root, create_test_cache_dir
+    use temp_utils, only: get_system_temp_dir, create_temp_dir, get_project_root, create_test_cache_dir, path_join
     implicit none
 
     logical :: all_passed

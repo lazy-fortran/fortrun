@@ -1,7 +1,8 @@
 program test_fpm_generator
     use fpm_generator, only: generate_fpm_with_deps
     use module_scanner, only: scan_modules, module_info
-    use temp_utils, only: mkdir
+    use temp_utils, only: mkdir, path_join
+    use system_utils, only: sys_remove_dir, sys_remove_file
     use, intrinsic :: iso_fortran_env, only: error_unit
     implicit none
 
@@ -21,7 +22,7 @@ program test_fpm_generator
     output_dir = './test_fpm_gen'
 
     ! Create test directory
-    call execute_command_line('rm -rf '//trim(output_dir))
+    call sys_remove_dir(output_dir)
     call mkdir(trim(output_dir))
 
     ! Create test file that uses pyplot
@@ -34,7 +35,7 @@ program test_fpm_generator
  call generate_fpm_with_deps(output_dir, 'test_pyplot', modules, n_modules, .false., '')
 
     ! Check generated fpm.toml
-    fpm_file = trim(output_dir)//'/fpm.toml'
+    fpm_file = path_join(output_dir, 'fpm.toml')
     open (newunit=unit, file=fpm_file, status='old', iostat=iostat)
     if (iostat /= 0) then
         write (error_unit, *) 'FAIL: fpm.toml not created'
@@ -67,8 +68,8 @@ program test_fpm_generator
     print *, 'PASS: Generated fpm.toml with correct dependencies'
 
     ! Clean up
-    call execute_command_line('rm -f '//trim(test_file))
-    call execute_command_line('rm -rf '//trim(output_dir))
+    call sys_remove_file(test_file)
+    call sys_remove_dir(output_dir)
 
     ! Test 2: Multiple dependencies
     print *
@@ -105,8 +106,8 @@ program test_fpm_generator
     print *, 'PASS: Multiple dependencies correctly added'
 
     ! Clean up
-    call execute_command_line('rm -f '//trim(test_file))
-    call execute_command_line('rm -rf '//trim(output_dir))
+    call sys_remove_file(test_file)
+    call sys_remove_dir(output_dir)
 
     print *
     print *, 'All FPM generator tests passed!'

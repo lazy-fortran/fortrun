@@ -3,7 +3,8 @@ program test_fmp_version_generation
     use registry_resolver
     use module_scanner
     use, intrinsic :: iso_fortran_env, only: error_unit
-    use temp_utils, only: temp_dir_manager
+    use temp_utils, only: temp_dir_manager, path_join
+    use system_utils, only: sys_remove_dir, sys_remove_file
     implicit none
 
     character(len=256) :: test_registry_path, project_dir, fpm_toml_path
@@ -37,7 +38,7 @@ program test_fmp_version_generation
     call generate_fpm_with_deps_from_config(project_dir, 'test_project', test_modules, 2, config_dir, .false., '')
 
     ! Check the generated fpm.toml
-    fpm_toml_path = trim(project_dir)//'/fpm.toml'
+    fpm_toml_path = path_join(project_dir, 'fpm.toml')
 
     found_with_version = .false.
     found_without_version = .false.
@@ -79,8 +80,8 @@ program test_fmp_version_generation
     print *, 'PASS: fortplotlib without version found in fpm.toml'
 
     ! Clean up
-    call execute_command_line('rm -rf '//trim(project_dir))
-    call execute_command_line('rm -f '//trim(test_registry_path))
+    call sys_remove_dir(project_dir)
+    call sys_remove_file(test_registry_path)
 
     print *, 'All FPM version generation tests passed!'
 

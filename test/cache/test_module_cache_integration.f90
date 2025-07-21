@@ -8,7 +8,7 @@ program test_module_cache_integration
     use fpm_error, only: error_t
     use fpm_filesystem, only: exists, join_path, delete_file, list_files
     use module_scanner, only: scan_modules, module_info
-    use temp_utils, only: temp_dir_manager
+    use temp_utils, only: temp_dir_manager, path_join
     use temp_utils, only: mkdir
     implicit none
 
@@ -70,7 +70,7 @@ contains
         call mkdir(trim(build_dir))
 
         ! Create a real Fortran module
-        src_file = trim(test_dir)//'/math_utils.f90'
+        src_file = path_join(test_dir, 'math_utils.f90')
         open (newunit=unit, file=trim(src_file), status='replace', action='write')
         write (unit, '(a)') 'module math_utils'
         write (unit, '(a)') '  implicit none'
@@ -179,7 +179,7 @@ contains
         call mkdir(trim(build_dir))
 
         ! Create base module
-        open (newunit=unit, file=trim(test_dir)//'/base.f90', status='replace')
+        open (newunit=unit, file=path_join(test_dir, 'base.f90'), status='replace')
         write (unit, '(a)') 'module base'
         write (unit, '(a)') '  implicit none'
         write (unit, '(a)') '  integer, parameter :: dp = kind(1.0d0)'
@@ -187,7 +187,7 @@ contains
         close (unit)
 
         ! Create dependent module
-        open (newunit=unit, file=trim(test_dir)//'/derived.f90', status='replace')
+        open (newunit=unit, file=path_join(test_dir, 'derived.f90'), status='replace')
         write (unit, '(a)') 'module derived'
         write (unit, '(a)') '  use base'
         write (unit, '(a)') '  implicit none'
@@ -249,7 +249,7 @@ contains
         call temp_mgr%create('fortran_inval_test_'//get_timestamp())
         test_dir = temp_mgr%path
 
-        src_file = trim(test_dir)//'/changing.f90'
+        src_file = path_join(test_dir, 'changing.f90')
 
         ! Create initial version
         open (newunit=unit, file=src_file, status='replace')
@@ -315,11 +315,11 @@ contains
         end block
         call mkdir(trim(proj1_dir))
         call mkdir(trim(proj2_dir))
-        call mkdir(trim(proj1_dir)//'/build')
-        call mkdir(trim(proj2_dir)//'/build')
+        call mkdir(path_join(proj1_dir, 'build'))
+        call mkdir(path_join(proj2_dir, 'build'))
 
         ! Create identical module in project 1
-        src_file = trim(proj1_dir)//'/shared_utils.f90'
+        src_file = path_join(proj1_dir, 'shared_utils.f90')
         open (newunit=unit, file=src_file, status='replace')
         write (unit, '(a)') 'module shared_utils'
         write (unit, '(a)') '  implicit none'
@@ -352,7 +352,7 @@ contains
             print '(a)', '  ✓ Module shared between projects via cache'
 
             ! Test compilation using cached module
-          open (newunit=unit, file=trim(proj2_dir)//'/use_shared.f90', status='replace')
+      open (newunit=unit, file=path_join(proj2_dir, 'use_shared.f90'), status='replace')
             write (unit, '(a)') 'program use_shared'
             write (unit, '(a)') '  use shared_utils'
             write (unit, '(a)') '  print *, "PI =", PI'
@@ -387,7 +387,7 @@ contains
         integer :: unit, exitstat
 
         ! Create program using the cached module
-        open (newunit=unit, file=trim(test_dir)//'/test_prog.f90', status='replace')
+        open (newunit=unit, file=path_join(test_dir, 'test_prog.f90'), status='replace')
         write (unit, '(a)') 'program test_prog'
         write (unit, '(a)') '  use math_utils'
         write (unit, '(a)') '  implicit none'

@@ -1,6 +1,7 @@
 program test_figure_capture
     use figure_capture
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, get_system_temp_dir
+    use system_utils, only: sys_remove_dir, sys_remove_file
     implicit none
 
     logical :: all_tests_passed
@@ -227,7 +228,7 @@ contains
             output = ""
         end if
 
-        call execute_command_line('rm -f '//trim(temp_file))
+        call sys_remove_file(temp_file)
 
     end subroutine execute_and_capture_output
 

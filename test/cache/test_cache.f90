@@ -1,6 +1,6 @@
 program test_cache
     use, intrinsic :: iso_fortran_env, only: error_unit
-    use temp_utils, only: create_temp_dir, get_temp_file_path, temp_dir_manager, create_test_cache_dir
+    use temp_utils, only: create_temp_dir, get_temp_file_path, temp_dir_manager, create_test_cache_dir, path_join
     implicit none
 
     character(len=:), allocatable :: test_cache_dir, test_program
@@ -16,7 +16,7 @@ program test_cache
 
     ! Create unique test cache directory to avoid race conditions
     test_cache_dir = create_test_cache_dir('cache_basic')
-    test_program = trim(temp_dir)//'/test_cache_hello.f90'
+    test_program = path_join(temp_dir, 'test_cache_hello.f90')
 
     ! Create test program
     call create_test_program(test_program)
@@ -30,7 +30,7 @@ program test_cache
     end if
 
     ! Check if cache was created
-inquire (file=trim(test_cache_dir)//'/test_hello_'//repeat('*', 10), exist=cache_exists)
+inquire (file=path_join(test_cache_dir, 'test_hello_')//repeat('*', 10), exist=cache_exists)
   call execute_command_line('ls ' // trim(test_cache_dir) // ' > /dev/null 2>&1', exitstat=exit_code)
     if (exit_code /= 0) then
         write (error_unit, *) 'FAIL: Cache directory not created'

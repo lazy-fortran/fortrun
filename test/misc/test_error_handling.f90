@@ -1,7 +1,7 @@
 program test_error_handling
     use, intrinsic :: iso_fortran_env, only: error_unit
     use temp_utils, only: get_system_temp_dir, path_join
-    use temp_utils, only: mkdir
+    use temp_utils, only: mkdir, path_join
     use system_utils, only: sys_remove_dir, sys_remove_file
     implicit none
 
@@ -50,16 +50,16 @@ contains
         call execute_command_line(command)
 
         ! Check that it failed with non-zero exit code
-        call check_exit_code(get_system_temp_dir()//'/unknown_exit.txt', 1)
+        call check_exit_code(path_join(get_system_temp_dir(), 'unknown_exit.txt'), 1)
 
         ! Check that output contains error message about build failure
         ! This is expected behavior - nonexistent modules should cause build failure
-        call check_output_contains(get_system_temp_dir() // '/unknown_output.txt', 'Error: Build failed')
+        call check_output_contains(path_join(get_system_temp_dir(), 'unknown_output.txt'), 'Error: Build failed')
 
         ! Clean up
-        call execute_command_line('rm -rf '//trim(test_dir))
-   call execute_command_line('rm -f '//get_system_temp_dir()//'/unknown_output.txt '// &
-                                  get_system_temp_dir()//'/unknown_exit.txt')
+        call sys_remove_dir(test_dir)
+   call execute_command_line('rm -f '//path_join(get_system_temp_dir(), 'unknown_output.txt ')// &
+                                  path_join(get_system_temp_dir(), 'unknown_exit.txt'))
 
         print *, 'PASS: Unknown module error handled correctly'
         print *
@@ -73,11 +73,11 @@ contains
         print *, 'Test 2: Module error forwarding'
 
         ! Create test directory
-        test_dir = get_system_temp_dir()//'/test_module_error'
+        test_dir = path_join(get_system_temp_dir(), 'test_module_error')
         call mkdir(trim(test_dir))
 
         ! Create test file with nonexistent module
-        test_file = trim(test_dir)//'/test_error.f90'
+        test_file = path_join(test_dir, 'test_error.f90')
         open (newunit=unit, file=test_file, status='replace')
         write (unit, '(a)') 'program test_error'
         write (unit, '(a)') '  use some_missing_module'
@@ -88,21 +88,21 @@ contains
 
         ! Run the program and capture output
         command = 'fpm run fortran -- '//trim(test_file)// &
-                  ' > '//get_system_temp_dir()//'/error_output.txt 2>&1; echo $? > '// &
-                  get_system_temp_dir()//'/error_exit.txt'
+        ' > '//path_join(get_system_temp_dir(), 'error_output.txt 2>&1; echo $? > ')// &
+                  path_join(get_system_temp_dir(), 'error_exit.txt')
         call execute_command_line(command)
 
         ! Check that it failed with non-zero exit code
-        call check_exit_code(get_system_temp_dir()//'/error_exit.txt', 1)
+        call check_exit_code(path_join(get_system_temp_dir(), 'error_exit.txt'), 1)
 
         ! Check that output contains error message
         ! Build should fail for missing modules
-        call check_output_contains(get_system_temp_dir() // '/error_output.txt', 'Error: Build failed')
+        call check_output_contains(path_join(get_system_temp_dir(), 'error_output.txt'), 'Error: Build failed')
 
         ! Clean up
-        call execute_command_line('rm -rf '//trim(test_dir))
-     call execute_command_line('rm -f '//get_system_temp_dir()//'/error_output.txt '// &
-                                  get_system_temp_dir()//'/error_exit.txt')
+        call sys_remove_dir(test_dir)
+     call execute_command_line('rm -f '//path_join(get_system_temp_dir(), 'error_output.txt ')// &
+                                  path_join(get_system_temp_dir(), 'error_exit.txt'))
 
         print *, 'PASS: Module error forwarding working'
         print *
@@ -116,11 +116,11 @@ contains
         print *, 'Test 3: FPM error forwarding'
 
         ! Create test directory
-        test_dir = get_system_temp_dir()//'/test_fpm_error'
+        test_dir = path_join(get_system_temp_dir(), 'test_fpm_error')
         call mkdir(trim(test_dir))
 
         ! Create test file with syntax error
-        test_file = trim(test_dir)//'/test_syntax.f90'
+        test_file = path_join(test_dir, 'test_syntax.f90')
         open (newunit=unit, file=test_file, status='replace')
         write (unit, '(a)') 'program test_syntax'
         write (unit, '(a)') '  implicit none'
@@ -130,20 +130,20 @@ contains
 
         ! Run the program and capture output
         command = 'fpm run fortran -- '//trim(test_file)// &
-                 ' > '//get_system_temp_dir()//'/syntax_output.txt 2>&1; echo $? > '// &
-                  get_system_temp_dir()//'/syntax_exit.txt'
+       ' > '//path_join(get_system_temp_dir(), 'syntax_output.txt 2>&1; echo $? > ')// &
+                  path_join(get_system_temp_dir(), 'syntax_exit.txt')
         call execute_command_line(command)
 
         ! Check that it failed with non-zero exit code
-        call check_exit_code(get_system_temp_dir()//'/syntax_exit.txt', 1)
+        call check_exit_code(path_join(get_system_temp_dir(), 'syntax_exit.txt'), 1)
 
         ! Check that output contains error information
-        call check_output_contains(get_system_temp_dir()//'/syntax_output.txt', 'Error')
+        call check_output_contains(path_join(get_system_temp_dir(), 'syntax_output.txt'), 'Error')
 
         ! Clean up
-        call execute_command_line('rm -rf '//trim(test_dir))
-    call execute_command_line('rm -f '//get_system_temp_dir()//'/syntax_output.txt '// &
-                                  get_system_temp_dir()//'/syntax_exit.txt')
+        call sys_remove_dir(test_dir)
+    call execute_command_line('rm -f '//path_join(get_system_temp_dir(), 'syntax_output.txt ')// &
+                                  path_join(get_system_temp_dir(), 'syntax_exit.txt'))
 
         print *, 'PASS: FPM error forwarding working'
         print *

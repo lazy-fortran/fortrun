@@ -3,7 +3,8 @@ program test_conflicting_dependencies
     use fpm_generator
     use module_scanner
     use, intrinsic :: iso_fortran_env, only: error_unit
-    use temp_utils, only: temp_dir_manager
+    use temp_utils, only: temp_dir_manager, path_join
+    use system_utils, only: sys_remove_dir, sys_remove_file
     implicit none
 
     character(len=256) :: test_registry_path, project_dir, fpm_toml_path
@@ -35,7 +36,7 @@ program test_conflicting_dependencies
     call generate_fpm_with_deps_from_config(project_dir, 'test_project', test_modules, 2, temp_mgr%path, .false., '')
 
     ! Check the generated fpm.toml for conflict resolution
-    fpm_toml_path = trim(project_dir)//'/fpm.toml'
+    fpm_toml_path = path_join(project_dir, 'fpm.toml')
 
     found_v1 = .false.
     found_v2 = .false.
@@ -80,8 +81,8 @@ program test_conflicting_dependencies
     end if
 
     ! Clean up
-    call execute_command_line('rm -rf '//trim(project_dir))
-    call execute_command_line('rm -f '//trim(test_registry_path))
+    call sys_remove_dir(project_dir)
+    call sys_remove_file(test_registry_path)
 
     print *, 'All conflicting dependency tests passed!'
 

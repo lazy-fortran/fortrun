@@ -2,6 +2,7 @@ program test_registry_validation
     use registry_resolver
     use, intrinsic :: iso_fortran_env, only: error_unit
     use temp_utils, only: get_temp_file_path, get_system_temp_dir
+    use system_utils, only: sys_remove_dir, sys_remove_file
     implicit none
 
     character(len=256) :: test_registry_path
@@ -46,7 +47,7 @@ contains
         call load_registry_from_path(registry_path)
 
         ! Clean up
-        call execute_command_line('rm -f '//trim(registry_path))
+        call sys_remove_file(registry_path)
 
         print *, 'PASS: Valid registry loaded successfully'
         print *
@@ -74,7 +75,7 @@ contains
         print *, 'PASS: Invalid syntax detected: ', trim(error_message)
 
         ! Clean up
-        call execute_command_line('rm -f '//trim(registry_path))
+        call sys_remove_file(registry_path)
         print *
 
     end subroutine test_invalid_syntax
@@ -99,7 +100,7 @@ contains
         end if
 
         ! Clean up
-        call execute_command_line('rm -f '//trim(registry_path))
+        call sys_remove_file(registry_path)
         print *
 
     end subroutine test_missing_fields
@@ -126,7 +127,7 @@ contains
         call load_registry_from_path(registry_path)
 
         ! Clean up
-        call execute_command_line('rm -f '//trim(registry_path))
+        call sys_remove_file(registry_path)
 
         print *, 'PASS: Empty registry handled gracefully'
         print *

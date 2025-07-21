@@ -1,7 +1,7 @@
 program test_registry_resolver_comprehensive
     use registry_resolver
     use config, only: get_config_dir
-  use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, get_system_temp_dir
+  use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, get_system_temp_dir, path_join
     use temp_utils, only: mkdir, path_join
     use system_utils, only: sys_remove_dir, sys_remove_file
     implicit none

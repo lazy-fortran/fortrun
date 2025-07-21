@@ -2,7 +2,7 @@ program test_examples
     use, intrinsic :: iso_fortran_env, only: error_unit
     use cache, only: get_cache_dir
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, get_project_root, path_join
-    use temp_utils, only: mkdir, create_test_cache_dir
+    use temp_utils, only: mkdir, create_test_cache_dir, path_join
     use system_utils, only: sys_copy_file, sys_remove_dir, sys_list_files
     implicit none
 
@@ -531,7 +531,7 @@ contains
         ! Copy the entire interdependent directory to temp location
         copy_command = 'cp -r '//path_join(get_project_root(), &
                                            'example/modules/interdependent/*')// &
-                       ' "'//trim(temp_source_dir)//'/"'
+                       ' "'//path_join(temp_source_dir, '"')
         call execute_command_line(trim(copy_command))
 
         ! First run - should compile everything
@@ -695,7 +695,7 @@ contains
 
         ! First run - compile everything
         print '(a)', 'Test 1: Initial compilation with dependencies...'
-        call run_example_with_cache(trim(temp_source_dir)//'/main.f90', &
+        call run_example_with_cache(path_join(temp_source_dir, 'main.f90'), &
                                     temp_cache_dir, output1, exit_code1)
 
         if (exit_code1 /= 0) then
@@ -717,7 +717,7 @@ contains
         print '(a)', 'Test 2: Modifying dependency module...'
         call modify_dependency_module(temp_source_dir)
 
-        call run_example_with_cache(trim(temp_source_dir)//'/main.f90', &
+        call run_example_with_cache(path_join(temp_source_dir, 'main.f90'), &
                                     temp_cache_dir, output2, exit_code2)
 
         if (exit_code2 /= 0) then
@@ -751,7 +751,7 @@ contains
         print '(a)', 'Test 3: Adding new dependency...'
         call add_new_dependency(temp_source_dir)
 
-        call run_example_with_cache(trim(temp_source_dir)//'/main.f90', &
+        call run_example_with_cache(path_join(temp_source_dir, 'main.f90'), &
                                     temp_cache_dir, output3, exit_code3)
 
         if (exit_code3 /= 0) then
@@ -778,7 +778,7 @@ contains
         integer :: unit
 
         ! Create helper_mod.f90
-        open (newunit=unit, file=trim(dir)//'/helper_mod.f90', status='replace')
+        open (newunit=unit, file=path_join(dir, 'helper_mod.f90'), status='replace')
         write (unit, '(a)') 'module helper_mod'
         write (unit, '(a)') '  implicit none'
         write (unit, '(a)') '  integer, parameter :: HELPER_VERSION = 1'
@@ -792,7 +792,7 @@ contains
         close (unit)
 
         ! Create main.f90 that uses helper_mod
-        open (newunit=unit, file=trim(dir)//'/main.f90', status='replace')
+        open (newunit=unit, file=path_join(dir, 'main.f90'), status='replace')
         write (unit, '(a)') 'program test_deps'
         write (unit, '(a)') '  use helper_mod'
         write (unit, '(a)') '  implicit none'
@@ -810,7 +810,7 @@ contains
         integer :: unit
 
         ! Modify helper_mod.f90
-        open (newunit=unit, file=trim(dir)//'/helper_mod.f90', status='replace')
+        open (newunit=unit, file=path_join(dir, 'helper_mod.f90'), status='replace')
         write (unit, '(a)') 'module helper_mod'
         write (unit, '(a)') '  implicit none'
         write (unit, '(a)') '  integer, parameter :: HELPER_VERSION = 2  ! Modified'
@@ -830,7 +830,7 @@ contains
         integer :: unit
 
         ! Create new_mod.f90
-        open (newunit=unit, file=trim(dir)//'/new_mod.f90', status='replace')
+        open (newunit=unit, file=path_join(dir, 'new_mod.f90'), status='replace')
         write (unit, '(a)') 'module new_mod'
         write (unit, '(a)') '  implicit none'
         write (unit, '(a)') 'contains'
@@ -841,7 +841,7 @@ contains
         close (unit)
 
         ! Update main.f90 to use new module
-        open (newunit=unit, file=trim(dir)//'/main.f90', status='replace')
+        open (newunit=unit, file=path_join(dir, 'main.f90'), status='replace')
         write (unit, '(a)') 'program test_deps'
         write (unit, '(a)') '  use helper_mod'
         write (unit, '(a)') '  use new_mod  ! Added new dependency'

@@ -1,6 +1,6 @@
 program test_cache_lock
     use cache_lock
-    use temp_utils, only: create_temp_dir, get_temp_file_path, create_test_cache_dir
+    use temp_utils, only: create_temp_dir, get_temp_file_path, create_test_cache_dir, path_join
     use temp_utils, only: mkdir
     implicit none
 
@@ -22,7 +22,7 @@ program test_cache_lock
     if (success) then
         print '(a)', '  ✓ Lock acquired successfully'
         ! List directory contents right after acquiring lock
-        call system('ls -la '//trim(temp_cache_dir)//'/*.lock 2>&1 | head -10')
+        call system('ls -la '//path_join(temp_cache_dir, '*.lock 2>&1 | head -10'))
     else
         print '(a)', '  ✗ Failed to acquire lock'
         stop 1
@@ -61,9 +61,9 @@ program test_cache_lock
         else
             print '(a)', '  ✗ Second lock should have failed'
             ! Debug: check if lock file exists
-            inquire (file=trim(temp_cache_dir)//'/test_project2.lock', exist=locked)
+            inquire (file=path_join(temp_cache_dir, 'test_project2.lock'), exist=locked)
             print '(a,l)', '  Debug: Lock file exists = ', locked
-            call system('ls -la '//trim(temp_cache_dir)//'/*.lock')
+            call system('ls -la '//path_join(temp_cache_dir, '*.lock'))
             stop 1
         end if
 

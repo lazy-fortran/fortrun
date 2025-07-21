@@ -2,6 +2,7 @@ program test_version_constraints
     use registry_resolver
     use, intrinsic :: iso_fortran_env, only: error_unit
     use temp_utils, only: get_temp_file_path, get_system_temp_dir
+    use system_utils, only: sys_remove_dir, sys_remove_file
     implicit none
 
     character(len=256) :: test_registry_path
@@ -52,7 +53,7 @@ write(error_unit, *) 'Error: fortplot_test should have no version, got: ', trim(
     print *, 'PASS: fortplot_test -> fortplotlib (no version)'
 
     ! Clean up
-    call execute_command_line('rm -f '//trim(test_registry_path))
+    call sys_remove_file(test_registry_path)
 
     print *, 'All version constraint tests passed!'
 

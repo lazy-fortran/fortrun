@@ -1,6 +1,7 @@
 program test_notebook_output_comprehensive
     use notebook_output
     use temp_utils, only: temp_dir_manager
+    use system_utils, only: sys_remove_dir, sys_remove_file
     implicit none
 
     logical :: all_tests_passed
@@ -332,7 +333,7 @@ contains
             end if
 
             ! Clean up
-            call execute_command_line('rm -f '//trim(test_file))
+            call sys_remove_file(test_file)
 
             print *, "  PASS: File operations work correctly"
             passed = .true.

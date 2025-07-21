@@ -1,7 +1,8 @@
 program test_artifact_cache
    use cache, only: get_content_hash, store_build_artifacts, retrieve_build_artifacts, &
                    cache_exists, invalidate_cache, get_cache_dir, ensure_cache_structure
-    use temp_utils, only: create_temp_dir, get_temp_file_path, create_test_cache_dir
+    use temp_utils, only: create_temp_dir, get_temp_file_path, create_test_cache_dir, path_join
+    use system_utils, only: sys_remove_dir, sys_remove_file
     use temp_utils, only: mkdir
     use, intrinsic :: iso_fortran_env, only: error_unit
     implicit none
@@ -34,7 +35,7 @@ contains
         test_dir = create_temp_dir('fortran_hash_test')
         call mkdir(trim(test_dir))
 
-        test_file = trim(test_dir)//'/test.f90'
+        test_file = path_join(test_dir, 'test.f90')
         open (newunit=unit, file=trim(test_file), status='replace')
         write (unit, '(a)') 'program test'
         write (unit, '(a)') '  print *, "Hello"'
@@ -66,7 +67,7 @@ contains
             stop 1
         end if
 
-        call execute_command_line('rm -rf '//trim(test_dir))
+        call sys_remove_dir(test_dir)
         print *, 'PASS: Content hashing works'
         print *
 
@@ -89,7 +90,7 @@ contains
         call mkdir(trim(target_dir))
 
         ! Create source file
-        test_file = trim(test_dir)//'/main.f90'
+        test_file = path_join(test_dir, 'main.f90')
         open (newunit=unit, file=trim(test_file), status='replace')
         write (unit, '(a)') 'program main'
         write (unit, '(a)') '  print *, "Test program"'
@@ -97,14 +98,14 @@ contains
         close (unit)
 
         ! Create mock build artifacts
-        test_file = trim(build_dir)//'/main'
+        test_file = path_join(build_dir, 'main')
         open (newunit=unit, file=trim(test_file), status='replace')
         write (unit, '(a)') '#!/bin/bash'
         write (unit, '(a)') 'echo "Mock executable"'
         close (unit)
         call execute_command_line('chmod +x '//trim(test_file))
 
-        test_file = trim(build_dir)//'/main.mod'
+        test_file = path_join(build_dir, 'main.mod')
         open (newunit=unit, file=trim(test_file), status='replace')
         write (unit, '(a)') 'FORTRAN MODULE 1.0'
         close (unit)
@@ -131,22 +132,22 @@ contains
         end if
 
         ! Verify retrieved files exist
-        inquire (file=trim(target_dir)//'/main', exist=exists)
+        inquire (file=path_join(target_dir, 'main'), exist=exists)
         if (.not. exists) then
             write (error_unit, *) 'Error: Retrieved executable not found'
             stop 1
         end if
 
-        inquire (file=trim(target_dir)//'/main.mod', exist=exists)
+        inquire (file=path_join(target_dir, 'main.mod'), exist=exists)
         if (.not. exists) then
             write (error_unit, *) 'Error: Retrieved module not found'
             stop 1
         end if
 
         ! Clean up
-        call execute_command_line('rm -rf '//trim(test_dir))
-        call execute_command_line('rm -rf '//trim(build_dir))
-        call execute_command_line('rm -rf '//trim(target_dir))
+        call sys_remove_dir(test_dir)
+        call sys_remove_dir(build_dir)
+        call sys_remove_dir(target_dir)
         call invalidate_cache(hash_key, success)
 
         print *, 'PASS: Store/retrieve cycle works'
@@ -170,7 +171,7 @@ contains
 
         ! Create dummy cache entry
         call mkdir(trim(get_cache_dir())//'/builds/'//trim(hash_key))
-    call execute_command_line('touch "' // trim(get_cache_dir()) // '/builds/' // trim(hash_key) // '/dummy"')
+    call execute_command_line('touch "' // trim(get_cache_dir()) // '/builds/' // path_join(hash_key, 'dummy"'))
 
         ! Should now exist
         if (.not. cache_exists(hash_key)) then

@@ -1,6 +1,7 @@
 program test_verbose
     use, intrinsic :: iso_fortran_env, only: error_unit
     use temp_utils, only: create_temp_dir, get_temp_file_path
+    use system_utils, only: sys_remove_dir, sys_remove_file
     implicit none
 
     integer :: exit_code
@@ -61,7 +62,7 @@ program test_verbose
     print *, 'PASS: Very verbose mode shows detailed output'
 
     ! Clean up
-    call execute_command_line('rm -f '//trim(test_program))
+    call sys_remove_file(test_program)
 
     print *, ''
     print *, 'All verbose tests passed!'
@@ -93,7 +94,7 @@ contains
 
         ! Use temporary cache to ensure fresh builds
         temp_cache = './test_verbose_cache'
-        call execute_command_line('rm -rf '//trim(temp_cache))
+        call sys_remove_dir(temp_cache)
 
         ! Create temp directory and file path
         temp_dir = create_temp_dir('fortran_test')
@@ -121,7 +122,7 @@ contains
 
         ! Clean up
         call execute_command_line('rm -f '//temp_output_file)
-        call execute_command_line('rm -rf '//trim(temp_cache))
+        call sys_remove_dir(temp_cache)
 
     end subroutine run_fortran
 

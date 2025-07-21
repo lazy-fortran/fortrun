@@ -2,6 +2,7 @@ program test_multiple_modules
     use registry_resolver
     use, intrinsic :: iso_fortran_env, only: error_unit
     use temp_utils, only: temp_dir_manager
+    use system_utils, only: sys_remove_dir, sys_remove_file
     implicit none
 
     character(len=256) :: test_registry_path
@@ -53,7 +54,7 @@ program test_multiple_modules
     print *, 'PASS: Both modules have correct git URL'
 
     ! Clean up
-    call execute_command_line('rm -f '//trim(test_registry_path))
+    call sys_remove_file(test_registry_path)
 
     print *, 'All tests passed!'
 

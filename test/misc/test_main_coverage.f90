@@ -1,5 +1,6 @@
 program test_main_coverage
     use temp_utils, only: create_temp_dir, get_temp_file_path
+    use system_utils, only: sys_remove_dir, sys_remove_file
     implicit none
 
     logical :: all_tests_passed
@@ -316,7 +317,7 @@ temp_file = get_temp_file_path(create_temp_dir('fortran_test'), 'fortran_main_te
             output = ""
         end if
 
-        call execute_command_line('rm -f '//trim(temp_file))
+        call sys_remove_file(temp_file)
 
     end subroutine execute_and_capture
 
