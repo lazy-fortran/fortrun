@@ -47,21 +47,10 @@ contains
         func_idx = push_function_def(arena, "add_numbers", [a_idx, b_idx], "real(8)", [implicit_none_idx], 1, 1)
 
         ! Create parameter declarations
-       decl_a_idx = push_declaration(arena, "real", "a", kind_value=8, line=3, column=1)
-       decl_b_idx = push_declaration(arena, "real", "b", kind_value=8, line=4, column=1)
-
-        ! Set intent on the declaration nodes
-        select type (decl_a_node => arena%entries(decl_a_idx)%node)
-        type is (declaration_node)
-            decl_a_node%intent = "in"
-            decl_a_node%has_intent = .true.
-        end select
-
-        select type (decl_b_node => arena%entries(decl_b_idx)%node)
-        type is (declaration_node)
-            decl_b_node%intent = "in"
-            decl_b_node%has_intent = .true.
-        end select
+        decl_a_idx = push_parameter_declaration(arena, "a", "real", kind_value=8, &
+                                                intent_value=1, line=3, column=1)  ! 1 = intent(in)
+        decl_b_idx = push_parameter_declaration(arena, "b", "real", kind_value=8, &
+                                                intent_value=1, line=4, column=1)  ! 1 = intent(in)
 
         ! Update function body
         select type (func_node => arena%entries(func_idx)%node)
@@ -109,28 +98,12 @@ contains
         func_idx = push_function_def(arena, "mixed_func", [x_idx, y_idx, n_idx], "", [implicit_none_idx], 1, 1)
 
         ! Create declarations - two real(8), one integer
-       decl_x_idx = push_declaration(arena, "real", "x", kind_value=8, line=3, column=1)
-       decl_y_idx = push_declaration(arena, "real", "y", kind_value=8, line=4, column=1)
-        decl_n_idx = push_declaration(arena, "integer", "n", line=5, column=1)
-
-        ! Set intent on all
-        select type (decl_x_node => arena%entries(decl_x_idx)%node)
-        type is (declaration_node)
-            decl_x_node%intent = "in"
-            decl_x_node%has_intent = .true.
-        end select
-
-        select type (decl_y_node => arena%entries(decl_y_idx)%node)
-        type is (declaration_node)
-            decl_y_node%intent = "in"
-            decl_y_node%has_intent = .true.
-        end select
-
-        select type (decl_n_node => arena%entries(decl_n_idx)%node)
-        type is (declaration_node)
-            decl_n_node%intent = "in"
-            decl_n_node%has_intent = .true.
-        end select
+        decl_x_idx = push_parameter_declaration(arena, "x", "real", kind_value=8, &
+                                                intent_value=1, line=3, column=1)  ! 1 = intent(in)
+        decl_y_idx = push_parameter_declaration(arena, "y", "real", kind_value=8, &
+                                                intent_value=1, line=4, column=1)  ! 1 = intent(in)
+        decl_n_idx = push_parameter_declaration(arena, "n", "integer", kind_value=0, &
+                                                intent_value=1, line=5, column=1)  ! 1 = intent(in)
 
         ! Update function body
         select type (func_node => arena%entries(func_idx)%node)
@@ -177,28 +150,12 @@ contains
         func_idx = push_subroutine_def(arena, "intent_sub", [a_idx, b_idx, c_idx], [implicit_none_idx], 1, 1)
 
         ! Create declarations with different intents
-       decl_a_idx = push_declaration(arena, "real", "a", kind_value=8, line=3, column=1)
-       decl_b_idx = push_declaration(arena, "real", "b", kind_value=8, line=4, column=1)
-       decl_c_idx = push_declaration(arena, "real", "c", kind_value=8, line=5, column=1)
-
-        ! Set different intents
-        select type (decl_a_node => arena%entries(decl_a_idx)%node)
-        type is (declaration_node)
-            decl_a_node%intent = "in"
-            decl_a_node%has_intent = .true.
-        end select
-
-        select type (decl_b_node => arena%entries(decl_b_idx)%node)
-        type is (declaration_node)
-            decl_b_node%intent = "out"
-            decl_b_node%has_intent = .true.
-        end select
-
-        select type (decl_c_node => arena%entries(decl_c_idx)%node)
-        type is (declaration_node)
-            decl_c_node%intent = "inout"
-            decl_c_node%has_intent = .true.
-        end select
+        decl_a_idx = push_parameter_declaration(arena, "a", "real", kind_value=8, &
+                                                intent_value=1, line=3, column=1)  ! 1 = intent(in)
+        decl_b_idx = push_parameter_declaration(arena, "b", "real", kind_value=8, &
+                                                intent_value=2, line=4, column=1)  ! 2 = intent(out)
+        decl_c_idx = push_parameter_declaration(arena, "c", "real", kind_value=8, &
+                                                intent_value=3, line=5, column=1)  ! 3 = intent(inout)
 
         ! Update body
         select type (sub_node => arena%entries(func_idx)%node)
@@ -246,33 +203,17 @@ contains
         func_idx = push_function_def(arena, "mixed_decls", [a_idx, b_idx, c_idx], "real(8)", [implicit_none_idx], 1, 1)
 
         ! Create mixed declarations
-       decl_a_idx = push_declaration(arena, "real", "a", kind_value=8, line=3, column=1)
-       decl_b_idx = push_declaration(arena, "real", "b", kind_value=8, line=4, column=1)
+        decl_a_idx = push_parameter_declaration(arena, "a", "real", kind_value=8, &
+                                                intent_value=1, line=3, column=1)  ! 1 = intent(in)
+        decl_b_idx = push_parameter_declaration(arena, "b", "real", kind_value=8, &
+                                                intent_value=1, line=4, column=1)  ! 1 = intent(in)
 
         ! Add a non-declaration statement
       stmt_idx = push_literal(arena, "! This breaks the grouping", LITERAL_STRING, 5, 1)
 
-       decl_c_idx = push_declaration(arena, "real", "c", kind_value=8, line=6, column=1)
+        decl_c_idx = push_parameter_declaration(arena, "c", "real", kind_value=8, &
+                                                intent_value=1, line=6, column=1)  ! 1 = intent(in)
         decl_result_idx = push_declaration(arena, "real", "result", kind_value=8, line=7, column=1)
-
-        ! Set intent on parameters
-        select type (decl_a_node => arena%entries(decl_a_idx)%node)
-        type is (declaration_node)
-            decl_a_node%intent = "in"
-            decl_a_node%has_intent = .true.
-        end select
-
-        select type (decl_b_node => arena%entries(decl_b_idx)%node)
-        type is (declaration_node)
-            decl_b_node%intent = "in"
-            decl_b_node%has_intent = .true.
-        end select
-
-        select type (decl_c_node => arena%entries(decl_c_idx)%node)
-        type is (declaration_node)
-            decl_c_node%intent = "in"
-            decl_c_node%has_intent = .true.
-        end select
 
         ! Update body with mixed content
         select type (func_node => arena%entries(func_idx)%node)
