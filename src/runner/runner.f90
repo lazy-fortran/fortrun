@@ -322,11 +322,20 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         character(len=512) :: command
         integer :: unit, iostat
 
-        ! Use realpath command to get absolute path
+        ! Get absolute path in OS-specific way
         block
+            use fpm_environment, only: get_os_type, OS_WINDOWS
             character(len=256) :: temp_file
+
  temp_file = get_temp_file_path(create_temp_dir('fortran_realpath'), 'fortran_path.tmp')
-            command = 'realpath "'//trim(filename)//'" > "'//trim(temp_file)//'"'
+
+            if (get_os_type() == OS_WINDOWS) then
+                ! Windows: Use PowerShell to get absolute path
+                command = 'powershell -Command "(Resolve-Path -Path '''//trim(filename)//''').Path" > "'//trim(temp_file)//'"'
+            else
+                ! Unix: Use realpath
+                command = 'realpath "'//trim(filename)//'" > "'//trim(temp_file)//'"'
+            end if
             call execute_command_line(command)
 
             open (newunit=unit, file=temp_file, status='old', iostat=iostat)
@@ -347,10 +356,10 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         character(len=*), intent(out) :: basename
         integer :: i, last_slash, last_dot
 
-        ! Find last slash
+        ! Find last slash (both Unix / and Windows \)
         last_slash = 0
         do i = len_trim(filename), 1, -1
-            if (filename(i:i) == '/') then
+            if (filename(i:i) == '/' .or. filename(i:i) == '\') then
                 last_slash = i
                 exit
             end if
@@ -556,7 +565,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         ! Extract directory from main file path
         last_slash = 0
         do i = len_trim(main_file), 1, -1
-            if (main_file(i:i) == '/') then
+            if (main_file(i:i) == '/' .or. main_file(i:i) == '\') then
                 last_slash = i
                 exit
             end if
@@ -572,13 +581,25 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         call mkdir(trim(project_dir)//'/src')
 
         ! Copy all .f90 files except the main file (only files, not directories)
-    command = 'find "' // trim(source_dir) // '" -maxdepth 1 -type f \( -name "*.f90" -o -name "*.F90" \) | ' // &
-                  'while read f; do '// &
-                  '  if [ "$f" != "'//trim(main_file)//'" ]; then '// &
-                  '    cp "$f" "'//trim(project_dir)//'/src/"; '// &
-                  '  fi; '// &
-                  'done'
-        call execute_command_line(command)
+        ! Use Windows-compatible approach
+        block
+            use fpm_environment, only: get_os_type, OS_WINDOWS
+
+            if (get_os_type() == OS_WINDOWS) then
+                ! Windows: Use dir command and for loop
+                command = 'cmd /c "for %f in ("'//trim(source_dir)//'"\*.f90 "'//trim(source_dir)//'"\*.F90) do ' // &
+                          'if not "%~f"=="'//trim(main_file)//'" copy "%~f" "'//trim(project_dir)//'\src\" >nul 2>&1"'
+            else
+                ! Unix: Use find command
+                command = 'find "' // trim(source_dir) // '" -maxdepth 1 -type f \( -name "*.f90" -o -name "*.F90" \) | ' // &
+                          'while read f; do '// &
+                          '  if [ "$f" != "'//trim(main_file)//'" ]; then '// &
+                          '    cp "$f" "'//trim(project_dir)//'/src/"; '// &
+                          '  fi; '// &
+                          'done'
+            end if
+            call execute_command_line(command)
+        end block
 
     end subroutine copy_local_modules
 
@@ -621,7 +642,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         integer :: last_slash
 
         ! Get directory containing the source file
-        last_slash = index(source_file, '/', back=.true.)
+        last_slash = max(index(source_file, '/', back=.true.), index(source_file, '\', back=.true.))
         if (last_slash > 0) then
             source_dir = source_file(1:last_slash - 1)
         else
@@ -762,9 +783,22 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         main_basename = extract_basename(main_file)
 
         ! Create temporary file to list .f90 files
-    temp_file = get_temp_file_path(create_temp_dir('fortran_f90_list'), 'fortran_f90_list.tmp')
-    command = 'find "' // trim(source_dir) // '" -maxdepth 1 -name "*.f90" -o -name "*.F90" > ' // trim(temp_file)
-        call execute_command_line(command)
+        temp_file = get_temp_file_path(create_temp_dir('fortran_f90_list'), 'fortran_f90_list.tmp')
+
+        ! Use OS-specific command to list files
+        block
+            use fpm_environment, only: get_os_type, OS_WINDOWS
+
+            if (get_os_type() == OS_WINDOWS) then
+                ! Windows: Use dir command
+                command = 'cmd /c "dir /b "'//trim(source_dir)//'"\*.f90 "'//trim(source_dir)//'"\*.F90 2>nul > ' // &
+                          '"'//trim(temp_file)//'"'
+            else
+                ! Unix: Use find command
+                command = 'find "' // trim(source_dir) // '" -maxdepth 1 -name "*.f90" -o -name "*.F90" > ' // trim(temp_file)
+            end if
+            call execute_command_line(command)
+        end block
 
         ! Read file list and exclude main file
         files = ''
@@ -794,7 +828,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         character(len=256) :: basename
         integer :: last_slash
 
-        last_slash = index(filepath, '/', back=.true.)
+  last_slash = max(index(filepath, '/', back=.true.), index(filepath, '\', back=.true.))
         if (last_slash > 0) then
             basename = filepath(last_slash + 1:)
         else
