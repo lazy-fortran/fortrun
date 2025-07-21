@@ -1,5 +1,8 @@
 module test_discovery
     use iso_fortran_env, only: error_unit
+    use temp_utils, only: get_system_temp_dir, get_temp_file_path
+    use fpm_environment, only: get_os_type, OS_WINDOWS
+    use system_utils, only: sys_remove_file
     implicit none
     private
 
@@ -23,6 +26,7 @@ contains
         logical, intent(out) :: success
 
         character(len=1024) :: command, line
+        character(len=512) :: test_list_file
         integer :: unit, ios, idx
 
         success = .false.
@@ -30,7 +34,11 @@ contains
 
         ! Build tests first
         if (.not. quiet) write (*, '(A)') "Building tests..."
-        command = "fpm build --tests > /dev/null 2>&1"
+        if (get_os_type() == OS_WINDOWS) then
+            command = "fpm build --tests > nul 2>&1"
+        else
+            command = "fpm build --tests > /dev/null 2>&1"
+        end if
         call execute_command_line(trim(command), exitstat=ios)
         if (ios /= 0) then
             if (.not. quiet) write (error_unit, '(A)') "ERROR: Failed to build tests"
@@ -40,13 +48,19 @@ contains
         ! Discover test executables using fpm test --runner echo
         if (.not. quiet) write (*, '(A)') "Discovering tests..."
 
-        open (newunit=unit, file="/tmp/fortran_test_list.txt", status="replace")
-        command = "fpm test --runner echo 2>/dev/null | grep -E '^build/' | sort | uniq > /tmp/fortran_test_list.txt"
+     test_list_file = get_temp_file_path(get_system_temp_dir(), "fortran_test_list.txt")
+
+        open (newunit=unit, file=test_list_file, status="replace")
+        if (get_os_type() == OS_WINDOWS) then
+            command = "fpm test --runner echo 2>nul | findstr /B build/ | sort > "//trim(test_list_file)
+        else
+            command = "fpm test --runner echo 2>/dev/null | grep -E '^build/' | sort | uniq > "//trim(test_list_file)
+        end if
         call execute_command_line(trim(command))
         close (unit)
 
         ! Read test list
-        open (newunit=unit, file="/tmp/fortran_test_list.txt", status="old", iostat=ios)
+        open (newunit=unit, file=test_list_file, status="old", iostat=ios)
         if (ios /= 0) then
             if (.not. quiet) write (error_unit, '(A)') "ERROR: Failed to read test list"
             return
@@ -78,7 +92,7 @@ contains
         end do
 
         close (unit)
-        call execute_command_line("rm -f /tmp/fortran_test_list.txt")
+        call sys_remove_file(test_list_file)
 
         success = .true.
     end subroutine discover_fpm_tests
