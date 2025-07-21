@@ -2,6 +2,7 @@ program test_benchmarks
     use, intrinsic :: iso_fortran_env, only: int64
     use temp_utils, only: create_temp_dir, get_temp_file_path, create_test_cache_dir
     use temp_utils, only: mkdir
+    use system_utils, only: sys_remove_file, sys_remove_dir, sys_get_path_separator
     implicit none
 
     integer :: n_passed, n_failed
@@ -96,7 +97,7 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
         end if
 
         ! Cleanup
-        call execute_command_line('rm -rf '//trim(test_file))
+        call sys_remove_file(test_file)
         print *
 
     end subroutine benchmark_simple_program
@@ -126,7 +127,7 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
             bench_mod1_output = get_temp_file_path(temp_dir, 'bench_mod1_output.txt')
 
             command = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" -v "'// &
-                      trim(test_dir)//'/main.f90" > '//bench_mod1_output//' 2>&1'
+    trim(test_dir)//sys_get_path_separator()//'main.f90" > '//bench_mod1_output//' 2>&1'
             call execute_command_line(command, exitstat=exit_code)
 
             call read_file_content(bench_mod1_output, output1)
@@ -143,7 +144,7 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
             ! Second run - should use cache
             bench_mod1_output = get_temp_file_path(temp_dir, 'bench_mod2_output.txt')
             command = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" -v "'// &
-                      trim(test_dir)//'/main.f90" > '//bench_mod1_output//' 2>&1'
+    trim(test_dir)//sys_get_path_separator()//'main.f90" > '//bench_mod1_output//' 2>&1'
             call execute_command_line(command, exitstat=exit_code)
 
             call read_file_content(bench_mod1_output, output2)
@@ -166,7 +167,7 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
         end if
 
         ! Cleanup
-        call execute_command_line('rm -rf '//trim(test_dir))
+        call sys_remove_dir(test_dir)
         print *
 
     end subroutine benchmark_local_modules
@@ -196,7 +197,7 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
             bench_inc1_output = get_temp_file_path(temp_dir, 'bench_inc1_output.txt')
 
             command = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" -v "'// &
-                      trim(test_dir)//'/main.f90" > '//bench_inc1_output//' 2>&1'
+    trim(test_dir)//sys_get_path_separator()//'main.f90" > '//bench_inc1_output//' 2>&1'
             call execute_command_line(command, exitstat=exit_code)
 
             call read_file_content(bench_inc1_output, output1)
@@ -210,12 +211,12 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
             end if
 
             ! Modify main file only
-            call modify_main_file(trim(test_dir)//'/main.f90')
+            call modify_main_file(trim(test_dir)//sys_get_path_separator()//'main.f90')
 
             ! Incremental build - should recompile main but cache modules
             bench_inc1_output = get_temp_file_path(temp_dir, 'bench_inc2_output.txt')
             command = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" -v "'// &
-                      trim(test_dir)//'/main.f90" > '//bench_inc1_output//' 2>&1'
+    trim(test_dir)//sys_get_path_separator()//'main.f90" > '//bench_inc1_output//' 2>&1'
             call execute_command_line(command, exitstat=exit_code)
 
             call read_file_content(bench_inc1_output, output2)
@@ -238,7 +239,7 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
         end if
 
         ! Cleanup
-        call execute_command_line('rm -rf '//trim(test_dir))
+        call sys_remove_dir(test_dir)
         print *
 
     end subroutine benchmark_incremental_compilation
@@ -300,7 +301,7 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
         call mkdir(trim(dir_path))
 
         ! Create module1.f90
-        open (newunit=unit, file=trim(dir_path)//'/module1.f90', status='replace')
+        open (newunit=unit, file=trim(dir_path)//sys_get_path_separator()//'module1.f90', status='replace')
         write (unit, '(a)') 'module module1'
         write (unit, '(a)') '  implicit none'
         write (unit, '(a)') '  integer, parameter :: MOD1_VALUE = 42'
@@ -314,7 +315,7 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
         close (unit)
 
         ! Create module2.f90
-        open (newunit=unit, file=trim(dir_path)//'/module2.f90', status='replace')
+        open (newunit=unit, file=trim(dir_path)//sys_get_path_separator()//'module2.f90', status='replace')
         write (unit, '(a)') 'module module2'
         write (unit, '(a)') '  use module1'
         write (unit, '(a)') '  implicit none'
@@ -328,7 +329,7 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
         close (unit)
 
         ! Create main.f90
-        open (newunit=unit, file=trim(dir_path)//'/main.f90', status='replace')
+        open (newunit=unit, file=trim(dir_path)//sys_get_path_separator()//'main.f90', status='replace')
         write (unit, '(a)') 'program bench_modules'
         write (unit, '(a)') '  use module2'
         write (unit, '(a)') '  implicit none'
