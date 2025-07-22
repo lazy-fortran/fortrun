@@ -84,12 +84,16 @@ jobs:
       run: |
         echo Running smoke tests...
 
-        REM Find the built executable
+        REM Find the built executable in app directory
         set "FORTRAN_EXE="
-        for /r build %%i in (fortran.exe) do set "FORTRAN_EXE=%%i"
+        for /r build %%i in (fortran.exe) do (
+          echo Found: %%i
+          echo %%i | findstr /i "\\app\\" >nul
+          if not errorlevel 1 set "FORTRAN_EXE=%%i"
+        )
         if "%FORTRAN_EXE%"=="" (
-          echo ERROR: Could not find fortran.exe in build directory
-          dir /s /b build
+          echo ERROR: Could not find fortran.exe in build/app directory
+          dir /s /b build | findstr /i fortran.exe
           exit /b 1
         )
         echo Found executable: %FORTRAN_EXE%
