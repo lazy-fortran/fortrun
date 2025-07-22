@@ -1,6 +1,7 @@
-name: Test Coverage
+name: Test Coverage (Legacy)
 
-on: [push, pull_request]
+on:
+  workflow_dispatch:  # Only run manually, replaced by test-parallel-coverage.yml
 
 jobs:
   test-coverage:

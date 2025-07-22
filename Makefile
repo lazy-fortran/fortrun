@@ -80,25 +80,29 @@ example:
 
 # Generate comprehensive coverage report with ALL tests
 coverage:
+	@chmod +x scripts/coverage-local.sh
+	@scripts/coverage-local.sh
+
+# Generate coverage for specific test group
+coverage-group:
 	@echo "Cleaning old coverage data..."
-	find . -name '*.gcda' -delete
+	@find . -name '*.gcda' -delete 2>/dev/null || true
 	@echo "Building with coverage flags..."
-	fpm build --flag '-fprofile-arcs -ftest-coverage'
-	@echo "Running ALL tests with coverage (using built-in parallel runner)..."
-	OMP_NUM_THREADS=24 fpm run fortran -- --test --flag '-fprofile-arcs -ftest-coverage' || true
-	@echo "Also running fpm test for any additional coverage..."
-	fpm test --flag '-fprofile-arcs -ftest-coverage' || true
+	@fpm build --flag '-fprofile-arcs -ftest-coverage'
+	@echo "Running $(GROUP) tests with coverage..."
+	@chmod +x scripts/run-test-group.sh
+	@scripts/run-test-group.sh $(GROUP) || true
 	@echo "Generating coverage report..."
-	gcovr --root . \
+	@gcovr --root . \
 		--exclude 'build/*' \
 		--exclude 'test/*' \
 		--exclude 'example/*' \
 		--exclude 'app/test_*.f90' \
 		--exclude 'draft/*' \
-		--txt -o coverage.txt \
+		--txt -o coverage-$(GROUP).txt \
 		--print-summary
-	@echo "Coverage report generated: coverage.txt"
-	@cat coverage.txt
+	@echo "Coverage report generated: coverage-$(GROUP).txt"
+	@cat coverage-$(GROUP).txt
 
 # Generate HTML coverage report  
 coverage-html:

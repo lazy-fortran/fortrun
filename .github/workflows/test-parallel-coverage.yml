@@ -1,0 +1,348 @@
+name: Parallel Tests with Coverage
+
+on: [push, pull_request]
+
+jobs:
+  # Quick unit tests with coverage
+  unit-tests:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]  # Coverage only on Linux for now
+        test-group: [core, utilities, cache, runner]
+      fail-fast: false
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup FPM
+      run: |
+        wget https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-linux-x86_64-gcc-12
+        chmod +x fpm-0.12.0-linux-x86_64-gcc-12
+        sudo mv fpm-0.12.0-linux-x86_64-gcc-12 /usr/local/bin/fpm
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gfortran gcovr
+    
+    - name: Build with coverage
+      run: fpm build --flag '-fprofile-arcs -ftest-coverage'
+    
+    - name: Run Core Tests
+      if: matrix.test-group == 'core'
+      run: |
+        fpm test test_lexer_direct --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_parser_edge_cases --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_frontend_parser_if_statement --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_semantic_simple --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_scope_manager_basic --flag '-fprofile-arcs -ftest-coverage'
+    
+    - name: Run Utilities Tests
+      if: matrix.test-group == 'utilities'
+      run: |
+        fpm test test_logger_utils --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_logger_utils_coverage --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_string_utils --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_string_utils_coverage --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_system_utils_coverage --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_system_utils_missing --flag '-fprofile-arcs -ftest-coverage'
+    
+    - name: Run Cache Tests
+      if: matrix.test-group == 'cache'
+      run: |
+        fpm test test_cache --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_cache_coverage --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_cache_missing --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_cache_lock --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_cache_fallback --flag '-fprofile-arcs -ftest-coverage'
+    
+    - name: Run Runner Tests
+      if: matrix.test-group == 'runner'
+      run: |
+        fpm test test_runner_paths --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_runner_coverage --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_runner_missing_lines --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_runner_edge_cases --flag '-fprofile-arcs -ftest-coverage'
+    
+    - name: Generate coverage data
+      run: |
+        # Find all .gcda files and copy them to a central location
+        mkdir -p coverage-data
+        find . -name "*.gcda" -exec cp --parents {} coverage-data/ \;
+        find . -name "*.gcno" -exec cp --parents {} coverage-data/ \;
+        
+        # Generate intermediate coverage info
+        gcovr --root . \
+          --exclude 'build/*' \
+          --exclude 'test/*' \
+          --exclude 'example/*' \
+          --exclude 'app/test_*.f90' \
+          --exclude 'draft/*' \
+          --json coverage-${{ matrix.test-group }}.json
+    
+    - name: Upload coverage artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-unit-${{ matrix.test-group }}
+        path: |
+          coverage-*.json
+          coverage-data/
+        retention-days: 1
+
+  # Integration tests with coverage
+  integration-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        test-group: [cli, notebook, fpm, module]
+      fail-fast: false
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup FPM
+      run: |
+        wget https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-linux-x86_64-gcc-12
+        chmod +x fpm-0.12.0-linux-x86_64-gcc-12
+        sudo mv fpm-0.12.0-linux-x86_64-gcc-12 /usr/local/bin/fpm
+        sudo apt-get update && sudo apt-get install -y imagemagick gcovr
+    
+    - name: Build with coverage
+      run: fpm build --flag '-fprofile-arcs -ftest-coverage'
+    
+    - name: Run CLI Tests
+      if: matrix.test-group == 'cli'
+      run: |
+        fpm test test_cli_system --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_cli_integration --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_cli_comprehensive --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_cli_json_options --flag '-fprofile-arcs -ftest-coverage'
+    
+    - name: Run Notebook Tests
+      if: matrix.test-group == 'notebook'
+      run: |
+        fpm test test_notebook_parser --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_notebook_executor --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_notebook_system --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_notebook_integration --flag '-fprofile-arcs -ftest-coverage'
+    
+    - name: Run FPM Tests
+      if: matrix.test-group == 'fpm'
+      run: |
+        fpm test test_fpm_generator --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_fpm_module_cache --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_fpm_version_generation --flag '-fprofile-arcs -ftest-coverage'
+    
+    - name: Run Module Tests
+      if: matrix.test-group == 'module'
+      run: |
+        fpm test test_module_scanner --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_module_scanner_extended --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_module_scanner_coverage --flag '-fprofile-arcs -ftest-coverage'
+    
+    - name: Generate coverage data
+      run: |
+        mkdir -p coverage-data
+        find . -name "*.gcda" -exec cp --parents {} coverage-data/ \;
+        find . -name "*.gcno" -exec cp --parents {} coverage-data/ \;
+        
+        gcovr --root . \
+          --exclude 'build/*' \
+          --exclude 'test/*' \
+          --exclude 'example/*' \
+          --exclude 'app/test_*.f90' \
+          --exclude 'draft/*' \
+          --json coverage-${{ matrix.test-group }}.json
+    
+    - name: Upload coverage artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-integration-${{ matrix.test-group }}
+        path: |
+          coverage-*.json
+          coverage-data/
+        retention-days: 1
+
+  # Heavy tests with coverage
+  heavy-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        test-group: [frontend, integration]
+      fail-fast: false
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup FPM
+      run: |
+        wget https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-linux-x86_64-gcc-12
+        chmod +x fpm-0.12.0-linux-x86_64-gcc-12
+        sudo mv fpm-0.12.0-linux-x86_64-gcc-12 /usr/local/bin/fpm
+        sudo apt-get update && sudo apt-get install -y imagemagick gcovr
+    
+    - name: Build with coverage
+      run: fpm build --flag '-fprofile-arcs -ftest-coverage'
+    
+    - name: Run Frontend Tests
+      if: matrix.test-group == 'frontend'
+      run: |
+        export OMP_NUM_THREADS=4
+        fpm test test_frontend_test_cases --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_frontend_parser_derived_types --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_frontend_parser_array_params --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_frontend_parser_explicit_types --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_frontend_full_explicit_params --flag '-fprofile-arcs -ftest-coverage'
+    
+    - name: Run Integration Tests
+      if: matrix.test-group == 'integration'
+      run: |
+        export OMP_NUM_THREADS=4
+        fpm test test_parse_and_codegen_arena --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_runner_integration_coverage --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_runner_comprehensive --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_examples --flag '-fprofile-arcs -ftest-coverage'
+    
+    - name: Generate coverage data
+      run: |
+        mkdir -p coverage-data
+        find . -name "*.gcda" -exec cp --parents {} coverage-data/ \;
+        find . -name "*.gcno" -exec cp --parents {} coverage-data/ \;
+        
+        gcovr --root . \
+          --exclude 'build/*' \
+          --exclude 'test/*' \
+          --exclude 'example/*' \
+          --exclude 'app/test_*.f90' \
+          --exclude 'draft/*' \
+          --json coverage-${{ matrix.test-group }}.json
+    
+    - name: Upload coverage artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-heavy-${{ matrix.test-group }}
+        path: |
+          coverage-*.json
+          coverage-data/
+        retention-days: 1
+
+  # Merge coverage and upload to Codecov
+  coverage-merge:
+    needs: [unit-tests, integration-tests, heavy-tests]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install gcovr
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcovr
+    
+    - name: Download all coverage artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: coverage-*
+        merge-multiple: true
+    
+    - name: Restore coverage data structure
+      run: |
+        # Restore the original directory structure for .gcda and .gcno files
+        for dir in coverage-data/*/; do
+          if [ -d "$dir" ]; then
+            cp -r "$dir"* . || true
+          fi
+        done
+    
+    - name: Merge coverage reports
+      run: |
+        # List all JSON files for debugging
+        echo "Found coverage JSON files:"
+        ls -la coverage-*.json || echo "No JSON files found"
+        
+        # Merge all JSON coverage reports
+        gcovr --add-tracefile coverage-*.json \
+          --root . \
+          --exclude 'build/*' \
+          --exclude 'test/*' \
+          --exclude 'example/*' \
+          --exclude 'app/test_*.f90' \
+          --exclude 'draft/*' \
+          --xml -o coverage.xml \
+          --html-details coverage-report.html \
+          --print-summary
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-parallel
+        fail_ci_if_error: true
+    
+    - name: Upload HTML coverage report
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-html-report
+        path: coverage-report*
+        retention-days: 30
+    
+    - name: Check coverage threshold
+      run: |
+        # Extract coverage percentage from XML
+        coverage=$(grep -oP 'line-rate="\K[^"]+' coverage.xml | head -1)
+        coverage_percent=$(echo "$coverage * 100" | bc -l | cut -d. -f1)
+        
+        echo "Total coverage: ${coverage_percent}%"
+        
+        # Fail if coverage drops below threshold
+        if [ "$coverage_percent" -lt "45" ]; then
+          echo "Coverage ${coverage_percent}% is below threshold of 45%"
+          exit 1
+        fi
+
+  # Windows tests (without coverage for now)
+  windows-tests:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        test-group: [core, utilities]
+      fail-fast: false
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup FPM
+      shell: pwsh
+      run: |
+        Invoke-WebRequest -Uri "https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-windows-x86_64-gcc-12.exe" -OutFile "fpm.exe"
+        Move-Item -Path "fpm.exe" -Destination "C:\msys64\mingw64\bin\fpm.exe"
+    
+    - name: Setup MinGW
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: false
+        path-type: inherit
+        install: >-
+          mingw-w64-x86_64-gcc-fortran
+    
+    - name: Build
+      run: fpm build
+    
+    - name: Run Core Tests
+      if: matrix.test-group == 'core'
+      run: |
+        fpm test test_lexer_direct
+        fpm test test_parser_edge_cases
+        fpm test test_semantic_simple
+    
+    - name: Run Utilities Tests
+      if: matrix.test-group == 'utilities'
+      run: |
+        fpm test test_logger_utils
+        fpm test test_string_utils
+        fpm test test_system_utils_coverage
