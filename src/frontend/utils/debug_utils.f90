@@ -5,6 +5,7 @@ module debug_utils
     use lexer_core, only: token_t
     use ast_core
     use json_writer, only: json_write_tokens_to_file, json_write_ast_to_file
+    use logger_utils, only: debug_print, print_info, print_warning, print_error
     implicit none
     private
 
@@ -29,7 +30,7 @@ contains
         end if
         json_file = json_file//"_tokens.json"
 
-        print *, "DEBUG: Writing tokens to: ", trim(json_file)
+        call debug_print('Writing tokens to: ' // trim(json_file))
         call json_write_tokens_to_file(tokens, json_file)
     end subroutine debug_output_tokens
 
@@ -47,7 +48,7 @@ contains
         end if
         json_file = json_file//"_ast.json"
 
-        print *, "DEBUG: Writing AST to: ", trim(json_file)
+        call debug_print('Writing AST to: ' // trim(json_file))
 
         ! Write arena-based AST
         call write_arena_ast_json(arena, prog_index, json_file)
@@ -67,7 +68,7 @@ contains
         end if
         json_file = json_file//"_semantic.json"
 
-        print *, "DEBUG: Writing semantic analysis to: ", trim(json_file)
+        call debug_print('Writing semantic analysis to: ' // trim(json_file))
 
         ! Write arena with type annotations
         call write_arena_semantic_json(arena, prog_index, json_file)
@@ -91,7 +92,7 @@ contains
         end if
         output_filename = output_filename//"_standardize.json"
 
-        print *, "DEBUG: Writing standardized AST to: ", trim(output_filename)
+        call debug_print('Writing standardized AST to: ' // trim(output_filename))
 
         ! Initialize JSON
         call json_obj%initialize()

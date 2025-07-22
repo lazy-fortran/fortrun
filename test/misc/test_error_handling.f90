@@ -54,7 +54,7 @@ contains
 
         ! Check that output contains error message about build failure
         ! This is expected behavior - nonexistent modules should cause build failure
-        call check_output_contains(path_join(get_system_temp_dir(), 'unknown_output.txt'), 'Error: Build failed')
+        call check_output_contains(path_join(get_system_temp_dir(), 'unknown_output.txt'), ' ERROR: Build failed')
 
         ! Clean up
         call sys_remove_dir(test_dir)
@@ -97,7 +97,7 @@ contains
 
         ! Check that output contains error message
         ! Build should fail for missing modules
-        call check_output_contains(path_join(get_system_temp_dir(), 'error_output.txt'), 'Error: Build failed')
+        call check_output_contains(path_join(get_system_temp_dir(), 'error_output.txt'), ' ERROR: Build failed')
 
         ! Clean up
         call sys_remove_dir(test_dir)
@@ -138,7 +138,7 @@ contains
         call check_exit_code(path_join(get_system_temp_dir(), 'syntax_exit.txt'), 1)
 
         ! Check that output contains error information
-        call check_output_contains(path_join(get_system_temp_dir(), 'syntax_output.txt'), 'Error')
+        call check_output_contains(path_join(get_system_temp_dir(), 'syntax_output.txt'), 'ERROR')
 
         ! Clean up
         call sys_remove_dir(test_dir)

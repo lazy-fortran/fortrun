@@ -9,6 +9,7 @@ module notebook_executor
     use temp_utils, only: mkdir
     use system_utils, only: sys_remove_file, sys_get_current_dir
     use fpm_environment, only: get_os_type, OS_WINDOWS
+    use logger_utils, only: debug_print, print_info, print_warning, print_error
     implicit none
     private
 
@@ -39,6 +40,25 @@ module notebook_executor
     public :: free_execution_results
 
 contains
+
+    !> Helper function to convert integer to string
+    function int_to_char(i) result(str)
+        integer, intent(in) :: i
+        character(len=32) :: str
+        write(str, '(i0)') i
+        str = trim(str)
+    end function int_to_char
+
+    !> Helper function to convert logical to string
+    function logical_to_char(l) result(str)
+        logical, intent(in) :: l
+        character(len=1) :: str
+        if (l) then
+            str = 'T'
+        else
+            str = 'F'
+        end if
+    end function logical_to_char
 
     subroutine execute_notebook(notebook, results, custom_cache_dir, verbose_level)
         type(notebook_t), intent(inout) :: notebook
@@ -85,22 +105,22 @@ contains
             end if
 
             ! Acquire cache lock with NO WAIT to prevent hanging
-write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (NO WAIT)'
-            write (*, '(a,a)') 'DEBUG: cache_dir = ', trim(cache_dir)
-            write (*, '(a,a)') 'DEBUG: lock_name = ', 'notebook_'//trim(cache_key)
-            write (*, '(a,i0)') 'DEBUG: thread ID = ', get_process_id()
+call debug_print('notebook_executor - attempting to acquire cache lock (NO WAIT)')
+            call debug_print('cache_dir = ' // trim(cache_dir))
+            call debug_print('lock_name = notebook_' // trim(cache_key))
+            call debug_print('thread ID = ' // int_to_char(get_process_id()))
             call flush (6)
 
             ! Use no-wait mode to prevent hanging in CI
           lock_acquired = acquire_lock(cache_dir, 'notebook_'//trim(cache_key), .false.)
 
-            write (*, '(a,l)') 'DEBUG: lock_acquired = ', lock_acquired
+            call debug_print('lock_acquired = ' // logical_to_char(lock_acquired))
             call flush (6)
 
             if (.not. lock_acquired) then
                 results%success = .false.
                 results%error_message = "Could not acquire cache lock"
-   write (*, '(a)') 'DEBUG: notebook_executor - failed to acquire lock, returning error'
+   call debug_print('notebook_executor - failed to acquire lock, returning error')
                 call flush (6)
                 return
             end if
@@ -553,16 +573,16 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
         else
             command = 'cd '//trim(project_dir)//' && timeout 30 fpm run'
         end if
-        write (*, '(a)') 'DEBUG: About to execute notebook command:'
-        write (*, '(a,a)') 'DEBUG: command = ', trim(command)
-        write (*, '(a,a)') 'DEBUG: project_dir = ', trim(project_dir)
-        write (*, '(a,i0)') 'DEBUG: thread ID = ', get_process_id()
+        call debug_print('About to execute notebook command:')
+        call debug_print('command = ' // trim(command))
+        call debug_print('project_dir = ' // trim(project_dir))
+        call debug_print('thread ID = ' // int_to_char(get_process_id()))
         call flush (6)
 
         call execute_and_capture(command, output, exit_code)
 
-        write (*, '(a,i0)') 'DEBUG: Execution completed with exit_code = ', exit_code
-        write (*, '(a,i0)') 'DEBUG: thread ID = ', get_process_id()
+        call debug_print('Execution completed with exit_code = ' // int_to_char(exit_code))
+        call debug_print('thread ID = ' // int_to_char(get_process_id()))
         call flush (6)
 
         ! Read actual output from notebook_output module
@@ -760,16 +780,16 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
 
         full_command = trim(command)//' > '//trim(temp_file)//' 2>&1'
 
-        write (*, '(a)') 'DEBUG: execute_and_capture starting'
-        write (*, '(a,a)') 'DEBUG: full_command = ', trim(full_command)
-        write (*, '(a,i0)') 'DEBUG: thread ID = ', get_process_id()
-        write (*, '(a,a)') 'DEBUG: temp_file = ', trim(temp_file)
+        call debug_print('execute_and_capture starting')
+        call debug_print('full_command = ' // trim(full_command))
+        call debug_print('thread ID = ' // int_to_char(get_process_id()))
+        call debug_print('temp_file = ' // trim(temp_file))
         call flush (6)
 
         call execute_command_line(full_command, exitstat=exit_code)
 
- write (*, '(a,i0)') 'DEBUG: execute_command_line returned with exit_code = ', exit_code
-        write (*, '(a,i0)') 'DEBUG: thread ID = ', get_process_id()
+ call debug_print('execute_command_line returned with exit_code = ' // int_to_char(exit_code))
+        call debug_print('thread ID = ' // int_to_char(get_process_id()))
         call flush (6)
 
         inquire (file=temp_file, size=file_size)

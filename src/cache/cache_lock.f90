@@ -6,6 +6,7 @@ module cache_lock
     use fpm_filesystem, only: join_path
     use system_utils, only: sys_remove_file, sys_move_file, sys_find_files, &
                             sys_create_symlink, sys_process_exists, sys_sleep, sys_file_exists
+    use logger_utils, only: debug_print, print_info, print_warning, print_error
     implicit none
     private
     public :: acquire_lock, release_lock, is_locked, cleanup_stale_locks
@@ -14,6 +15,14 @@ module cache_lock
     integer, parameter :: STALE_LOCK_TIME = 300  ! 5 minutes
 
 contains
+
+    !> Helper function to convert integer to string
+    function int_to_char(i) result(str)
+        integer, intent(in) :: i
+        character(len=32) :: str
+        write(str, '(i0)') i
+        str = trim(str)
+    end function int_to_char
 
     function acquire_lock(cache_dir, project_name, wait) result(success)
         character(len=*), intent(in) :: cache_dir, project_name
@@ -74,7 +83,7 @@ contains
             wait_time = wait_time + 1
 
             if (wait_time >= MAX_WAIT_TIME) then
-                write(error_unit, *) 'DEBUG: Cache lock timeout after', MAX_WAIT_TIME, 'seconds for', trim(project_name)
+                call debug_print('Cache lock timeout after ' // int_to_char(MAX_WAIT_TIME) // ' seconds for ' // trim(project_name))
                 exit
             end if
         end do
@@ -112,12 +121,12 @@ contains
         character(len=*), intent(in) :: lock_file
         logical :: exists
         
-        write (error_unit, *) 'DEBUG: check_lock_file_exists called for:', trim(lock_file)
+        call debug_print('check_lock_file_exists called for: ' // trim(lock_file))
         
         ! Use system utility for file existence check
         exists = sys_file_exists(lock_file)
         
-        write (error_unit, *) 'DEBUG: File exists:', exists
+        call debug_print('File exists: ' // merge('T', 'F', exists))
     end function check_lock_file_exists
 
     subroutine cleanup_stale_locks(cache_dir)
@@ -176,21 +185,21 @@ contains
             if (file_exists) then
                 ! Lock already exists, can't create
                 ! Clean up temp file since lock already exists
-                write (error_unit, *) 'DEBUG: Deleting temp file:', trim(temp_file)
+                call debug_print('Deleting temp file: ' // trim(temp_file))
                 call sys_remove_file(temp_file)
                 success = .false.
             else
                 ! Try atomic move/link operation
-                write (error_unit, *) 'DEBUG: Moving temp file to lock file'
-                write (error_unit, *) 'DEBUG: From:', trim(temp_file)
-                write (error_unit, *) 'DEBUG: To:', trim(lock_file)
+                call debug_print('Moving temp file to lock file')
+                call debug_print('From: ' // trim(temp_file))
+                call debug_print('To: ' // trim(lock_file))
 
                 ! Use move for atomic operation on all platforms
                 ! This avoids symlink issues and is atomic within same filesystem
                 call sys_move_file(temp_file, lock_file, success)
 
                 if (.not. success) then
-                    write (error_unit, *) 'DEBUG: Atomic lock creation failed'
+                    call debug_print('Atomic lock creation failed')
                     ! Clean up temp file if it still exists
                     call sys_remove_file(temp_file)
                 end if
@@ -207,7 +216,7 @@ contains
         integer :: lock_year, lock_month, lock_day, lock_hour, lock_min, lock_sec
 
         stale = .false.
-        write (error_unit, *) 'DEBUG: is_lock_stale checking:', trim(lock_file)
+        call debug_print('is_lock_stale checking: ' // trim(lock_file))
 
         open (newunit=unit, file=lock_file, status='old', iostat=iostat)
         if (iostat == 0) then
@@ -233,25 +242,25 @@ contains
 
                         ! Check if lock is older than stale threshold
                         if (current_time - lock_time > STALE_LOCK_TIME) then
-                            write (error_unit, *) 'DEBUG: Lock is stale due to age'
+                            call debug_print('Lock is stale due to age')
                             stale = .true.
                         else
                             ! Check if process is still running (only on Unix where we have real PIDs)
                             if (get_os_type() == OS_WINDOWS) then
                                 ! On Windows we use random numbers as PIDs, so skip process check
-                                write (error_unit, *) 'DEBUG: Windows detected, skipping process check - lock is fresh'
+                                call debug_print('Windows detected, skipping process check - lock is fresh')
                             else
                                 read (pid_str, *, iostat=iostat) lock_pid
                                 if (iostat == 0) then
-                                    write (error_unit, *) 'DEBUG: Checking if process', lock_pid, 'is running'
+                                    call debug_print('Checking if process ' // int_to_char(lock_pid) // ' is running')
                                     if (.not. is_process_running(lock_pid)) then
-                                        write (error_unit, *) 'DEBUG: Process not running, lock is stale'
+                                        call debug_print('Process not running, lock is stale')
                                         stale = .true.
                                     else
-                                        write (error_unit, *) 'DEBUG: Process still running, lock is fresh'
+                                        call debug_print('Process still running, lock is fresh')
                                     end if
                                 else
-                                    write (error_unit, *) 'DEBUG: Failed to parse PID, considering stale'
+                                    call debug_print('Failed to parse PID, considering stale')
                                     stale = .true.
                                 end if
                             end if
@@ -259,7 +268,7 @@ contains
                     end if
                 else
                     ! Invalid timestamp format, consider it stale
-                    write (error_unit, *) 'DEBUG: Invalid timestamp format, considering stale:', trim(timestamp_str)
+                    call debug_print('Invalid timestamp format, considering stale: ' // trim(timestamp_str))
                     stale = .true.
                 end if
             end if
@@ -271,12 +280,12 @@ contains
         character(len=*), intent(in) :: lock_file
         logical :: success
 
-        write (error_unit, *) 'DEBUG: Removing lock file:', trim(lock_file)
+        call debug_print('Removing lock file: ' // trim(lock_file))
         call sys_remove_file(lock_file, success)
         if (.not. success) then
-            write (error_unit, *) 'DEBUG: Failed to remove lock file:', trim(lock_file)
+            call debug_print('Failed to remove lock file: ' // trim(lock_file))
         else
-            write (error_unit, *) 'DEBUG: Lock file removed successfully'
+            call debug_print('Lock file removed successfully')
         end if
 
     end subroutine remove_lock
