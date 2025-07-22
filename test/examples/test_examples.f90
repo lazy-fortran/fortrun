@@ -556,7 +556,7 @@ contains
             
             if (.not. copy_success) then
                 print '(a)', '  ✗ FAIL: Could not copy interdependent directory: '//trim(error_msg)
-                passed = .false.
+                n_failed = n_failed + 1
                 return
             end if
         end block
