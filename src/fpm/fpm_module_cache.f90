@@ -17,6 +17,7 @@ module fpm_module_cache
     use, intrinsic :: iso_fortran_env, only: int64
     use fpm_filesystem, only: exists, join_path, list_files
     use temp_utils, only: mkdir
+    use system_utils, only: sys_remove_file
     use fpm_strings, only: string_t, str
     use fpm_environment, only: get_os_type, OS_LINUX, OS_MACOS, OS_WINDOWS
     use fpm_compiler, only: compiler_t, id_gcc, id_intel_classic_nix, &
@@ -554,12 +555,12 @@ contains
             ! Construct cache file path
             cache_file = cache%cache_dir//'/'//hash_str//'.mod'
 
-            ! Remove cache file
-            call execute_command_line('rm -f "'//cache_file//'"')
+            ! Remove cache file using system utilities
+            call sys_remove_file(cache_file)
 
             ! Also remove any .o files
             cache_file = cache%cache_dir//'/'//hash_str//'.o'
-            call execute_command_line('rm -f "'//cache_file//'"')
+            call sys_remove_file(cache_file)
         end if
 
     end subroutine remove_cache_entry

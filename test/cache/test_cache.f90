@@ -3,6 +3,7 @@ program test_cache
     use temp_utils, only: create_temp_dir, get_temp_file_path, temp_dir_manager, create_test_cache_dir, path_join
     use fpm_environment, only: get_os_type, OS_WINDOWS
     use fpm_filesystem, only: exists
+    use system_utils, only: sys_dir_exists, sys_remove_file
     implicit none
 
     character(len=:), allocatable :: test_cache_dir, test_program
@@ -135,33 +136,26 @@ contains
     subroutine check_cache_directory_exists(cache_dir, exit_code)
         character(len=*), intent(in) :: cache_dir
         integer, intent(out) :: exit_code
-        character(len=512) :: command
+        logical :: dir_exists
 
-        ! Cross-platform directory existence check
-        if (get_os_type() == OS_WINDOWS) then
-            command = 'dir "'//trim(cache_dir)//'" >nul 2>&1'
+        ! Use system utilities for directory existence check
+        dir_exists = sys_dir_exists(cache_dir)
+        
+        if (dir_exists) then
+            exit_code = 0
         else
-            command = 'ls "'//trim(cache_dir)//'" >/dev/null 2>&1'
+            exit_code = 1
         end if
-
-        call execute_command_line(command, exitstat=exit_code)
     end subroutine check_cache_directory_exists
 
     subroutine cleanup_temp_file(file_path)
         character(len=*), intent(in) :: file_path
-        character(len=512) :: command
-        integer :: exit_code
+        logical :: success
 
         if (len_trim(file_path) == 0) return
 
-        ! Cross-platform file removal
-        if (get_os_type() == OS_WINDOWS) then
-            command = 'del /f /q "'//trim(file_path)//'" 2>nul'
-        else
-            command = 'rm -f "'//trim(file_path)//'"'
-        end if
-
-        call execute_command_line(command, exitstat=exit_code)
+        ! Use system utilities for file removal
+        call sys_remove_file(file_path, success)
     end subroutine cleanup_temp_file
 
 end program test_cache
