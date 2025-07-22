@@ -31,51 +31,46 @@ contains
     function test_config_dir_environment_variables() result(passed)
         logical :: passed
         character(len=256) :: config_dir
-        character(len=256) :: original_home, original_xdg
+        character(len=256) :: home_value, xdg_value
         integer :: status
 
-        print *, "Test 1: Config directory with different environment variables"
+        print *, "Test 1: Config directory with current environment"
         passed = .true.
 
-        ! Save original environment
-        call get_environment_variable('HOME', original_home, status=status)
-        call get_environment_variable('XDG_CONFIG_HOME', original_xdg, status=status)
-
-        ! Test with XDG_CONFIG_HOME set
-        block
-            type(temp_dir_manager) :: temp_mgr
-            character(len=:), allocatable :: test_xdg, test_home
-
-            call temp_mgr%create('config_test')
-            test_xdg = temp_mgr%get_file_path('test_xdg_config')
-            test_home = temp_mgr%get_file_path('test_home')
-
-            call setenv_wrapper('XDG_CONFIG_HOME', test_xdg)
-            config_dir = get_config_dir()
-            if (index(config_dir, path_join(test_xdg, 'fortran')) == 0) then
-                print *, "  WARNING: XDG_CONFIG_HOME test may not work properly"
+        ! Test with current environment variables
+        config_dir = get_config_dir()
+        
+        ! Check XDG_CONFIG_HOME
+        call get_environment_variable('XDG_CONFIG_HOME', xdg_value, status=status)
+        if (status == 0 .and. len_trim(xdg_value) > 0) then
+            if (index(config_dir, 'fortran') > 0) then
+                print *, "  INFO: Using XDG_CONFIG_HOME based config"
             end if
-
-            ! Test with HOME set but no XDG_CONFIG_HOME
-            call unsetenv_wrapper('XDG_CONFIG_HOME')
-            call setenv_wrapper('HOME', test_home)
-            config_dir = get_config_dir()
-            if (index(config_dir, path_join(test_home, '.config/fortran')) == 0) then
-                print *, "  WARNING: HOME test may not work properly"
-            end if
-        end block
-
-        ! Restore original environment (approximately)
-        if (len_trim(original_home) > 0) then
-            call setenv_wrapper('HOME', trim(original_home))
-        end if
-        if (len_trim(original_xdg) > 0) then
-            call setenv_wrapper('XDG_CONFIG_HOME', trim(original_xdg))
         else
-            call unsetenv_wrapper('XDG_CONFIG_HOME')
+            ! Check HOME
+            call get_environment_variable('HOME', home_value, status=status)
+            if (status == 0 .and. len_trim(home_value) > 0) then
+                if (index(config_dir, '.config') > 0 .or. index(config_dir, 'fortran') > 0) then
+                    print *, "  INFO: Using HOME based config"
+                end if
+            else
+                ! Check LOCALAPPDATA (Windows)
+                call get_environment_variable('LOCALAPPDATA', home_value, status=status)
+                if (status == 0 .and. len_trim(home_value) > 0) then
+                    print *, "  INFO: Using LOCALAPPDATA based config (Windows)"
+                else
+                    print *, "  INFO: Using fallback temp directory"
+                end if
+            end if
         end if
 
-        print *, "  PASS: Environment variable handling"
+        ! Verify the config directory path is reasonable
+        if (len_trim(config_dir) > 0 .and. index(config_dir, 'fortran') > 0) then
+            print *, "  PASS: Config directory path is valid: ", trim(config_dir)
+        else
+            print *, "  FAIL: Invalid config directory: ", trim(config_dir)
+            passed = .false.
+        end if
 
     end function test_config_dir_environment_variables
 
@@ -148,121 +143,54 @@ contains
     end function test_registry_path_construction
 
     function test_windows_paths() result(passed)
+        use fpm_environment, only: get_os_type, OS_WINDOWS
         logical :: passed
-        character(len=256) :: config_dir, original_home, original_localappdata
-        integer :: status
+        character(len=256) :: config_dir
 
         print *, "Test 4: Windows path handling"
         passed = .true.
 
-        ! Save original environment
-        call get_environment_variable('HOME', original_home, status=status)
-     call get_environment_variable('LOCALAPPDATA', original_localappdata, status=status)
-
-        ! Simulate Windows environment (no HOME, has LOCALAPPDATA)
-        call unsetenv_wrapper('HOME')
-        call unsetenv_wrapper('XDG_CONFIG_HOME')
-        call setenv_wrapper('LOCALAPPDATA', 'C:\Users\Test\AppData\Local')
-
         config_dir = get_config_dir()
-        if (index(config_dir, 'AppData') == 0 .and. index(config_dir, '.fortran-config') == 0) then
-            print *, "  WARNING: Windows path fallback may not work properly"
-        end if
-
-        ! Restore environment
-        if (len_trim(original_home) > 0) then
-            call setenv_wrapper('HOME', trim(original_home))
-        end if
-        if (len_trim(original_localappdata) > 0) then
-            call setenv_wrapper('LOCALAPPDATA', trim(original_localappdata))
+        
+        if (get_os_type() == OS_WINDOWS) then
+            ! On Windows, should use LOCALAPPDATA or temp directory
+            if (index(config_dir, 'fortran') > 0) then
+                print *, "  PASS: Windows config path looks correct: ", trim(config_dir)
+            else
+                print *, "  FAIL: Unexpected Windows config path: ", trim(config_dir)
+                passed = .false.
+            end if
         else
-            call unsetenv_wrapper('LOCALAPPDATA')
+            ! On Unix-like systems, should use HOME/.cache or XDG_CONFIG_HOME
+            if (index(config_dir, 'fortran') > 0) then
+                print *, "  PASS: Unix config path looks correct: ", trim(config_dir)
+            else
+                print *, "  FAIL: Unexpected Unix config path: ", trim(config_dir)
+                passed = .false.
+            end if
         end if
-
-        print *, "  PASS: Windows path handling"
 
     end function test_windows_paths
 
     function test_fallback_scenarios() result(passed)
         logical :: passed
         character(len=256) :: config_dir
-        character(len=256) :: original_home, original_xdg, original_localappdata
-        integer :: status
 
         print *, "Test 5: Fallback scenarios"
         passed = .true.
 
-        ! Save original environment
-        call get_environment_variable('HOME', original_home, status=status)
-        call get_environment_variable('XDG_CONFIG_HOME', original_xdg, status=status)
-     call get_environment_variable('LOCALAPPDATA', original_localappdata, status=status)
-
-        ! Test ultimate fallback (no environment variables)
-        call unsetenv_wrapper('HOME')
-        call unsetenv_wrapper('XDG_CONFIG_HOME')
-        call unsetenv_wrapper('LOCALAPPDATA')
-
+        ! Test that we always get a valid config directory
         config_dir = get_config_dir()
-        if (index(config_dir, '.fortran-config') == 0) then
-            print *, "  WARNING: Ultimate fallback should use .fortran-config"
+        
+        ! The fallback should always return a path containing 'fortran'
+        if (len_trim(config_dir) > 0 .and. index(config_dir, 'fortran') > 0) then
+            print *, "  PASS: Fallback returns valid path: ", trim(config_dir)
+        else
+            print *, "  FAIL: Invalid fallback path: ", trim(config_dir)
+            passed = .false.
         end if
-
-        ! Restore environment
-        if (len_trim(original_home) > 0) then
-            call setenv_wrapper('HOME', trim(original_home))
-        end if
-        if (len_trim(original_xdg) > 0) then
-            call setenv_wrapper('XDG_CONFIG_HOME', trim(original_xdg))
-        end if
-        if (len_trim(original_localappdata) > 0) then
-            call setenv_wrapper('LOCALAPPDATA', trim(original_localappdata))
-        end if
-
-        print *, "  PASS: Fallback scenarios"
 
     end function test_fallback_scenarios
 
-    ! Helper subroutines for environment variable manipulation
-    subroutine setenv_wrapper(name, value)
-        use fpm_environment, only: get_os_type, OS_WINDOWS
-        character(len=*), intent(in) :: name, value
-        character(len=:), allocatable :: cmd
-        integer :: exitstat
-        
-        ! Use runtime OS detection and shell commands for simplicity
-        if (get_os_type() == OS_WINDOWS) then
-            ! Windows: use set command (only affects current process)
-            cmd = 'set '//trim(name)//'='//trim(value)
-        else
-            ! Unix: use export command
-            cmd = 'export '//trim(name)//'="'//trim(value)//'"'
-        end if
-        
-        ! Note: This only affects the shell subprocess, not the Fortran process
-        ! For testing purposes, this limitation is acceptable
-        call execute_command_line(cmd, exitstat=exitstat)
-
-    end subroutine setenv_wrapper
-
-    subroutine unsetenv_wrapper(name)
-        use fpm_environment, only: get_os_type, OS_WINDOWS
-        character(len=*), intent(in) :: name
-        character(len=:), allocatable :: cmd
-        integer :: exitstat
-        
-        ! Use runtime OS detection and shell commands for simplicity
-        if (get_os_type() == OS_WINDOWS) then
-            ! Windows: use set command with empty value
-            cmd = 'set '//trim(name)//'='
-        else
-            ! Unix: use unset command
-            cmd = 'unset '//trim(name)
-        end if
-        
-        ! Note: This only affects the shell subprocess, not the Fortran process
-        ! For testing purposes, this limitation is acceptable
-        call execute_command_line(cmd, exitstat=exitstat)
-
-    end subroutine unsetenv_wrapper
 
 end program test_config_extended

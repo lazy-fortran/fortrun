@@ -48,7 +48,15 @@ contains
                     ! Last resort - use system temp directory
                     block
                         use system_utils, only: sys_get_temp_dir
-                        cache_dir = join_path(sys_get_temp_dir(), 'fortran-cache')
+                        character(len=:), allocatable :: temp_path
+                        
+                        temp_path = sys_get_temp_dir()
+                        if (len_trim(temp_path) > 0) then
+                            cache_dir = join_path(temp_path, 'fortran-cache')
+                        else
+                            ! Ultimate fallback - use current directory
+                            cache_dir = '.fortran-cache'
+                        end if
                     end block
                 end if
             end if

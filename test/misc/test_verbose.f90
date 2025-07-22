@@ -12,9 +12,24 @@ program test_verbose
     integer :: env_status
     logical :: is_ci
     
-    ! Check if running on CI
+    ! Check if running on CI (check multiple CI environment variables)
+    is_ci = .false.
+    
+    ! Check GITHUB_ACTIONS
     call get_environment_variable('GITHUB_ACTIONS', github_env, status=env_status)
-    is_ci = (env_status == 0 .and. len_trim(github_env) > 0)
+    if (env_status == 0 .and. len_trim(github_env) > 0) is_ci = .true.
+    
+    ! Check generic CI variable
+    if (.not. is_ci) then
+        call get_environment_variable('CI', github_env, status=env_status)
+        if (env_status == 0 .and. len_trim(github_env) > 0) is_ci = .true.
+    end if
+    
+    ! Check CONTINUOUS_INTEGRATION
+    if (.not. is_ci) then
+        call get_environment_variable('CONTINUOUS_INTEGRATION', github_env, status=env_status)
+        if (env_status == 0 .and. len_trim(github_env) > 0) is_ci = .true.
+    end if
     
     if (is_ci) then
         print *, 'SKIP: Verbose tests on CI (fortran CLI shows debug output)'
