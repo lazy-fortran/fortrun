@@ -72,6 +72,13 @@ contains
         ! Check file extension
         if (index(filename, '.f90') == 0 .and. index(filename, '.F90') == 0 .and. &
             index(filename, '.f') == 0 .and. index(filename, '.F') == 0) then
+            if (verbose_level > 0) then
+                print '(a,a)', 'DEBUG: Checking extension for file: ', trim(filename)
+                print '(a,i0)', 'DEBUG: .f90 index: ', index(filename, '.f90')
+                print '(a,i0)', 'DEBUG: .F90 index: ', index(filename, '.F90')
+                print '(a,i0)', 'DEBUG: .f index: ', index(filename, '.f')
+                print '(a,i0)', 'DEBUG: .F index: ', index(filename, '.F')
+            end if
             print '(a)', 'Error: Input file must have .f90, .F90, .f, or .F extension'
             exit_code = 1
             return
