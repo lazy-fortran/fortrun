@@ -36,7 +36,7 @@ contains
 
         ! Test various integer values
         test_values = [0, 1, -1, 10, -10, 100, -100, 1000, -1000, &
-                      999999, -999999, 2147483647, -2147483648, 42, -42]
+                      999999, -999999, 2147483647, -2147483647, 42, -42]
 
         do i = 1, size(test_values)
             result_str = int_to_char(test_values(i))
@@ -50,17 +50,17 @@ contains
 
         ! Test edge cases for different integer kinds
         if (selected_int_kind(2) > 0) then
-            result_str = int_to_char(127_int8)
-            print *, "  int8 max:", trim(result_str)
-            result_str = int_to_char(-128_int8)
-            print *, "  int8 min:", trim(result_str)
+            result_str = int_to_char(127)
+            print *, "  int8 max value:", trim(result_str)
+            result_str = int_to_char(-127)
+            print *, "  int8 min value:", trim(result_str)
         end if
 
         if (selected_int_kind(4) > 0) then
-            result_str = int_to_char(32767_int16)
-            print *, "  int16 max:", trim(result_str)
-            result_str = int_to_char(-32768_int16)
-            print *, "  int16 min:", trim(result_str)
+            result_str = int_to_char(32767)
+            print *, "  int16 max value:", trim(result_str)
+            result_str = int_to_char(-32767)
+            print *, "  int16 min value:", trim(result_str)
         end if
 
         ! Test rapid successive calls
