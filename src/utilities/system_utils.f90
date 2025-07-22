@@ -517,9 +517,14 @@ contains
         integer :: exit_code, unit
         
         if (get_os_type() == OS_WINDOWS) then
-            ! Windows: Use cmd /c to run command and capture exit code
-            full_command = 'cmd /c "('//trim(command)//') > "'//trim(output_file)//'"' &
-                         //' 2>&1 & echo %ERRORLEVEL% > "'//trim(exit_file)//'"'
+            ! Windows: Run command first, then check ERRORLEVEL separately  
+            ! This ensures we capture the exit code of the command, not the echo
+            call execute_command_line(trim(command)//' > "'//trim(output_file)//'" 2>&1', exitstat=exit_code)
+            ! Write the exit code manually
+            open(newunit=unit, file=trim(exit_file), status='replace')
+            write(unit, '(i0)') exit_code
+            close(unit)
+            return
         else
             ! Unix: Use shell to run command and capture exit code
             full_command = '('//trim(command)//') > "'//trim(output_file) &
