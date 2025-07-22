@@ -58,8 +58,13 @@ contains
 
             ! Test processing the file
             output_file = get_temp_file_path(test_dir, 'test_output.f90')
-            cmd = 'fpm run fortran -- --cache-dir '//trim(cache_dir)//' '// &
-                  trim(test_file)//' > '//trim(output_file)//' 2>/dev/null'
+            if (get_os_type() == OS_WINDOWS) then
+                cmd = 'fpm run fortran -- --cache-dir '//trim(cache_dir)//' '// &
+                      trim(test_file)//' > '//trim(output_file)//' 2>nul'
+            else
+                cmd = 'fpm run fortran -- --cache-dir '//trim(cache_dir)//' '// &
+                      trim(test_file)//' > '//trim(output_file)//' 2>/dev/null'
+            end if
             call execute_command_line(cmd, exitstat=iostat)
 
             if (iostat == 0) then
