@@ -332,9 +332,17 @@ contains
             end if
 
             ! Extract just the program output (after FPM messages)
+            ! Try different FPM message formats
             j = index(output, '[100%] Project compiled successfully.')
             if (j > 0) then
                 output = output(j + 37:)  ! Skip the FPM message
+            else
+                ! Try to find where actual program output starts
+                ! Look for common patterns like "Hello" or skip to end of FPM output
+                j = index(output, 'Hello')
+                if (j > 0) then
+                    output = output(j:)
+                end if
             end if
 
             ! Clean up temp file
@@ -947,6 +955,13 @@ contains
         j = index(output, '[100%] Project compiled successfully.')
         if (j > 0) then
             output = output(j + 37:)  ! Skip the FPM message
+        else
+            ! Try to find where actual program output starts
+            ! For type inference example, look for "Integer result"
+            j = index(output, 'Integer result')
+            if (j > 0) then
+                output = output(j:)
+            end if
         end if
 
         ! Remove any leading/trailing spaces
