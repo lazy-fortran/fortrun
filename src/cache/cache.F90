@@ -131,7 +131,7 @@ contains
                 if (get_os_type() == OS_WINDOWS) then
         command = 'copy "'//trim(module_files(i))//'" "'//trim(dest_file)//'" >nul 2>&1'
                 else
-                    command = 'cp "'//trim(module_files(i))//'" "'//trim(dest_file)//'"'
+                    command = 'cp "'//trim(module_files(i))//'" "'//trim(dest_file)//'" >/dev/null 2>&1'
                 end if
 
                 call run(command, exitstat=exitstat)
@@ -164,7 +164,7 @@ contains
         if (get_os_type() == OS_WINDOWS) then
         command = 'copy "'//trim(executable_path)//'" "'//trim(dest_file)//'" >nul 2>&1'
         else
-            command = 'cp "'//trim(executable_path)//'" "'//trim(dest_file)//'"'
+            command = 'cp "'//trim(executable_path)//'" "'//trim(dest_file)//'" >/dev/null 2>&1'
         end if
 
         call run(command, exitstat=exitstat)
@@ -289,7 +289,7 @@ contains
         if (get_os_type() == OS_WINDOWS) then
  command = 'xcopy /E /I /Y "'//trim(build_dir)//'\*" "'//trim(cache_path)//'" >nul 2>&1'
         else
-            command = 'cp -r "'//trim(build_dir)//'"/* "'//trim(cache_path)//'/"'
+            command = 'cp -r "'//trim(build_dir)//'"/* "'//trim(cache_path)//'/" >/dev/null 2>&1'
         end if
 
         call run(command, exitstat=exitstat)
@@ -319,7 +319,7 @@ contains
         if (get_os_type() == OS_WINDOWS) then
 command = 'xcopy /E /I /Y "'//trim(cache_path)//'\*" "'//trim(target_dir)//'" >nul 2>&1'
         else
-            command = 'cp -r "'//trim(cache_path)//'"/* "'//trim(target_dir)//'/"'
+            command = 'cp -r "'//trim(cache_path)//'"/* "'//trim(target_dir)//'/" >/dev/null 2>&1'
         end if
 
         call run(command, exitstat=exitstat)
@@ -351,7 +351,7 @@ command = 'xcopy /E /I /Y "'//trim(cache_path)//'\*" "'//trim(target_dir)//'" >n
         if (get_os_type() == OS_WINDOWS) then
             command = 'rmdir /S /Q "'//trim(cache_path)//'" >nul 2>&1'
         else
-            command = 'rm -rf "'//trim(cache_path)//'"'
+            command = 'rm -rf "'//trim(cache_path)//'" >/dev/null 2>&1'
         end if
 
         call run(command, exitstat=exitstat)
