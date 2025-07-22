@@ -103,8 +103,8 @@ jobs:
           exit /b 1
         )
 
-        REM Run basic smoke test
-        echo program test; print *, 'x = 42'; end program > test_windows.f
+        REM Run basic smoke test (simple lowercase fortran without program wrapper)
+        echo print *, 'x = 42' > test_windows.f
 
         REM Create a temp cache directory
         if not exist temp_cache mkdir temp_cache
