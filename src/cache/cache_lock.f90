@@ -268,19 +268,24 @@ contains
                             write (error_unit, *) 'DEBUG: Lock is stale due to age'
                             stale = .true.
                         else
-                            ! Check if process is still running
-                            read (pid_str, *, iostat=iostat) lock_pid
-                            if (iostat == 0) then
-                                write (error_unit, *) 'DEBUG: Checking if process', lock_pid, 'is running'
-                                if (.not. is_process_running(lock_pid)) then
-                                    write (error_unit, *) 'DEBUG: Process not running, lock is stale'
-                                    stale = .true.
-                                else
-                                    write (error_unit, *) 'DEBUG: Process still running, lock is fresh'
-                                end if
+                            ! Check if process is still running (only on Unix where we have real PIDs)
+                            if (get_os_type() == OS_WINDOWS) then
+                                ! On Windows we use random numbers as PIDs, so skip process check
+                                write (error_unit, *) 'DEBUG: Windows detected, skipping process check - lock is fresh'
                             else
-                                write (error_unit, *) 'DEBUG: Failed to parse PID, considering stale'
-                                stale = .true.
+                                read (pid_str, *, iostat=iostat) lock_pid
+                                if (iostat == 0) then
+                                    write (error_unit, *) 'DEBUG: Checking if process', lock_pid, 'is running'
+                                    if (.not. is_process_running(lock_pid)) then
+                                        write (error_unit, *) 'DEBUG: Process not running, lock is stale'
+                                        stale = .true.
+                                    else
+                                        write (error_unit, *) 'DEBUG: Process still running, lock is fresh'
+                                    end if
+                                else
+                                    write (error_unit, *) 'DEBUG: Failed to parse PID, considering stale'
+                                    stale = .true.
+                                end if
                             end if
                         end if
                     end if
