@@ -3,7 +3,7 @@ program test_examples
     use cache, only: get_cache_dir
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, get_project_root, path_join
     use temp_utils, only: mkdir, create_test_cache_dir, path_join
-    use system_utils, only: sys_copy_file, sys_remove_dir, sys_list_files, sys_remove_file
+    use system_utils, only: sys_copy_file, sys_remove_dir, sys_list_files, sys_remove_file, sys_copy_dir
     implicit none
 
     character(len=256), dimension(:), allocatable :: example_files
@@ -546,10 +546,20 @@ contains
         call mkdir(trim(temp_source_dir))
 
         ! Copy the entire interdependent directory to temp location
-        copy_command = 'cp -r '//path_join(get_project_root(), &
-                                           'example/modules/interdependent/*')// &
-                       ' "'//trim(temp_source_dir)//'"'
-        call execute_command_line(trim(copy_command))
+        block
+            character(len=1024) :: source_path
+            logical :: copy_success
+            character(len=256) :: error_msg
+            
+            source_path = path_join(get_project_root(), 'example/modules/interdependent')
+            call sys_copy_dir(trim(source_path), trim(temp_source_dir), copy_success, error_msg)
+            
+            if (.not. copy_success) then
+                print '(a)', '  ✗ FAIL: Could not copy interdependent directory: '//trim(error_msg)
+                passed = .false.
+                return
+            end if
+        end block
 
         ! First run - should compile everything
         print '(a)', 'First run (should compile everything)...'

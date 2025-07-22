@@ -101,7 +101,7 @@ contains
         lock_file = get_lock_file_path(cache_dir, project_name)
 
         ! Use system utilities for cross-platform lock detection
-        ! This avoids shell commands that can create 'nul' files on Linux
+        ! This uses a platform-agnostic file check instead of shell commands
         locked = sys_file_exists(lock_file)
 
         ! Only check for stale locks when explicitly requested, not during normal checks

@@ -1,4 +1,5 @@
 module module_scanner
+  use logger_utils, only: print_error
   implicit none
   private
   public :: scan_modules, module_info
@@ -41,7 +42,7 @@ contains
     
     open(newunit=unit, file=filename, status='old', iostat=iostat)
     if (iostat /= 0) then
-      print *, 'Error: Cannot open file ', trim(filename)
+      call print_error('Cannot open file '//trim(filename))
       return
     end if
     

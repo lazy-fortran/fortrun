@@ -393,12 +393,21 @@ contains
         if (exists(dir_path)) then
             ! Check if it's actually a directory or a file
             block
-                logical :: is_dir
-                ! Try to check for a file within the directory to see if it's a directory
-                inquire(file=trim(dir_path)//'/.', exist=is_dir)
-                if (.not. is_dir) then
-                    ! It exists but is not a directory - it's a file
-                    print '(a,a,a)', 'WARNING: mkdir called on existing file: ', trim(dir_path), ' (not a directory!)'
+                logical :: is_dir, path_exists
+                integer :: ios
+                ! Use inquire with directory attribute for reliable detection
+                inquire(file=trim(dir_path), exist=path_exists, iostat=ios)
+                if (ios == 0 .and. path_exists) then
+                    ! Check if it's a directory by trying to list it
+                    if (get_os_type() == OS_WINDOWS) then
+                        call execute_command_line('dir "'//trim(dir_path)//'" >nul 2>&1', exitstat=ios)
+                    else
+                        call execute_command_line('test -d "'//trim(dir_path)//'"', exitstat=ios)
+                    end if
+                    is_dir = (ios == 0)
+                    if (.not. is_dir) then
+                        print '(a,a,a)', 'WARNING: mkdir called on existing file: ', trim(dir_path), ' (not a directory!)'
+                    end if
                 end if
             end block
             return

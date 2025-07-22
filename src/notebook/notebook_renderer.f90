@@ -1,6 +1,7 @@
 module notebook_renderer
     use notebook_parser
     use notebook_executor
+    use logger_utils, only: print_error
     implicit none
     private
     
@@ -116,7 +117,7 @@ contains
             write(unit, '(A)') output
             close(unit)
         else
-            print *, "Error: Could not write to file:", trim(filename)
+            call print_error("Could not write to file: "//trim(filename))
         end if
         
     end subroutine save_notebook_markdown

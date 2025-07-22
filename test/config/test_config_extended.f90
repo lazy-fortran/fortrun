@@ -224,32 +224,104 @@ contains
 
     ! Helper subroutines for environment variable manipulation
     subroutine setenv_wrapper(name, value)
-        use fpm_environment, only: get_os_type, OS_WINDOWS
+        use iso_c_binding
         character(len=*), intent(in) :: name, value
-        character(len=512) :: command
-
-        ! Use appropriate command for the OS
-        if (get_os_type() == OS_WINDOWS) then
-            command = 'set '//trim(name)//'='//trim(value)
-        else
-            command = 'export '//trim(name)//'="'//trim(value)//'"'
-        end if
-        call execute_command_line(command)
+        character(kind=c_char), target :: c_name(len(name)+1)
+        character(kind=c_char), target :: c_value(len(value)+1)
+        integer :: i
+        
+        interface
+            function setenv(name, value, overwrite) bind(c, name="setenv")
+                import :: c_char, c_int
+                character(kind=c_char), intent(in) :: name(*), value(*)
+                integer(c_int), value :: overwrite
+                integer(c_int) :: setenv
+            end function setenv
+            
+            function _putenv(envstring) bind(c, name="_putenv")
+                import :: c_char, c_int
+                character(kind=c_char), intent(in) :: envstring(*)
+                integer(c_int) :: _putenv
+            end function _putenv
+        end interface
+        
+#ifdef _WIN32
+        character(kind=c_char), target :: c_envstring(len(name)+len(value)+2)
+        integer(c_int) :: result
+        
+        ! Create NAME=VALUE string for Windows
+        do i = 1, len(name)
+            c_envstring(i) = name(i:i)
+        end do
+        c_envstring(len(name)+1) = '='
+        do i = 1, len(value)
+            c_envstring(len(name)+1+i) = value(i:i)
+        end do
+        c_envstring(len(name)+len(value)+2) = c_null_char
+        
+        result = _putenv(c_envstring)
+#else
+        integer(c_int) :: result
+        
+        ! Convert to C strings
+        do i = 1, len(name)
+            c_name(i) = name(i:i)
+        end do
+        c_name(len(name)+1) = c_null_char
+        
+        do i = 1, len(value)
+            c_value(i) = value(i:i)
+        end do
+        c_value(len(value)+1) = c_null_char
+        
+        result = setenv(c_name, c_value, 1_c_int)
+#endif
 
     end subroutine setenv_wrapper
 
     subroutine unsetenv_wrapper(name)
-        use fpm_environment, only: get_os_type, OS_WINDOWS
+        use iso_c_binding
         character(len=*), intent(in) :: name
-        character(len=512) :: command
-
-        ! Use appropriate command for the OS
-        if (get_os_type() == OS_WINDOWS) then
-            command = 'set '//trim(name)//'='
-        else
-            command = 'unset '//trim(name)
-        end if
-        call execute_command_line(command)
+        character(kind=c_char), target :: c_name(len(name)+1)
+        integer :: i
+        
+        interface
+            function unsetenv(name) bind(c, name="unsetenv")
+                import :: c_char, c_int
+                character(kind=c_char), intent(in) :: name(*)
+                integer(c_int) :: unsetenv
+            end function unsetenv
+            
+            function _putenv(envstring) bind(c, name="_putenv")
+                import :: c_char, c_int
+                character(kind=c_char), intent(in) :: envstring(*)
+                integer(c_int) :: _putenv
+            end function _putenv
+        end interface
+        
+#ifdef _WIN32
+        character(kind=c_char), target :: c_envstring(len(name)+2)
+        integer(c_int) :: result
+        
+        ! Create NAME= string for Windows (empty value unsets)
+        do i = 1, len(name)
+            c_envstring(i) = name(i:i)
+        end do
+        c_envstring(len(name)+1) = '='
+        c_envstring(len(name)+2) = c_null_char
+        
+        result = _putenv(c_envstring)
+#else
+        integer(c_int) :: result
+        
+        ! Convert to C string
+        do i = 1, len(name)
+            c_name(i) = name(i:i)
+        end do
+        c_name(len(name)+1) = c_null_char
+        
+        result = unsetenv(c_name)
+#endif
 
     end subroutine unsetenv_wrapper
 

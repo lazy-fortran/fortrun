@@ -81,9 +81,9 @@ contains
 
         ! Create command to run test executable directly
         if (get_os_type() == OS_WINDOWS) then
-            command = '"'//trim(test_executable)//'" > "'//trim(temp_file)//'" 2>&1'
+            command = 'cmd /c ""'//trim(test_executable)//'" > "'//trim(temp_file)//'" 2>&1"'
         else
-         command = "timeout 60 "//trim(test_executable)//" > "//trim(temp_file)//" 2>&1"
+            command = "timeout 60 "//trim(test_executable)//" > "//trim(temp_file)//" 2>&1"
         end if
 
         ! Run test and capture output

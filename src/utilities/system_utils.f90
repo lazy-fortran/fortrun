@@ -14,6 +14,7 @@ module system_utils
     public :: sys_count_files, sys_sleep, sys_kill_process
     public :: sys_process_exists, sys_get_temp_dir
     public :: sys_run_command_with_exit_code, get_stderr_redirect
+    public :: sys_copy_dir
 
 contains
 
@@ -43,6 +44,32 @@ contains
             end if
         end if
     end subroutine sys_copy_file
+
+    !> Copy a directory recursively from source to destination
+    subroutine sys_copy_dir(source, dest, success, error_msg)
+        character(len=*), intent(in) :: source, dest
+        logical, intent(out) :: success
+        character(len=*), intent(out), optional :: error_msg
+        character(len=512) :: command
+        integer :: exitstat
+
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'xcopy /E /I /Y "'//trim(source)//'" "'//trim(dest)//'" >nul 2>&1'
+        else
+            command = 'cp -r "'//trim(source)//'" "'//trim(dest)//'" 2>/dev/null'
+        end if
+
+        call execute_command_line(command, exitstat=exitstat)
+        success = (exitstat == 0)
+
+        if (present(error_msg)) then
+            if (.not. success) then
+                error_msg = "Failed to copy directory"
+            else
+                error_msg = ""
+            end if
+        end if
+    end subroutine sys_copy_dir
 
     !> Remove a file
     subroutine sys_remove_file(filepath, success)
@@ -107,9 +134,11 @@ contains
         temp_file = get_temp_file_path(create_temp_dir('sys_list'), 'files.tmp')
 
         if (get_os_type() == OS_WINDOWS) then
-            command = 'cmd /c "dir /b "'//trim(directory)//'\'//trim(pattern)//'" 2>nul > "'//trim(temp_file)//'"'
+            command = 'cmd /c "dir /b "'//trim(directory)//sys_get_path_separator()// &
+                      trim(pattern)//'" 2>nul > "'//trim(temp_file)//'"'
         else
-            command = 'ls "'//trim(directory)//'"/'//trim(pattern)//' 2>/dev/null > "'//trim(temp_file)//'"'
+            command = 'ls "'//trim(directory)//sys_get_path_separator()// &
+                      trim(pattern)//' 2>/dev/null > "'//trim(temp_file)//'"'
         end if
 
         call execute_command_line(command)
