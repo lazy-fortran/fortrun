@@ -18,21 +18,40 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Cache FPM binary
+      id: cache-fpm
+      uses: actions/cache@v4
+      with:
+        path: /usr/local/bin/fpm
+        key: ${{ runner.os }}-fpm-0.12.0
+    
     - name: Setup FPM
+      if: steps.cache-fpm.outputs.cache-hit != 'true'
       run: |
         wget https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-linux-x86_64-gcc-12
         chmod +x fpm-0.12.0-linux-x86_64-gcc-12
         sudo mv fpm-0.12.0-linux-x86_64-gcc-12 /usr/local/bin/fpm
     
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y gfortran gcovr
+    - name: Cache apt packages
+      uses: awalsh128/cache-apt-pkgs-action@v1
+      with:
+        packages: gfortran gcovr
+        version: 1.0
     
     - name: Setup registry
       run: |
         mkdir -p $HOME/.config/fortran
         cp registry.toml $HOME/.config/fortran/
+    
+    - name: Cache FPM dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.local/share/fpm
+          build/dependencies
+        key: ${{ runner.os }}-fpm-deps-${{ hashFiles('fpm.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-fpm-deps-
     
     - name: Build with coverage
       run: |
@@ -128,17 +147,40 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Cache FPM binary
+      id: cache-fpm-int
+      uses: actions/cache@v4
+      with:
+        path: /usr/local/bin/fpm
+        key: ${{ runner.os }}-fpm-0.12.0
+    
     - name: Setup FPM
+      if: steps.cache-fpm-int.outputs.cache-hit != 'true'
       run: |
         wget https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-linux-x86_64-gcc-12
         chmod +x fpm-0.12.0-linux-x86_64-gcc-12
         sudo mv fpm-0.12.0-linux-x86_64-gcc-12 /usr/local/bin/fpm
-        sudo apt-get update && sudo apt-get install -y imagemagick gcovr
+    
+    - name: Cache apt packages
+      uses: awalsh128/cache-apt-pkgs-action@v1
+      with:
+        packages: imagemagick gcovr
+        version: 1.0
     
     - name: Setup registry
       run: |
         mkdir -p $HOME/.config/fortran
         cp registry.toml $HOME/.config/fortran/
+    
+    - name: Cache FPM dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.local/share/fpm
+          build/dependencies
+        key: ${{ runner.os }}-fpm-deps-${{ hashFiles('fpm.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-fpm-deps-
     
     - name: Build with coverage
       run: |
@@ -220,17 +262,40 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Cache FPM binary
+      id: cache-fpm-heavy
+      uses: actions/cache@v4
+      with:
+        path: /usr/local/bin/fpm
+        key: ${{ runner.os }}-fpm-0.12.0
+    
     - name: Setup FPM
+      if: steps.cache-fpm-heavy.outputs.cache-hit != 'true'
       run: |
         wget https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-linux-x86_64-gcc-12
         chmod +x fpm-0.12.0-linux-x86_64-gcc-12
         sudo mv fpm-0.12.0-linux-x86_64-gcc-12 /usr/local/bin/fpm
-        sudo apt-get update && sudo apt-get install -y imagemagick gcovr
+    
+    - name: Cache apt packages
+      uses: awalsh128/cache-apt-pkgs-action@v1
+      with:
+        packages: imagemagick gcovr
+        version: 1.0
     
     - name: Setup registry
       run: |
         mkdir -p $HOME/.config/fortran
         cp registry.toml $HOME/.config/fortran/
+    
+    - name: Cache FPM dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.local/share/fpm
+          build/dependencies
+        key: ${{ runner.os }}-fpm-deps-${{ hashFiles('fpm.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-fpm-deps-
     
     - name: Build with coverage
       run: |
@@ -423,12 +488,21 @@ jobs:
           mingw-w64-x86_64-gcc-fortran
           mingw-w64-x86_64-gcc
           git
+      # Note: msys2/setup-msys2 has its own caching mechanism
     
     - name: Add MinGW to PATH
       run: echo C:\msys64\mingw64\bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       shell: pwsh
     
+    - name: Cache FPM binary (Windows)
+      id: cache-fpm-win
+      uses: actions/cache@v4
+      with:
+        path: C:\msys64\mingw64\bin\fpm.exe
+        key: ${{ runner.os }}-fpm-0.12.0
+    
     - name: Install FPM
+      if: steps.cache-fpm-win.outputs.cache-hit != 'true'
       shell: pwsh
       run: |
         Write-Host "Installing FPM directly from GitHub releases..."
@@ -442,6 +516,16 @@ jobs:
         $configDir = Join-Path $env:LOCALAPPDATA "fortran\config"
         New-Item -ItemType Directory -Force -Path $configDir | Out-Null
         Copy-Item "registry.toml" -Destination $configDir
+    
+    - name: Cache FPM dependencies (Windows)
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~\AppData\Local\fpm
+          build\dependencies
+        key: ${{ runner.os }}-fpm-deps-${{ hashFiles('fpm.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-fpm-deps-
     
     - name: Build
       run: |
