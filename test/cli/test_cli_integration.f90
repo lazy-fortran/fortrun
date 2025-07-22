@@ -115,8 +115,6 @@ contains
                 cmd = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" "'// &
                     trim(test_file)//'" --debug-tokens > "'//trim(output_file)//'" 2>/dev/null'
             end if
-            ! Debug print to diagnose path issues
-            print *, '  DEBUG: Command: ', trim(cmd)
             call execute_command_line(cmd, exitstat=iostat)
             if (iostat /= 0) then
                 print *, '  FAIL: --debug-tokens failed'
