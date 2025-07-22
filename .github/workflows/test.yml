@@ -29,8 +29,19 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y gfortran gcovr
     
+    - name: Setup registry
+      run: |
+        mkdir -p $HOME/.config/fortran
+        cp registry.toml $HOME/.config/fortran/
+    
     - name: Build with coverage
-      run: fpm build --flag '-fprofile-arcs -ftest-coverage'
+      run: |
+        # Build with coverage flags
+        fpm build --profile debug --flag '-fprofile-arcs -ftest-coverage -g'
+        
+        # Debug: Show build directory structure
+        echo "Build directory structure:"
+        find build -type f -name "*.gcno" | head -10
     
     - name: Run Core Tests
       if: matrix.test-group == 'core'
@@ -70,19 +81,28 @@ jobs:
     
     - name: Generate coverage data
       run: |
+        # Debug: Show where coverage files are located
+        echo "Coverage files (.gcda):"
+        find . -name "*.gcda" | head -10
+        echo "Coverage files (.gcno):"
+        find . -name "*.gcno" | head -10
+        
         # Find all .gcda files and copy them to a central location
         mkdir -p coverage-data
         find . -name "*.gcda" -exec cp --parents {} coverage-data/ \;
         find . -name "*.gcno" -exec cp --parents {} coverage-data/ \;
         
         # Generate intermediate coverage info
+        # Use --gcov-object-dir to help gcovr find the coverage files
         gcovr --root . \
+          --gcov-object-dir build \
           --exclude 'build/*' \
           --exclude 'test/*' \
           --exclude 'example/*' \
           --exclude 'app/test_*.f90' \
           --exclude 'draft/*' \
-          --json coverage-${{ matrix.test-group }}.json
+          --json coverage-${{ matrix.test-group }}.json \
+          --print-summary
     
     - name: Upload coverage artifacts
       uses: actions/upload-artifact@v4
@@ -111,8 +131,19 @@ jobs:
         sudo mv fpm-0.12.0-linux-x86_64-gcc-12 /usr/local/bin/fpm
         sudo apt-get update && sudo apt-get install -y imagemagick gcovr
     
+    - name: Setup registry
+      run: |
+        mkdir -p $HOME/.config/fortran
+        cp registry.toml $HOME/.config/fortran/
+    
     - name: Build with coverage
-      run: fpm build --flag '-fprofile-arcs -ftest-coverage'
+      run: |
+        # Build with coverage flags
+        fpm build --profile debug --flag '-fprofile-arcs -ftest-coverage -g'
+        
+        # Debug: Show build directory structure
+        echo "Build directory structure:"
+        find build -type f -name "*.gcno" | head -10
     
     - name: Run CLI Tests
       if: matrix.test-group == 'cli'
@@ -146,6 +177,12 @@ jobs:
     
     - name: Generate coverage data
       run: |
+        # Debug: Show where coverage files are located
+        echo "Coverage files (.gcda):"
+        find . -name "*.gcda" | head -10
+        echo "Coverage files (.gcno):"
+        find . -name "*.gcno" | head -10
+        
         mkdir -p coverage-data
         find . -name "*.gcda" -exec cp --parents {} coverage-data/ \;
         find . -name "*.gcno" -exec cp --parents {} coverage-data/ \;
@@ -156,7 +193,8 @@ jobs:
           --exclude 'example/*' \
           --exclude 'app/test_*.f90' \
           --exclude 'draft/*' \
-          --json coverage-${{ matrix.test-group }}.json
+          --json coverage-${{ matrix.test-group }}.json \
+          --print-summary
     
     - name: Upload coverage artifacts
       uses: actions/upload-artifact@v4
@@ -185,8 +223,19 @@ jobs:
         sudo mv fpm-0.12.0-linux-x86_64-gcc-12 /usr/local/bin/fpm
         sudo apt-get update && sudo apt-get install -y imagemagick gcovr
     
+    - name: Setup registry
+      run: |
+        mkdir -p $HOME/.config/fortran
+        cp registry.toml $HOME/.config/fortran/
+    
     - name: Build with coverage
-      run: fpm build --flag '-fprofile-arcs -ftest-coverage'
+      run: |
+        # Build with coverage flags
+        fpm build --profile debug --flag '-fprofile-arcs -ftest-coverage -g'
+        
+        # Debug: Show build directory structure
+        echo "Build directory structure:"
+        find build -type f -name "*.gcno" | head -10
     
     - name: Run Frontend Tests
       if: matrix.test-group == 'frontend'
@@ -209,6 +258,12 @@ jobs:
     
     - name: Generate coverage data
       run: |
+        # Debug: Show where coverage files are located
+        echo "Coverage files (.gcda):"
+        find . -name "*.gcda" | head -10
+        echo "Coverage files (.gcno):"
+        find . -name "*.gcno" | head -10
+        
         mkdir -p coverage-data
         find . -name "*.gcda" -exec cp --parents {} coverage-data/ \;
         find . -name "*.gcno" -exec cp --parents {} coverage-data/ \;
@@ -219,7 +274,8 @@ jobs:
           --exclude 'example/*' \
           --exclude 'app/test_*.f90' \
           --exclude 'draft/*' \
-          --json coverage-${{ matrix.test-group }}.json
+          --json coverage-${{ matrix.test-group }}.json \
+          --print-summary
     
     - name: Upload coverage artifacts
       uses: actions/upload-artifact@v4
@@ -252,12 +308,31 @@ jobs:
     
     - name: Restore coverage data structure
       run: |
+        # Debug: List downloaded artifacts
+        echo "Downloaded artifacts:"
+        find . -name "*.json" -type f | head -20
+        find . -name "*.gcda" -type f | head -20
+        find . -name "*.gcno" -type f | head -20
+        
         # Restore the original directory structure for .gcda and .gcno files
-        for dir in coverage-data/*/; do
-          if [ -d "$dir" ]; then
-            cp -r "$dir"* . || true
-          fi
-        done
+        # The coverage-data directory contains files with their full paths preserved
+        if [ -d "coverage-data" ]; then
+          cd coverage-data
+          # Copy all files preserving directory structure
+          find . -name "*.gcda" -o -name "*.gcno" | while read -r file; do
+            # Remove the leading ./ from the path
+            clean_path="${file#./}"
+            # Create parent directory if needed
+            mkdir -p "../$(dirname "$clean_path")"
+            # Copy the file to its original location
+            cp "$file" "../$clean_path"
+          done
+          cd ..
+        fi
+        
+        # Debug: Verify files were restored
+        echo "Restored coverage files:"
+        find . -name "*.gcda" -type f | head -10
     
     - name: Merge coverage reports
       run: |
@@ -265,7 +340,20 @@ jobs:
         echo "Found coverage JSON files:"
         ls -la coverage-*.json || echo "No JSON files found"
         
-        # Merge all JSON coverage reports
+        # First, generate a fresh coverage report from the restored .gcda files
+        # This ensures gcovr can find the source files properly
+        echo "Generating coverage from restored .gcda files..."
+        gcovr --root . \
+          --exclude 'build/*' \
+          --exclude 'test/*' \
+          --exclude 'example/*' \
+          --exclude 'app/test_*.f90' \
+          --exclude 'draft/*' \
+          --json coverage-merged-gcda.json \
+          --print-summary || echo "Direct .gcda coverage generation completed"
+        
+        # Now merge all JSON coverage reports including the one from .gcda files
+        echo "Merging all coverage reports..."
         gcovr --add-tracefile coverage-*.json \
           --root . \
           --exclude 'build/*' \
@@ -340,6 +428,13 @@ jobs:
         Invoke-WebRequest -Uri "https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-windows-x86_64-gcc-12.exe" -OutFile "fpm.exe"
         Move-Item -Path "fpm.exe" -Destination "C:\msys64\mingw64\bin\fpm.exe"
         & "C:\msys64\mingw64\bin\fpm.exe" --version
+    
+    - name: Setup registry (Windows)
+      shell: pwsh
+      run: |
+        $configDir = Join-Path $env:LOCALAPPDATA "fortran\config"
+        New-Item -ItemType Directory -Force -Path $configDir | Out-Null
+        Copy-Item "registry.toml" -Destination $configDir
     
     - name: Build
       run: |
