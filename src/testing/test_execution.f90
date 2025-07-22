@@ -83,7 +83,8 @@ contains
         if (get_os_type() == OS_WINDOWS) then
             command = '"'//trim(escape_shell_arg(test_executable))//'" > "'//trim(escape_shell_arg(temp_file))//'" 2>&1'
         else
-            command = "timeout 60 "//trim(escape_shell_arg(test_executable))//" > "//trim(escape_shell_arg(temp_file))//" 2>&1"
+            command = 'timeout 60 "'//trim(escape_shell_arg(test_executable))// &
+                      '" > "'//trim(escape_shell_arg(temp_file))//'" 2>&1'
         end if
 
         ! Run test and capture output
