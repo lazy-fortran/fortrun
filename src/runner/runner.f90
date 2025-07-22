@@ -15,9 +15,11 @@ module runner
     use debug_state, only: get_debug_flags
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, mkdir
     use system_utils, only: sys_copy_file, sys_remove_file, sys_get_absolute_path, &
-                            sys_find_files, sys_list_files, sys_get_path_separator
+                            sys_find_files, sys_list_files, sys_get_path_separator, &
+                            get_stderr_redirect
     use logger_utils, only: debug_print, print_info, print_warning, print_error, &
                             set_logger_verbose_level
+    use string_utils, only: int_to_char
     use, intrinsic :: iso_fortran_env, only: int64, error_unit
     implicit none
     private
@@ -25,13 +27,6 @@ module runner
 
 contains
 
-    !> Helper function to convert integer to string
-    function int_to_char(i) result(str)
-        integer, intent(in) :: i
-        character(len=32) :: str
-        write(str, '(i0)') i
-        str = trim(str)
-    end function int_to_char
 
     function get_cd_command() result(cd_cmd)
         character(len=32) :: cd_cmd
@@ -373,11 +368,7 @@ call print_error('Cache is locked by another process. Use without --no-wait to w
         ! Run the executable using fpm run
         if (verbose_level == 0) then
             ! Quiet mode: suppress FPM stderr messages but show program output
-            if (get_os_type() == OS_WINDOWS) then
-                command = trim(get_cd_command())//' "'//trim(project_dir)//'" && fpm run '//trim(basename)//' 2>nul'
-            else
-                command = trim(get_cd_command())//' "'//trim(project_dir)//'" && fpm run '//trim(basename)//' 2>/dev/null'
-            end if
+            command = trim(get_cd_command())//' "'//trim(project_dir)//'" && fpm run '//trim(basename)//get_stderr_redirect()
         else
             command = trim(get_cd_command())//' "'//trim(project_dir)// &
                       '" && fpm run '//trim(basename)

@@ -20,26 +20,30 @@ contains
 
     function get_cache_dir() result(cache_dir)
         character(len=:), allocatable :: cache_dir
-        character(len=256) :: temp_dir, home_dir
+        character(len=:), allocatable :: temp_dir, home_dir
+        character(len=256) :: temp_buffer, home_buffer
         integer :: status
 
         ! Try to get XDG_CACHE_HOME first (Linux standard)
-        call get_environment_variable('XDG_CACHE_HOME', temp_dir, status=status)
+        call get_environment_variable('XDG_CACHE_HOME', temp_buffer, status=status)
 
-        if (status == 0 .and. len_trim(temp_dir) > 0) then
-            cache_dir = join_path(trim(temp_dir), 'fortran')
+        if (status == 0 .and. len_trim(temp_buffer) > 0) then
+            temp_dir = trim(temp_buffer)
+            cache_dir = join_path(temp_dir, 'fortran')
         else
             ! Fallback to HOME directory
-            call get_environment_variable('HOME', home_dir, status=status)
+            call get_environment_variable('HOME', home_buffer, status=status)
 
             if (status == 0) then
+                home_dir = trim(home_buffer)
                 ! Linux/macOS: ~/.cache/fortran
-                cache_dir = join_path(trim(home_dir), '.cache', 'fortran')
+                cache_dir = join_path(home_dir, '.cache', 'fortran')
             else
                 ! Windows fallback: try LOCALAPPDATA
-                call get_environment_variable('LOCALAPPDATA', temp_dir, status=status)
+                call get_environment_variable('LOCALAPPDATA', temp_buffer, status=status)
                 if (status == 0) then
-                    cache_dir = join_path(trim(temp_dir), 'fortran', 'cache')
+                    temp_dir = trim(temp_buffer)
+                    cache_dir = join_path(temp_dir, 'fortran', 'cache')
                 else
                     ! Last resort - use current directory
                     cache_dir = join_path('.', '.fortran-cache')

@@ -7,6 +7,7 @@ module cache_lock
     use system_utils, only: sys_remove_file, sys_move_file, sys_find_files, &
                             sys_create_symlink, sys_process_exists, sys_sleep, sys_file_exists
     use logger_utils, only: debug_print, print_info, print_warning, print_error
+    use string_utils, only: int_to_char
     implicit none
     private
     public :: acquire_lock, release_lock, is_locked, cleanup_stale_locks
@@ -16,13 +17,6 @@ module cache_lock
 
 contains
 
-    !> Helper function to convert integer to string
-    function int_to_char(i) result(str)
-        integer, intent(in) :: i
-        character(len=32) :: str
-        write(str, '(i0)') i
-        str = trim(str)
-    end function int_to_char
 
     function acquire_lock(cache_dir, project_name, wait) result(success)
         character(len=*), intent(in) :: cache_dir, project_name

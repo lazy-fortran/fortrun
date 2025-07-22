@@ -410,7 +410,7 @@ contains
 
         ! Use runtime OS detection instead of preprocessor
         if (get_os_type() == OS_WINDOWS) then
-      command = 'if not exist "'//trim(dir_path)//'" mkdir "'//trim(dir_path)//'" 2>nul'
+            command = 'if not exist "'//trim(dir_path)//'" mkdir "'//trim(dir_path)//'" 2>nul'
         else
             command = 'mkdir -p "'//trim(dir_path)//'" 2>/dev/null'
         end if

@@ -13,7 +13,7 @@ module system_utils
     public :: sys_run_command, sys_get_path_separator
     public :: sys_count_files, sys_sleep, sys_kill_process
     public :: sys_process_exists, sys_get_temp_dir
-    public :: sys_run_command_with_exit_code
+    public :: sys_run_command_with_exit_code, get_stderr_redirect
 
 contains
 
@@ -546,5 +546,16 @@ contains
         
         call execute_command_line(full_command)
     end subroutine sys_run_command_with_exit_code
+
+    !> Get platform-specific stderr redirection string
+    function get_stderr_redirect() result(redirect)
+        character(len=:), allocatable :: redirect
+        
+        if (get_os_type() == OS_WINDOWS) then
+            redirect = ' 2>nul'
+        else
+            redirect = ' 2>/dev/null'
+        end if
+    end function get_stderr_redirect
 
 end module system_utils

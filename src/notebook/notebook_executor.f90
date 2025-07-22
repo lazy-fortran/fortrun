@@ -9,7 +9,9 @@ module notebook_executor
     use temp_utils, only: mkdir
     use system_utils, only: sys_remove_file, sys_get_current_dir
     use fpm_environment, only: get_os_type, OS_WINDOWS
+    use fpm_filesystem, only: join_path
     use logger_utils, only: debug_print, print_info, print_warning, print_error
+    use string_utils, only: int_to_char, logical_to_char
     implicit none
     private
 
@@ -41,24 +43,6 @@ module notebook_executor
 
 contains
 
-    !> Helper function to convert integer to string
-    function int_to_char(i) result(str)
-        integer, intent(in) :: i
-        character(len=32) :: str
-        write(str, '(i0)') i
-        str = trim(str)
-    end function int_to_char
-
-    !> Helper function to convert logical to string
-    function logical_to_char(l) result(str)
-        logical, intent(in) :: l
-        character(len=1) :: str
-        if (l) then
-            str = 'T'
-        else
-            str = 'F'
-        end if
-    end function logical_to_char
 
     subroutine execute_notebook(notebook, results, custom_cache_dir, verbose_level)
         type(notebook_t), intent(inout) :: notebook
@@ -151,7 +135,7 @@ call debug_print('notebook_executor - attempting to acquire cache lock (NO WAIT)
             call cleanup_temp_dir(temp_dir)
 
             ! Update project dir to point to cached version
-            fpm_project_dir = trim(cache_dir)//'/notebook_'//trim(cache_key)
+            fpm_project_dir = join_path(cache_dir, 'notebook_'//trim(cache_key))
         end if
 
         ! Execute the notebook and capture outputs
@@ -191,8 +175,8 @@ call debug_print('notebook_executor - attempting to acquire cache lock (NO WAIT)
         ! The stub in notebook_execution handles show() calls
 
         ! Generate main program
-        call generate_main_program(notebook, trim(cache_dir) // '/notebook_' // trim(cache_key) // '_outputs.txt', main_content)
-        open (newunit=unit, file=trim(project_dir)//'/app/main.f90', status='replace')
+        call generate_main_program(notebook, join_path(cache_dir, 'notebook_' // trim(cache_key) // '_outputs.txt'), main_content)
+        open (newunit=unit, file=join_path(project_dir, 'app/main.f90'), status='replace')
         write (unit, '(a)') main_content
         close (unit)
 
@@ -243,10 +227,10 @@ call debug_print('notebook_executor - attempting to acquire cache lock (NO WAIT)
         logical, intent(out) :: cache_hit
         character(len=:), allocatable, intent(out) :: project_dir
 
-        project_dir = trim(cache_dir)//'/notebook_'//trim(cache_key)
+        project_dir = join_path(cache_dir, 'notebook_'//trim(cache_key))
 
         ! Check if cached project exists by checking for fpm.toml
-        inquire (file=trim(project_dir)//'/fpm.toml', exist=cache_hit)
+        inquire (file=join_path(project_dir, 'fpm.toml'), exist=cache_hit)
 
     end subroutine check_notebook_cache
 
