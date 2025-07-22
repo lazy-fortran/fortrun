@@ -10,7 +10,7 @@ program test_verbose
     logical :: verbose_found, build_found
 
     ! Create a simple test program
-    test_program = 'test_verbose_hello.f90'
+    test_program = 'test_verbose_hello.f'
     call create_test_program(test_program)
 
     ! Test 1: Default (quiet) mode - should not show FPM output
@@ -66,6 +66,7 @@ program test_verbose
 
     print *, ''
     print *, 'All verbose tests passed!'
+    stop 0
 
 contains
 
@@ -74,10 +75,8 @@ contains
         integer :: unit
 
         open (newunit=unit, file=filename, status='replace')
-        write (unit, '(a)') 'program test_hello'
-        write (unit, '(a)') '  implicit none'
-        write (unit, '(a)') '  print *, "Test output"'
-        write (unit, '(a)') 'end program test_hello'
+        write (unit, '(a)') '! Simple test program for verbose test'
+        write (unit, '(a)') 'print *, "Test output"'
         close (unit)
     end subroutine create_test_program
 
