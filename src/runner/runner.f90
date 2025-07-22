@@ -630,9 +630,10 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
 
     end subroutine cache_build_artifacts
 
-    subroutine copy_local_modules(main_file, project_dir)
+    subroutine copy_local_modules(main_file, project_dir, verbose_level)
         use iso_fortran_env, only: error_unit
         character(len=*), intent(in) :: main_file, project_dir
+        integer, intent(in), optional :: verbose_level
         character(len=256) :: source_dir
         character(len=512) :: command
         integer :: i, last_slash
@@ -663,13 +664,21 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
             logical :: success
 
             ! Get list of files to copy
-            call get_f90_files_except_main(source_dir, main_file, files, num_files)
+            if (present(verbose_level)) then
+                call get_f90_files_except_main(source_dir, main_file, files, num_files, verbose_level)
+            else
+                call get_f90_files_except_main(source_dir, main_file, files, num_files, 0)
+            end if
 
-            call debug_print('Module copying debug info:')
-            write(*, '(a,i0)') 'DEBUG: Found ', num_files, ' files to copy'
-            do j = 1, num_files
-                write(*, '(a,i0,a,a)') 'DEBUG: File ', j, ': ', trim(files(j))
-            end do
+            if (present(verbose_level)) then
+              if (verbose_level >= 3) then
+                call debug_print('Module copying debug info:')
+                write(*, '(a,i0)') 'DEBUG: Found ', num_files, ' files to copy'
+                do j = 1, num_files
+                    write(*, '(a,i0,a,a)') 'DEBUG: File ', j, ': ', trim(files(j))
+                end do
+              end if
+            end if
 
             ! Copy each file to the src directory
             do j = 1, num_files
@@ -685,17 +694,21 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
             end do
             
             ! Verify what files are now in the project src directory
-            call debug_print('Verifying files in project src directory:')
-            block
-                character(len=512) :: src_dir, verify_files(100)
-                integer :: num_verify_files, k
-                src_dir = join_path(trim(project_dir), 'src')
-                call sys_list_files(src_dir, '*.f90', verify_files, num_verify_files)
-                write(*, '(a,i0)') 'DEBUG: Files in project src: ', num_verify_files
-                do k = 1, num_verify_files
-                    write(*, '(a,i0,a,a)') 'DEBUG: Src file[', k, ']: ', trim(verify_files(k))
-                end do
-            end block
+            if (present(verbose_level)) then
+              if (verbose_level >= 3) then
+                call debug_print('Verifying files in project src directory:')
+                block
+                    character(len=512) :: src_dir, verify_files(100)
+                    integer :: num_verify_files, k
+                    src_dir = join_path(trim(project_dir), 'src')
+                    call sys_list_files(src_dir, '*.f90', verify_files, num_verify_files)
+                    write(*, '(a,i0)') 'DEBUG: Files in project src: ', num_verify_files
+                    do k = 1, num_verify_files
+                        write(*, '(a,i0,a,a)') 'DEBUG: Src file[', k, ']: ', trim(verify_files(k))
+                    end do
+                end block
+              end if
+            end if
         end block
 
     end subroutine copy_local_modules
@@ -811,7 +824,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         end if
 
         ! Copy all other .f90 files from the same directory to src/
-        call copy_local_modules(absolute_path, trim(project_dir))
+        call copy_local_modules(absolute_path, trim(project_dir), verbose_level)
 
         ! Scan for module dependencies and generate fpm.toml
         ! Sanitize basename for use as package name (limit length and remove spaces)
@@ -881,7 +894,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         character(len=512) :: combined_dependencies
 
         ! Get all .f90 files in the source directory except the main file
-        call get_f90_files_except_main(source_dir, main_file, all_files, num_files)
+        call get_f90_files_except_main(source_dir, main_file, all_files, num_files, 0)
 
         ! Combine local module files to create structure hash
         combined_dependencies = ''
@@ -904,11 +917,12 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
 
     end function get_project_structure_hash
 
-    subroutine get_f90_files_except_main(source_dir, main_file, files, num_files)
+    subroutine get_f90_files_except_main(source_dir, main_file, files, num_files, verbose_level)
         use iso_fortran_env, only: error_unit
         character(len=*), intent(in) :: source_dir, main_file
         character(len=*), intent(out) :: files(:)
         integer, intent(out) :: num_files
+        integer, intent(in) :: verbose_level
         character(len=512) :: command, temp_file
         integer :: unit, iostat, i
         character(len=512) :: line, main_basename
@@ -921,24 +935,32 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
             character(len=512) :: all_files(1000)
             integer :: total_files, j
 
-            write(*, '(a,a)') 'DEBUG: Searching in directory: ', trim(source_dir)
-            write(*, '(a,a)') 'DEBUG: Main file basename: ', trim(main_basename)
+            if (verbose_level >= 3) then
+                write(*, '(a,a)') 'DEBUG: Searching in directory: ', trim(source_dir)
+                write(*, '(a,a)') 'DEBUG: Main file basename: ', trim(main_basename)
+            end if
 
             ! First get .f90 files
             call sys_list_files(source_dir, '*.f90', all_files, total_files)
-            write(*, '(a,i0)') 'DEBUG: Found .f90 files: ', total_files
+            if (verbose_level >= 3) then
+                write(*, '(a,i0)') 'DEBUG: Found .f90 files: ', total_files
+            end if
 
             ! Then get .F90 files and add to list
             if (total_files < size(all_files)) then
                 call sys_list_files(source_dir, '*.F90', all_files(total_files + 1:), j)
                 total_files = total_files + j
-                write(*, '(a,i0)') 'DEBUG: Total files after .F90 search: ', total_files
+                if (verbose_level >= 3) then
+                    write(*, '(a,i0)') 'DEBUG: Total files after .F90 search: ', total_files
+                end if
             end if
 
             ! Show all found files
-            do i = 1, total_files
-                write(*, '(a,i0,a,a)') 'DEBUG: All files[', i, ']: ', trim(all_files(i))
-            end do
+            if (verbose_level >= 3) then
+                do i = 1, total_files
+                    write(*, '(a,i0,a,a)') 'DEBUG: All files[', i, ']: ', trim(all_files(i))
+                end do
+            end if
 
             ! Filter out the main file
             num_files = 0
@@ -947,10 +969,14 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
                     num_files = num_files + 1
                     if (num_files <= size(files)) then
                         files(num_files) = trim(all_files(i))
-                        write(*, '(a,i0,a,a)') 'DEBUG: Added file[', num_files, ']: ', trim(files(num_files))
+                        if (verbose_level >= 3) then
+                            write(*, '(a,i0,a,a)') 'DEBUG: Added file[', num_files, ']: ', trim(files(num_files))
+                        end if
                     end if
                 else
-                    write(*, '(a,a,a)') 'DEBUG: Skipping main file: ', trim(all_files(i)), ' (contains main basename)'
+                    if (verbose_level >= 3) then
+                        write(*, '(a,a,a)') 'DEBUG: Skipping main file: ', trim(all_files(i)), ' (contains main basename)'
+                    end if
                 end if
             end do
 
