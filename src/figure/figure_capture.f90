@@ -1,6 +1,6 @@
 module figure_capture
     use temp_utils, only: mkdir
-    use system_utils, only: sys_remove_file, sys_remove_dir
+    use system_utils, only: sys_remove_file, sys_remove_dir, escape_shell_arg
     use iso_c_binding, only: c_int
     implicit none
     private
@@ -165,7 +165,7 @@ contains
 
         temp_file = './fortran_fig_cmd.out'
 
-        full_command = trim(command)//' > '//trim(temp_file)//' 2>&1'
+        full_command = trim(command)//' > '//trim(escape_shell_arg(temp_file))//' 2>&1'
         call execute_command_line(full_command, exitstat=exit_code)
 
         inquire (file=temp_file, size=file_size)
@@ -219,7 +219,7 @@ contains
         ! In a real implementation, this would be handled by fortplot
         command = 'convert -size 800x600 xc:lightblue -pointsize 24 '// &
                  '-fill black -gravity center -annotate +0+0 "Figure Placeholder" "'// &
-                  trim(filename)//'"'
+                  trim(escape_shell_arg(filename))//'"'
         call execute_command_line(command)
 
         ! If ImageMagick is not available, create an empty file

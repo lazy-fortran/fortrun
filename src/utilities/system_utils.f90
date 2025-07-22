@@ -200,9 +200,9 @@ contains
         integer :: exitstat
 
         if (get_os_type() == OS_WINDOWS) then
-            command = 'if exist "'//trim(dirpath)//'\*" (exit 0) else (exit 1)'
+            command = 'if exist "'//trim(escape_shell_arg(dirpath))//'\*" (exit 0) else (exit 1)'
         else
-            command = 'test -d "'//trim(dirpath)//'"'
+            command = 'test -d "'//trim(escape_shell_arg(dirpath))//'"'
         end if
 
         call execute_command_line(command, exitstat=exitstat)
@@ -220,9 +220,10 @@ contains
         temp_file = get_temp_file_path(create_temp_dir('sys_abspath'), 'path.tmp')
 
         if (get_os_type() == OS_WINDOWS) then
-            command = 'powershell -Command "(Resolve-Path -Path '''//trim(filepath)//''').Path" > "'//trim(temp_file)//'"'
+            command = 'powershell -Command "(Resolve-Path -Path '''//trim(escape_shell_arg(filepath))// &
+                      ''').Path" > "'//trim(escape_shell_arg(temp_file))//'"'
         else
-       command = 'realpath "'//trim(filepath)//'" > "'//trim(temp_file)//'" 2>/dev/null'
+       command = 'realpath "'//trim(escape_shell_arg(filepath))//'" > "'//trim(escape_shell_arg(temp_file))//'" 2>/dev/null'
         end if
 
         call execute_command_line(command, exitstat=iostat)
@@ -255,9 +256,9 @@ contains
         temp_file = get_temp_file_path(create_temp_dir('sys_cwd'), 'cwd.tmp')
 
         if (get_os_type() == OS_WINDOWS) then
-            command = 'cd > "'//trim(temp_file)//'"'
+            command = 'cd > "'//trim(escape_shell_arg(temp_file))//'"'
         else
-            command = 'pwd > "'//trim(temp_file)//'"'
+            command = 'pwd > "'//trim(escape_shell_arg(temp_file))//'"'
         end if
 
         call execute_command_line(command, exitstat=iostat)
@@ -302,17 +303,21 @@ contains
 
         if (get_os_type() == OS_WINDOWS) then
             if (is_recursive) then
-                command = 'cmd /c "dir /s /b "'//trim(directory)//'\'//trim(pattern)//'" 2>nul > "'//trim(temp_file)//'"'
+                command = 'cmd /c "dir /s /b "'//trim(escape_shell_arg(directory))//'\'// &
+                          trim(escape_shell_arg(pattern))//'" 2>nul > "'//trim(escape_shell_arg(temp_file))//'"'
             else
-                command = 'cmd /c "dir /b "'//trim(directory)//'\'//trim(pattern)//'" 2>nul > "'//trim(temp_file)//'"'
+                command = 'cmd /c "dir /b "'//trim(escape_shell_arg(directory))//'\'// &
+                          trim(escape_shell_arg(pattern))//'" 2>nul > "'//trim(escape_shell_arg(temp_file))//'"'
             end if
         else
             if (is_recursive) then
-                command = 'find "'//trim(directory)//'" -name "'//trim(pattern)//'" -type f > "'//trim(temp_file)//'" 2>/dev/null'
+                command = 'find "'//trim(escape_shell_arg(directory))//'" -name "'//trim(escape_shell_arg(pattern))// &
+                          '" -type f > "'//trim(escape_shell_arg(temp_file))//'" 2>/dev/null'
             else
-                command = 'find "'//trim(directory)//'" -maxdepth '
+                command = 'find "'//trim(escape_shell_arg(directory))//'" -maxdepth '
                 write (command(len_trim(command) + 1:), '(I0)') depth
-                command = trim(command)//' -name "'//trim(pattern)//'" -type f > "'//trim(temp_file)//'" 2>/dev/null'
+                command = trim(command)//' -name "'//trim(escape_shell_arg(pattern))// &
+                          '" -type f > "'//trim(escape_shell_arg(temp_file))//'" 2>/dev/null'
             end if
         end if
 
@@ -360,15 +365,15 @@ contains
 
         if (get_os_type() == OS_WINDOWS) then
             if (with_parents) then
-                command = 'mkdir "'//trim(dirpath)//'" 2>nul'
+                command = 'mkdir "'//trim(escape_shell_arg(dirpath))//'" 2>nul'
             else
-                command = 'mkdir "'//trim(dirpath)//'" 2>nul'
+                command = 'mkdir "'//trim(escape_shell_arg(dirpath))//'" 2>nul'
             end if
         else
             if (with_parents) then
-                command = 'mkdir -p "'//trim(dirpath)//'" 2>/dev/null'
+                command = 'mkdir -p "'//trim(escape_shell_arg(dirpath))//'" 2>/dev/null'
             else
-                command = 'mkdir "'//trim(dirpath)//'" 2>/dev/null'
+                command = 'mkdir "'//trim(escape_shell_arg(dirpath))//'" 2>/dev/null'
             end if
         end if
 
@@ -385,9 +390,9 @@ contains
 
         if (get_os_type() == OS_WINDOWS) then
             ! Windows requires admin rights for symlinks, use junction for directories
-            command = 'mklink "'//trim(link_name)//'" "'//trim(target)//'" 2>nul'
+            command = 'mklink "'//trim(escape_shell_arg(link_name))//'" "'//trim(escape_shell_arg(target))//'" 2>nul'
         else
-            command = 'ln -s "'//trim(target)//'" "'//trim(link_name)//'" 2>/dev/null'
+            command = 'ln -s "'//trim(escape_shell_arg(target))//'" "'//trim(escape_shell_arg(link_name))//'" 2>/dev/null'
         end if
 
         call execute_command_line(command, exitstat=exitstat)
@@ -408,12 +413,13 @@ contains
         if (present(timeout)) then
             if (get_os_type() == OS_WINDOWS) then
                 ! Windows doesn't have a simple timeout command
-                full_command = trim(command)//' > "'//trim(temp_file)//'" 2>&1'
+                full_command = trim(command)//' > "'//trim(escape_shell_arg(temp_file))//'" 2>&1'
             else
-                write(full_command, '(A,I0,A)') 'timeout ', timeout, ' '//trim(command)//' > "'//trim(temp_file)//'" 2>&1'
+                write(full_command, '(A,I0,A)') 'timeout ', timeout, ' '//trim(command)// &
+                      ' > "'//trim(escape_shell_arg(temp_file))//'" 2>&1'
             end if
         else
-            full_command = trim(command)//' > "'//trim(temp_file)//'" 2>&1'
+            full_command = trim(command)//' > "'//trim(escape_shell_arg(temp_file))//'" 2>&1'
         end if
 
         call execute_command_line(full_command, exitstat=exit_code)
@@ -449,9 +455,11 @@ contains
         temp_file = get_temp_file_path(create_temp_dir('sys_count'), 'count.tmp')
 
         if (get_os_type() == OS_WINDOWS) then
-            command = 'cmd /c "dir /a-d /b "'//trim(directory)//'" 2>nul | find /c /v """" > "'//trim(temp_file)//'"'
+            command = 'cmd /c "dir /a-d /b "'//trim(escape_shell_arg(directory))// &
+                      '" 2>nul | find /c /v """" > "'//trim(escape_shell_arg(temp_file))//'"'
         else
-            command = 'find "'//trim(directory)//'" -type f 2>/dev/null | wc -l > "'//trim(temp_file)//'"'
+            command = 'find "'//trim(escape_shell_arg(directory))// &
+                      '" -type f 2>/dev/null | wc -l > "'//trim(escape_shell_arg(temp_file))//'"'
         end if
 
         call execute_command_line(command)
@@ -561,7 +569,7 @@ contains
         if (get_os_type() == OS_WINDOWS) then
             ! Windows: Run command first, then check ERRORLEVEL separately  
             ! This ensures we capture the exit code of the command, not the echo
-            call execute_command_line(trim(command)//' > "'//trim(output_file)//'" 2>&1', exitstat=exit_code)
+            call execute_command_line(trim(command)//' > "'//trim(escape_shell_arg(output_file))//'" 2>&1', exitstat=exit_code)
             ! Write the exit code manually
             open(newunit=unit, file=trim(exit_file), status='replace')
             write(unit, '(i0)') exit_code
@@ -569,8 +577,8 @@ contains
             return
         else
             ! Unix: Use shell to run command and capture exit code
-            full_command = '('//trim(command)//') > "'//trim(output_file) &
-                         //'" 2>&1; echo $? > "'//trim(exit_file)//'"'
+            full_command = '('//trim(command)//') > "'//trim(escape_shell_arg(output_file)) &
+                         //'" 2>&1; echo $? > "'//trim(escape_shell_arg(exit_file))//'"'
         end if
         
         call execute_command_line(full_command)

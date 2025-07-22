@@ -3,7 +3,7 @@ module test_execution
     use omp_lib
     use temp_utils, only: get_system_temp_dir, get_temp_file_path
     use fpm_environment, only: get_os_type, OS_WINDOWS
-    use system_utils, only: sys_remove_file
+    use system_utils, only: sys_remove_file, escape_shell_arg
     implicit none
     private
 
@@ -81,9 +81,9 @@ contains
 
         ! Create command to run test executable directly
         if (get_os_type() == OS_WINDOWS) then
-            command = '"'//trim(test_executable)//'" > "'//trim(temp_file)//'" 2>&1'
+            command = '"'//trim(escape_shell_arg(test_executable))//'" > "'//trim(escape_shell_arg(temp_file))//'" 2>&1'
         else
-            command = "timeout 60 "//trim(test_executable)//" > "//trim(temp_file)//" 2>&1"
+            command = "timeout 60 "//trim(escape_shell_arg(test_executable))//" > "//trim(escape_shell_arg(temp_file))//" 2>&1"
         end if
 
         ! Run test and capture output

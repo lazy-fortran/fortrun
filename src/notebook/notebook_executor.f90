@@ -7,7 +7,7 @@ module notebook_executor
     use, intrinsic :: iso_c_binding
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path
     use temp_utils, only: mkdir
-    use system_utils, only: sys_remove_file, sys_get_current_dir
+    use system_utils, only: sys_remove_file, sys_get_current_dir, escape_shell_arg
     use fpm_environment, only: get_os_type, OS_WINDOWS
     use fpm_filesystem, only: join_path
     use logger_utils, only: debug_print, print_info, print_warning, print_error
@@ -247,9 +247,11 @@ call debug_print('notebook_executor - attempting to acquire cache lock (NO WAIT)
 
         ! Copy project to cache using Windows-compatible command
         if (get_os_type() == OS_WINDOWS) then
-            command = 'xcopy /E /I /Y "'//trim(project_dir)//'" "'//trim(cached_project_dir)//'" >nul 2>&1'
+            command = 'xcopy /E /I /Y "'//trim(escape_shell_arg(project_dir))//'" "'// &
+                      trim(escape_shell_arg(cached_project_dir))//'" >nul 2>&1'
         else
-            command = 'cp -r "'//trim(project_dir)//'" "'//trim(cached_project_dir)//'"'
+            command = 'cp -r "'//trim(escape_shell_arg(project_dir))//'" "'// &
+                      trim(escape_shell_arg(cached_project_dir))//'"'
         end if
         call execute_command_line(command)
 
@@ -501,9 +503,11 @@ call debug_print('notebook_executor - attempting to acquire cache lock (NO WAIT)
 
         ! Copy the notebook_output module to the project using Windows-compatible command
         if (get_os_type() == OS_WINDOWS) then
-            command = 'copy "'//trim(source_file)//'" "'//trim(dest_file)//'" >nul 2>&1'
+            command = 'copy "'//trim(escape_shell_arg(source_file))//'" "'// &
+                      trim(escape_shell_arg(dest_file))//'" >nul 2>&1'
         else
-            command = 'cp "'//trim(source_file)//'" "'//trim(dest_file)//'"'
+            command = 'cp "'//trim(escape_shell_arg(source_file))//'" "'// &
+                      trim(escape_shell_arg(dest_file))//'"'
         end if
         call execute_command_line(command)
 
@@ -762,7 +766,7 @@ call debug_print('notebook_executor - attempting to acquire cache lock (NO WAIT)
         write (pid_str, '(i0)') get_process_id()
         temp_file = get_temp_file_path(create_temp_dir('fortran_exec_'//trim(pid_str)), 'fortran_exec.out')
 
-        full_command = trim(command)//' > '//trim(temp_file)//' 2>&1'
+        full_command = trim(command)//' > '//trim(escape_shell_arg(temp_file))//' 2>&1'
 
         call debug_print('execute_and_capture starting')
         call debug_print('full_command = ' // trim(full_command))

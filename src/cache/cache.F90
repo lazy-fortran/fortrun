@@ -505,7 +505,7 @@ contains
         block
             character(len=256) :: temp_file
       temp_file = get_temp_file_path(create_temp_dir('fortran_cache'), 'cache_size.tmp')
-            call execute_command_line(command//' > '//trim(temp_file), &
+            call execute_command_line(command//' > '//trim(escape_shell_arg(temp_file)), &
                                       exitstat=exitstat, cmdstat=cmdstat)
 
             size_output = "unknown"
@@ -529,7 +529,7 @@ contains
         block
             character(len=256) :: temp_file
      temp_file = get_temp_file_path(create_temp_dir('fortran_cache'), 'cache_count.tmp')
-            call execute_command_line(command//' > '//trim(temp_file), &
+            call execute_command_line(command//' > '//trim(escape_shell_arg(temp_file)), &
                                       exitstat=exitstat, cmdstat=cmdstat)
 
             num_files = 0
