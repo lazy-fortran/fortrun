@@ -46,38 +46,38 @@ jobs:
     - name: Run Core Tests
       if: matrix.test-group == 'core'
       run: |
-        fpm test test_lexer_direct --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_parser_edge_cases --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_frontend_parser_if_statement --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_semantic_simple --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_scope_manager_basic --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_lexer_direct --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_parser_edge_cases --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_frontend_parser_if_statement --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_semantic_simple --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_scope_manager_basic --profile debug --flag '-fprofile-arcs -ftest-coverage'
     
     - name: Run Utilities Tests
       if: matrix.test-group == 'utilities'
       run: |
-        fpm test test_logger_utils --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_logger_utils_coverage --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_string_utils --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_string_utils_coverage --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_system_utils_coverage --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_system_utils_missing --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_logger_utils --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_logger_utils_coverage --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_string_utils --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_string_utils_coverage --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_system_utils_coverage --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_system_utils_missing --profile debug --flag '-fprofile-arcs -ftest-coverage'
     
     - name: Run Cache Tests
       if: matrix.test-group == 'cache'
       run: |
-        fpm test test_cache --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_cache_coverage --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_cache_missing --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_cache_lock --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_cache_fallback --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_cache --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_cache_coverage --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_cache_missing --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_cache_lock --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_cache_fallback --profile debug --flag '-fprofile-arcs -ftest-coverage'
     
     - name: Run Runner Tests
       if: matrix.test-group == 'runner'
       run: |
-        fpm test test_runner_paths --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_runner_coverage --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_runner_missing_lines --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_runner_edge_cases --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_runner_paths --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_runner_coverage --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_runner_missing_lines --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_runner_edge_cases --profile debug --flag '-fprofile-arcs -ftest-coverage'
     
     - name: Generate coverage data
       run: |
@@ -93,14 +93,18 @@ jobs:
         find . -name "*.gcno" -exec cp --parents {} coverage-data/ \;
         
         # Generate intermediate coverage info
-        # Use --gcov-object-dir to help gcovr find the coverage files
+        # FPM builds in build/gfortran_debug with our profile
+        echo "Looking for source files in build directory:"
+        find build -name "*.f90" -o -name "*.F90" | head -5
+        
         gcovr --root . \
-          --gcov-object-dir build \
-          --exclude 'build/*' \
-          --exclude 'test/*' \
-          --exclude 'example/*' \
-          --exclude 'app/test_*.f90' \
-          --exclude 'draft/*' \
+          --filter 'src/.*' \
+          --filter 'app/main.f90' \
+          --exclude 'test/.*' \
+          --exclude 'example/.*' \
+          --exclude 'app/test_.*' \
+          --exclude 'draft/.*' \
+          --gcov-use-existing-files \
           --json coverage-${{ matrix.test-group }}.json \
           --print-summary
     
@@ -148,32 +152,32 @@ jobs:
     - name: Run CLI Tests
       if: matrix.test-group == 'cli'
       run: |
-        fpm test test_cli_system --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_cli_integration --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_cli_comprehensive --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_cli_json_options --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_cli_system --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_cli_integration --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_cli_comprehensive --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_cli_json_options --profile debug --flag '-fprofile-arcs -ftest-coverage'
     
     - name: Run Notebook Tests
       if: matrix.test-group == 'notebook'
       run: |
-        fpm test test_notebook_parser --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_notebook_executor --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_notebook_system --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_notebook_integration --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_notebook_parser --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_notebook_executor --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_notebook_system --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_notebook_integration --profile debug --flag '-fprofile-arcs -ftest-coverage'
     
     - name: Run FPM Tests
       if: matrix.test-group == 'fpm'
       run: |
-        fpm test test_fpm_generator --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_fpm_module_cache --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_fpm_version_generation --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_fpm_generator --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_fpm_module_cache --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_fpm_version_generation --profile debug --flag '-fprofile-arcs -ftest-coverage'
     
     - name: Run Module Tests
       if: matrix.test-group == 'module'
       run: |
-        fpm test test_module_scanner --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_module_scanner_extended --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_module_scanner_coverage --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_module_scanner --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_module_scanner_extended --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_module_scanner_coverage --profile debug --flag '-fprofile-arcs -ftest-coverage'
     
     - name: Generate coverage data
       run: |
@@ -241,20 +245,20 @@ jobs:
       if: matrix.test-group == 'frontend'
       run: |
         export OMP_NUM_THREADS=4
-        fpm test test_frontend_test_cases --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_frontend_parser_derived_types --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_frontend_parser_array_params --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_frontend_parser_explicit_types --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_frontend_full_explicit_params --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_frontend_test_cases --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_frontend_parser_derived_types --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_frontend_parser_array_params --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_frontend_parser_explicit_types --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_frontend_full_explicit_params --profile debug --flag '-fprofile-arcs -ftest-coverage'
     
     - name: Run Integration Tests
       if: matrix.test-group == 'integration'
       run: |
         export OMP_NUM_THREADS=4
-        fpm test test_parse_and_codegen_arena --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_runner_integration_coverage --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_runner_comprehensive --flag '-fprofile-arcs -ftest-coverage'
-        fpm test test_examples --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_parse_and_codegen_arena --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_runner_integration_coverage --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_runner_comprehensive --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_examples --profile debug --flag '-fprofile-arcs -ftest-coverage'
     
     - name: Generate coverage data
       run: |
@@ -344,11 +348,13 @@ jobs:
         # This ensures gcovr can find the source files properly
         echo "Generating coverage from restored .gcda files..."
         gcovr --root . \
-          --exclude 'build/*' \
-          --exclude 'test/*' \
-          --exclude 'example/*' \
-          --exclude 'app/test_*.f90' \
-          --exclude 'draft/*' \
+          --filter 'src/.*' \
+          --filter 'app/main.f90' \
+          --exclude 'test/.*' \
+          --exclude 'example/.*' \
+          --exclude 'app/test_.*' \
+          --exclude 'draft/.*' \
+          --gcov-use-existing-files \
           --json coverage-merged-gcda.json \
           --print-summary || echo "Direct .gcda coverage generation completed"
         
@@ -356,11 +362,12 @@ jobs:
         echo "Merging all coverage reports..."
         gcovr --add-tracefile coverage-*.json \
           --root . \
-          --exclude 'build/*' \
-          --exclude 'test/*' \
-          --exclude 'example/*' \
-          --exclude 'app/test_*.f90' \
-          --exclude 'draft/*' \
+          --filter 'src/.*' \
+          --filter 'app/main.f90' \
+          --exclude 'test/.*' \
+          --exclude 'example/.*' \
+          --exclude 'app/test_.*' \
+          --exclude 'draft/.*' \
           --xml -o coverage.xml \
           --html-details coverage-report.html \
           --print-summary
