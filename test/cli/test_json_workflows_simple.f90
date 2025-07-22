@@ -49,7 +49,7 @@ contains
             call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
                                       'test_tokens.f --debug-tokens'// &
-                                      merge(' > nul 2>&1       ', ' > /dev/null 2>&1', get_os_type() == OS_WINDOWS), &
+                                      merge(' > nul 2>&1      ', ' > /dev/null 2>&1', get_os_type() == OS_WINDOWS), &
                                       wait=.true., exitstat=iostat)
         end block
 
@@ -92,7 +92,7 @@ contains
             call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
                                       'test_ast.f --debug-tokens'// &
-                                      merge(' > nul 2>&1       ', ' > /dev/null 2>&1', get_os_type() == OS_WINDOWS), &
+                                      merge(' > nul 2>&1      ', ' > /dev/null 2>&1', get_os_type() == OS_WINDOWS), &
                                       wait=.true., exitstat=iostat)
         end block
 
@@ -104,7 +104,7 @@ contains
                 call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
                     'test_ast_tokens.json --from-tokens --debug-ast'// &
-                    merge(' > nul 2>&1       ', ' > /dev/null 2>&1', get_os_type() == OS_WINDOWS), &
+                    merge(' > nul 2>&1      ', ' > /dev/null 2>&1', get_os_type() == OS_WINDOWS), &
                                           wait=.true., exitstat=iostat)
             end block
 
@@ -155,7 +155,7 @@ contains
             call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
                                   'direct_tokens.json --from-tokens'// &
-                                  merge(' > nul 2>&1       ', ' > /dev/null 2>&1', get_os_type() == OS_WINDOWS), &
+                                  merge(' > nul 2>&1      ', ' > /dev/null 2>&1', get_os_type() == OS_WINDOWS), &
                                       wait=.true., exitstat=iostat)
         end block
 
