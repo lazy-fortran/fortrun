@@ -24,17 +24,50 @@ test:
 test-single:
 	fpm test $(ARGS)
 
-# Run CLI tests
-test-cli:
-	OMP_NUM_THREADS=24 fpm run fortran -- --test --filter cli $(ARGS)
+# Run tests by group for faster feedback
+test-quick:
+	@chmod +x scripts/run-test-group.sh
+	@scripts/run-test-group.sh quick
 
-# Run frontend tests  
-test-frontend:
-	OMP_NUM_THREADS=24 fpm run fortran -- --test --filter frontend $(ARGS)
+test-core:
+	@chmod +x scripts/run-test-group.sh
+	@scripts/run-test-group.sh core
 
-# Run cache tests
+test-utilities:
+	@chmod +x scripts/run-test-group.sh
+	@scripts/run-test-group.sh utilities
+
 test-cache:
-	OMP_NUM_THREADS=24 fpm run fortran -- --test --filter cache $(ARGS)
+	@chmod +x scripts/run-test-group.sh
+	@scripts/run-test-group.sh cache
+
+test-runner:
+	@chmod +x scripts/run-test-group.sh
+	@scripts/run-test-group.sh runner
+
+test-cli:
+	@chmod +x scripts/run-test-group.sh
+	@scripts/run-test-group.sh cli
+
+test-notebook:
+	@chmod +x scripts/run-test-group.sh
+	@scripts/run-test-group.sh notebook
+
+test-fpm:
+	@chmod +x scripts/run-test-group.sh
+	@scripts/run-test-group.sh fpm
+
+test-module:
+	@chmod +x scripts/run-test-group.sh
+	@scripts/run-test-group.sh module
+
+test-frontend:
+	@chmod +x scripts/run-test-group.sh
+	@scripts/run-test-group.sh frontend
+
+test-integration:
+	@chmod +x scripts/run-test-group.sh
+	@scripts/run-test-group.sh integration
 
 # Install the project
 install:
@@ -114,9 +147,17 @@ help:
 	@echo "Available targets:"
 	@echo "  build            - Compile the project"  
 	@echo "  test             - Run all tests (parallel)"
-	@echo "  test-cli         - Run CLI tests only"
-	@echo "  test-frontend    - Run frontend tests only" 
-	@echo "  test-cache       - Run cache tests only"
+	@echo "  test-quick       - Run quick subset of tests for rapid feedback"
+	@echo "  test-core        - Run core language tests (lexer, parser, semantic)"
+	@echo "  test-utilities   - Run utility module tests"
+	@echo "  test-cache       - Run cache tests"
+	@echo "  test-runner      - Run runner tests"
+	@echo "  test-cli         - Run CLI tests"
+	@echo "  test-notebook    - Run notebook tests"
+	@echo "  test-fpm         - Run FPM-related tests"
+	@echo "  test-module      - Run module scanner tests"
+	@echo "  test-frontend    - Run frontend tests (heavy)"
+	@echo "  test-integration - Run integration tests (heavy)"
 	@echo "  test-single      - Run single test with fpm test"
 	@echo "  coverage         - Generate text coverage report (runs ALL tests)"
 	@echo "  coverage-html    - Generate HTML coverage report (runs ALL tests)"
