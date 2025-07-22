@@ -239,6 +239,7 @@ contains
         integer :: lock_year, lock_month, lock_day, lock_hour, lock_min, lock_sec
 
         stale = .false.
+        write (error_unit, *) 'DEBUG: is_lock_stale checking:', trim(lock_file)
 
         open (newunit=unit, file=lock_file, status='old', iostat=iostat)
         if (iostat == 0) then
@@ -264,19 +265,28 @@ contains
 
                         ! Check if lock is older than stale threshold
                         if (current_time - lock_time > STALE_LOCK_TIME) then
+                            write (error_unit, *) 'DEBUG: Lock is stale due to age'
                             stale = .true.
                         else
                             ! Check if process is still running
                             read (pid_str, *, iostat=iostat) lock_pid
                             if (iostat == 0) then
+                                write (error_unit, *) 'DEBUG: Checking if process', lock_pid, 'is running'
                                 if (.not. is_process_running(lock_pid)) then
+                                    write (error_unit, *) 'DEBUG: Process not running, lock is stale'
                                     stale = .true.
+                                else
+                                    write (error_unit, *) 'DEBUG: Process still running, lock is fresh'
                                 end if
+                            else
+                                write (error_unit, *) 'DEBUG: Failed to parse PID, considering stale'
+                                stale = .true.
                             end if
                         end if
                     end if
                 else
                     ! Invalid timestamp format, consider it stale
+                    write (error_unit, *) 'DEBUG: Invalid timestamp format, considering stale:', trim(timestamp_str)
                     stale = .true.
                 end if
             end if
