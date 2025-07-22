@@ -210,7 +210,7 @@ contains
         call sys_remove_file(test_file)
         call sys_remove_dir(cache_dir)
 
-    end function test_fmp_execution_failure
+    end function test_fpm_execution_failure
 
     function test_lock_acquisition_timeout() result(passed)
         logical :: passed
