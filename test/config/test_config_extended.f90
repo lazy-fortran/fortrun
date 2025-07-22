@@ -226,10 +226,21 @@ contains
     subroutine setenv_wrapper(name, value)
         use iso_c_binding
         character(len=*), intent(in) :: name, value
+        integer :: i
+#ifndef _WIN32
         character(kind=c_char), target :: c_name(len(name)+1)
         character(kind=c_char), target :: c_value(len(value)+1)
-        integer :: i
+#endif
         
+#ifdef _WIN32
+        interface
+            function putenv_c(envstring) bind(c, name="_putenv")
+                import :: c_char, c_int
+                character(kind=c_char), intent(in) :: envstring(*)
+                integer(c_int) :: putenv_c
+            end function putenv_c
+        end interface
+#else
         interface
             function setenv(name, value, overwrite) bind(c, name="setenv")
                 import :: c_char, c_int
@@ -237,13 +248,8 @@ contains
                 integer(c_int), value :: overwrite
                 integer(c_int) :: setenv
             end function setenv
-            
-            function putenv_c(envstring) bind(c, name="_putenv")
-                import :: c_char, c_int
-                character(kind=c_char), intent(in) :: envstring(*)
-                integer(c_int) :: putenv_c
-            end function putenv_c
         end interface
+#endif
         
 #ifdef _WIN32
         character(kind=c_char), target :: c_envstring(len(name)+len(value)+2)
@@ -282,22 +288,28 @@ contains
     subroutine unsetenv_wrapper(name)
         use iso_c_binding
         character(len=*), intent(in) :: name
-        character(kind=c_char), target :: c_name(len(name)+1)
         integer :: i
+#ifndef _WIN32
+        character(kind=c_char), target :: c_name(len(name)+1)
+#endif
         
+#ifdef _WIN32
         interface
-            function unsetenv(name) bind(c, name="unsetenv")
-                import :: c_char, c_int
-                character(kind=c_char), intent(in) :: name(*)
-                integer(c_int) :: unsetenv
-            end function unsetenv
-            
             function putenv_c(envstring) bind(c, name="_putenv")
                 import :: c_char, c_int
                 character(kind=c_char), intent(in) :: envstring(*)
                 integer(c_int) :: putenv_c
             end function putenv_c
         end interface
+#else
+        interface
+            function unsetenv(name) bind(c, name="unsetenv")
+                import :: c_char, c_int
+                character(kind=c_char), intent(in) :: name(*)
+                integer(c_int) :: unsetenv
+            end function unsetenv
+        end interface
+#endif
         
 #ifdef _WIN32
         character(kind=c_char), target :: c_envstring(len(name)+2)

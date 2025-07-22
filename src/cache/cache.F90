@@ -45,8 +45,11 @@ contains
                     temp_dir = trim(temp_buffer)
                     cache_dir = join_path(temp_dir, 'fortran', 'cache')
                 else
-                    ! Last resort - use current directory
-                    cache_dir = join_path('.', '.fortran-cache')
+                    ! Last resort - use system temp directory
+                    block
+                        use system_utils, only: sys_get_temp_dir
+                        cache_dir = join_path(sys_get_temp_dir(), 'fortran-cache')
+                    end block
                 end if
             end if
         end if
