@@ -25,11 +25,19 @@ jobs:
         chmod +x install.sh
         ./install.sh --flag '-fprofile-arcs -ftest-coverage'
 
-    - name: Run tests with coverage
+    - name: Run comprehensive coverage with Makefile
       run: |
-        # Run all tests using standard fpm test command with coverage flags
-        # This ensures consistent test execution and proper coverage reporting
-        fpm test --flag '-fprofile-arcs -ftest-coverage'
+        # Use Makefile coverage target that runs ALL tests comprehensively
+        make coverage
+        # Generate XML for codecov  
+        gcovr --root . \
+          --exclude 'build/*' \
+          --exclude 'test/*' \
+          --exclude 'example/*' \
+          --exclude 'app/test_*.f90' \
+          --exclude 'draft/*' \
+          --xml -o coverage.xml \
+          --print-summary
 
     - name: Test installed binary
       run: |
@@ -38,10 +46,6 @@ jobs:
         echo 'program test_install; print *, "Install test successful"; end program' > test_install.f90
         fortran test_install.f90
         rm -f test_install.f90
-
-    - name: Generate coverage report
-      run: |
-        gcovr --root . --exclude 'build/*' --xml -o coverage.xml --print-summary
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
