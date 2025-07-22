@@ -332,7 +332,7 @@ contains
 
         ! Copy cached artifacts to target using cross-platform commands
         if (get_os_type() == OS_WINDOWS) then
-command = 'xcopy /E /I /Y "'//trim(cache_path)//'\*" "'//trim(target_dir)//'" >nul 2>&1'
+            command = 'xcopy /E /I /Y "'//trim(cache_path)//'\*" "'//trim(target_dir)//'" >nul 2>&1'
         else
             command = 'cp -r "'//trim(cache_path)//'"/* "'//trim(target_dir)//'/" >/dev/null 2>&1'
         end if

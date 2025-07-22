@@ -242,14 +242,16 @@ contains
         call scan_modules(test_file, modules, n_modules)
         
         print *, "  INFO: Requested 110 modules, scanner found", n_modules
-        if (n_modules == 110) then
-            if (allocated(modules) .and. size(modules) >= 100) then
-                print *, "  PASS: Handled more than 100 modules"
+        if (n_modules == 100) then
+            print *, "  PASS: Module scanner correctly limited to 100 modules"
+            if (allocated(modules) .and. size(modules) == 100) then
+                print *, "  PASS: Array size matches the limit"
             else
-                print *, "  WARNING: Module count correct but allocation might be limited"
+                print *, "  FAIL: Array size doesn't match expected limit"
+                passed = .false.
             end if
         else
-            print *, "  INFO: Module limit may be enforced at", n_modules
+            print *, "  WARNING: Expected 100 modules (limit), but got", n_modules
         end if
 
         call sys_remove_file(test_file)
