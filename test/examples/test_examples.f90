@@ -3,7 +3,7 @@ program test_examples
     use cache, only: get_cache_dir
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, get_project_root, path_join
     use temp_utils, only: mkdir, create_test_cache_dir, path_join
-    use system_utils, only: sys_copy_file, sys_remove_dir, sys_list_files, sys_remove_file, sys_copy_dir
+    use system_utils, only: sys_copy_file, sys_remove_dir, sys_list_files, sys_remove_file, sys_copy_dir, escape_shell_arg
     implicit none
 
     character(len=256), dimension(:), allocatable :: example_files
@@ -301,9 +301,9 @@ contains
             block
                 character(len=:), allocatable :: project_root
                 project_root = get_project_root()
-                command = 'cd "'//project_root//'" && '// &
-                      'fpm run fortran -- --cache-dir "'//trim(temp_cache_dir)//'" '// &
-                          trim(filename)//' > "'//temp_output_file//'" 2>&1'
+                command = 'cd "'//trim(escape_shell_arg(project_root))//'" && '// &
+                      'fpm run fortran -- --cache-dir "'//trim(escape_shell_arg(temp_cache_dir))//'" "'// &
+                          trim(escape_shell_arg(filename))//'" > "'//trim(escape_shell_arg(temp_output_file))//'" 2>&1'
             end block
             call execute_command_line(trim(command), exitstat=exit_code)
 
@@ -458,7 +458,7 @@ contains
         end if
 
         ! Clean up
-        call execute_command_line('rm -f "'//trim(temp_output_file)//'"')
+        call execute_command_line('rm -f "'//trim(escape_shell_arg(temp_output_file))//'"')
 
     end subroutine run_example_with_cache
 
@@ -500,7 +500,7 @@ contains
         end if
 
         ! Clean up temp file
-        call execute_command_line('rm -f "'//trim(temp_output_file)//'"')
+        call execute_command_line('rm -f "'//trim(escape_shell_arg(temp_output_file))//'"')
 
     end subroutine run_example_for_comparison
 

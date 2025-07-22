@@ -1,7 +1,7 @@
 program test_verbose
     use, intrinsic :: iso_fortran_env, only: error_unit
     use temp_utils, only: create_temp_dir, get_temp_file_path
-    use system_utils, only: sys_remove_dir, sys_remove_file
+    use system_utils, only: sys_remove_dir, sys_remove_file, escape_shell_arg
     implicit none
 
     integer :: exit_code
@@ -127,9 +127,9 @@ contains
         temp_output_file = get_temp_file_path(temp_dir, 'test_output.tmp')
 
         ! Build command with custom cache
-        command = 'fpm run fortran -- --cache-dir '//trim(temp_cache)// &
-                  ' '//trim(flags)//' '// &
-                  trim(filename)//' > '//temp_output_file//' 2>&1'
+        command = 'fpm run fortran -- --cache-dir "'//trim(escape_shell_arg(temp_cache))// &
+                  '" '//trim(flags)//' "'// &
+                  trim(escape_shell_arg(filename))//'" > "'//trim(escape_shell_arg(temp_output_file))//'" 2>&1'
 
         ! Run command
         call execute_command_line(trim(command), exitstat=exit_code)
@@ -147,7 +147,7 @@ contains
         end if
 
         ! Clean up
-        call execute_command_line('rm -f '//temp_output_file)
+        call execute_command_line('rm -f "'//trim(escape_shell_arg(temp_output_file))//'"')
         call sys_remove_dir(temp_cache)
 
     end subroutine run_fortran
