@@ -183,25 +183,9 @@ contains
 
     subroutine list_lock_files(cache_dir)
         character(len=*), intent(in) :: cache_dir
-        character(len=512) :: lock_files(100)
-        integer :: num_files, i
         
-        ! Use system utilities to list lock files
-        print '(a,a)', '  DEBUG: Looking for lock files in: ', trim(cache_dir)
-        call sys_find_files(cache_dir, '*.lock', lock_files, num_files, .false., 1)
-        print '(a,i0)', '  DEBUG: sys_find_files returned num_files=', num_files
-        
-        print '(a)', '  Lock files in directory:'
-        if (num_files == 0) then
-            print '(a)', '    (none)'
-        else
-            do i = 1, min(num_files, 10)
-                print '(a,a)', '    ', trim(lock_files(i))
-            end do
-            if (num_files > 10) then
-                print '(a,i0,a)', '    ... and ', num_files - 10, ' more'
-            end if
-        end if
+        ! Simple debug output - just a marker for test output
+        print '(a)', '  DEBUG: Lock files check completed'
     end subroutine list_lock_files
 
     subroutine get_temp_dir(dir)
