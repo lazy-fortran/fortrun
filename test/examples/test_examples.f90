@@ -548,7 +548,7 @@ contains
         ! Copy the entire interdependent directory to temp location
         copy_command = 'cp -r '//path_join(get_project_root(), &
                                            'example/modules/interdependent/*')// &
-                       ' "'//path_join(temp_source_dir, '"')
+                       ' "'//trim(temp_source_dir)//'"'
         call execute_command_line(trim(copy_command))
 
         ! First run - should compile everything

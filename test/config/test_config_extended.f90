@@ -224,21 +224,31 @@ contains
 
     ! Helper subroutines for environment variable manipulation
     subroutine setenv_wrapper(name, value)
+        use fpm_environment, only: get_os_type, OS_WINDOWS
         character(len=*), intent(in) :: name, value
         character(len=512) :: command
 
-        ! Use export command (Unix-like systems)
-        command = 'export '//trim(name)//'="'//trim(value)//'"'
+        ! Use appropriate command for the OS
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'set '//trim(name)//'='//trim(value)
+        else
+            command = 'export '//trim(name)//'="'//trim(value)//'"'
+        end if
         call execute_command_line(command)
 
     end subroutine setenv_wrapper
 
     subroutine unsetenv_wrapper(name)
+        use fpm_environment, only: get_os_type, OS_WINDOWS
         character(len=*), intent(in) :: name
         character(len=512) :: command
 
-        ! Use unset command (Unix-like systems)
-        command = 'unset '//trim(name)
+        ! Use appropriate command for the OS
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'set '//trim(name)//'='
+        else
+            command = 'unset '//trim(name)
+        end if
         call execute_command_line(command)
 
     end subroutine unsetenv_wrapper

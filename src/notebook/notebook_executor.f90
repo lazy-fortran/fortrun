@@ -517,11 +517,11 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
         integer :: exit_code
 
         ! Build with FPM (with timeout to prevent hanging on Unix)
-#ifdef _WIN32
-        command = 'cd '//trim(project_dir)//' && fpm build'
-#else
-        command = 'cd '//trim(project_dir)//' && timeout 30 fpm build'
-#endif
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'cd '//trim(project_dir)//' && fpm build'
+        else
+            command = 'cd '//trim(project_dir)//' && timeout 30 fpm build'
+        end if
         call execute_and_capture(command, error_msg, exit_code)
 
         success = (exit_code == 0)
@@ -548,11 +548,11 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
         ! Real figure capture would require external dependencies
 
         ! Execute the notebook (with timeout to prevent hanging on Unix)
-#ifdef _WIN32
-        command = 'cd '//trim(project_dir)//' && fpm run'
-#else
-        command = 'cd '//trim(project_dir)//' && timeout 30 fpm run'
-#endif
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'cd '//trim(project_dir)//' && fpm run'
+        else
+            command = 'cd '//trim(project_dir)//' && timeout 30 fpm run'
+        end if
         write (*, '(a)') 'DEBUG: About to execute notebook command:'
         write (*, '(a,a)') 'DEBUG: command = ', trim(command)
         write (*, '(a,a)') 'DEBUG: project_dir = ', trim(project_dir)
