@@ -318,12 +318,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Setup FPM
-      shell: pwsh
-      run: |
-        Invoke-WebRequest -Uri "https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-windows-x86_64-gcc-12.exe" -OutFile "fpm.exe"
-        Move-Item -Path "fpm.exe" -Destination "C:\msys64\mingw64\bin\fpm.exe"
-    
     - name: Setup MinGW
       uses: msys2/setup-msys2@v2
       with:
@@ -332,9 +326,26 @@ jobs:
         path-type: inherit
         install: >-
           mingw-w64-x86_64-gcc-fortran
+          mingw-w64-x86_64-gcc
+          git
+    
+    - name: Add MinGW to PATH
+      run: echo C:\msys64\mingw64\bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      shell: pwsh
+    
+    - name: Install FPM
+      shell: pwsh
+      run: |
+        Write-Host "Installing FPM directly from GitHub releases..."
+        Invoke-WebRequest -Uri "https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-windows-x86_64-gcc-12.exe" -OutFile "fpm.exe"
+        Move-Item -Path "fpm.exe" -Destination "C:\msys64\mingw64\bin\fpm.exe"
+        & "C:\msys64\mingw64\bin\fpm.exe" --version
     
     - name: Build
-      run: fpm build
+      run: |
+        echo "Building project..."
+        fpm build
+      shell: cmd
     
     - name: Run Core Tests
       if: matrix.test-group == 'core'
@@ -342,6 +353,7 @@ jobs:
         fpm test test_lexer_direct
         fpm test test_parser_edge_cases
         fpm test test_semantic_simple
+      shell: cmd
     
     - name: Run Utilities Tests
       if: matrix.test-group == 'utilities'
@@ -349,3 +361,4 @@ jobs:
         fpm test test_logger_utils
         fpm test test_string_utils
         fpm test test_system_utils_coverage
+      shell: cmd
