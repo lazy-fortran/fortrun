@@ -9,6 +9,7 @@ module cache
     use fpm_strings, only: string_t, fnv_1a
     use temp_utils, only: create_temp_dir, get_temp_file_path
     use temp_utils, only: mkdir
+    use system_utils, only: escape_shell_arg
     implicit none
     private
   public :: get_cache_dir, ensure_cache_dir, ensure_cache_structure, get_cache_subdir, &
@@ -144,9 +145,11 @@ contains
 
                 ! Use cross-platform copy command
                 if (get_os_type() == OS_WINDOWS) then
-        command = 'copy "'//trim(module_files(i))//'" "'//trim(dest_file)//'" >nul 2>&1'
+        command = 'copy "'//trim(escape_shell_arg(module_files(i)))//'" "'// &
+                          trim(escape_shell_arg(dest_file))//'" >nul 2>&1'
                 else
-                    command = 'cp "'//trim(module_files(i))//'" "'//trim(dest_file)//'" >/dev/null 2>&1'
+                    command = 'cp "'//trim(escape_shell_arg(module_files(i)))//'" "'// &
+                              trim(escape_shell_arg(dest_file))//'" >/dev/null 2>&1'
                 end if
 
                 call run(command, exitstat=exitstat)
@@ -177,9 +180,9 @@ contains
    dest_file = join_path(trim(executables_dir), trim(extract_filename(executable_path)))
 
         if (get_os_type() == OS_WINDOWS) then
-        command = 'copy "'//trim(executable_path)//'" "'//trim(dest_file)//'" >nul 2>&1'
+        command = 'copy "'//trim(escape_shell_arg(executable_path))//'" "'//trim(escape_shell_arg(dest_file))//'" >nul 2>&1'
         else
-            command = 'cp "'//trim(executable_path)//'" "'//trim(dest_file)//'" >/dev/null 2>&1'
+            command = 'cp "'//trim(escape_shell_arg(executable_path))//'" "'//trim(escape_shell_arg(dest_file))//'" >/dev/null 2>&1'
         end if
 
         call run(command, exitstat=exitstat)
@@ -187,7 +190,7 @@ contains
 
         if (success .and. get_os_type() /= OS_WINDOWS) then
             ! Make executable (not needed on Windows)
-            command = 'chmod +x "'//trim(dest_file)//'"'
+            command = 'chmod +x "'//trim(escape_shell_arg(dest_file))//'"'
             call run(command, exitstat=exitstat)
             success = (exitstat == 0)
         end if
@@ -302,9 +305,9 @@ contains
 
         ! Copy build artifacts to cache using cross-platform commands
         if (get_os_type() == OS_WINDOWS) then
- command = 'xcopy /E /I /Y "'//trim(build_dir)//'\*" "'//trim(cache_path)//'" >nul 2>&1'
+ command = 'xcopy /E /I /Y "'//trim(escape_shell_arg(build_dir))//'\*" "'//trim(escape_shell_arg(cache_path))//'" >nul 2>&1'
         else
-            command = 'cp -r "'//trim(build_dir)//'"/* "'//trim(cache_path)//'/" >/dev/null 2>&1'
+            command = 'cp -r "'//trim(escape_shell_arg(build_dir))//'"/* "'//trim(escape_shell_arg(cache_path))//'/" >/dev/null 2>&1'
         end if
 
         call run(command, exitstat=exitstat)
@@ -332,9 +335,9 @@ contains
 
         ! Copy cached artifacts to target using cross-platform commands
         if (get_os_type() == OS_WINDOWS) then
-            command = 'xcopy /E /I /Y "'//trim(cache_path)//'\*" "'//trim(target_dir)//'" >nul 2>&1'
+            command = 'xcopy /E /I /Y "'//trim(escape_shell_arg(cache_path))//'\*" "'//trim(escape_shell_arg(target_dir))//'" >nul 2>&1'
         else
-            command = 'cp -r "'//trim(cache_path)//'"/* "'//trim(target_dir)//'/" >/dev/null 2>&1'
+            command = 'cp -r "'//trim(escape_shell_arg(cache_path))//'"/* "'//trim(escape_shell_arg(target_dir))//'/" >/dev/null 2>&1'
         end if
 
         call run(command, exitstat=exitstat)
@@ -364,9 +367,9 @@ contains
 
         ! Use cross-platform directory removal commands
         if (get_os_type() == OS_WINDOWS) then
-            command = 'rmdir /S /Q "'//trim(cache_path)//'" >nul 2>&1'
+            command = 'rmdir /S /Q "'//trim(escape_shell_arg(cache_path))//'" >nul 2>&1'
         else
-            command = 'rm -rf "'//trim(cache_path)//'" >/dev/null 2>&1'
+            command = 'rm -rf "'//trim(escape_shell_arg(cache_path))//'" >/dev/null 2>&1'
         end if
 
         call run(command, exitstat=exitstat)
@@ -446,11 +449,11 @@ contains
 
         ! Clear cache directory contents
         ! Use platform-specific commands
-#ifdef _WIN32
-        command = 'rmdir /S /Q "'//trim(cache_dir)//'"'
-#else
-        command = 'rm -rf "'//trim(cache_dir)//'"/*'
-#endif
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'rmdir /S /Q "'//trim(escape_shell_arg(cache_dir))//'"'
+        else
+            command = 'rm -rf "'//trim(escape_shell_arg(cache_dir))//'"/*'
+        end if
 
         call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
 
@@ -484,13 +487,13 @@ contains
         end if
 
         ! Get cache size and file count
-#ifdef _WIN32
-        ! Windows: Use dir command
-        command = 'dir /s "'//trim(cache_dir)//'" 2>nul | find "File(s)"'
-#else
-        ! Unix-like: Use du and find commands
-        command = 'du -sh "'//trim(cache_dir)//'" 2>/dev/null | cut -f1'
-#endif
+        if (get_os_type() == OS_WINDOWS) then
+            ! Windows: Use dir command
+            command = 'dir /s "'//trim(escape_shell_arg(cache_dir))//'" 2>nul | find "File(s)"'
+        else
+            ! Unix-like: Use du and find commands
+            command = 'du -sh "'//trim(escape_shell_arg(cache_dir))//'" 2>/dev/null | cut -f1'
+        end if
 
         ! Execute command and capture output
         block
@@ -511,11 +514,11 @@ contains
         end block
 
         ! Count files and directories
-#ifdef _WIN32
-        command = 'dir /b /s "'//trim(cache_dir)//'" 2>nul | find /c /v ""'
-#else
-        command = 'find "'//trim(cache_dir)//'" -type f 2>/dev/null | wc -l'
-#endif
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'dir /b /s "'//trim(escape_shell_arg(cache_dir))//'" 2>nul | find /c /v ""'
+        else
+            command = 'find "'//trim(escape_shell_arg(cache_dir))//'" -type f 2>/dev/null | wc -l'
+        end if
 
         block
             character(len=256) :: temp_file

@@ -301,15 +301,9 @@ contains
             block
                 character(len=:), allocatable :: project_root
                 project_root = get_project_root()
-#ifdef _WIN32
                 command = 'cd "'//project_root//'" && '// &
                       'fpm run fortran -- --cache-dir "'//trim(temp_cache_dir)//'" '// &
                           trim(filename)//' > "'//temp_output_file//'" 2>&1'
-#else
-                command = 'cd "'//project_root//'" && '// &
-                      'fpm run fortran -- --cache-dir "'//trim(temp_cache_dir)//'" '// &
-                          trim(filename)//' > "'//temp_output_file//'" 2>&1'
-#endif
             end block
             call execute_command_line(trim(command), exitstat=exit_code)
 
