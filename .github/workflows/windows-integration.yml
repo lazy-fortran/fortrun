@@ -1,4 +1,7 @@
-name: Windows CI/CD
+name: Windows Integration Tests
+
+# Windows-specific integration tests (smoke tests, cache functionality, module resolution)
+# Unit tests run in the main test.yml workflow
 
 on:
   push:

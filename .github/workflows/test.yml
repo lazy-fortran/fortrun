@@ -1,5 +1,8 @@
 name: Tests
 
+# Main test workflow that runs parallel tests with coverage collection
+# Windows-specific integration tests are in windows-integration.yml
+
 on: [push, pull_request]
 
 jobs:
