@@ -145,8 +145,8 @@ contains
 
                 ! Use cross-platform copy command
                 if (get_os_type() == OS_WINDOWS) then
-        command = 'copy "'//trim(escape_shell_arg(module_files(i)))//'" "'// &
-                          trim(escape_shell_arg(dest_file))//'" >nul 2>&1'
+                    command = 'copy "'//trim(escape_shell_arg(module_files(i)))//'" "'// &
+                              trim(escape_shell_arg(dest_file))//'" >nul 2>&1'
                 else
                     command = 'cp "'//trim(escape_shell_arg(module_files(i)))//'" "'// &
                               trim(escape_shell_arg(dest_file))//'" >/dev/null 2>&1'
@@ -180,9 +180,11 @@ contains
    dest_file = join_path(trim(executables_dir), trim(extract_filename(executable_path)))
 
         if (get_os_type() == OS_WINDOWS) then
-        command = 'copy "'//trim(escape_shell_arg(executable_path))//'" "'//trim(escape_shell_arg(dest_file))//'" >nul 2>&1'
+            command = 'copy "'//trim(escape_shell_arg(executable_path))//'" "'// &
+                      trim(escape_shell_arg(dest_file))//'" >nul 2>&1'
         else
-            command = 'cp "'//trim(escape_shell_arg(executable_path))//'" "'//trim(escape_shell_arg(dest_file))//'" >/dev/null 2>&1'
+            command = 'cp "'//trim(escape_shell_arg(executable_path))//'" "'// &
+                      trim(escape_shell_arg(dest_file))//'" >/dev/null 2>&1'
         end if
 
         call run(command, exitstat=exitstat)
@@ -305,9 +307,11 @@ contains
 
         ! Copy build artifacts to cache using cross-platform commands
         if (get_os_type() == OS_WINDOWS) then
- command = 'xcopy /E /I /Y "'//trim(escape_shell_arg(build_dir))//'\*" "'//trim(escape_shell_arg(cache_path))//'" >nul 2>&1'
+            command = 'xcopy /E /I /Y "'//trim(escape_shell_arg(build_dir))//'\*" "'// &
+                      trim(escape_shell_arg(cache_path))//'" >nul 2>&1'
         else
-            command = 'cp -r "'//trim(escape_shell_arg(build_dir))//'"/* "'//trim(escape_shell_arg(cache_path))//'/" >/dev/null 2>&1'
+            command = 'cp -r "'//trim(escape_shell_arg(build_dir))//'"/* "'// &
+                      trim(escape_shell_arg(cache_path))//'/" >/dev/null 2>&1'
         end if
 
         call run(command, exitstat=exitstat)
@@ -335,9 +339,11 @@ contains
 
         ! Copy cached artifacts to target using cross-platform commands
         if (get_os_type() == OS_WINDOWS) then
-            command = 'xcopy /E /I /Y "'//trim(escape_shell_arg(cache_path))//'\*" "'//trim(escape_shell_arg(target_dir))//'" >nul 2>&1'
+            command = 'xcopy /E /I /Y "'//trim(escape_shell_arg(cache_path))//'\*" "'// &
+                      trim(escape_shell_arg(target_dir))//'" >nul 2>&1'
         else
-            command = 'cp -r "'//trim(escape_shell_arg(cache_path))//'"/* "'//trim(escape_shell_arg(target_dir))//'/" >/dev/null 2>&1'
+            command = 'cp -r "'//trim(escape_shell_arg(cache_path))//'"/* "'// &
+                      trim(escape_shell_arg(target_dir))//'/" >/dev/null 2>&1'
         end if
 
         call run(command, exitstat=exitstat)

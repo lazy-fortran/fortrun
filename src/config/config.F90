@@ -68,12 +68,14 @@ contains
                 if (last_sep > 0) then
                     parent_dir = config_dir(1:last_sep - 1)
                     ! Create parent directory first
- command = 'cmd /C if not exist "'//trim(escape_shell_arg(parent_dir))//'" mkdir "'//trim(escape_shell_arg(parent_dir))//'"'
+                    command = 'cmd /C if not exist "'//trim(escape_shell_arg(parent_dir))// &
+                              '" mkdir "'//trim(escape_shell_arg(parent_dir))//'"'
                   call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
                 end if
 
                 ! Now create target directory
- command = 'cmd /C if not exist "'//trim(escape_shell_arg(config_dir))//'" mkdir "'//trim(escape_shell_arg(config_dir))//'"'
+                command = 'cmd /C if not exist "'//trim(escape_shell_arg(config_dir))// &
+                          '" mkdir "'//trim(escape_shell_arg(config_dir))//'"'
             end block
         else
             command = 'mkdir -p "'//trim(escape_shell_arg(config_dir))//'" 2>/dev/null'

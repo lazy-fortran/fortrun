@@ -593,6 +593,10 @@ contains
         integer :: i, n
         character(len=1) :: ch
         
+        ! For use inside double quotes, we only need to escape:
+        ! " (double quote), \ (backslash), $ (dollar), ` (backtick)
+        ! We don't escape spaces since we're inside quotes
+        
         ! Count how many characters we need
         n = 0
         do i = 1, len_trim(arg)

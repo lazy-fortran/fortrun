@@ -376,8 +376,9 @@ call print_error('Cache is locked by another process. Use without --no-wait to w
         end if
 
         call debug_print('Running command: ' // trim(command))
+        
 
-     call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat, wait=.true.)
+        call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat, wait=.true.)
 
         if (cmdstat /= 0) then
             call print_error('Failed to execute fpm')

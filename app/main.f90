@@ -171,7 +171,11 @@ print '(a)', '                    (.f90: user flags only, .f: opinionated + user
             end if
         else
             ! For standard Fortran files, just copy them as-is
-call execute_command_line('cp '//trim(input_file)//' '//trim(temp_output), exitstat=ios)
+            block
+                use system_utils, only: escape_shell_arg
+                call execute_command_line('cp "'//trim(escape_shell_arg(input_file))//'" "'// &
+                                          trim(escape_shell_arg(temp_output))//'"', exitstat=ios)
+            end block
             if (ios /= 0) then
                 error_msg = 'Failed to copy file'
             else
