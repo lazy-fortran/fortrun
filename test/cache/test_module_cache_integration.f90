@@ -10,6 +10,8 @@ program test_module_cache_integration
     use module_scanner, only: scan_modules, module_info
     use temp_utils, only: temp_dir_manager, path_join
     use temp_utils, only: mkdir
+    use system_utils, only: sys_remove_dir
+    use fpm_environment, only: get_os_type, OS_WINDOWS
     implicit none
 
     logical :: all_pass
@@ -333,7 +335,11 @@ contains
         cache = new_module_cache(compiler, '13.0.0')
 
         ! Compile in project 1
-        call execute_command_line('cd '//proj1_dir//'/build && gfortran -c '//src_file)
+        if (get_os_type() == OS_WINDOWS) then
+            call execute_command_line('cd /d "'//proj1_dir//'\build" && gfortran -c "'//src_file//'"')
+        else
+            call execute_command_line('cd '//proj1_dir//'/build && gfortran -c '//src_file)
+        end if
 
         ! Cache from project 1
         srcfile%file_name = src_file
@@ -359,9 +365,15 @@ contains
             write (unit, '(a)') 'end program use_shared'
             close (unit)
 
-            call execute_command_line('cd '//proj2_dir//'/build && '// &
-                                      'gfortran -o use_shared ../use_shared.f90', &
-                                      exitstat=unit)
+            if (get_os_type() == OS_WINDOWS) then
+                call execute_command_line('cd /d "'//proj2_dir//'\build" && '// &
+                                          'gfortran -o use_shared.exe ..\use_shared.f90', &
+                                          exitstat=unit)
+            else
+                call execute_command_line('cd '//proj2_dir//'/build && '// &
+                                          'gfortran -o use_shared ../use_shared.f90', &
+                                          exitstat=unit)
+            end if
 
             test_pass = (unit == 0)
             if (test_pass) then
@@ -396,9 +408,15 @@ contains
         close (unit)
 
         ! Try to compile using cached module (need to link the object file)
-        call execute_command_line('cd '//build_dir//' && '// &
-                    'gfortran -o test_prog '//test_dir//'/test_prog.f90 math_utils.o', &
-                                  exitstat=exitstat)
+        if (get_os_type() == OS_WINDOWS) then
+            call execute_command_line('cd /d "'//build_dir//'" && '// &
+                        'gfortran -o test_prog.exe "'//test_dir//'\test_prog.f90" math_utils.o', &
+                                      exitstat=exitstat)
+        else
+            call execute_command_line('cd '//build_dir//' && '// &
+                        'gfortran -o test_prog '//test_dir//'/test_prog.f90 math_utils.o', &
+                                      exitstat=exitstat)
+        end if
 
         success = (exitstat == 0)
 
@@ -406,7 +424,7 @@ contains
 
     subroutine cleanup_test_dir(dir)
         character(*), intent(in) :: dir
-        call execute_command_line('rm -rf '//dir)
+        call sys_remove_dir(dir)
     end subroutine cleanup_test_dir
 
     function get_timestamp() result(timestamp)
