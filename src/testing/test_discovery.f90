@@ -2,7 +2,7 @@ module test_discovery
     use iso_fortran_env, only: error_unit
     use temp_utils, only: get_system_temp_dir, get_temp_file_path
     use fpm_environment, only: get_os_type, OS_WINDOWS
-    use system_utils, only: sys_remove_file
+    use system_utils, only: sys_remove_file, escape_shell_arg
     implicit none
     private
 
@@ -52,9 +52,11 @@ contains
 
         open (newunit=unit, file=test_list_file, status="replace")
         if (get_os_type() == OS_WINDOWS) then
-            command = "fpm test --runner echo 2>nul | findstr /B build/ | sort > "//trim(test_list_file)
+            command = "fpm test --runner echo 2>nul | findstr /B build/ | sort > "// &
+                      trim(escape_shell_arg(test_list_file))
         else
-            command = "fpm test --runner echo 2>/dev/null | grep -E '^build/' | sort | uniq > "//trim(test_list_file)
+            command = "fpm test --runner echo 2>/dev/null | grep -E '^build/' | sort | uniq > "// &
+                      trim(escape_shell_arg(test_list_file))
         end if
         call execute_command_line(trim(command))
         close (unit)

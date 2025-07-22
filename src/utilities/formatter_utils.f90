@@ -33,7 +33,8 @@ contains
 
         ! Format using fprettify
         output_file = get_temp_file_path(temp_dir, 'output.f90')
-        write(command, '(A)') 'fprettify "'//trim(escape_shell_arg(input_file))//'" > "'//trim(escape_shell_arg(output_file))//'" 2>/dev/null'
+        write(command, '(A)') 'fprettify "'//trim(escape_shell_arg(input_file))//'" > "'// &
+                              trim(escape_shell_arg(output_file))//'" 2>/dev/null'
         call execute_command_line(trim(command), exitstat=iostat)
 
         if (iostat /= 0) then
