@@ -307,10 +307,10 @@ contains
 
         ! Copy build artifacts to cache using cross-platform commands
         if (get_os_type() == OS_WINDOWS) then
-            command = 'xcopy /E /I /Y "'//trim(escape_shell_arg(build_dir))//'\*" "'// &
+            command = 'xcopy /E /I /Y "'//trim(escape_shell_arg(build_dir))//'" "'// &
                       trim(escape_shell_arg(cache_path))//'" >nul 2>&1'
         else
-            command = 'cp -r "'//trim(escape_shell_arg(build_dir))//'"/* "'// &
+            command = 'cp -r "'//trim(escape_shell_arg(build_dir))//'/." "'// &
                       trim(escape_shell_arg(cache_path))//'/" >/dev/null 2>&1'
         end if
 
@@ -339,10 +339,10 @@ contains
 
         ! Copy cached artifacts to target using cross-platform commands
         if (get_os_type() == OS_WINDOWS) then
-            command = 'xcopy /E /I /Y "'//trim(escape_shell_arg(cache_path))//'\*" "'// &
+            command = 'xcopy /E /I /Y "'//trim(escape_shell_arg(cache_path))//'" "'// &
                       trim(escape_shell_arg(target_dir))//'" >nul 2>&1'
         else
-            command = 'cp -r "'//trim(escape_shell_arg(cache_path))//'"/* "'// &
+            command = 'cp -r "'//trim(escape_shell_arg(cache_path))//'/." "'// &
                       trim(escape_shell_arg(target_dir))//'/" >/dev/null 2>&1'
         end if
 
@@ -458,7 +458,7 @@ contains
         if (get_os_type() == OS_WINDOWS) then
             command = 'rmdir /S /Q "'//trim(escape_shell_arg(cache_dir))//'"'
         else
-            command = 'rm -rf "'//trim(escape_shell_arg(cache_dir))//'"/*'
+            command = 'rm -rf "'//trim(escape_shell_arg(cache_dir))//'"'
         end if
 
         call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)

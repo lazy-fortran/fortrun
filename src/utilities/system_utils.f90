@@ -200,7 +200,7 @@ contains
         integer :: exitstat
 
         if (get_os_type() == OS_WINDOWS) then
-            command = 'if exist "'//trim(escape_shell_arg(dirpath))//'\*" (exit 0) else (exit 1)'
+            command = 'if exist "'//trim(escape_shell_arg(dirpath))//'" (exit 0) else (exit 1)'
         else
             command = 'test -d "'//trim(escape_shell_arg(dirpath))//'"'
         end if
