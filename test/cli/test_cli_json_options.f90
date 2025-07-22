@@ -37,12 +37,18 @@ contains
             integer :: iostat
 
             ! Create a simple JSON tokens file with a basic statement
-            call execute_command_line('echo ''{"tokens": ['// &
-                      '{"type": "identifier", "text": "x", "line": 1, "column": 1},'// &
-                        '{"type": "operator", "text": "=", "line": 1, "column": 3},'// &
-                          '{"type": "number", "text": "1", "line": 1, "column": 5},'// &
-                               '{"type": "eof", "text": "", "line": 1, "column": 6}'// &
-                              ']}'' > "'//path_join(temp_dir, 'test_tokens.json')//'"', exitstat=iostat)
+            block
+                integer :: unit
+                open(newunit=unit, file=path_join(temp_dir, 'test_tokens.json'), status='replace')
+                write(unit, '(a)') '{"tokens": ['
+                write(unit, '(a)') '  {"type": "identifier", "text": "x", "line": 1, "column": 1},'
+                write(unit, '(a)') '  {"type": "operator", "text": "=", "line": 1, "column": 3},'
+                write(unit, '(a)') '  {"type": "number", "text": "1", "line": 1, "column": 5},'
+                write(unit, '(a)') '  {"type": "eof", "text": "", "line": 1, "column": 6}'
+                write(unit, '(a)') ']}'
+                close(unit)
+                iostat = 0
+            end block
 
             if (iostat == 0) then
                 ! Test --from-tokens option with wait flag for CI reliability
@@ -67,8 +73,13 @@ contains
             integer :: iostat
 
             ! Create a simple JSON AST file
-         call execute_command_line('echo ''{"type": "program", "name": "test"}'' > '// &
-                                      '"'//path_join(temp_dir, 'test_ast.json')//'"', exitstat=iostat)
+            block
+                integer :: unit
+                open(newunit=unit, file=path_join(temp_dir, 'test_ast.json'), status='replace')
+                write(unit, '(a)') '{"type": "program", "name": "test"}'
+                close(unit)
+                iostat = 0
+            end block
 
             if (iostat == 0) then
                 ! Test --from-ast option with wait flag for CI reliability
@@ -93,8 +104,13 @@ contains
             integer :: iostat
 
             ! Create a simple JSON semantic file
-           call execute_command_line('echo ''{"annotated_ast": {"type": "program", '// &
-              '"name": "test"}}'' > "'//path_join(temp_dir, 'test_semantic.json')//'"', exitstat=iostat)
+            block
+                integer :: unit
+                open(newunit=unit, file=path_join(temp_dir, 'test_semantic.json'), status='replace')
+                write(unit, '(a)') '{"annotated_ast": {"type": "program", "name": "test"}}'
+                close(unit)
+                iostat = 0
+            end block
 
             if (iostat == 0) then
                 ! Test --from-semantic option with wait flag for CI reliability
