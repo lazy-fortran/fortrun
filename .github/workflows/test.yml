@@ -1,4 +1,4 @@
-name: Parallel Tests with Coverage
+name: Tests
 
 on: [push, pull_request]
 
