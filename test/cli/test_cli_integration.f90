@@ -60,10 +60,10 @@ contains
             output_file = get_temp_file_path(test_dir, 'test_output.f90')
             if (get_os_type() == OS_WINDOWS) then
                 cmd = 'fpm run fortran -- --cache-dir '//trim(cache_dir)//' '// &
-                      trim(test_file)//' > '//trim(output_file)//' 2>nul'
+                      trim(test_file)//' > "'//trim(output_file)//'" 2>nul'
             else
                 cmd = 'fpm run fortran -- --cache-dir '//trim(cache_dir)//' '// &
-                      trim(test_file)//' > '//trim(output_file)//' 2>/dev/null'
+                      trim(test_file)//' > "'//trim(output_file)//'" 2>/dev/null'
             end if
             call execute_command_line(cmd, exitstat=iostat)
 
@@ -110,10 +110,10 @@ contains
             output_file = get_temp_file_path(test_dir, 'debug_tokens.json')
             if (get_os_type() == OS_WINDOWS) then
                 cmd = 'fpm run fortran -- --cache-dir '//trim(cache_dir)//' '// &
-                    trim(test_file)//' --debug-tokens > '//trim(output_file)//' 2>nul'
+                    trim(test_file)//' --debug-tokens > "'//trim(output_file)//'" 2>nul'
             else
                 cmd = 'fpm run fortran -- --cache-dir '//trim(cache_dir)//' '// &
-                    trim(test_file)//' --debug-tokens > '//trim(output_file)//' 2>/dev/null'
+                    trim(test_file)//' --debug-tokens > "'//trim(output_file)//'" 2>/dev/null'
             end if
             call execute_command_line(cmd, exitstat=iostat)
             if (iostat /= 0) then
@@ -126,10 +126,10 @@ contains
             output_file = get_temp_file_path(test_dir, 'debug_ast.json')
             if (get_os_type() == OS_WINDOWS) then
                 cmd = 'fpm run fortran -- --cache-dir '//trim(cache_dir)//' '// &
-                      trim(test_file)//' --debug-ast > '//trim(output_file)//' 2>nul'
+                      trim(test_file)//' --debug-ast > "'//trim(output_file)//'" 2>nul'
             else
                 cmd = 'fpm run fortran -- --cache-dir '//trim(cache_dir)//' '// &
-                      trim(test_file)//' --debug-ast > '//trim(output_file)//' 2>/dev/null'
+                      trim(test_file)//' --debug-ast > "'//trim(output_file)//'" 2>/dev/null'
             end if
             call execute_command_line(cmd, exitstat=iostat)
             if (iostat /= 0) then
@@ -142,10 +142,10 @@ contains
             output_file = get_temp_file_path(test_dir, 'debug_semantic.json')
             if (get_os_type() == OS_WINDOWS) then
                 cmd = 'fpm run fortran -- --cache-dir '//trim(cache_dir)//' '// &
-                  trim(test_file)//' --debug-semantic > '//trim(output_file)//' 2>nul'
+                  trim(test_file)//' --debug-semantic > "'//trim(output_file)//'" 2>nul'
             else
                 cmd = 'fpm run fortran -- --cache-dir '//trim(cache_dir)//' '// &
-                  trim(test_file)//' --debug-semantic > '//trim(output_file)//' 2>/dev/null'
+                  trim(test_file)//' --debug-semantic > "'//trim(output_file)//'" 2>/dev/null'
             end if
             call execute_command_line(cmd, exitstat=iostat)
             if (iostat /= 0) then
@@ -158,10 +158,10 @@ contains
             output_file = get_temp_file_path(test_dir, 'debug_codegen.json')
             if (get_os_type() == OS_WINDOWS) then
                 cmd = 'fpm run fortran -- --cache-dir '//trim(cache_dir)//' '// &
-                   trim(test_file)//' --debug-codegen > '//trim(output_file)//' 2>nul'
+                   trim(test_file)//' --debug-codegen > "'//trim(output_file)//'" 2>nul'
             else
                 cmd = 'fpm run fortran -- --cache-dir '//trim(cache_dir)//' '// &
-                   trim(test_file)//' --debug-codegen > '//trim(output_file)//' 2>/dev/null'
+                   trim(test_file)//' --debug-codegen > "'//trim(output_file)//'" 2>/dev/null'
             end if
             call execute_command_line(cmd, exitstat=iostat)
             if (iostat /= 0) then
@@ -205,12 +205,12 @@ contains
             close (unit)
 
             ! Test --from-tokens
+            cmd = 'fpm run fortran -- --cache-dir '//trim(cache_dir)//' '// &
+                  trim(json_file)//' --from-tokens'
             if (get_os_type() == OS_WINDOWS) then
-                cmd = 'fpm run fortran -- --cache-dir '//trim(cache_dir)//' '// &
-                      trim(json_file)//' --from-tokens > nul 2>&1'
+                cmd = trim(cmd)//' > nul 2>&1'
             else
-                cmd = 'fpm run fortran -- --cache-dir '//trim(cache_dir)//' '// &
-                      trim(json_file)//' --from-tokens > /dev/null 2>&1'
+                cmd = trim(cmd)//' > /dev/null 2>&1'
             end if
             call execute_command_line(cmd, exitstat=iostat)
             if (iostat == 0) then
