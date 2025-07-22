@@ -1,5 +1,6 @@
 program test_json_workflows_simple
-    use temp_utils, only: get_system_temp_dir, create_temp_dir, get_project_root, create_test_cache_dir
+    use temp_utils, only: get_system_temp_dir, create_temp_dir, get_project_root, create_test_cache_dir, path_join
+    use fpm_environment, only: get_os_type, OS_WINDOWS
     implicit none
 
     logical :: all_passed
@@ -47,7 +48,8 @@ contains
             project_root = get_project_root()
             call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
-                                      'test_tokens.f --debug-tokens > /dev/null 2>&1', &
+                                      'test_tokens.f --debug-tokens'// &
+                                      merge(' > nul 2>&1       ', ' > /dev/null 2>&1', get_os_type() == OS_WINDOWS), &
                                       wait=.true., exitstat=iostat)
         end block
 
@@ -89,7 +91,8 @@ contains
             project_root = get_project_root()
             call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
-                                      'test_ast.f --debug-tokens > /dev/null 2>&1', &
+                                      'test_ast.f --debug-tokens'// &
+                                      merge(' > nul 2>&1       ', ' > /dev/null 2>&1', get_os_type() == OS_WINDOWS), &
                                       wait=.true., exitstat=iostat)
         end block
 
@@ -100,7 +103,8 @@ contains
                 project_root = get_project_root()
                 call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
-                    'test_ast_tokens.json --from-tokens --debug-ast > /dev/null 2>&1', &
+                    'test_ast_tokens.json --from-tokens --debug-ast'// &
+                    merge(' > nul 2>&1       ', ' > /dev/null 2>&1', get_os_type() == OS_WINDOWS), &
                                           wait=.true., exitstat=iostat)
             end block
 
@@ -150,7 +154,8 @@ contains
             project_root = get_project_root()
             call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
-                                  'direct_tokens.json --from-tokens > /dev/null 2>&1', &
+                                  'direct_tokens.json --from-tokens'// &
+                                  merge(' > nul 2>&1       ', ' > /dev/null 2>&1', get_os_type() == OS_WINDOWS), &
                                       wait=.true., exitstat=iostat)
         end block
 
