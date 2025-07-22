@@ -110,9 +110,11 @@ jobs:
         if not exist temp_cache mkdir temp_cache
 
         REM Run the executable with the test file using custom cache
-        "%FORTRAN_EXE%" --cache-dir "%CD%\temp_cache" "%CD%\test_windows.f"
+        "%FORTRAN_EXE%" --cache-dir "%CD%\temp_cache" "%CD%\test_windows.f" -v
         if %ERRORLEVEL% NEQ 0 (
           echo ERROR: Failed to run test file
+          echo Trying with more verbose output:
+          "%FORTRAN_EXE%" --cache-dir "%CD%\temp_cache" "%CD%\test_windows.f" -vv
           exit /b 1
         )
 
