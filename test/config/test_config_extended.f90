@@ -238,11 +238,11 @@ contains
                 integer(c_int) :: setenv
             end function setenv
             
-            function _putenv(envstring) bind(c, name="_putenv")
+            function putenv_c(envstring) bind(c, name="_putenv")
                 import :: c_char, c_int
                 character(kind=c_char), intent(in) :: envstring(*)
-                integer(c_int) :: _putenv
-            end function _putenv
+                integer(c_int) :: putenv_c
+            end function putenv_c
         end interface
         
 #ifdef _WIN32
@@ -259,7 +259,7 @@ contains
         end do
         c_envstring(len(name)+len(value)+2) = c_null_char
         
-        result = _putenv(c_envstring)
+        result = putenv_c(c_envstring)
 #else
         integer(c_int) :: result
         
@@ -292,11 +292,11 @@ contains
                 integer(c_int) :: unsetenv
             end function unsetenv
             
-            function _putenv(envstring) bind(c, name="_putenv")
+            function putenv_c(envstring) bind(c, name="_putenv")
                 import :: c_char, c_int
                 character(kind=c_char), intent(in) :: envstring(*)
-                integer(c_int) :: _putenv
-            end function _putenv
+                integer(c_int) :: putenv_c
+            end function putenv_c
         end interface
         
 #ifdef _WIN32
@@ -310,7 +310,7 @@ contains
         c_envstring(len(name)+1) = '='
         c_envstring(len(name)+2) = c_null_char
         
-        result = _putenv(c_envstring)
+        result = putenv_c(c_envstring)
 #else
         integer(c_int) :: result
         
