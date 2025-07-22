@@ -55,7 +55,8 @@ contains
         close(unit)
 
         ! Use impossible cache directory to trigger failure
-        custom_cache_dir = '/root/impossible/cache/dir'
+        ! Use a path that's invalid on both Windows and Unix
+        custom_cache_dir = 'Z:\NonExistent\Invalid\Path\Cache'
         custom_config_dir = ""
 
         call run_fortran_file(test_file, exit_code, 3, &

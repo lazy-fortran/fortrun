@@ -42,7 +42,7 @@ contains
         passed = .true.
 
         ! Test with non-existent source directory
-        source_dir = '/absolutely/non/existent/directory'
+        source_dir = 'Z:\NonExistent\Directory\Path'
         dest_dir = temp_mgr%get_file_path('copy_dest')
         
         call sys_copy_dir(source_dir, dest_dir, success, error_msg)
@@ -136,7 +136,7 @@ contains
         passed = .true.
 
         ! Test with non-existent directory
-        call sys_list_files('/absolutely/non/existent/directory', '*.f90', files, num_files)
+        call sys_list_files('Z:\NonExistent\Directory', '*.f90', files, num_files)
         if (num_files == 0) then
             print *, "  PASS: sys_list_files handles non-existent directory"
         else
@@ -196,7 +196,7 @@ contains
         passed = .true.
 
         ! Test copying non-existent file
-        source_file = '/absolutely/non/existent/file.txt'
+        source_file = 'Z:\NonExistent\File\Path.txt'
         dest_file = temp_mgr%get_file_path('copy_dest.txt')
         
         call sys_copy_file(source_file, dest_file, success)
@@ -210,7 +210,7 @@ contains
 
         ! Test copying to invalid destination
         source_file = temp_mgr%get_file_path('valid_source.txt')
-        dest_file = '/root/invalid/destination/file.txt'
+        dest_file = 'Z:\Invalid\Destination\Path\file.txt'
         
         ! Create valid source
         open(newunit=unit, file=source_file, status='replace')

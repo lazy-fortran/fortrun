@@ -41,7 +41,7 @@ contains
         print *, "Test: File not found error handling"
         passed = .true.
 
-        call scan_modules('/nonexistent/file/path.f90', modules, n_modules)
+        call scan_modules('Z:\NonExistent\File\Path.f90', modules, n_modules)
         
         ! When file doesn't exist, n_modules should be 0
         if (n_modules == 0) then
