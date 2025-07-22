@@ -2,7 +2,7 @@ program test_cache_lock
     use cache_lock
     use temp_utils, only: create_temp_dir, get_temp_file_path, create_test_cache_dir, path_join
     use temp_utils, only: mkdir
-    use system_utils, only: sys_remove_dir
+    use system_utils, only: sys_remove_dir, sys_find_files, sys_file_exists
     use fpm_environment, only: get_os_type, OS_WINDOWS
     implicit none
 
@@ -73,6 +73,14 @@ program test_cache_lock
     print '(a,l)', '  acquire_lock returned: ', success
     if (success) then
         print '(a)', '  ✓ Lock acquired successfully'
+        ! Check if lock file exists
+        block
+            logical :: file_exists
+            character(len=256) :: lock_path
+            lock_path = path_join(temp_cache_dir, 'test_project.lock')
+            file_exists = sys_file_exists(lock_path)
+            print '(a,a,l)', '  DEBUG: Lock file exists at ', trim(lock_path), ': ', file_exists
+        end block
         ! List directory contents right after acquiring lock
         call list_lock_files(temp_cache_dir)
     else
@@ -175,17 +183,25 @@ contains
 
     subroutine list_lock_files(cache_dir)
         character(len=*), intent(in) :: cache_dir
-        character(len=512) :: command
-        integer :: exit_code
-
-        ! Cross-platform directory listing for lock files
-        if (get_os_type() == OS_WINDOWS) then
-            command = 'dir "'//trim(cache_dir)//'\*.lock" 2>nul'
+        character(len=512) :: lock_files(100)
+        integer :: num_files, i
+        
+        ! Use system utilities to list lock files
+        print '(a,a)', '  DEBUG: Looking for lock files in: ', trim(cache_dir)
+        call sys_find_files(cache_dir, '*.lock', lock_files, num_files, .false., 1)
+        print '(a,i0)', '  DEBUG: sys_find_files returned num_files=', num_files
+        
+        print '(a)', '  Lock files in directory:'
+        if (num_files == 0) then
+            print '(a)', '    (none)'
         else
-            command = 'ls -la "'//trim(cache_dir)//'/"*.lock 2>&1 | head -10'
+            do i = 1, min(num_files, 10)
+                print '(a,a)', '    ', trim(lock_files(i))
+            end do
+            if (num_files > 10) then
+                print '(a,i0,a)', '    ... and ', num_files - 10, ' more'
+            end if
         end if
-
-        call execute_command_line(command, exitstat=exit_code)
     end subroutine list_lock_files
 
     subroutine get_temp_dir(dir)

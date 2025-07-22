@@ -5,7 +5,7 @@ module cache_lock
     use fpm_environment, only: get_os_type, OS_WINDOWS
     use fpm_filesystem, only: join_path
     use system_utils, only: sys_remove_file, sys_move_file, sys_find_files, &
-                            sys_create_symlink, sys_process_exists, sys_sleep
+                            sys_create_symlink, sys_process_exists, sys_sleep, sys_file_exists
     implicit none
     private
     public :: acquire_lock, release_lock, is_locked, cleanup_stale_locks
@@ -97,55 +97,27 @@ contains
 
         lock_file = get_lock_file_path(cache_dir, project_name)
 
-        ! Cross-platform lock detection that handles symlinks properly
-        ! On some CI systems, Fortran's inquire and open don't handle symlinks correctly
-        ! Use system commands to check if lock file exists (including symlinks)
-        block
-            character(len=512) :: command
-            integer :: exit_code
-
-            if (get_os_type() == OS_WINDOWS) then
-                ! On Windows, use dir command with proper redirection
-                command = 'dir "'//trim(lock_file)//'" >nul 2>&1'
-            else
-                ! On Unix, use test -L to detect symlinks even if they're dangling
-                ! test -e fails on dangling symlinks, test -L succeeds
-          command = 'test -L "'//trim(lock_file)//'" || test -e "'//trim(lock_file)//'"'
-            end if
-
-            call execute_command_line(command, exitstat=exit_code)
-            locked = (exit_code == 0)
-        end block
+        ! Use system utilities for cross-platform lock detection
+        ! This avoids shell commands that can create 'nul' files on Linux
+        locked = sys_file_exists(lock_file)
 
         ! Only check for stale locks when explicitly requested, not during normal checks
         ! This prevents race conditions where a fresh lock is incorrectly considered stale
 
     end function is_locked
 
-    ! Helper function to check lock file existence using same method as is_locked
-    ! This ensures consistency across the module and avoids race conditions on Windows
+    ! Helper function to check lock file existence using system utilities
+    ! This ensures consistency across the module and avoids creating 'nul' files
     function check_lock_file_exists(lock_file) result(exists)
         character(len=*), intent(in) :: lock_file
         logical :: exists
         
-        block
-            character(len=512) :: command
-            integer :: exit_code
-
-            write (error_unit, *) 'DEBUG: check_lock_file_exists called for:', trim(lock_file)
-            
-            ! Use OS-appropriate command to check file existence
-            if (get_os_type() == OS_WINDOWS) then
-                command = 'dir "'//trim(lock_file)//'" >nul 2>&1'
-            else
-                command = 'ls "'//trim(lock_file)//'" >/dev/null 2>&1'
-            end if
-            
-            write (error_unit, *) 'DEBUG: Running command:', trim(command)
-            call execute_command_line(command, exitstat=exit_code)
-            exists = (exit_code == 0)
-            write (error_unit, *) 'DEBUG: Command exit code:', exit_code, ', exists:', exists
-        end block
+        write (error_unit, *) 'DEBUG: check_lock_file_exists called for:', trim(lock_file)
+        
+        ! Use system utility for file existence check
+        exists = sys_file_exists(lock_file)
+        
+        write (error_unit, *) 'DEBUG: File exists:', exists
     end function check_lock_file_exists
 
     subroutine cleanup_stale_locks(cache_dir)
@@ -213,17 +185,9 @@ contains
                 write (error_unit, *) 'DEBUG: From:', trim(temp_file)
                 write (error_unit, *) 'DEBUG: To:', trim(lock_file)
 
-                if (get_os_type() == OS_WINDOWS) then
-                    ! On Windows, use move which is atomic within same drive
-                    call sys_move_file(temp_file, lock_file, success)
-                else
-                    ! On Unix, use symlink for atomic operation
-                    call sys_create_symlink(temp_file, lock_file, success)
-                    if (success) then
-                        ! Clean up temp file after successful link
-                        call sys_remove_file(temp_file)
-                    end if
-                end if
+                ! Use move for atomic operation on all platforms
+                ! This avoids symlink issues and is atomic within same filesystem
+                call sys_move_file(temp_file, lock_file, success)
 
                 if (.not. success) then
                     write (error_unit, *) 'DEBUG: Atomic lock creation failed'

@@ -142,12 +142,25 @@ contains
         call sys_remove_file(temp_file)
     end subroutine sys_list_files
 
-    !> Check if a file exists
+    !> Check if a file exists (handles both regular files and symlinks)
     function sys_file_exists(filepath) result(exists)
         character(len=*), intent(in) :: filepath
         logical :: exists
+        integer :: unit, iostat
 
+        ! First try standard inquire
         inquire (file=filepath, exist=exists)
+        
+        ! If not found, try opening it (handles symlinks better)
+        if (.not. exists) then
+            open(newunit=unit, file=filepath, status='old', action='read', iostat=iostat)
+            if (iostat == 0) then
+                exists = .true.
+                close(unit)
+            else
+                exists = .false.
+            end if
+        end if
     end function sys_file_exists
 
     !> Check if a directory exists
