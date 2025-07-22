@@ -17,7 +17,7 @@ module fpm_module_cache
     use, intrinsic :: iso_fortran_env, only: int64
     use fpm_filesystem, only: exists, join_path, list_files
     use temp_utils, only: mkdir
-    use system_utils, only: sys_remove_file
+    use system_utils, only: sys_remove_file, sys_copy_file
     use fpm_strings, only: string_t, str
     use fpm_environment, only: get_os_type, OS_LINUX, OS_MACOS, OS_WINDOWS
     use fpm_compiler, only: compiler_t, id_gcc, id_intel_classic_nix, &
@@ -438,17 +438,16 @@ contains
     subroutine copy_file(src, dst, iostat)
         character(*), intent(in) :: src, dst
         integer, intent(out) :: iostat
-        character(len=512) :: command
+        logical :: success
 
-        ! Use system copy command
-        select case (get_os_type())
-        case (OS_WINDOWS)
-            write (command, '(a,a,a,a,a)') 'copy "', src, '" "', dst, '" >nul 2>&1'
-        case default
-            write (command, '(a,a,a,a,a)') 'cp "', src, '" "', dst, '" 2>/dev/null'
-        end select
-
-        call execute_command_line(command, exitstat=iostat)
+        ! Use safe system utility instead of shell command
+        call sys_copy_file(src, dst, success)
+        
+        if (success) then
+            iostat = 0
+        else
+            iostat = 1
+        end if
 
     end subroutine copy_file
 

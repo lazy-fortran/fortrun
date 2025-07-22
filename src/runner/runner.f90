@@ -16,7 +16,7 @@ module runner
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, mkdir
     use system_utils, only: sys_copy_file, sys_remove_file, sys_get_absolute_path, &
                             sys_find_files, sys_list_files, sys_get_path_separator, &
-                            get_stderr_redirect
+                            get_stderr_redirect, escape_shell_arg
     use logger_utils, only: debug_print, print_info, print_warning, print_error, &
                             set_logger_verbose_level
     use string_utils, only: int_to_char
@@ -313,29 +313,29 @@ call print_error('Cache is locked by another process. Use without --no-wait to w
                 character(len=256) :: output_file
                 output_file = get_temp_file_path(create_temp_dir('fortran_build'), 'fpm_build_output.txt')
                 if (len_trim(flag_string) > 0) then
-                  command = trim(get_cd_command())//' "'//trim(project_dir)//'" && '// &
-           'fpm build --flag "'//trim(flag_string)//'" > "'//trim(output_file)//'" 2>&1'
+                  command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && '// &
+           'fpm build --flag "'//trim(escape_shell_arg(flag_string))//'" > "'//trim(escape_shell_arg(output_file))//'" 2>&1'
                 else
-                  command = trim(get_cd_command())//' "'//trim(project_dir)//'" && '// &
-                              'fpm build > "'//trim(output_file)//'" 2>&1'
+                  command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && '// &
+                              'fpm build > "'//trim(escape_shell_arg(output_file))//'" 2>&1'
                 end if
             end block
         else if (verbose_level >= 2) then
             ! Very verbose: show detailed build output
             if (len_trim(flag_string) > 0) then
-                command = trim(get_cd_command())//' "'//trim(project_dir)//'" && '// &
-                          'fpm build --verbose --flag "'//trim(flag_string)//'"'
+                command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && '// &
+                          'fpm build --verbose --flag "'//trim(escape_shell_arg(flag_string))//'"'
             else
-                command = trim(get_cd_command())//' "'//trim(project_dir)//'" && '// &
+                command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && '// &
                           'fpm build --verbose'
             end if
         else
             ! Normal verbose: show build progress
             if (len_trim(flag_string) > 0) then
-                command = trim(get_cd_command())//' "'//trim(project_dir)//'" && '// &
-                          'fpm build --flag "'//trim(flag_string)//'"'
+                command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && '// &
+                          'fpm build --flag "'//trim(escape_shell_arg(flag_string))//'"'
             else
-                command = trim(get_cd_command())//' "'//trim(project_dir)//'" && '// &
+                command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && '// &
                           'fpm build'
             end if
         end if
@@ -368,10 +368,10 @@ call print_error('Cache is locked by another process. Use without --no-wait to w
         ! Run the executable using fpm run
         if (verbose_level == 0) then
             ! Quiet mode: suppress FPM stderr messages but show program output
-            command = trim(get_cd_command())//' "'//trim(project_dir)//'" && fpm run '//trim(basename)//get_stderr_redirect()
+            command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && fpm run '//trim(escape_shell_arg(basename))//get_stderr_redirect()
         else
-            command = trim(get_cd_command())//' "'//trim(project_dir)// &
-                      '" && fpm run '//trim(basename)
+            command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))// &
+                      '" && fpm run '//trim(escape_shell_arg(basename))
         end if
 
         call debug_print('Running command: ' // trim(command))

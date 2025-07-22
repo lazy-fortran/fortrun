@@ -13,7 +13,7 @@ module system_utils
     public :: sys_run_command, sys_get_path_separator
     public :: sys_count_files, sys_sleep, sys_kill_process
     public :: sys_process_exists, sys_get_temp_dir
-    public :: sys_run_command_with_exit_code, get_stderr_redirect
+    public :: sys_run_command_with_exit_code, get_stderr_redirect, escape_shell_arg
     public :: sys_copy_dir
 
 contains
@@ -586,5 +586,44 @@ contains
             redirect = ' 2>/dev/null'
         end if
     end function get_stderr_redirect
+
+    function escape_shell_arg(arg) result(escaped)
+        character(len=*), intent(in) :: arg
+        character(len=:), allocatable :: escaped
+        integer :: i, n
+        character(len=1) :: ch
+        
+        ! Count how many characters we need
+        n = 0
+        do i = 1, len_trim(arg)
+            ch = arg(i:i)
+            if (ch == '"' .or. ch == '\' .or. ch == '$' .or. ch == '`') then
+                n = n + 2  ! Need to escape these characters
+            else
+                n = n + 1
+            end if
+        end do
+        
+        ! Allocate result
+        allocate(character(len=n) :: escaped)
+        
+        ! Build escaped string
+        n = 0
+        do i = 1, len_trim(arg)
+            ch = arg(i:i)
+            if (ch == '"' .or. ch == '\' .or. ch == '$' .or. ch == '`') then
+                n = n + 1
+                escaped(n:n) = '\'
+                n = n + 1
+                escaped(n:n) = ch
+            else
+                n = n + 1
+                escaped(n:n) = ch
+            end if
+        end do
+        
+        ! Trim to actual length
+        escaped = escaped(1:n)
+    end function escape_shell_arg
 
 end module system_utils
