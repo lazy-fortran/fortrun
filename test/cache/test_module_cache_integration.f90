@@ -96,8 +96,13 @@ contains
         cache = new_module_cache(compiler, '13.0.0')
 
         ! Compile the module
-        call execute_command_line('cd '//build_dir//' && gfortran -c '//src_file, &
-                                  exitstat=exitstat, cmdstat=cmdstat)
+        if (get_os_type() == OS_WINDOWS) then
+            call execute_command_line('cd /d "'//build_dir//'" && gfortran -c "'//src_file//'"', &
+                                      exitstat=exitstat, cmdstat=cmdstat)
+        else
+            call execute_command_line('cd '//build_dir//' && gfortran -c '//src_file, &
+                                      exitstat=exitstat, cmdstat=cmdstat)
+        end if
 
         test_pass = (exitstat == 0 .and. cmdstat == 0)
         if (test_pass) then
@@ -130,7 +135,8 @@ contains
         end if
 
         ! Clear build directory and retrieve from cache
-        call execute_command_line('rm -rf '//build_dir//'/*')
+        call sys_remove_dir(build_dir)
+        call mkdir(trim(build_dir))
 
         call cache%retrieve_module(cache_key, build_dir, srcfile, found, error)
 
@@ -336,9 +342,19 @@ contains
 
         ! Compile in project 1
         if (get_os_type() == OS_WINDOWS) then
-            call execute_command_line('cd /d "'//proj1_dir//'\build" && gfortran -c "'//src_file//'"')
+            call execute_command_line('cd /d "'//proj1_dir//'\build" && gfortran -c "'//src_file//'"', &
+                                      exitstat=unit)
         else
-            call execute_command_line('cd '//proj1_dir//'/build && gfortran -c '//src_file)
+            call execute_command_line('cd '//proj1_dir//'/build && gfortran -c '//src_file, &
+                                      exitstat=unit)
+        end if
+        
+        if (unit /= 0) then
+            print '(a)', '  ✗ Failed to compile module in project 1'
+            all_pass = .false.
+            call cleanup_test_dir(proj1_dir)
+            call cleanup_test_dir(proj2_dir)
+            return
         end if
 
         ! Cache from project 1
