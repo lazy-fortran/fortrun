@@ -445,6 +445,8 @@ contains
                         print '(a,a,a)', 'ERROR: Path exists as file, not directory: ', trim(dir_path)
                         ! Try to remove the file and create directory
                         if (get_os_type() == OS_WINDOWS) then
+                            ! Use attrib to remove any attributes that might prevent deletion
+                            call execute_command_line('attrib -R -H -S "'//trim(escape_quotes(dir_path))//'" 2>nul', exitstat=ios)
                             call execute_command_line('del /f /q "'//trim(escape_quotes(dir_path))//'" 2>nul', exitstat=ios)
                         else
                             call execute_command_line('rm -f "'//trim(escape_quotes(dir_path))//'" 2>/dev/null', exitstat=ios)
@@ -471,8 +473,13 @@ contains
 
         ! Use runtime OS detection instead of preprocessor
         if (get_os_type() == OS_WINDOWS) then
-            command = 'if not exist "'//trim(escape_quotes(dir_path))//'" mkdir "'// &
-                      trim(escape_quotes(dir_path))//'" 2>nul'
+            ! Force removal of any existing file at this path first 
+            call execute_command_line('if exist "'//trim(escape_quotes(dir_path))//'" attrib -R -H -S "'// &
+                                     trim(escape_quotes(dir_path))//'" 2>nul', exitstat=exitstat)
+            call execute_command_line('if exist "'//trim(escape_quotes(dir_path))//'" del /f /q "'// &
+                                     trim(escape_quotes(dir_path))//'" 2>nul', exitstat=exitstat)
+            ! Now create directory
+            command = 'mkdir "'//trim(escape_quotes(dir_path))//'" 2>nul'
         else
             command = 'mkdir -p "'//trim(escape_quotes(dir_path))//'" 2>/dev/null'
         end if
