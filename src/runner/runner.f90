@@ -13,7 +13,7 @@ module runner
     use fpm_environment, only: get_os_type, OS_WINDOWS
   use frontend_integration, only: compile_with_frontend, compile_with_frontend_debug, is_simple_fortran_file
     use debug_state, only: get_debug_flags
-    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, mkdir
+    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, mkdir, create_temp_file
     use system_utils, only: sys_copy_file, sys_remove_file, sys_get_absolute_path, &
                             sys_find_files, sys_list_files, sys_get_path_separator, &
                             get_stderr_redirect, escape_shell_arg
@@ -311,7 +311,7 @@ call print_error('Cache is locked by another process. Use without --no-wait to w
             ! Quiet mode: capture errors for helpful messages
             block
                 character(len=256) :: output_file
-                output_file = get_temp_file_path(create_temp_dir('fortran_build'), 'fpm_build_output.txt')
+                output_file = create_temp_file('fortran_build_fpm_build_output', '.txt')
                 if (len_trim(flag_string) > 0) then
                   command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && '// &
            'fpm build --flag "'//trim(escape_shell_arg(flag_string))//'" > "'//trim(escape_shell_arg(output_file))//'" 2>&1'
@@ -353,7 +353,7 @@ call print_error('Cache is locked by another process. Use without --no-wait to w
                 ! Parse FPM errors and provide helpful messages
                 block
                     character(len=256) :: output_file
-                    output_file = get_temp_file_path(create_temp_dir('fortran_build'), 'fpm_build_output.txt')
+                    output_file = create_temp_file('fortran_build_fpm_build_output', '.txt')
                     call provide_helpful_error_message(output_file)
                 end block
             end if

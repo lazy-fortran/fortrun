@@ -1,6 +1,6 @@
 program test_benchmarks
     use, intrinsic :: iso_fortran_env, only: int64
-    use temp_utils, only: create_temp_dir, get_temp_file_path, create_test_cache_dir, path_join
+    use temp_utils, only: create_temp_dir, get_temp_file_path, create_test_cache_dir, path_join, create_temp_file
     use temp_utils, only: mkdir
     use system_utils, only: sys_remove_file, sys_remove_dir, sys_get_path_separator
     use fpm_environment, only: get_os_type, OS_WINDOWS, get_env
@@ -52,7 +52,7 @@ contains
         print '(a)', '-------------------------------------------'
 
         ! Create test file
-     test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'bench_simple.f90')
+     test_file = create_temp_file('fortran_test_bench_simple', '.f90')
         call create_simple_test_file(test_file)
 
         ! Use temporary cache
@@ -265,7 +265,7 @@ first_compiled = index(output1, 'Cache miss:') > 0 .or. index(output1, '.f90  do
         end if
 
         ! Create temp output file
-output_file = get_temp_file_path(create_temp_dir('fortran_bench'), 'measure_output.txt')
+output_file = create_temp_file('fortran_bench_measure_output', '.txt')
 
         ! Measure execution time
         call system_clock(count_start, count_rate)

@@ -1,6 +1,6 @@
 program test_runner_edge_cases
     use runner, only: run_fortran_file
-    use temp_utils, only: create_temp_dir, get_temp_file_path, create_test_cache_dir
+    use temp_utils, only: create_temp_dir, get_temp_file_path, create_test_cache_dir, create_temp_file
     use temp_utils, only: mkdir
     use system_utils, only: sys_remove_file, sys_dir_exists
     implicit none
@@ -41,7 +41,7 @@ contains
         ! Test with file that doesn't exist
         block
             character(len=256) :: nonexistent_file
-            nonexistent_file = get_temp_file_path(create_temp_dir('fortran_test'), 'definitely_does_not_exist_12345.f90')
+            nonexistent_file = create_temp_file('fortran_test_definitely_does_not_exist_12345', '.f90')
             call run_fortran_file(nonexistent_file, exit_code, &
                                   verbose_level=0, custom_cache_dir="", &
                                   custom_config_dir="", parallel_jobs=1, no_wait=.true.)
@@ -75,7 +75,7 @@ contains
         passed = .true.
 
         ! Create test file with wrong extension
- test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_runner_edge.txt')
+ test_file = create_temp_file('fortran_test_runner_edge', '.txt')
         open (newunit=unit, file=test_file, status='replace')
         write (unit, '(a)') "program test"
         write (unit, '(a)') "end program"
@@ -93,7 +93,7 @@ contains
         call sys_remove_file(test_file)
 
         ! Test with no extension
-        test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_runner_edge_noext')
+        test_file = create_temp_file('fortran_test_runner_edge_noext', '')
         open (newunit=unit, file=test_file, status='replace')
         write (unit, '(a)') "program test"
         write (unit, '(a)') "end program"
@@ -123,7 +123,7 @@ contains
         passed = .true.
 
         ! Create empty .f90 file with minimal valid program
-test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_runner_empty.f90')
+test_file = create_temp_file('fortran_test_runner_empty', '.f90')
         open (newunit=unit, file=test_file, status='replace')
         write (unit, '(a)') "program empty"
         write (unit, '(a)') "end program empty"
@@ -191,7 +191,7 @@ test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_runner_emp
         passed = .true.
 
         ! Create .f file that might cause preprocessing issues
-        test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_runner_preprocess.f')
+        test_file = create_temp_file('fortran_test_runner_preprocess', '.f')
         open (newunit=unit, file=test_file, status='replace')
         write (unit, '(a)') "c This is an old-style comment"
         write (unit, '(a)') "      program test_preprocess"
@@ -223,7 +223,7 @@ test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_runner_emp
         passed = .true.
 
         ! Create test file
-        test_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_runner_parallel.f90')
+        test_file = create_temp_file('fortran_test_runner_parallel', '.f90')
         open (newunit=unit, file=test_file, status='replace')
         write (unit, '(a)') "program test_parallel"
         write (unit, '(a)') "  implicit none"

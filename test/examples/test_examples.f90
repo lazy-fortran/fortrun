@@ -671,12 +671,31 @@ contains
             source_path = path_join(get_project_root(), 'example/modules/interdependent')
             ! On Windows, xcopy needs the destination to exist and copy contents
             if (get_os_type() == OS_WINDOWS) then
-                ! Use xcopy with source\* to copy contents, not the directory itself
+                ! Use xcopy to copy directory contents
                 block
                     character(len=512) :: xcopy_cmd
-                    xcopy_cmd = 'xcopy /E /I /Y "'//trim(source_path)//'\*" "'// &
-                                trim(temp_source_dir)//'" >nul 2>&1'
+                    character(len=256) :: ci_env
+                    call get_environment_variable('CI', ci_env)
+                    
+                    ! Debug the xcopy command on Windows CI
+                    if (len_trim(ci_env) > 0) then
+                        print '(a)', 'DEBUG: xcopy command details:'
+                        print '(a,a)', '  source_path: ', trim(source_path)
+                        print '(a,a)', '  temp_source_dir: ', trim(temp_source_dir)
+                    end if
+                    
+                    ! Use simpler xcopy syntax - copy all files from source to destination
+                    xcopy_cmd = 'xcopy "'//trim(source_path)//'" "'//trim(temp_source_dir)//'" /E /I /Y'
+                    
+                    if (len_trim(ci_env) > 0) then
+                        print '(a,a)', '  xcopy_cmd: ', trim(xcopy_cmd)
+                    end if
+                    
                     call execute_command_line(trim(xcopy_cmd), exitstat=iostat)
+                    
+                    if (len_trim(ci_env) > 0) then
+                        print '(a,i0)', '  xcopy exit code: ', iostat
+                    end if
                 end block
                 copy_success = (iostat == 0)
                 if (.not. copy_success) error_msg = "xcopy failed"

@@ -7,7 +7,7 @@ module cache
     use fpm_filesystem, only: list_files, read_lines, join_path, exists, run
     use fpm_environment, only: get_os_type, OS_WINDOWS
     use fpm_strings, only: string_t, fnv_1a
-    use temp_utils, only: create_temp_dir, get_temp_file_path
+    use temp_utils, only: create_temp_dir, get_temp_file_path, create_temp_file
     use temp_utils, only: mkdir
     use system_utils, only: escape_shell_arg
     implicit none
@@ -504,7 +504,7 @@ contains
         ! Execute command and capture output
         block
             character(len=256) :: temp_file
-      temp_file = get_temp_file_path(create_temp_dir('fortran_cache'), 'cache_size.tmp')
+      temp_file = create_temp_file('fortran_cache_cache_size', '.tmp')
             call execute_command_line(command//' > '//trim(escape_shell_arg(temp_file)), &
                                       exitstat=exitstat, cmdstat=cmdstat)
 
@@ -528,7 +528,7 @@ contains
 
         block
             character(len=256) :: temp_file
-     temp_file = get_temp_file_path(create_temp_dir('fortran_cache'), 'cache_count.tmp')
+     temp_file = create_temp_file('fortran_cache_cache_count', '.tmp')
             call execute_command_line(command//' > '//trim(escape_shell_arg(temp_file)), &
                                       exitstat=exitstat, cmdstat=cmdstat)
 

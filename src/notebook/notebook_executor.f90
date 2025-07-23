@@ -5,7 +5,7 @@ module notebook_executor
     use cache_lock, only: acquire_lock, release_lock
     use frontend_integration, only: compile_with_frontend, is_simple_fortran_file
     use, intrinsic :: iso_c_binding
-    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path
+    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, create_temp_file
     use temp_utils, only: mkdir
     use system_utils, only: sys_remove_file, sys_get_current_dir, escape_shell_arg
     use fpm_environment, only: get_os_type, OS_WINDOWS
@@ -764,7 +764,7 @@ call debug_print('notebook_executor - attempting to acquire cache lock (NO WAIT)
 
         ! Use PID in temp file to avoid conflicts
         write (pid_str, '(i0)') get_process_id()
-        temp_file = get_temp_file_path(create_temp_dir('fortran_exec_'//trim(pid_str)), 'fortran_exec.out')
+        temp_file = create_temp_file('fortran_exec_'//trim(pid_str)//'_fortran_exec', '.out')
 
         full_command = trim(command)//' > '//trim(escape_shell_arg(temp_file))//' 2>&1'
 

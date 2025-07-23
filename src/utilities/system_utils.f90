@@ -2,7 +2,7 @@ module system_utils
     !> Platform-agnostic system utilities module
     !> Provides cross-platform wrappers for common system operations
     use fpm_environment, only: get_os_type, OS_WINDOWS
-    use temp_utils, only: get_temp_file_path, create_temp_dir
+    use temp_utils, only: get_temp_file_path, create_temp_dir, create_temp_file
     implicit none
     private
 
@@ -131,7 +131,7 @@ contains
         integer :: unit, iostat
         character(len=512) :: line
 
-        temp_file = get_temp_file_path(create_temp_dir('sys_list'), 'files.tmp')
+        temp_file = create_temp_file('sys_list_files', '.tmp')
 
         if (get_os_type() == OS_WINDOWS) then
             ! For Windows cmd /c, we need to handle quotes specially
@@ -219,7 +219,7 @@ contains
         character(len=512) :: command, temp_file
         integer :: unit, iostat
 
-        temp_file = get_temp_file_path(create_temp_dir('sys_abspath'), 'path.tmp')
+        temp_file = create_temp_file('sys_abspath_path', '.tmp')
 
         if (get_os_type() == OS_WINDOWS) then
             command = 'powershell -Command "(Resolve-Path -Path '''//trim(escape_shell_arg(filepath))// &
@@ -255,7 +255,7 @@ contains
         character(len=512) :: command, temp_file
         integer :: unit, iostat
 
-        temp_file = get_temp_file_path(create_temp_dir('sys_cwd'), 'cwd.tmp')
+        temp_file = create_temp_file('sys_cwd_cwd', '.tmp')
 
         if (get_os_type() == OS_WINDOWS) then
             command = 'cd > "'//trim(escape_shell_arg(temp_file))//'"'
@@ -301,7 +301,7 @@ contains
         depth = 1
         if (present(max_depth)) depth = max_depth
 
-        temp_file = get_temp_file_path(create_temp_dir('sys_find'), 'found.tmp')
+        temp_file = create_temp_file('sys_find_found', '.tmp')
 
         if (get_os_type() == OS_WINDOWS) then
             if (is_recursive) then
@@ -410,7 +410,7 @@ contains
         character(len=1024) :: full_command, temp_file
         integer :: unit, iostat
 
-        temp_file = get_temp_file_path(create_temp_dir('sys_cmd'), 'output.tmp')
+        temp_file = create_temp_file('sys_cmd_output', '.tmp')
 
         if (present(timeout)) then
             if (get_os_type() == OS_WINDOWS) then
@@ -454,7 +454,7 @@ contains
         character(len=512) :: command, temp_file, output
         integer :: unit, iostat
 
-        temp_file = get_temp_file_path(create_temp_dir('sys_count'), 'count.tmp')
+        temp_file = create_temp_file('sys_count_count', '.tmp')
 
         if (get_os_type() == OS_WINDOWS) then
             command = 'cmd /c dir /a-d /b "'//trim(escape_shell_arg(directory))// &
