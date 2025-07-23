@@ -1,6 +1,6 @@
 program test_cache
     use, intrinsic :: iso_fortran_env, only: error_unit
-    use temp_utils, only: create_temp_dir, get_temp_file_path, temp_dir_manager, create_test_cache_dir, path_join
+    use temp_utils, only: create_temp_dir, get_temp_file_path, temp_dir_manager, path_join
     use fpm_environment, only: get_os_type, OS_WINDOWS
     use fpm_filesystem, only: exists
     use system_utils, only: sys_dir_exists, sys_remove_file, escape_shell_arg
@@ -18,7 +18,7 @@ program test_cache
     temp_dir = temp_mgr%path
 
     ! Create unique test cache directory to avoid race conditions
-    test_cache_dir = create_test_cache_dir('cache_basic')
+    test_cache_dir = create_temp_dir('fortran_cache_test')
     test_program = path_join(temp_dir, 'test_cache_hello.f90')
 
     ! Create test program
