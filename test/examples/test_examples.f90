@@ -637,7 +637,12 @@ contains
             ! On Windows, xcopy needs the destination to exist and copy contents
             if (get_os_type() == OS_WINDOWS) then
                 ! Use xcopy with source\* to copy contents, not the directory itself
-                call execute_command_line('xcopy /E /I /Y "'//trim(source_path)//'\*" "'//trim(temp_source_dir)//'" >nul 2>&1', exitstat=iostat)
+                block
+                    character(len=512) :: xcopy_cmd
+                    xcopy_cmd = 'xcopy /E /I /Y "'//trim(source_path)//'\*" "'// &
+                                trim(temp_source_dir)//'" >nul 2>&1'
+                    call execute_command_line(trim(xcopy_cmd), exitstat=iostat)
+                end block
                 copy_success = (iostat == 0)
                 if (.not. copy_success) error_msg = "xcopy failed"
             else
