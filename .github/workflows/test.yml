@@ -605,9 +605,9 @@ jobs:
     - name: Install FPM
       if: steps.cache-fpm-mac.outputs.cache-hit != 'true'
       run: |
-        wget https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-macos-x86_64
-        chmod +x fpm-0.12.0-macos-x86_64
-        sudo mv fpm-0.12.0-macos-x86_64 /usr/local/bin/fpm
+        wget https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-macos-x86_64-gcc-12
+        chmod +x fpm-0.12.0-macos-x86_64-gcc-12
+        sudo mv fpm-0.12.0-macos-x86_64-gcc-12 /usr/local/bin/fpm
         fpm --version
     
     - name: Setup registry
