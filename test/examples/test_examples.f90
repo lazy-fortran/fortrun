@@ -627,7 +627,7 @@ contains
             call get_environment_variable('CI', ci_env)
             if (get_os_type() == OS_WINDOWS .and. len_trim(ci_env) > 0) then
                 print '(a)', 'DEBUG: About to call create_temp_dir'
-                temp_source_dir = create_temp_dir('fortran_test_source')
+                temp_source_dir = create_temp_dir('fortran_test_source_mod_examples')
                 print '(a,a)', 'DEBUG: create_temp_dir returned: ', trim(temp_source_dir)
                 
                 ! Check what actually exists
@@ -652,7 +652,7 @@ contains
                     end if
                 end block
             else
-                temp_source_dir = create_temp_dir('fortran_test_source')
+                temp_source_dir = create_temp_dir('fortran_test_source_mod_examples')
             end if
         end block
         
