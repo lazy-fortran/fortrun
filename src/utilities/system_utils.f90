@@ -602,16 +602,30 @@ contains
         character(len=:), allocatable :: escaped
         integer :: i, n
         character(len=1) :: ch
+        logical :: is_windows_path
         
         ! For use inside double quotes, we only need to escape:
         ! " (double quote), \ (backslash), $ (dollar), ` (backtick)
         ! We don't escape spaces since we're inside quotes
         
+        ! On Windows, don't escape backslashes if this looks like a path
+        is_windows_path = .false.
+        if (get_os_type() == OS_WINDOWS) then
+            ! Check if this looks like a Windows path (e.g., C:\ or \\network)
+            if (len_trim(arg) >= 3) then
+                if ((arg(2:2) == ':' .and. arg(3:3) == '\') .or. &
+                    (arg(1:2) == '\\')) then
+                    is_windows_path = .true.
+                end if
+            end if
+        end if
+        
         ! Count how many characters we need
         n = 0
         do i = 1, len_trim(arg)
             ch = arg(i:i)
-            if (ch == '"' .or. ch == '\' .or. ch == '$' .or. ch == '`') then
+            if (ch == '"' .or. (ch == '\' .and. .not. is_windows_path) .or. &
+                ch == '$' .or. ch == '`') then
                 n = n + 2  ! Need to escape these characters
             else
                 n = n + 1
@@ -625,7 +639,8 @@ contains
         n = 0
         do i = 1, len_trim(arg)
             ch = arg(i:i)
-            if (ch == '"' .or. ch == '\' .or. ch == '$' .or. ch == '`') then
+            if (ch == '"' .or. (ch == '\' .and. .not. is_windows_path) .or. &
+                ch == '$' .or. ch == '`') then
                 n = n + 1
                 escaped(n:n) = '\'
                 n = n + 1
