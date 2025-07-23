@@ -78,6 +78,10 @@ jobs:
         fpm test test_frontend_parser_if_statement --profile debug --flag '-fprofile-arcs -ftest-coverage'
         fpm test test_semantic_simple --profile debug --flag '-fprofile-arcs -ftest-coverage'
         fpm test test_scope_manager_basic --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        # Also run the main executable for coverage
+        echo "print *, 'test'" > test_coverage.f
+        ./build/gfortran_debug/app/fortran test_coverage.f
+        rm -f test_coverage.f
     
     - name: Run Utilities Tests
       if: matrix.test-group == 'utilities'
@@ -105,6 +109,12 @@ jobs:
         fpm test test_runner_coverage --profile debug --flag '-fprofile-arcs -ftest-coverage'
         fpm test test_runner_missing_lines --profile debug --flag '-fprofile-arcs -ftest-coverage'
         fpm test test_runner_edge_cases --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        # Test the main executable with various options
+        echo "program test; print *, 'hello'; end program" > test_runner.f
+        ./build/gfortran_debug/app/fortran test_runner.f --version
+        ./build/gfortran_debug/app/fortran test_runner.f --help
+        ./build/gfortran_debug/app/fortran test_runner.f
+        rm -f test_runner.f a.out
     
     - name: Generate coverage data
       run: |
@@ -214,6 +224,12 @@ jobs:
         fpm test test_cli_integration --profile debug --flag '-fprofile-arcs -ftest-coverage'
         fpm test test_cli_comprehensive --profile debug --flag '-fprofile-arcs -ftest-coverage'
         fpm test test_cli_json_options --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        # Test CLI with various flags
+        echo "x = 1" > test_cli.f
+        ./build/gfortran_debug/app/fortran test_cli.f -v
+        ./build/gfortran_debug/app/fortran test_cli.f --json
+        ./build/gfortran_debug/app/fortran test_cli.f --test
+        rm -f test_cli.f
     
     - name: Run Notebook Tests
       if: matrix.test-group == 'notebook'
