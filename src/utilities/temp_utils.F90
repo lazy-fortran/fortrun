@@ -442,11 +442,27 @@ contains
                     end if
                     is_dir = (ios == 0)
                     if (.not. is_dir) then
-                        print '(a,a,a)', 'WARNING: mkdir called on existing file: ', trim(dir_path), ' (not a directory!)'
+                        print '(a,a,a)', 'ERROR: Path exists as file, not directory: ', trim(dir_path)
+                        ! Try to remove the file and create directory
+                        if (get_os_type() == OS_WINDOWS) then
+                            call execute_command_line('del /f /q "'//trim(escape_quotes(dir_path))//'" 2>nul', exitstat=ios)
+                        else
+                            call execute_command_line('rm -f "'//trim(escape_quotes(dir_path))//'" 2>/dev/null', exitstat=ios)
+                        end if
+                        if (ios == 0) then
+                            print *, 'Removed file, will create directory instead'
+                            ! Don't return - continue to create directory below
+                        else
+                            print *, 'Failed to remove file, cannot create directory'
+                            return
+                        end if
+                    else
+                        ! It's already a directory, nothing to do
+                        return
                     end if
                 end if
             end block
-            return
+            ! If we removed the file, continue to create directory
         end if
 
         ! Skip invalid paths that would cause problems

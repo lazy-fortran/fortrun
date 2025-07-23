@@ -77,8 +77,9 @@ jobs:
         set FORTRAN_CI=true
         
         REM Run all tests using fpm test
-        fpm test
-
+        REM Disable interactive prompts to avoid "Terminate batch job" issues
+        echo N | fpm test
+        
         if %ERRORLEVEL% NEQ 0 (
           echo ERROR: Some tests failed
           exit /b 1
