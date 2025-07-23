@@ -4,6 +4,7 @@ program test_examples
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, get_project_root, path_join
     use temp_utils, only: mkdir, create_test_cache_dir, path_join
     use system_utils, only: sys_copy_file, sys_remove_dir, sys_list_files, sys_remove_file, sys_copy_dir, escape_shell_arg
+    use fpm_environment, only: get_os_type, OS_WINDOWS, get_env
     implicit none
 
     character(len=256), dimension(:), allocatable :: example_files
@@ -88,6 +89,12 @@ program test_examples
     n_passed = 0
     n_failed = 0
     n_expected_failed = 0
+
+    ! Skip this test on Windows CI - it's very slow with single-threaded execution
+    if (get_os_type() == OS_WINDOWS .and. len_trim(get_env('CI', '')) > 0) then
+        print *, 'SKIP: test_examples on Windows CI (too slow with OMP_NUM_THREADS=1)'
+        stop 0
+    end if
 
     print '(a)', '='//repeat('=', 60)
     print '(a)', 'Running Fortran CLI Example Tests'

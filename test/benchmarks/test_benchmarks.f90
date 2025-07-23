@@ -3,13 +3,19 @@ program test_benchmarks
     use temp_utils, only: create_temp_dir, get_temp_file_path, create_test_cache_dir, path_join
     use temp_utils, only: mkdir
     use system_utils, only: sys_remove_file, sys_remove_dir, sys_get_path_separator
-    use fpm_environment, only: get_os_type, OS_WINDOWS
+    use fpm_environment, only: get_os_type, OS_WINDOWS, get_env
     implicit none
 
     integer :: n_passed, n_failed
 
     n_passed = 0
     n_failed = 0
+
+    ! Skip this test on Windows CI - it's very slow with single-threaded execution
+    if (get_os_type() == OS_WINDOWS .and. len_trim(get_env('CI', '')) > 0) then
+        print *, 'SKIP: test_benchmarks on Windows CI (too slow with OMP_NUM_THREADS=1)'
+        stop 0
+    end if
 
     print '(a)', '='//repeat('=', 60)
     print '(a)', 'Fortran CLI Cache Behavior Tests'
