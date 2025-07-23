@@ -56,7 +56,16 @@ program test_cache
    call run_with_cache(test_program, test_cache_dir, '-v', output2, exit_code, temp_dir)
 
     if (exit_code /= 0) then
-        write (error_unit, *) 'FAIL: Second run failed'
+        write (error_unit, *) 'FAIL: Second run failed with exit code:', exit_code
+        if (get_os_type() == OS_WINDOWS) then
+            write (error_unit, *) 'DEBUG: Output file contents:'
+            write (error_unit, *) 'Length:', len_trim(output2)
+            if (len_trim(output2) > 0) then
+                write (error_unit, *) trim(output2)
+            else
+                write (error_unit, *) '(empty)'
+            end if
+        end if
         stop 1
     end if
 
@@ -142,6 +151,10 @@ contains
         end if
 
         ! Run command
+        if (get_os_type() == OS_WINDOWS) then
+            ! Debug output for Windows CI
+            write (error_unit, *) 'DEBUG: Running command: ', trim(command)
+        end if
         call execute_command_line(trim(command), exitstat=exit_code)
 
         ! Read output
