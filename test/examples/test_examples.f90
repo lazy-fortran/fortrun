@@ -3,7 +3,8 @@ program test_examples
     use cache, only: get_cache_dir
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, get_project_root, path_join
     use temp_utils, only: mkdir, create_test_cache_dir, path_join
-    use system_utils, only: sys_copy_file, sys_remove_dir, sys_list_files, sys_remove_file, sys_copy_dir, escape_shell_arg
+    use system_utils, only: sys_copy_file, sys_remove_dir, sys_list_files, sys_remove_file, &
+                            sys_copy_dir, escape_shell_arg, sys_sleep
     use fpm_environment, only: get_os_type, OS_WINDOWS, get_env
     implicit none
 
@@ -404,6 +405,12 @@ contains
 
         ! Skip cache miss verification - output capture is unreliable
 
+        ! On Windows CI, add a small delay to ensure lock is released
+        if (get_os_type() == OS_WINDOWS .and. len_trim(get_env('CI', '')) > 0) then
+            print '(a)', '  Waiting for lock release on Windows CI...'
+            call sys_sleep(2)  ! 2 second delay
+        end if
+
         ! Second run - should use cache
         print '(a)', 'Second run (should use cache)...'
         call run_example_with_cache(test_file, temp_cache_dir, output2, exit_code2)
@@ -451,9 +458,9 @@ contains
         temp_output_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_cache_output.tmp')
 
         ! Run with verbose flag and custom cache directory
-        command = 'cd "'//get_project_root()//'" && '// &
-                  'fpm run fortran -- -v --cache-dir "'//trim(cache_dir)//'" '// &
-                  trim(filename)//' > "'//trim(temp_output_file)//'" 2>&1'
+        command = 'cd "'//trim(escape_shell_arg(get_project_root()))//'" && '// &
+                  'fpm run fortran -- -v --cache-dir "'//trim(escape_shell_arg(cache_dir))//'" '// &
+                  trim(escape_shell_arg(filename))//' > "'//trim(escape_shell_arg(temp_output_file))//'" 2>&1'
         call execute_command_line(trim(command), exitstat=exit_code)
 
         ! Read full output including verbose messages
@@ -493,9 +500,9 @@ contains
         temp_output_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_comparison_output.tmp')
 
         ! Run WITHOUT verbose flag and capture only stdout (not stderr debug output)
-        command = 'cd "'//get_project_root()//'" && '// &
-                  'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
-                  trim(filename)//' > "'//trim(temp_output_file)//'" 2>/dev/null'
+        command = 'cd "'//trim(escape_shell_arg(get_project_root()))//'" && '// &
+                  'fpm run fortran -- --cache-dir "'//trim(escape_shell_arg(cache_dir))//'" '// &
+                  trim(escape_shell_arg(filename))//' > "'//trim(escape_shell_arg(temp_output_file))//'" 2>/dev/null'
         call execute_command_line(trim(command), exitstat=exit_code)
 
         ! Read only the program output (no debug messages)
