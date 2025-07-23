@@ -304,8 +304,10 @@ contains
                         ! Use shorter timeout on Windows CI
                         block
                             integer :: stale_threshold
+                            character(len=256) :: ci_env
                             stale_threshold = STALE_LOCK_TIME
-                            if (get_os_type() == OS_WINDOWS .and. len_trim(get_env('CI', '')) > 0) then
+                            call get_environment_variable('CI', ci_env)
+                            if (get_os_type() == OS_WINDOWS .and. len_trim(ci_env) > 0) then
                                 stale_threshold = WINDOWS_CI_STALE_TIME
                                 call debug_print('Using Windows CI stale time: ' // int_to_char(stale_threshold) // ' seconds')
                             end if
