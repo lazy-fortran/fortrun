@@ -34,8 +34,14 @@ contains
         wait_time = 0
         success = .false.
 
-        ! Ensure cache directory exists
-        call mkdir(cache_dir)
+        ! Ensure cache directory exists (only create if it doesn't exist)
+        block
+            logical :: dir_exists
+            inquire(file=trim(cache_dir), exist=dir_exists)
+            if (.not. dir_exists) then
+                call mkdir(cache_dir)
+            end if
+        end block
 
         do
             ! First check if lock already exists
