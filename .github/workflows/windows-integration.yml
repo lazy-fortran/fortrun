@@ -84,6 +84,9 @@ jobs:
         echo N | fpm test test_logger
         echo N | fpm test test_os_detection
         
+        REM Run test_examples with reduced set on Windows CI
+        echo N | fpm test test_examples
+        
         echo Critical unit tests passed!
         echo NOTE: Full test suite skipped on Windows CI due to performance constraints
         echo Please run full tests locally on Windows before merging

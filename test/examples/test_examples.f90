@@ -90,15 +90,23 @@ program test_examples
     n_failed = 0
     n_expected_failed = 0
 
-    ! Skip this test on Windows CI - it's very slow with single-threaded execution
-    if (get_os_type() == OS_WINDOWS .and. len_trim(get_env('CI', '')) > 0) then
-        print *, 'SKIP: test_examples on Windows CI (too slow with OMP_NUM_THREADS=1)'
-        stop 0
-    end if
-
     print '(a)', '='//repeat('=', 60)
     print '(a)', 'Running Fortran CLI Example Tests'
     print '(a)', '='//repeat('=', 60)
+    
+    ! On Windows CI, test only a few critical examples
+    if (get_os_type() == OS_WINDOWS .and. len_trim(get_env('CI', '')) > 0) then
+        print '(a)', 'Windows CI detected - testing reduced example set'
+        ! Test only hello.f90, precision_test.f90, and calculate.f90
+        n_examples = 3
+        deallocate(example_files)
+        allocate(example_files(n_examples))
+        example_files(1) = 'example/basic/hello/hello.f90'
+        example_files(2) = 'example/scientific/precision/precision_test.f90'
+        example_files(3) = 'example/fortran/type_inference/calculate.f90'
+    end if
+    
+    print '(a,i0,a)', 'Testing ', n_examples, ' example files...'
     print *
 
     do i = 1, n_examples
