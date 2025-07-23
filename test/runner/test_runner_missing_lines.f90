@@ -56,7 +56,7 @@ contains
 
         ! Use impossible cache directory to trigger failure
         ! Use a path that's invalid on both Windows and Unix
-        custom_cache_dir = 'Z:\\NonExistent\\Invalid\\Path\\Cache'
+        custom_cache_dir = temp_mgr%get_file_path('invalid_cache_dir/subdir/cache')
         custom_config_dir = ""
 
         call run_fortran_file(test_file, exit_code, 3, &
