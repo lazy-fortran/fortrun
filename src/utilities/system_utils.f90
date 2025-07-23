@@ -134,11 +134,13 @@ contains
         temp_file = get_temp_file_path(create_temp_dir('sys_list'), 'files.tmp')
 
         if (get_os_type() == OS_WINDOWS) then
-            command = 'cmd /c "dir /b "'//trim(directory)//sys_get_path_separator()// &
-                      trim(pattern)//'" 2>nul > "'//trim(temp_file)//'"'
+            ! For Windows cmd /c, we need to handle quotes specially
+            ! Using ^ to escape quotes inside the cmd /c string
+            command = 'cmd /c dir /b "'//trim(escape_shell_arg(directory))//sys_get_path_separator()// &
+                      trim(escape_shell_arg(pattern))//'" 2>nul > "'//trim(escape_shell_arg(temp_file))//'"'
         else
-            command = 'ls "'//trim(directory)//sys_get_path_separator()// &
-                      trim(pattern)//' 2>/dev/null > "'//trim(temp_file)//'"'
+            command = 'ls "'//trim(escape_shell_arg(directory))//sys_get_path_separator()// &
+                      trim(escape_shell_arg(pattern))//'" 2>/dev/null > "'//trim(escape_shell_arg(temp_file))//'"'
         end if
 
         call execute_command_line(command)
@@ -303,10 +305,10 @@ contains
 
         if (get_os_type() == OS_WINDOWS) then
             if (is_recursive) then
-                command = 'cmd /c "dir /s /b "'//trim(escape_shell_arg(directory))//'\'// &
+                command = 'cmd /c dir /s /b "'//trim(escape_shell_arg(directory))//'\'// &
                           trim(escape_shell_arg(pattern))//'" 2>nul > "'//trim(escape_shell_arg(temp_file))//'"'
             else
-                command = 'cmd /c "dir /b "'//trim(escape_shell_arg(directory))//'\'// &
+                command = 'cmd /c dir /b "'//trim(escape_shell_arg(directory))//'\'// &
                           trim(escape_shell_arg(pattern))//'" 2>nul > "'//trim(escape_shell_arg(temp_file))//'"'
             end if
         else
@@ -455,7 +457,7 @@ contains
         temp_file = get_temp_file_path(create_temp_dir('sys_count'), 'count.tmp')
 
         if (get_os_type() == OS_WINDOWS) then
-            command = 'cmd /c "dir /a-d /b "'//trim(escape_shell_arg(directory))// &
+            command = 'cmd /c dir /a-d /b "'//trim(escape_shell_arg(directory))// &
                       '" 2>nul | find /c /v """" > "'//trim(escape_shell_arg(temp_file))//'"'
         else
             command = 'find "'//trim(escape_shell_arg(directory))// &
