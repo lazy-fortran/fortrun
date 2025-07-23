@@ -57,7 +57,8 @@ contains
         close(unit)
 
         ! Test with custom cache directory
-        custom_cache = temp_mgr%get_file_path('custom_cache')
+        ! Note: This should be a directory path, not a file path
+        custom_cache = temp_mgr%get_path() // '/custom_cache'
         custom_config_dir = ""
 
         print *, "  DEBUG: About to run with custom cache dir: ", trim(custom_cache)
@@ -74,7 +75,8 @@ contains
         end if
 
         ! Test with custom config directory 
-        custom_config_dir = temp_mgr%get_file_path('custom_config')
+        ! Note: This should be a directory path, not a file path
+        custom_config_dir = temp_mgr%get_path() // '/custom_config'
 
         print *, "  DEBUG: About to run with custom config dir: ", trim(custom_config_dir)
         print *, "  DEBUG: Custom cache still: ", trim(custom_cache)
