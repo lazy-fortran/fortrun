@@ -1,7 +1,7 @@
 program test_runner_paths
     use iso_fortran_env, only: error_unit
     use runner
-    use temp_utils, only: temp_dir_manager
+    use temp_utils, only: temp_dir_manager, path_join
     use system_utils, only: sys_remove_file, sys_remove_dir
     implicit none
 
@@ -58,7 +58,8 @@ contains
 
         ! Test with custom cache directory
         ! Note: This should be a directory path, not a file path
-        custom_cache = temp_mgr%get_path() // '/custom_cache'
+        ! Use path_join for proper path separator handling
+        custom_cache = path_join(temp_mgr%get_path(), 'custom_cache')
         custom_config_dir = ""
 
         print *, "  DEBUG: About to run with custom cache dir: ", trim(custom_cache)
@@ -76,11 +77,24 @@ contains
 
         ! Test with custom config directory 
         ! Note: This should be a directory path, not a file path
-        custom_config_dir = temp_mgr%get_path() // '/custom_config'
+        ! Use path_join for proper path separator handling
+        custom_config_dir = path_join(temp_mgr%get_path(), 'custom_config')
 
         print *, "  DEBUG: About to run with custom config dir: ", trim(custom_config_dir)
         print *, "  DEBUG: Custom cache still: ", trim(custom_cache)
         print *, "  DEBUG: Test file still: ", trim(test_file)
+        
+        ! Extra debug for Windows CI
+        if (len_trim(ci_env) > 0) then
+            print *, "  DEBUG: Calling run_fortran_file with:"
+            print *, "    - test_file: ", trim(test_file)
+            print *, "    - exit_code: (output)"
+            print *, "    - verbose: 0"
+            print *, "    - cache_dir: ", trim(custom_cache)
+            print *, "    - config_dir: ", trim(custom_config_dir)
+            print *, "    - parallel: 1"
+            print *, "    - no_wait: .false."
+        end if
 
         call run_fortran_file(test_file, exit_code, 0, &
                              custom_cache, custom_config_dir, &
