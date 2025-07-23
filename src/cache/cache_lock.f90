@@ -154,9 +154,9 @@ contains
         character(len=*), intent(in) :: lock_file
         logical :: success
         character(len=512) :: temp_file, command
-        integer :: unit, iostat, pid
+        integer :: unit, iostat, pid, exitstat
         character(len=32) :: pid_str, timestamp
-        logical :: file_exists
+        logical :: file_exists, temp_exists
 
         success = .false.
 
@@ -167,37 +167,62 @@ contains
 
         temp_file = trim(lock_file)//'.tmp.'//trim(pid_str)
 
-        open (newunit=unit, file=temp_file, status='new', iostat=iostat)
-        if (iostat == 0) then
-            write (unit, '(a)') trim(pid_str)
-            write (unit, '(a)') trim(timestamp)
-            close (unit)
-
-            ! Try to atomically move temp file to lock file
-            ! First check if lock file already exists using system command (consistent with is_locked)
-            file_exists = check_lock_file_exists(lock_file)
-            if (file_exists) then
-                ! Lock already exists, can't create
-                ! Clean up temp file since lock already exists
-                call debug_print('Deleting temp file: ' // trim(temp_file))
-                call sys_remove_file(temp_file)
-                success = .false.
+        ! For Windows, we'll use a different approach - try to create the lock file directly
+        if (get_os_type() == OS_WINDOWS) then
+            ! On Windows, use Fortran's exclusive file opening
+            call debug_print('Attempting exclusive file creation on Windows')
+            
+            ! Try to open the lock file with 'new' status (fails if exists)
+            open(newunit=unit, file=lock_file, status='new', iostat=iostat)
+            if (iostat == 0) then
+                ! We successfully created the lock file
+                write (unit, '(a)') trim(pid_str)
+                write (unit, '(a)') trim(timestamp)
+                close (unit)
+                success = .true.
+                call debug_print('Lock created successfully with exclusive open')
             else
-                ! Try atomic move/link operation
-                call debug_print('Moving temp file to lock file')
-                call debug_print('From: ' // trim(temp_file))
-                call debug_print('To: ' // trim(lock_file))
+                ! File already exists or other error
+                success = .false.
+                call debug_print('Lock file already exists or cannot be created')
+            end if
+        else
+            ! Unix approach - create temp file then use atomic link
+            open (newunit=unit, file=temp_file, status='new', iostat=iostat)
+            if (iostat == 0) then
+                write (unit, '(a)') trim(pid_str)
+                write (unit, '(a)') trim(timestamp)
+                close (unit)
 
-                ! Use move for atomic operation on all platforms
-                ! This avoids symlink issues and is atomic within same filesystem
-                call sys_move_file(temp_file, lock_file, success)
-
+                ! Use link for true atomicity
+                call debug_print('Attempting atomic link on Unix')
+                command = 'ln "'//trim(escape_quotes(temp_file))//'" "'// &
+                          trim(escape_quotes(lock_file))//'" 2>/dev/null'
+                call execute_command_line(trim(command), exitstat=exitstat)
+                success = (exitstat == 0)
+                
                 if (.not. success) then
-                    call debug_print('Atomic lock creation failed')
-                    ! Clean up temp file if it still exists
+                    ! If link failed, check if it's because lock already exists
+                    file_exists = check_lock_file_exists(lock_file)
+                    if (.not. file_exists) then
+                        ! Lock doesn't exist but link failed - try mv as fallback
+                        call debug_print('Link failed, trying mv')
+                        call sys_move_file(temp_file, lock_file, success)
+                    end if
+                end if
+
+                ! Always clean up temp file
+                temp_exists = check_lock_file_exists(temp_file)
+                if (temp_exists) then
                     call sys_remove_file(temp_file)
                 end if
             end if
+        end if
+
+        if (success) then
+            call debug_print('Lock created successfully')
+        else
+            call debug_print('Failed to create lock')
         end if
 
     end function try_create_lock
@@ -283,6 +308,59 @@ contains
         end if
 
     end subroutine remove_lock
+
+    function get_filename_only(full_path) result(filename)
+        character(len=*), intent(in) :: full_path
+        character(len=:), allocatable :: filename
+        integer :: last_sep, i
+        
+        ! Find last path separator
+        last_sep = 0
+        do i = len_trim(full_path), 1, -1
+            if (full_path(i:i) == '/' .or. full_path(i:i) == '\') then
+                last_sep = i
+                exit
+            end if
+        end do
+        
+        if (last_sep > 0) then
+            filename = full_path(last_sep+1:)
+        else
+            filename = full_path
+        end if
+    end function get_filename_only
+
+    function escape_quotes(str) result(escaped)
+        character(len=*), intent(in) :: str
+        character(len=:), allocatable :: escaped
+        integer :: i, n, len_str
+        
+        len_str = len_trim(str)
+        ! Count characters needed
+        n = 0
+        do i = 1, len_str
+            if (str(i:i) == '"') then
+                n = n + 2
+            else
+                n = n + 1
+            end if
+        end do
+        
+        ! Allocate and build escaped string
+        allocate(character(len=n) :: escaped)
+        n = 0
+        do i = 1, len_str
+            if (str(i:i) == '"') then
+                n = n + 1
+                escaped(n:n) = '\'
+                n = n + 1
+                escaped(n:n) = '"'
+            else
+                n = n + 1
+                escaped(n:n) = str(i:i)
+            end if
+        end do
+    end function escape_quotes
 
     subroutine get_pid(pid)
         integer, intent(out) :: pid
