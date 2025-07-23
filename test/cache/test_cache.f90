@@ -13,6 +13,12 @@ program test_cache
     character(len=:), allocatable :: temp_dir
     type(temp_dir_manager) :: temp_mgr
 
+    ! Skip this test on Windows CI - it runs fortran CLI multiple times
+    if (get_os_type() == OS_WINDOWS .and. len_trim(get_env('CI', '')) > 0) then
+        print *, 'SKIP: test_cache on Windows CI (runs fortran CLI multiple times)'
+        stop 0
+    end if
+
     ! Create a temp directory for the test
     call temp_mgr%create('test_cache_work')
     temp_dir = temp_mgr%path

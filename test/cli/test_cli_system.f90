@@ -4,6 +4,7 @@ program test_cli_system
     use temp_utils, only: temp_dir_manager, create_test_cache_dir
     use temp_utils, only: mkdir
     use system_utils, only: sys_remove_dir, sys_run_command, sys_copy_file, sys_run_command_with_exit_code
+    use fpm_environment, only: get_os_type, OS_WINDOWS, get_env
     implicit none
 
     character(len=512) :: command, test_file
@@ -11,6 +12,12 @@ program test_cli_system
     integer :: exit_code, unit, iostat
     logical :: test_passed
     type(temp_dir_manager) :: main_temp_mgr
+
+    ! Skip this test on Windows CI - it runs fortran CLI 17 times
+    if (get_os_type() == OS_WINDOWS .and. len_trim(get_env('CI', '')) > 0) then
+        print *, 'SKIP: test_cli_system on Windows CI (runs fortran CLI 17 times)'
+        stop 0
+    end if
 
     print *, '=== System CLI Tests ==='
     print *

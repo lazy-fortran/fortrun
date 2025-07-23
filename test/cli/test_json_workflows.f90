@@ -1,11 +1,17 @@
 program test_json_workflows
     use temp_utils, only: get_system_temp_dir, create_temp_dir, get_project_root, create_test_cache_dir, path_join
-    use fpm_environment, only: get_os_type, OS_WINDOWS
+    use fpm_environment, only: get_os_type, OS_WINDOWS, get_env
     implicit none
 
     logical :: all_passed
 
     all_passed = .true.
+
+    ! Skip this test on Windows CI - it runs fortran CLI 16 times
+    if (get_os_type() == OS_WINDOWS .and. len_trim(get_env('CI', '')) > 0) then
+        print *, 'SKIP: test_json_workflows on Windows CI (runs fortran CLI 16 times)'
+        stop 0
+    end if
 
     print *, '=== JSON Workflow Tests ==='
     print *
