@@ -57,7 +57,8 @@ contains
         character(len=1024) :: preprocess_error
         integer :: exitstat, cmdstat
         integer :: i, last_slash
-        logical :: was_preprocessed
+        logical :: was_preprocessed, is_cache_miss
+        real :: start_time, end_time
 
         exit_code = 0
         
@@ -233,7 +234,9 @@ call print_error('Cache is locked by another process. Use without --no-wait to w
         end if
 
         ! Check if project already exists (cache hit)
-        if (directory_exists(join_path(trim(project_dir), 'build'))) then
+        is_cache_miss = .not. directory_exists(join_path(trim(project_dir), 'build'))
+        
+        if (.not. is_cache_miss) then
             if (verbose_level >= 1) then
                 print '(a)', 'Cache hit: Using existing build'
             end if
@@ -244,6 +247,11 @@ call print_error('Cache is locked by another process. Use without --no-wait to w
             ! Cache miss: need to set up project
             if (verbose_level >= 1) then
                 print '(a)', 'Cache miss: Setting up new build'
+            else
+                ! Quiet mode: show subtle indicator and start timing
+                write(*, '(a)', advance='no') 'Compiling... '
+                flush(6)
+                call cpu_time(start_time)
             end if
 
             ! Create the project directory first
@@ -347,6 +355,12 @@ call print_error('Cache is locked by another process. Use without --no-wait to w
         call debug_print('Project directory: '//trim(project_dir))
         
         call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat, wait=.true.)
+        
+        ! Show timing in quiet mode after build (only for cache miss builds)
+        if (verbose_level == 0 .and. is_cache_miss) then
+            call cpu_time(end_time)
+            write(*, '(f0.1,a)') end_time - start_time, 's'
+        end if
 
         if (cmdstat /= 0 .or. exitstat /= 0) then
             if (verbose_level == 0) then
@@ -367,9 +381,16 @@ call print_error('Cache is locked by another process. Use without --no-wait to w
 
         ! Run the executable using fpm run
         if (verbose_level == 0) then
-            ! Quiet mode: suppress FPM stderr messages but show program output
-            command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && fpm run "'// &
-                      trim(escape_shell_arg(basename))//'"'//get_stderr_redirect()
+            ! Quiet mode: suppress all FPM output and only show program output
+            if (get_os_type() == OS_WINDOWS) then
+                ! Windows: redirect to nul and use findstr to skip first line
+                command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && fpm run "'// &
+                          trim(escape_shell_arg(basename))//'" 2>nul | findstr /v "^Project is up to date$"'
+            else
+                ! Unix: redirect to /dev/null and use grep to skip FPM output
+                command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && fpm run "'// &
+                          trim(escape_shell_arg(basename))//'" 2>&1 | grep -v "^Project is up to date$"'
+            end if
         else
             command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))// &
                       '" && fpm run "'//trim(escape_shell_arg(basename))//'"'
