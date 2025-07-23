@@ -381,25 +381,59 @@ call print_error('Cache is locked by another process. Use without --no-wait to w
 
         ! Run the executable using fpm run
         if (verbose_level == 0) then
-            ! Quiet mode: suppress all FPM output and only show program output
-            if (get_os_type() == OS_WINDOWS) then
-                ! Windows: redirect to nul and use findstr to skip first line
+            ! Quiet mode: capture output to filter FPM messages but show errors
+            block
+                character(len=256) :: temp_output
+                integer :: unit, iostat
+                character(len=1024) :: line
+                logical :: has_error
+                
+                temp_output = create_temp_file('fortran_run_output', '.txt')
+                
+                ! Run fpm and capture all output
                 command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && fpm run "'// &
-                          trim(escape_shell_arg(basename))//'" 2>nul | findstr /v "^Project is up to date$"'
-            else
-                ! Unix: redirect to /dev/null and use grep to skip FPM output
-                command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && fpm run "'// &
-                          trim(escape_shell_arg(basename))//'" 2>&1 | grep -v "^Project is up to date$"'
-            end if
+                          trim(escape_shell_arg(basename))//'" > "'//trim(escape_shell_arg(temp_output))//'" 2>&1'
+                
+                call debug_print('Running command: ' // trim(command))
+                call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat, wait=.true.)
+                
+                ! Check if there was an error
+                has_error = (cmdstat /= 0 .or. exitstat /= 0)
+                
+                ! Read and filter output
+                open(newunit=unit, file=temp_output, status='old', iostat=iostat)
+                if (iostat == 0) then
+                    do
+                        read(unit, '(a)', iostat=iostat) line
+                        if (iostat /= 0) exit
+                        
+                        ! Filter out FPM progress messages unless there's an error
+                        if (has_error) then
+                            ! Show everything on error
+                            write(*, '(a)') trim(line)
+                        else
+                            ! Filter out FPM messages on success
+                            if (index(line, '[') == 0 .or. index(line, '%]') == 0) then
+                                if (index(line, 'Project is up to date') == 0 .and. &
+                                    index(line, 'Project compiled successfully') == 0) then
+                                    write(*, '(a)') trim(line)
+                                end if
+                            end if
+                        end if
+                    end do
+                    close(unit)
+                end if
+                
+                ! Clean up temp file
+                call sys_remove_file(temp_output)
+            end block
         else
             command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))// &
                       '" && fpm run "'//trim(escape_shell_arg(basename))//'"'
+            
+            call debug_print('Running command: ' // trim(command))
+            call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat, wait=.true.)
         end if
-
-        call debug_print('Running command: ' // trim(command))
-        
-
-        call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat, wait=.true.)
 
         if (cmdstat /= 0) then
             call print_error('Failed to execute fpm')
