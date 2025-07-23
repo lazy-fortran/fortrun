@@ -3,7 +3,7 @@ program test_cache
     use temp_utils, only: create_temp_dir, get_temp_file_path, temp_dir_manager, create_test_cache_dir, path_join
     use fpm_environment, only: get_os_type, OS_WINDOWS
     use fpm_filesystem, only: exists
-    use system_utils, only: sys_dir_exists, sys_remove_file
+    use system_utils, only: sys_dir_exists, sys_remove_file, escape_shell_arg
     implicit none
 
     character(len=:), allocatable :: test_cache_dir, test_program
@@ -133,8 +133,13 @@ contains
         output_file = get_temp_file_path(temp_dir, 'test_output.tmp')
 
         ! Build command with custom cache
-        command = 'fpm run fortran -- --cache-dir '//trim(cache_dir)// &
-                  ' '//trim(flags)//' '//trim(filename)//' > '//output_file//' 2>&1'
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)// &
+                      '" '//trim(flags)//' "'//trim(filename)//'" > "'//trim(output_file)//'" 2>&1'
+        else
+            command = 'fpm run fortran -- --cache-dir '//trim(escape_shell_arg(cache_dir))// &
+                      ' '//trim(flags)//' '//trim(escape_shell_arg(filename))//' > '//trim(escape_shell_arg(output_file))//' 2>&1'
+        end if
 
         ! Run command
         call execute_command_line(trim(command), exitstat=exit_code)
