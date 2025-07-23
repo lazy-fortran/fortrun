@@ -315,7 +315,7 @@ contains
         block
             character(len=:), allocatable :: temp_output_file, temp_cache_dir
             temp_cache_dir = create_test_cache_dir('example_run')
-            temp_output_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_output.tmp')
+            temp_output_file = create_temp_file('fortran_test_example_run', '.tmp')
             block
                 character(len=:), allocatable :: project_root
                 project_root = get_project_root()
@@ -456,7 +456,7 @@ contains
         character(len=1024) :: line
 
         ! Create temp output file path
-        temp_output_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_cache_output.tmp')
+        temp_output_file = create_temp_file('fortran_test_cache_output', '.tmp')
 
         ! Run with verbose flag and custom cache directory
         command = 'cd "'//trim(escape_shell_arg(get_project_root()))//'" && '// &
@@ -505,7 +505,7 @@ contains
         debug_paths = (len_trim(ci_env) > 0 .and. get_os_type() == OS_WINDOWS)
 
         ! Create temp output file path
-        temp_output_file = get_temp_file_path(create_temp_dir('fortran_test'), 'test_comparison_output.tmp')
+        temp_output_file = create_temp_file('fortran_test_comparison', '.tmp')
 
         if (debug_paths) then
             print '(a)', 'DEBUG: run_example_for_comparison'

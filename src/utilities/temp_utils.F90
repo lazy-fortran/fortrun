@@ -8,7 +8,7 @@ module temp_utils
     use iso_c_binding, only: c_int
     implicit none
     private
-    public :: create_temp_dir, cleanup_temp_dir, get_temp_file_path, temp_dir_manager, &
+    public :: create_temp_dir, create_temp_file, cleanup_temp_dir, get_temp_file_path, temp_dir_manager, &
               get_system_temp_dir, get_current_directory, get_project_root, path_join, &
               mkdir, create_test_cache_dir
 
@@ -100,6 +100,51 @@ contains
         call mkdir(temp_dir)
 
     end function create_temp_dir
+
+    !> Create a unique temporary file path without creating a directory
+    function create_temp_file(prefix, extension) result(temp_file)
+        character(len=*), intent(in) :: prefix
+        character(len=*), intent(in), optional :: extension
+        character(len=:), allocatable :: temp_file
+        character(len=32) :: random_suffix
+        character(len=256) :: base_temp_dir
+        character(len=:), allocatable :: ext
+
+        ! Get system temp directory
+        base_temp_dir = get_env('TMPDIR', '')
+        if (len_trim(base_temp_dir) == 0) then
+            base_temp_dir = get_env('TMP', '')
+            if (len_trim(base_temp_dir) == 0) then
+                base_temp_dir = get_env('TEMP', '')
+                if (len_trim(base_temp_dir) == 0) then
+                    base_temp_dir = get_system_temp_dir()
+                end if
+            end if
+        end if
+
+        ! Generate random suffix
+        call generate_random_suffix(random_suffix)
+
+        ! Handle extension
+        if (present(extension)) then
+            if (len_trim(extension) > 0) then
+                if (extension(1:1) == '.') then
+                    ext = trim(extension)
+                else
+                    ext = '.'//trim(extension)
+                end if
+            else
+                ext = ''
+            end if
+        else
+            ext = ''
+        end if
+
+        ! Create unique temp file path directly in temp directory
+        temp_file = join_path(trim(base_temp_dir), &
+                             trim(prefix)//'_'//trim(random_suffix)//ext)
+
+    end function create_temp_file
 
     subroutine cleanup_temp_dir(temp_dir)
         character(len=*), intent(in) :: temp_dir
