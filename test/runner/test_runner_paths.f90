@@ -36,9 +36,17 @@ contains
         character(len=:), allocatable :: test_file, custom_cache
         integer :: exit_code, unit
         character(len=256) :: custom_config_dir
+        character(len=256) :: ci_env
 
         print *, "Test 1: Custom cache directory paths"
         passed = .true.
+        
+        ! Check if we're in CI
+        call get_environment_variable('CI', ci_env)
+        if (len_trim(ci_env) > 0) then
+            print *, "  DEBUG: Running in CI environment"
+            print *, "  DEBUG: OMP_NUM_THREADS should be 1 for this test"
+        end if
 
         ! Create a simple test program
         test_file = temp_mgr%get_file_path('cache_test.f90')
@@ -51,6 +59,9 @@ contains
         ! Test with custom cache directory
         custom_cache = temp_mgr%get_file_path('custom_cache')
         custom_config_dir = ""
+
+        print *, "  DEBUG: About to run with custom cache dir: ", trim(custom_cache)
+        print *, "  DEBUG: Test file: ", trim(test_file)
 
         call run_fortran_file(test_file, exit_code, 0, &  ! quiet mode
                              custom_cache, custom_config_dir, &
@@ -65,9 +76,15 @@ contains
         ! Test with custom config directory 
         custom_config_dir = temp_mgr%get_file_path('custom_config')
 
+        print *, "  DEBUG: About to run with custom config dir: ", trim(custom_config_dir)
+        print *, "  DEBUG: Custom cache still: ", trim(custom_cache)
+        print *, "  DEBUG: Test file still: ", trim(test_file)
+
         call run_fortran_file(test_file, exit_code, 0, &
                              custom_cache, custom_config_dir, &
                              1, .false.)
+
+        print *, "  DEBUG: run_fortran_file returned with exit_code: ", exit_code
 
         if (exit_code == 0) then
             print *, "  PASS: Custom config directory execution successful"
