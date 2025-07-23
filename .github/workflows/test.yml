@@ -53,14 +53,22 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-fpm-deps-
     
-    - name: Build with coverage
+    - name: Build all tests with coverage
       run: |
-        # Build with coverage flags
-        fpm build --profile debug --flag '-fprofile-arcs -ftest-coverage -g'
+        # Build all tests with coverage flags
+        fpm build --tests --profile debug --flag '-fprofile-arcs -ftest-coverage -g'
         
         # Debug: Show build directory structure
         echo "Build directory structure:"
         find build -type f -name "*.gcno" | head -10
+    
+    - name: Cache build directory
+      uses: actions/cache@v4
+      with:
+        path: build
+        key: ${{ runner.os }}-build-coverage-${{ github.sha }}-${{ matrix.test-group }}
+        restore-keys: |
+          ${{ runner.os }}-build-coverage-${{ github.sha }}-
     
     - name: Run Core Tests
       if: matrix.test-group == 'core'
@@ -182,14 +190,22 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-fpm-deps-
     
-    - name: Build with coverage
+    - name: Build all tests with coverage
       run: |
-        # Build with coverage flags
-        fpm build --profile debug --flag '-fprofile-arcs -ftest-coverage -g'
+        # Build all tests with coverage flags
+        fpm build --tests --profile debug --flag '-fprofile-arcs -ftest-coverage -g'
         
         # Debug: Show build directory structure
         echo "Build directory structure:"
         find build -type f -name "*.gcno" | head -10
+    
+    - name: Cache build directory
+      uses: actions/cache@v4
+      with:
+        path: build
+        key: ${{ runner.os }}-build-coverage-${{ github.sha }}-${{ matrix.test-group }}
+        restore-keys: |
+          ${{ runner.os }}-build-coverage-${{ github.sha }}-
     
     - name: Run CLI Tests
       if: matrix.test-group == 'cli'
@@ -297,14 +313,22 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-fpm-deps-
     
-    - name: Build with coverage
+    - name: Build all tests with coverage
       run: |
-        # Build with coverage flags
-        fpm build --profile debug --flag '-fprofile-arcs -ftest-coverage -g'
+        # Build all tests with coverage flags
+        fpm build --tests --profile debug --flag '-fprofile-arcs -ftest-coverage -g'
         
         # Debug: Show build directory structure
         echo "Build directory structure:"
         find build -type f -name "*.gcno" | head -10
+    
+    - name: Cache build directory
+      uses: actions/cache@v4
+      with:
+        path: build
+        key: ${{ runner.os }}-build-coverage-${{ github.sha }}-${{ matrix.test-group }}
+        restore-keys: |
+          ${{ runner.os }}-build-coverage-${{ github.sha }}-
     
     - name: Run Frontend Tests
       if: matrix.test-group == 'frontend'
@@ -527,11 +551,19 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-fpm-deps-
     
-    - name: Build
+    - name: Build all tests
       run: |
-        echo "Building project..."
-        fpm build
+        echo "Building project and all tests..."
+        fpm build --tests
       shell: cmd
+    
+    - name: Cache build directory
+      uses: actions/cache@v4
+      with:
+        path: build
+        key: ${{ runner.os }}-build-${{ github.sha }}-${{ matrix.test-group }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ github.sha }}-
     
     - name: Run Core Tests
       if: matrix.test-group == 'core'
@@ -548,3 +580,74 @@ jobs:
         fpm test test_string_utils
         fpm test test_system_utils_coverage
       shell: cmd
+
+  # macOS tests (similar to Windows)
+  macos-tests:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        test-group: [core, utilities]
+      fail-fast: false
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install gfortran
+      run: brew install gcc
+    
+    - name: Cache FPM binary (macOS)
+      id: cache-fpm-mac
+      uses: actions/cache@v4
+      with:
+        path: /usr/local/bin/fpm
+        key: ${{ runner.os }}-fpm-0.12.0
+    
+    - name: Install FPM
+      if: steps.cache-fpm-mac.outputs.cache-hit != 'true'
+      run: |
+        wget https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-macos-x86_64
+        chmod +x fpm-0.12.0-macos-x86_64
+        sudo mv fpm-0.12.0-macos-x86_64 /usr/local/bin/fpm
+        fpm --version
+    
+    - name: Setup registry
+      run: |
+        mkdir -p $HOME/.config/fortran
+        cp registry.toml $HOME/.config/fortran/
+    
+    - name: Cache FPM dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.local/share/fpm
+          build/dependencies
+        key: ${{ runner.os }}-fpm-deps-${{ hashFiles('fpm.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-fpm-deps-
+    
+    - name: Build all tests
+      run: |
+        echo "Building project and all tests..."
+        fpm build --tests
+    
+    - name: Cache build directory
+      uses: actions/cache@v4
+      with:
+        path: build
+        key: ${{ runner.os }}-build-${{ github.sha }}-${{ matrix.test-group }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ github.sha }}-
+    
+    - name: Run Core Tests
+      if: matrix.test-group == 'core'
+      run: |
+        fpm test test_lexer_direct
+        fpm test test_parser_edge_cases
+        fpm test test_semantic_simple
+    
+    - name: Run Utilities Tests
+      if: matrix.test-group == 'utilities'
+      run: |
+        fpm test test_logger_utils
+        fpm test test_string_utils
+        fpm test test_system_utils_coverage

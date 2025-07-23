@@ -69,12 +69,20 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-fpm-deps-
 
-    - name: Build
+    - name: Build all tests
       run: |
-        echo Building project...
+        echo Building project and all tests...
         if exist build rmdir /s /q build
-        fpm build --compiler gfortran --flag="-cpp"
+        fpm build --tests --compiler gfortran --flag="-cpp"
       shell: cmd
+
+    - name: Cache build directory
+      uses: actions/cache@v4
+      with:
+        path: build
+        key: ${{ runner.os }}-build-${{ github.sha }}-${{ matrix.test-group }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ github.sha }}-
 
     - name: Run Core Tests
       if: matrix.test-group == 'core'
@@ -183,12 +191,20 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-fpm-deps-
 
-    - name: Build
+    - name: Build all tests
       run: |
-        echo Building project...
+        echo Building project and all tests...
         if exist build rmdir /s /q build
-        fpm build --compiler gfortran --flag="-cpp"
+        fpm build --tests --compiler gfortran --flag="-cpp"
       shell: cmd
+
+    - name: Cache build directory
+      uses: actions/cache@v4
+      with:
+        path: build
+        key: ${{ runner.os }}-build-${{ github.sha }}-${{ matrix.test-group }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ github.sha }}-
 
     - name: Run CLI Tests
       if: matrix.test-group == 'cli'
@@ -294,12 +310,20 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-fpm-deps-
 
-    - name: Build
+    - name: Build all tests
       run: |
-        echo Building project...
+        echo Building project and all tests...
         if exist build rmdir /s /q build
-        fpm build --compiler gfortran --flag="-cpp"
+        fpm build --tests --compiler gfortran --flag="-cpp"
       shell: cmd
+
+    - name: Cache build directory
+      uses: actions/cache@v4
+      with:
+        path: build
+        key: ${{ runner.os }}-build-${{ github.sha }}-${{ matrix.test-group }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ github.sha }}-
 
     - name: Run Frontend Tests
       if: matrix.test-group == 'frontend'
@@ -395,12 +419,20 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-fpm-deps-
 
-    - name: Build
+    - name: Build all tests
       run: |
-        echo Building project...
+        echo Building project and all tests...
         if exist build rmdir /s /q build
-        fpm build --compiler gfortran --flag="-cpp"
+        fpm build --tests --compiler gfortran --flag="-cpp"
       shell: cmd
+
+    - name: Cache build directory
+      uses: actions/cache@v4
+      with:
+        path: build
+        key: ${{ runner.os }}-build-${{ github.sha }}-${{ matrix.test-group }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ github.sha }}-
 
     - name: Run Coverage Tests
       if: matrix.test-group == 'coverage'
@@ -475,12 +507,20 @@ jobs:
         Move-Item -Path "fpm.exe" -Destination "C:\msys64\mingw64\bin\fpm.exe"
         & "C:\msys64\mingw64\bin\fpm.exe" --version
 
-    - name: Build project
+    - name: Build all tests
       run: |
-        echo Building project...
+        echo Building project and all tests...
         if exist build rmdir /s /q build
-        fpm build --compiler gfortran --flag="-cpp"
+        fpm build --tests --compiler gfortran --flag="-cpp"
       shell: cmd
+
+    - name: Cache build directory
+      uses: actions/cache@v4
+      with:
+        path: build
+        key: ${{ runner.os }}-build-${{ github.sha }}-smoke
+        restore-keys: |
+          ${{ runner.os }}-build-${{ github.sha }}-
 
     - name: Run smoke tests
       run: |
