@@ -626,17 +626,23 @@ contains
         print '(a,a)', 'Using temporary cache: ', trim(temp_cache_dir)
         print '(a,a)', 'Using temporary source: ', trim(temp_source_file)
 
-        ! Create temporary source directory
-        call mkdir(trim(temp_source_dir))
-
-        ! Copy the entire interdependent directory to temp location
+        ! Copy the entire interdependent directory contents to temp location
         block
             character(len=1024) :: source_path
             logical :: copy_success
             character(len=256) :: error_msg
+            integer :: iostat
             
             source_path = path_join(get_project_root(), 'example/modules/interdependent')
-            call sys_copy_dir(trim(source_path), trim(temp_source_dir), copy_success, error_msg)
+            ! On Windows, xcopy needs the destination to exist and copy contents
+            if (get_os_type() == OS_WINDOWS) then
+                ! Use xcopy with source\* to copy contents, not the directory itself
+                call execute_command_line('xcopy /E /I /Y "'//trim(source_path)//'\*" "'//trim(temp_source_dir)//'" >nul 2>&1', exitstat=iostat)
+                copy_success = (iostat == 0)
+                if (.not. copy_success) error_msg = "xcopy failed"
+            else
+                call sys_copy_dir(trim(source_path)//'/.', trim(temp_source_dir), copy_success, error_msg)
+            end if
             
             if (.not. copy_success) then
                 print '(a)', '  ✗ FAIL: Could not copy interdependent directory: '//trim(error_msg)
