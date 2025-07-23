@@ -5,8 +5,10 @@ program test_fpm_cache_integration
     use fpm_strings, only: string_t
     use fpm_error, only: error_t
     use, intrinsic :: iso_fortran_env, only: error_unit
-    use temp_utils, only: temp_dir_manager
+    use temp_utils, only: temp_dir_manager, path_join
     use temp_utils, only: mkdir
+    use system_utils, only: sys_remove_dir
+    use fpm_environment, only: get_os_type, OS_WINDOWS
     implicit none
 
     print *, '=== FPM Cache Integration Tests ===\'
@@ -36,11 +38,11 @@ contains
             type(temp_dir_manager) :: temp_mgr
             call temp_mgr%create('fpm_test_sources_'//trim(get_timestamp()))
             test_dir = temp_mgr%path
-            test_file = test_dir//'/app/test.f90'
+            test_file = path_join(path_join(test_dir, 'app'), 'test.f90')
         end block
         print *, 'Creating test directory: ', test_dir
-        call execute_command_line('rm -rf '//test_dir)
-        call mkdir(test_dir//'/app')
+        call sys_remove_dir(test_dir)
+        call mkdir(path_join(test_dir, 'app'))
 
         ! Create a test source file in app/ subdirectory
         print *, 'Creating file: ', test_file
@@ -52,7 +54,7 @@ contains
         close (unit)
 
         ! Create minimal fpm.toml for FPM API to work
-        open (newunit=unit, file=test_dir//'/fpm.toml', status='replace')
+        open (newunit=unit, file=path_join(test_dir, 'fpm.toml'), status='replace')
         write (unit, '(a)') 'name = "test_project"'
         write (unit, '(a)') 'version = "0.1.0"'
         close (unit)
@@ -67,7 +69,11 @@ contains
 
         ! Instead of testing FPM API directly, test our Fortran CLI tool with long paths
         print *, 'Testing Fortran CLI tool with long path...'
-    call execute_command_line('fpm run fortran -- ' // test_file // ' > /dev/null 2>&1', exitstat=exit_code)
+    if (get_os_type() == OS_WINDOWS) then
+        call execute_command_line('fpm run fortran -- "' // test_file // '" > nul 2>&1', exitstat=exit_code)
+    else
+        call execute_command_line('fpm run fortran -- "' // test_file // '" > /dev/null 2>&1', exitstat=exit_code)
+    end if
 
         if (exit_code == 0) then
             print *, 'Test 1 passed: Fortran CLI tool works with long paths'
@@ -79,7 +85,7 @@ contains
         end if
 
         ! Clean up
-        call execute_command_line('rm -rf '//test_dir)
+        call sys_remove_dir(test_dir)
 
         print *, 'PASS: FPM source discovery works with long paths'
         print *
@@ -112,7 +118,11 @@ contains
         close (unit)
 
         ! Test our Fortran CLI tool with this file
-    call execute_command_line('fpm run fortran -- ' // test_file // ' > /dev/null 2>&1', exitstat=exit_code)
+    if (get_os_type() == OS_WINDOWS) then
+        call execute_command_line('fpm run fortran -- "' // test_file // '" > nul 2>&1', exitstat=exit_code)
+    else
+        call execute_command_line('fpm run fortran -- "' // test_file // '" > /dev/null 2>&1', exitstat=exit_code)
+    end if
 
         if (exit_code == 0) then
             print *, 'PASS: Can access source file path length:', len(test_file)
@@ -133,7 +143,7 @@ contains
         end if
 
         ! Clean up
-        call execute_command_line('rm -rf '//test_dir)
+        call sys_remove_dir(test_dir)
 
         print *
 

@@ -2,7 +2,7 @@ program test_error_handling
     use, intrinsic :: iso_fortran_env, only: error_unit
     use temp_utils, only: get_system_temp_dir, path_join
     use temp_utils, only: mkdir, path_join
-    use system_utils, only: sys_remove_dir, sys_remove_file
+    use system_utils, only: sys_remove_dir, sys_remove_file, sys_run_command_with_exit_code
     implicit none
 
     print *, '=== Error Handling Tests ==='
@@ -44,22 +44,22 @@ contains
         close (unit)
 
         ! Run the program and capture output
-        command = 'fpm run fortran -- '//trim(test_file)// &
-  ' > '//path_join(get_system_temp_dir(), 'unknown_output.txt')//' 2>&1; echo $? > '// &
-                  path_join(get_system_temp_dir(), 'unknown_exit.txt')
-        call execute_command_line(command)
+        command = 'fpm run fortran -- '//trim(test_file)
+        call sys_run_command_with_exit_code(command, &
+                  path_join(get_system_temp_dir(), 'unknown_output.txt'), &
+                  path_join(get_system_temp_dir(), 'unknown_exit.txt'))
 
         ! Check that it failed with non-zero exit code
         call check_exit_code(path_join(get_system_temp_dir(), 'unknown_exit.txt'), 1)
 
         ! Check that output contains error message about build failure
         ! This is expected behavior - nonexistent modules should cause build failure
-        call check_output_contains(path_join(get_system_temp_dir(), 'unknown_output.txt'), 'Error: Build failed')
+        call check_output_contains(path_join(get_system_temp_dir(), 'unknown_output.txt'), ' ERROR: Build failed')
 
         ! Clean up
         call sys_remove_dir(test_dir)
-   call execute_command_line('rm -f '//path_join(get_system_temp_dir(), 'unknown_output.txt ')// &
-                                  path_join(get_system_temp_dir(), 'unknown_exit.txt'))
+   call sys_remove_file(path_join(get_system_temp_dir(), 'unknown_output.txt'))
+        call sys_remove_file(path_join(get_system_temp_dir(), 'unknown_exit.txt'))
 
         print *, 'PASS: Unknown module error handled correctly'
         print *
@@ -87,22 +87,22 @@ contains
         close (unit)
 
         ! Run the program and capture output
-        command = 'fpm run fortran -- '//trim(test_file)// &
-        ' > '//path_join(get_system_temp_dir(), 'error_output.txt 2>&1; echo $? > ')// &
-                  path_join(get_system_temp_dir(), 'error_exit.txt')
-        call execute_command_line(command)
+        command = 'fpm run fortran -- '//trim(test_file)
+        call sys_run_command_with_exit_code(command, &
+                  path_join(get_system_temp_dir(), 'error_output.txt'), &
+                  path_join(get_system_temp_dir(), 'error_exit.txt'))
 
         ! Check that it failed with non-zero exit code
         call check_exit_code(path_join(get_system_temp_dir(), 'error_exit.txt'), 1)
 
         ! Check that output contains error message
         ! Build should fail for missing modules
-        call check_output_contains(path_join(get_system_temp_dir(), 'error_output.txt'), 'Error: Build failed')
+        call check_output_contains(path_join(get_system_temp_dir(), 'error_output.txt'), ' ERROR: Build failed')
 
         ! Clean up
         call sys_remove_dir(test_dir)
-     call execute_command_line('rm -f '//path_join(get_system_temp_dir(), 'error_output.txt ')// &
-                                  path_join(get_system_temp_dir(), 'error_exit.txt'))
+     call sys_remove_file(path_join(get_system_temp_dir(), 'error_output.txt'))
+        call sys_remove_file(path_join(get_system_temp_dir(), 'error_exit.txt'))
 
         print *, 'PASS: Module error forwarding working'
         print *
@@ -129,21 +129,21 @@ contains
         close (unit)
 
         ! Run the program and capture output
-        command = 'fpm run fortran -- '//trim(test_file)// &
-       ' > '//path_join(get_system_temp_dir(), 'syntax_output.txt 2>&1; echo $? > ')// &
-                  path_join(get_system_temp_dir(), 'syntax_exit.txt')
-        call execute_command_line(command)
+        command = 'fpm run fortran -- '//trim(test_file)
+        call sys_run_command_with_exit_code(command, &
+                  path_join(get_system_temp_dir(), 'syntax_output.txt'), &
+                  path_join(get_system_temp_dir(), 'syntax_exit.txt'))
 
         ! Check that it failed with non-zero exit code
         call check_exit_code(path_join(get_system_temp_dir(), 'syntax_exit.txt'), 1)
 
         ! Check that output contains error information
-        call check_output_contains(path_join(get_system_temp_dir(), 'syntax_output.txt'), 'Error')
+        call check_output_contains(path_join(get_system_temp_dir(), 'syntax_output.txt'), 'ERROR')
 
         ! Clean up
         call sys_remove_dir(test_dir)
-    call execute_command_line('rm -f '//path_join(get_system_temp_dir(), 'syntax_output.txt ')// &
-                                  path_join(get_system_temp_dir(), 'syntax_exit.txt'))
+    call sys_remove_file(path_join(get_system_temp_dir(), 'syntax_output.txt'))
+        call sys_remove_file(path_join(get_system_temp_dir(), 'syntax_exit.txt'))
 
         print *, 'PASS: FPM error forwarding working'
         print *

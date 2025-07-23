@@ -933,16 +933,16 @@ STOP 0
  PASS: Generated fpm.toml with correct dependencies
 
  Test 2: Multiple dependencies
-  Module fortplot -> package fortplotlib
+  Module fortplot -> package fortplot
   Module pyplot_module -> package pyplot-fortran
  PASS: Multiple dependencies correctly added
 
  All FPM generator tests passed!
  === FPM Version Generation Tests ===\
   Module pyplot_module -> package pyplot-fortran
-  Module fortplot_test -> package fortplotlib
+  Module fortplot_test -> package fortplot
  PASS: pyplot-fortran with version v1.0.0 found in fpm.toml
- PASS: fortplotlib without version found in fpm.toml
+ PASS: fortplot without version found in fpm.toml
  All FPM version generation tests passed!
 Files before test:
 -rw-r--r-- 1 ert ag-app 10 Jul 20 09:22 test_ast.f
@@ -1249,10 +1249,10 @@ STOP 1
  === Registry Resolver Tests ===
 
  Test 1: Module with prefix (fortplot)
- PASS: fortplot -> fortplotlib
+ PASS: fortplot -> fortplot
 
  Test 2: Module with prefix (fortplot_utils)
- PASS: fortplot_utils -> fortplotlib (via prefix)
+ PASS: fortplot_utils -> fortplot (via prefix)
 
  Test 3: Module with underscore (pyplot_module)
  PASS: pyplot_module -> pyplot-fortran
@@ -1308,7 +1308,7 @@ mkdir: cannot create directory ‘/dev/null’: Not a directory
  All registry validation tests passed!
  === Version Constraints Tests ===\
  PASS: pyplot_module -> pyplot-fortran v1.0.0
- PASS: fortplot_test -> fortplotlib (no version)
+ PASS: fortplot_test -> fortplot (no version)
  All version constraint tests passed!
  === Comprehensive Runner Tests ===
 

@@ -5,8 +5,13 @@ module notebook_executor
     use cache_lock, only: acquire_lock, release_lock
     use frontend_integration, only: compile_with_frontend, is_simple_fortran_file
     use, intrinsic :: iso_c_binding
-    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path
+    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, create_temp_file
     use temp_utils, only: mkdir
+    use system_utils, only: sys_remove_file, sys_get_current_dir, escape_shell_arg
+    use fpm_environment, only: get_os_type, OS_WINDOWS
+    use fpm_filesystem, only: join_path
+    use logger_utils, only: debug_print, print_info, print_warning, print_error
+    use string_utils, only: int_to_char, logical_to_char
     implicit none
     private
 
@@ -37,6 +42,7 @@ module notebook_executor
     public :: free_execution_results
 
 contains
+
 
     subroutine execute_notebook(notebook, results, custom_cache_dir, verbose_level)
         type(notebook_t), intent(inout) :: notebook
@@ -83,22 +89,22 @@ contains
             end if
 
             ! Acquire cache lock with NO WAIT to prevent hanging
-write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (NO WAIT)'
-            write (*, '(a,a)') 'DEBUG: cache_dir = ', trim(cache_dir)
-            write (*, '(a,a)') 'DEBUG: lock_name = ', 'notebook_'//trim(cache_key)
-            write (*, '(a,i0)') 'DEBUG: thread ID = ', get_process_id()
+call debug_print('notebook_executor - attempting to acquire cache lock (NO WAIT)')
+            call debug_print('cache_dir = ' // trim(cache_dir))
+            call debug_print('lock_name = notebook_' // trim(cache_key))
+            call debug_print('thread ID = ' // int_to_char(get_process_id()))
             call flush (6)
 
             ! Use no-wait mode to prevent hanging in CI
           lock_acquired = acquire_lock(cache_dir, 'notebook_'//trim(cache_key), .false.)
 
-            write (*, '(a,l)') 'DEBUG: lock_acquired = ', lock_acquired
+            call debug_print('lock_acquired = ' // logical_to_char(lock_acquired))
             call flush (6)
 
             if (.not. lock_acquired) then
                 results%success = .false.
                 results%error_message = "Could not acquire cache lock"
-   write (*, '(a)') 'DEBUG: notebook_executor - failed to acquire lock, returning error'
+   call debug_print('notebook_executor - failed to acquire lock, returning error')
                 call flush (6)
                 return
             end if
@@ -129,7 +135,7 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
             call cleanup_temp_dir(temp_dir)
 
             ! Update project dir to point to cached version
-            fpm_project_dir = trim(cache_dir)//'/notebook_'//trim(cache_key)
+            fpm_project_dir = join_path(cache_dir, 'notebook_'//trim(cache_key))
         end if
 
         ! Execute the notebook and capture outputs
@@ -146,6 +152,7 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
         integer :: unit, i, code_cell_count
 
         ! Create project directory structure
+        call mkdir(project_dir)
         call mkdir(trim(project_dir)//'/src')
         call mkdir(trim(project_dir)//'/app')
 
@@ -168,8 +175,8 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
         ! The stub in notebook_execution handles show() calls
 
         ! Generate main program
-        call generate_main_program(notebook, trim(cache_dir) // '/notebook_' // trim(cache_key) // '_outputs.txt', main_content)
-        open (newunit=unit, file=trim(project_dir)//'/app/main.f90', status='replace')
+        call generate_main_program(notebook, join_path(cache_dir, 'notebook_' // trim(cache_key) // '_outputs.txt'), main_content)
+        open (newunit=unit, file=join_path(project_dir, 'app/main.f90'), status='replace')
         write (unit, '(a)') main_content
         close (unit)
 
@@ -220,10 +227,10 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
         logical, intent(out) :: cache_hit
         character(len=:), allocatable, intent(out) :: project_dir
 
-        project_dir = trim(cache_dir)//'/notebook_'//trim(cache_key)
+        project_dir = join_path(cache_dir, 'notebook_'//trim(cache_key))
 
         ! Check if cached project exists by checking for fpm.toml
-        inquire (file=trim(project_dir)//'/fpm.toml', exist=cache_hit)
+        inquire (file=join_path(project_dir, 'fpm.toml'), exist=cache_hit)
 
     end subroutine check_notebook_cache
 
@@ -238,8 +245,14 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
         ! Create cache directory
         call mkdir(trim(cache_dir))
 
-        ! Copy project to cache
-        command = 'cp -r "'//trim(project_dir)//'" "'//trim(cached_project_dir)//'"'
+        ! Copy project to cache using Windows-compatible command
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'xcopy /E /I /Y "'//trim(escape_shell_arg(project_dir))//'" "'// &
+                      trim(escape_shell_arg(cached_project_dir))//'" >nul 2>&1'
+        else
+            command = 'cp -r "'//trim(escape_shell_arg(project_dir))//'" "'// &
+                      trim(escape_shell_arg(cached_project_dir))//'"'
+        end if
         call execute_command_line(command)
 
     end subroutine cache_notebook_build
@@ -478,15 +491,24 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
 
     subroutine copy_notebook_output_module(project_dir)
         character(len=*), intent(in) :: project_dir
-        character(len=512) :: command
+        character(len=512) :: command, source_file, dest_file
         character(len=256) :: current_dir
 
         ! Get current working directory
-        call getcwd(current_dir)
+        call sys_get_current_dir(current_dir)
 
-        ! Copy the notebook_output module to the project
-        command = 'cp "'//trim(current_dir)//'/src/notebook/notebook_output.f90" "'// &
-                  trim(project_dir)//'/src/"'
+        ! Set up source and destination paths
+        source_file = trim(current_dir)//'/src/notebook/notebook_output.f90'
+        dest_file = trim(project_dir)//'/src/notebook_output.f90'
+
+        ! Copy the notebook_output module to the project using Windows-compatible command
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'copy "'//trim(escape_shell_arg(source_file))//'" "'// &
+                      trim(escape_shell_arg(dest_file))//'" >nul 2>&1'
+        else
+            command = 'cp "'//trim(escape_shell_arg(source_file))//'" "'// &
+                      trim(escape_shell_arg(dest_file))//'"'
+        end if
         call execute_command_line(command)
 
     end subroutine copy_notebook_output_module
@@ -503,11 +525,11 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
         integer :: exit_code
 
         ! Build with FPM (with timeout to prevent hanging on Unix)
-#ifdef _WIN32
-        command = 'cd '//trim(project_dir)//' && fpm build'
-#else
-        command = 'cd '//trim(project_dir)//' && timeout 30 fpm build'
-#endif
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'cd '//trim(project_dir)//' && fpm build'
+        else
+            command = 'cd '//trim(project_dir)//' && timeout 30 fpm build'
+        end if
         call execute_and_capture(command, error_msg, exit_code)
 
         success = (exit_code == 0)
@@ -534,21 +556,21 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
         ! Real figure capture would require external dependencies
 
         ! Execute the notebook (with timeout to prevent hanging on Unix)
-#ifdef _WIN32
-        command = 'cd '//trim(project_dir)//' && fpm run'
-#else
-        command = 'cd '//trim(project_dir)//' && timeout 30 fpm run'
-#endif
-        write (*, '(a)') 'DEBUG: About to execute notebook command:'
-        write (*, '(a,a)') 'DEBUG: command = ', trim(command)
-        write (*, '(a,a)') 'DEBUG: project_dir = ', trim(project_dir)
-        write (*, '(a,i0)') 'DEBUG: thread ID = ', get_process_id()
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'cd '//trim(project_dir)//' && fpm run'
+        else
+            command = 'cd '//trim(project_dir)//' && timeout 30 fpm run'
+        end if
+        call debug_print('About to execute notebook command:')
+        call debug_print('command = ' // trim(command))
+        call debug_print('project_dir = ' // trim(project_dir))
+        call debug_print('thread ID = ' // int_to_char(get_process_id()))
         call flush (6)
 
         call execute_and_capture(command, output, exit_code)
 
-        write (*, '(a,i0)') 'DEBUG: Execution completed with exit_code = ', exit_code
-        write (*, '(a,i0)') 'DEBUG: thread ID = ', get_process_id()
+        call debug_print('Execution completed with exit_code = ' // int_to_char(exit_code))
+        call debug_print('thread ID = ' // int_to_char(get_process_id()))
         call flush (6)
 
         ! Read actual output from notebook_output module
@@ -742,20 +764,20 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
 
         ! Use PID in temp file to avoid conflicts
         write (pid_str, '(i0)') get_process_id()
-        temp_file = get_temp_file_path(create_temp_dir('fortran_exec_'//trim(pid_str)), 'fortran_exec.out')
+        temp_file = create_temp_file('fortran_exec_'//trim(pid_str)//'_fortran_exec', '.out')
 
-        full_command = trim(command)//' > '//trim(temp_file)//' 2>&1'
+        full_command = trim(command)//' > '//trim(escape_shell_arg(temp_file))//' 2>&1'
 
-        write (*, '(a)') 'DEBUG: execute_and_capture starting'
-        write (*, '(a,a)') 'DEBUG: full_command = ', trim(full_command)
-        write (*, '(a,i0)') 'DEBUG: thread ID = ', get_process_id()
-        write (*, '(a,a)') 'DEBUG: temp_file = ', trim(temp_file)
+        call debug_print('execute_and_capture starting')
+        call debug_print('full_command = ' // trim(full_command))
+        call debug_print('thread ID = ' // int_to_char(get_process_id()))
+        call debug_print('temp_file = ' // trim(temp_file))
         call flush (6)
 
         call execute_command_line(full_command, exitstat=exit_code)
 
- write (*, '(a,i0)') 'DEBUG: execute_command_line returned with exit_code = ', exit_code
-        write (*, '(a,i0)') 'DEBUG: thread ID = ', get_process_id()
+ call debug_print('execute_command_line returned with exit_code = ' // int_to_char(exit_code))
+        call debug_print('thread ID = ' // int_to_char(get_process_id()))
         call flush (6)
 
         inquire (file=temp_file, size=file_size)
@@ -775,7 +797,7 @@ write (*, '(a)') 'DEBUG: notebook_executor - attempting to acquire cache lock (N
             output = ""
         end if
 
-        call execute_command_line('rm -f '//trim(temp_file))
+        call sys_remove_file(temp_file)
 
     end subroutine execute_and_capture
 

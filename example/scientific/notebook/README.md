@@ -28,8 +28,8 @@ Control flow constructs including conditionals, loops, and case statements.
 - **Issue**: Advanced pattern recognition not ready
 
 ### plotting_demo.f
-Integration with fortplotlib to embed plots as inline images.
-- 🔄 **Current Status**: Requires fortplotlib integration testing
+Integration with fortplot to embed plots as inline images.
+- 🔄 **Current Status**: Requires fortplot integration testing
 - **Issue**: External dependency and base64 PNG generation needs verification
 
 ## Current Implementation Status
@@ -37,7 +37,7 @@ Integration with fortplotlib to embed plots as inline images.
 - ✅ **Basic notebook parsing**: Markdown and code cell separation working
 - ✅ **Output capture**: Print statements captured correctly
 - ❌ **Type inference**: Variable inference failures in notebook context
-- 🔄 **Plot embedding**: fortplotlib integration needs testing
+- 🔄 **Plot embedding**: fortplot integration needs testing
 - 🔄 **Array operations**: Array syntax not supported yet
 - 🔄 **Function calls**: Return type inference not implemented
 
@@ -47,7 +47,7 @@ Integration with fortplotlib to embed plots as inline images.
 - `! %%` - Start a new code cell
 - All code without markers is treated as part of the current cell
 - Print statements are captured and displayed below each code cell
-- `show()` calls from fortplotlib are converted to inline PNG images
+- `show()` calls from fortplot are converted to inline PNG images
 
 ## Output Format
 

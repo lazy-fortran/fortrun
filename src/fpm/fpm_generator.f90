@@ -27,6 +27,7 @@ contains
     
     toml_path = trim(project_dir) // '/fpm.toml'
     
+    
     ! Resolve dependencies
     n_deps = 0
     do i = 1, n_modules

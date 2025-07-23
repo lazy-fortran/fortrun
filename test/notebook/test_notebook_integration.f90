@@ -30,7 +30,7 @@ program test_notebook_integration
     ! Test 3: Notebook with multiple cells
     call test_multi_cell_execution()
 
-    ! Test 4: Notebook with fortplotlib (mock)
+    ! Test 4: Notebook with fortplot (mock)
     call test_plot_capture()
 
     if (all_tests_passed) then

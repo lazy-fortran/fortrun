@@ -1,0 +1,566 @@
+name: Windows Integration Tests
+
+# Complete Windows test suite running in parallel batches for faster execution
+# Includes unit tests, integration tests, and smoke tests
+
+on:
+  push:
+    branches: [ main, windows-support ]
+  pull_request:
+    branches: [ main, windows-support ]
+
+jobs:
+  # Unit tests - first batch
+  windows-unit-tests:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        test-group: [core, utilities, cache, runner]
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup MinGW (MSYS2)
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: false
+        path-type: inherit
+        install: >-
+          mingw-w64-x86_64-gcc-fortran
+          mingw-w64-x86_64-gcc
+          git
+
+    - name: Add MinGW to PATH
+      run: echo C:\msys64\mingw64\bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      shell: pwsh
+
+    - name: Cache FPM binary (Windows)
+      id: cache-fpm-win-unit
+      uses: actions/cache@v4
+      with:
+        path: C:\msys64\mingw64\bin\fpm.exe
+        key: ${{ runner.os }}-fpm-0.12.0
+
+    - name: Install FPM
+      if: steps.cache-fpm-win-unit.outputs.cache-hit != 'true'
+      shell: pwsh
+      run: |
+        Write-Host "Installing FPM directly from GitHub releases..."
+        Invoke-WebRequest -Uri "https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-windows-x86_64-gcc-12.exe" -OutFile "fpm.exe"
+        Move-Item -Path "fpm.exe" -Destination "C:\msys64\mingw64\bin\fpm.exe"
+        & "C:\msys64\mingw64\bin\fpm.exe" --version
+
+    - name: Setup registry (Windows)
+      shell: pwsh
+      run: |
+        $configDir = Join-Path $env:LOCALAPPDATA "fortran\config"
+        New-Item -ItemType Directory -Force -Path $configDir | Out-Null
+        Copy-Item "registry.toml" -Destination $configDir
+
+    - name: Cache FPM dependencies (Windows)
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~\AppData\Local\fpm
+          build\dependencies
+        key: ${{ runner.os }}-fpm-deps-${{ hashFiles('fpm.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-fpm-deps-
+
+    - name: Build
+      run: |
+        echo Building project...
+        if exist build rmdir /s /q build
+        fpm build --compiler gfortran --flag="-cpp"
+      shell: cmd
+
+    - name: Run Core Tests
+      if: matrix.test-group == 'core'
+      run: |
+        set OMP_NUM_THREADS=24
+        echo N | fpm test test_lexer_direct
+        echo N | fpm test test_parser_edge_cases
+        echo N | fpm test test_frontend_statements
+        echo N | fpm test test_semantic_simple
+        echo N | fpm test test_scope_manager_basic
+      shell: cmd
+
+    - name: Run Utilities Tests
+      if: matrix.test-group == 'utilities'
+      run: |
+        set OMP_NUM_THREADS=24
+        echo N | fpm test test_logger_utils
+        echo N | fpm test test_logger_utils_coverage
+        echo N | fpm test test_string_utils
+        echo N | fpm test test_string_utils_coverage
+        echo N | fpm test test_system_utils_coverage
+        echo N | fpm test test_system_utils_missing
+      shell: cmd
+
+    - name: Run Cache Tests
+      if: matrix.test-group == 'cache'
+      run: |
+        set OMP_NUM_THREADS=24
+        echo N | fpm test test_cache
+        echo N | fpm test test_cache_coverage
+        echo N | fpm test test_cache_missing
+        echo N | fpm test test_cache_lock
+        echo N | fpm test test_cache_fallback
+        echo N | fpm test test_windows_cache
+        echo N | fpm test test_artifact_cache
+      shell: cmd
+
+    - name: Run Runner Tests
+      if: matrix.test-group == 'runner'
+      run: |
+        REM Use single thread for runner tests to avoid cache lock issues
+        set OMP_NUM_THREADS=1
+        echo N | fpm test test_runner_paths
+        echo N | fpm test test_runner_coverage
+        echo N | fpm test test_runner_missing_lines
+        echo N | fpm test test_runner_edge_cases
+        echo N | fpm test test_runner_error_paths
+      shell: cmd
+
+  # Integration tests - second batch
+  windows-integration-tests:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        test-group: [cli, notebook, fpm, module]
+      fail-fast: false
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup MinGW (MSYS2)
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: false
+        path-type: inherit
+        install: >-
+          mingw-w64-x86_64-gcc-fortran
+          mingw-w64-x86_64-gcc
+          git
+
+    - name: Add MinGW to PATH
+      run: echo C:\msys64\mingw64\bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      shell: pwsh
+
+    - name: Cache FPM binary (Windows)
+      id: cache-fpm-win-int
+      uses: actions/cache@v4
+      with:
+        path: C:\msys64\mingw64\bin\fpm.exe
+        key: ${{ runner.os }}-fpm-0.12.0
+
+    - name: Install FPM
+      if: steps.cache-fpm-win-int.outputs.cache-hit != 'true'
+      shell: pwsh
+      run: |
+        Write-Host "Installing FPM directly from GitHub releases..."
+        Invoke-WebRequest -Uri "https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-windows-x86_64-gcc-12.exe" -OutFile "fpm.exe"
+        Move-Item -Path "fpm.exe" -Destination "C:\msys64\mingw64\bin\fpm.exe"
+        & "C:\msys64\mingw64\bin\fpm.exe" --version
+
+    - name: Setup registry (Windows)
+      shell: pwsh
+      run: |
+        $configDir = Join-Path $env:LOCALAPPDATA "fortran\config"
+        New-Item -ItemType Directory -Force -Path $configDir | Out-Null
+        Copy-Item "registry.toml" -Destination $configDir
+
+    - name: Cache FPM dependencies (Windows)
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~\AppData\Local\fpm
+          build\dependencies
+        key: ${{ runner.os }}-fpm-deps-${{ hashFiles('fpm.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-fpm-deps-
+
+    - name: Build
+      run: |
+        echo Building project...
+        if exist build rmdir /s /q build
+        fpm build --compiler gfortran --flag="-cpp"
+      shell: cmd
+
+    - name: Run CLI Tests
+      if: matrix.test-group == 'cli'
+      run: |
+        set OMP_NUM_THREADS=24
+        echo N | fpm test test_cli_system
+        echo N | fpm test test_cli_integration
+        echo N | fpm test test_cli_comprehensive
+        echo N | fpm test test_cli_json_options
+        echo N | fpm test test_cli_cache
+        echo N | fpm test test_cli_debug
+      shell: cmd
+
+    - name: Run Notebook Tests
+      if: matrix.test-group == 'notebook'
+      run: |
+        set OMP_NUM_THREADS=24
+        echo N | fpm test test_notebook_parser
+        echo N | fpm test test_notebook_executor
+        echo N | fpm test test_notebook_system
+        echo N | fpm test test_notebook_integration
+        echo N | fpm test test_notebook_imports
+        echo N | fpm test test_notebook_examples
+      shell: cmd
+
+    - name: Run FPM Tests
+      if: matrix.test-group == 'fpm'
+      run: |
+        set OMP_NUM_THREADS=24
+        echo N | fpm test test_fpm_generator
+        echo N | fpm test test_fpm_module_cache
+        echo N | fpm test test_fpm_version_generation
+        echo N | fpm test test_fpm_cache_integration
+      shell: cmd
+
+    - name: Run Module Tests
+      if: matrix.test-group == 'module'
+      run: |
+        set OMP_NUM_THREADS=24
+        echo N | fpm test test_module_scanner
+        echo N | fpm test test_module_scanner_extended
+        echo N | fpm test test_module_scanner_coverage
+        echo N | fpm test test_module_cache_unit
+        echo N | fpm test test_module_cache_integration
+      shell: cmd
+
+  # Heavy tests - third batch
+  windows-heavy-tests:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        test-group: [frontend, examples, registry]
+      fail-fast: false
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup MinGW (MSYS2)
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: false
+        path-type: inherit
+        install: >-
+          mingw-w64-x86_64-gcc-fortran
+          mingw-w64-x86_64-gcc
+          git
+
+    - name: Add MinGW to PATH
+      run: echo C:\msys64\mingw64\bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      shell: pwsh
+
+    - name: Cache FPM binary (Windows)
+      id: cache-fpm-win-heavy
+      uses: actions/cache@v4
+      with:
+        path: C:\msys64\mingw64\bin\fpm.exe
+        key: ${{ runner.os }}-fpm-0.12.0
+
+    - name: Install FPM
+      if: steps.cache-fpm-win-heavy.outputs.cache-hit != 'true'
+      shell: pwsh
+      run: |
+        Write-Host "Installing FPM directly from GitHub releases..."
+        Invoke-WebRequest -Uri "https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-windows-x86_64-gcc-12.exe" -OutFile "fpm.exe"
+        Move-Item -Path "fpm.exe" -Destination "C:\msys64\mingw64\bin\fpm.exe"
+        & "C:\msys64\mingw64\bin\fpm.exe" --version
+
+    - name: Setup registry (Windows)
+      shell: pwsh
+      run: |
+        $configDir = Join-Path $env:LOCALAPPDATA "fortran\config"
+        New-Item -ItemType Directory -Force -Path $configDir | Out-Null
+        Copy-Item "registry.toml" -Destination $configDir
+
+    - name: Cache FPM dependencies (Windows)
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~\AppData\Local\fpm
+          build\dependencies
+        key: ${{ runner.os }}-fpm-deps-${{ hashFiles('fpm.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-fpm-deps-
+
+    - name: Build
+      run: |
+        echo Building project...
+        if exist build rmdir /s /q build
+        fpm build --compiler gfortran --flag="-cpp"
+      shell: cmd
+
+    - name: Run Frontend Tests
+      if: matrix.test-group == 'frontend'
+      run: |
+        set OMP_NUM_THREADS=24
+        echo N | fpm test test_frontend_test_cases
+        echo N | fpm test test_frontend_parser_derived_types
+        echo N | fpm test test_frontend_parser_array_params
+        echo N | fpm test test_frontend_parser_explicit_types
+        echo N | fpm test test_frontend_full_explicit_params
+        echo N | fpm test test_frontend_parser_param_nodes
+      shell: cmd
+
+    - name: Run Examples Tests
+      if: matrix.test-group == 'examples'
+      run: |
+        set OMP_NUM_THREADS=24
+        echo N | fpm test test_examples
+        echo N | fpm test test_example_test_cases
+        echo N | fpm test test_benchmarks
+        echo N | fpm test test_multiple_modules
+        echo N | fpm test test_different_directories
+      shell: cmd
+
+    - name: Run Registry Tests
+      if: matrix.test-group == 'registry'
+      run: |
+        set OMP_NUM_THREADS=24
+        echo N | fpm test test_registry_resolver
+        echo N | fpm test test_version_constraints
+        echo N | fpm test test_registry_resolver_comprehensive
+        echo N | fpm test test_registry_enhancement
+        echo N | fpm test test_registry_validation
+        echo N | fpm test test_conflicting_dependencies
+      shell: cmd
+
+  # Miscellaneous tests - fourth batch
+  windows-misc-tests:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        test-group: [coverage, figure, debug, main]
+      fail-fast: false
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup MinGW (MSYS2)
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: false
+        path-type: inherit
+        install: >-
+          mingw-w64-x86_64-gcc-fortran
+          mingw-w64-x86_64-gcc
+          git
+
+    - name: Add MinGW to PATH
+      run: echo C:\msys64\mingw64\bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      shell: pwsh
+
+    - name: Cache FPM binary (Windows)
+      id: cache-fpm-win-misc
+      uses: actions/cache@v4
+      with:
+        path: C:\msys64\mingw64\bin\fpm.exe
+        key: ${{ runner.os }}-fpm-0.12.0
+
+    - name: Install FPM
+      if: steps.cache-fpm-win-misc.outputs.cache-hit != 'true'
+      shell: pwsh
+      run: |
+        Write-Host "Installing FPM directly from GitHub releases..."
+        Invoke-WebRequest -Uri "https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-windows-x86_64-gcc-12.exe" -OutFile "fpm.exe"
+        Move-Item -Path "fpm.exe" -Destination "C:\msys64\mingw64\bin\fpm.exe"
+        & "C:\msys64\mingw64\bin\fpm.exe" --version
+
+    - name: Setup registry (Windows)
+      shell: pwsh
+      run: |
+        $configDir = Join-Path $env:LOCALAPPDATA "fortran\config"
+        New-Item -ItemType Directory -Force -Path $configDir | Out-Null
+        Copy-Item "registry.toml" -Destination $configDir
+
+    - name: Cache FPM dependencies (Windows)
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~\AppData\Local\fpm
+          build\dependencies
+        key: ${{ runner.os }}-fpm-deps-${{ hashFiles('fpm.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-fpm-deps-
+
+    - name: Build
+      run: |
+        echo Building project...
+        if exist build rmdir /s /q build
+        fpm build --compiler gfortran --flag="-cpp"
+      shell: cmd
+
+    - name: Run Coverage Tests
+      if: matrix.test-group == 'coverage'
+      run: |
+        REM Use single thread for runner tests to avoid cache lock issues
+        set OMP_NUM_THREADS=1
+        echo N | fpm test test_runner_comprehensive
+        echo N | fpm test test_runner_integration_coverage
+        echo N | fpm test test_string_utils_integration
+        echo N | fpm test test_parse_and_codegen_arena
+      shell: cmd
+
+    - name: Run Figure Tests
+      if: matrix.test-group == 'figure'
+      run: |
+        set OMP_NUM_THREADS=24
+        echo N | fpm test test_figure_capture
+        echo N | fpm test test_figure_capture_coverage
+        echo N | fpm test test_figure_capture_extended
+        echo N | fpm test test_config_extended
+      shell: cmd
+
+    - name: Run Debug Tests
+      if: matrix.test-group == 'debug'
+      run: |
+        set OMP_NUM_THREADS=24
+        echo N | fpm test test_debug_utils
+        echo N | fpm test test_debug_integration
+        echo N | fpm test test_verbose
+        echo N | fpm test test_error_handling
+      shell: cmd
+
+    - name: Run Main Tests
+      if: matrix.test-group == 'main'
+      run: |
+        set OMP_NUM_THREADS=24
+        echo N | fpm test test_main_coverage
+        echo N | fpm test test_file_isolation
+        echo N | fpm test test_os_detection
+        echo N | fpm test test_logger
+      shell: cmd
+
+  # Smoke tests and final validation
+  windows-smoke-tests:
+    runs-on: windows-latest
+    needs: [windows-unit-tests, windows-integration-tests, windows-heavy-tests, windows-misc-tests]
+    if: always()
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup MinGW (MSYS2)
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: false
+        path-type: inherit
+        install: >-
+          mingw-w64-x86_64-gcc-fortran
+          mingw-w64-x86_64-gcc
+          git
+
+    - name: Add MinGW to PATH
+      run: echo C:\msys64\mingw64\bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      shell: pwsh
+
+    - name: Install FPM
+      shell: pwsh
+      run: |
+        Write-Host "Installing FPM directly from GitHub releases..."
+        Invoke-WebRequest -Uri "https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-windows-x86_64-gcc-12.exe" -OutFile "fpm.exe"
+        Move-Item -Path "fpm.exe" -Destination "C:\msys64\mingw64\bin\fpm.exe"
+        & "C:\msys64\mingw64\bin\fpm.exe" --version
+
+    - name: Build project
+      run: |
+        echo Building project...
+        if exist build rmdir /s /q build
+        fpm build --compiler gfortran --flag="-cpp"
+      shell: cmd
+
+    - name: Run smoke tests
+      run: |
+        echo Running smoke tests...
+
+        REM Find the built executable by checking specific pattern
+        set "FORTRAN_EXE="
+        for /f "tokens=*" %%i in ('dir /s /b build 2^>nul ^| findstr "\\app\\fortran.exe$" ^| findstr /v "dependencies"') do set "FORTRAN_EXE=%%i"
+        if "%FORTRAN_EXE%"=="" (
+          echo ERROR: Could not find fortran.exe in build/app directory
+          echo Searching for any fortran.exe in build directory:
+          dir /s /b build | findstr "fortran.exe" | findstr /v "dependencies"
+          exit /b 1
+        )
+        echo Found executable: %FORTRAN_EXE%
+
+        REM Test version flag
+        echo Testing --version flag...
+        "%FORTRAN_EXE%" --version
+        if %ERRORLEVEL% NEQ 0 (
+          echo ERROR: --version flag failed
+          exit /b 1
+        )
+
+        REM Run basic smoke test (simple lowercase fortran without program wrapper)
+        echo print *, 'x = 42' > test_windows.f
+
+        REM Create a temp cache directory
+        if not exist temp_cache mkdir temp_cache
+
+        REM Run the executable with the test file using custom cache
+        "%FORTRAN_EXE%" --cache-dir "%CD%\temp_cache" "%CD%\test_windows.f" -v
+        if %ERRORLEVEL% NEQ 0 (
+          echo ERROR: Failed to run test file
+          echo Trying with more verbose output:
+          "%FORTRAN_EXE%" --cache-dir "%CD%\temp_cache" "%CD%\test_windows.f" -vv
+          exit /b 1
+        )
+
+        REM Clean up
+        del /f test_windows.f
+        rmdir /s /q temp_cache
+
+        echo Smoke tests passed
+      shell: cmd
+
+    - name: Test cache functionality
+      run: |
+        # Create a local cache directory
+        $cache_dir = Join-Path $pwd "test_cache"
+        Write-Host "Creating cache directory at: $cache_dir"
+        New-Item -ItemType Directory -Path $cache_dir -Force | Out-Null
+
+        # Find the fortran executable
+        $fortran_exe = Get-ChildItem -Path "build" -Recurse -Filter "fortran.exe" | Select-Object -First 1
+        if ($null -eq $fortran_exe) {
+          Write-Host "ERROR: Could not find fortran.exe in build directory"
+          exit 1
+        }
+        Write-Host "Found executable: $($fortran_exe.FullName)"
+
+        # Test version
+        & $fortran_exe.FullName --version
+
+        # Test with a simple example using custom cache
+        $test_file = Join-Path $pwd "test_windows.f"
+        Set-Content -Path $test_file -Value 'real :: x = 3.14'
+        Write-Host "Test file created at: $test_file"
+
+        # Run with custom cache directory
+        & $fortran_exe.FullName --cache-dir $cache_dir $test_file
+
+        # Clean up
+        Remove-Item $test_file -Force
+        Remove-Item $cache_dir -Recurse -Force
+      shell: powershell
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: fortran-windows-complete
+        path: build/*/app/fortran.exe
+        retention-days: 30

@@ -119,8 +119,8 @@ External dependencies are resolved through a package registry.
 [packages.pyplot-fortran]
 git = "https://github.com/jacobwilliams/pyplot-fortran"
 
-[packages.fortplotlib]  
-git = "https://github.com/krystophny/fortplotlib"
+[packages.fortplot]  
+git = "https://github.com/krystophny/fortplot"
 prefix = "fortplot"  # Any module starting with "fortplot"
 ```
 
@@ -134,7 +134,7 @@ prefix = "fortplot"  # Any module starting with "fortplot"
 **Examples:**
 ```fortran
 use pyplot_module        ! → pyplot-fortran package
-use fortplot_figure     ! → fortplotlib package (prefix: "fortplot")
+use fortplot_figure     ! → fortplot package (prefix: "fortplot")
 use json_module         ! → json-fortran package (inferred)
 ```
 

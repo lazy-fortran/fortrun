@@ -7,4 +7,4 @@
 
 [prefixes]
 # Custom prefixes that map to packages
-fortplot = "fortplotlib"
+fortplot = "fortplot"

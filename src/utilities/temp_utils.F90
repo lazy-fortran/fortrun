@@ -8,7 +8,7 @@ module temp_utils
     use iso_c_binding, only: c_int
     implicit none
     private
-    public :: create_temp_dir, cleanup_temp_dir, get_temp_file_path, temp_dir_manager, &
+    public :: create_temp_dir, create_temp_file, cleanup_temp_dir, get_temp_file_path, temp_dir_manager, &
               get_system_temp_dir, get_current_directory, get_project_root, path_join, &
               mkdir, create_test_cache_dir
 
@@ -33,6 +33,42 @@ module temp_utils
     end type temp_dir_manager
 
 contains
+
+    ! Simple inline escape function to avoid circular dependency
+    function escape_quotes(str) result(escaped)
+        character(len=*), intent(in) :: str
+        character(len=:), allocatable :: escaped
+        integer :: i, n, len_str
+        character(len=1) :: ch
+        
+        len_str = len_trim(str)
+        ! Count characters needed
+        n = 0
+        do i = 1, len_str
+            ch = str(i:i)
+            if (ch == '"' .or. ch == '\' .or. ch == '$' .or. ch == '`') then
+                n = n + 2
+            else
+                n = n + 1
+            end if
+        end do
+        
+        ! Allocate and build escaped string
+        allocate(character(len=n) :: escaped)
+        n = 0
+        do i = 1, len_str
+            ch = str(i:i)
+            if (ch == '"' .or. ch == '\' .or. ch == '$' .or. ch == '`') then
+                n = n + 1
+                escaped(n:n) = '\'
+                n = n + 1
+                escaped(n:n) = ch
+            else
+                n = n + 1
+                escaped(n:n) = ch
+            end if
+        end do
+    end function escape_quotes
 
     function create_temp_dir(prefix) result(temp_dir)
         character(len=*), intent(in) :: prefix
@@ -65,6 +101,51 @@ contains
 
     end function create_temp_dir
 
+    !> Create a unique temporary file path without creating a directory
+    function create_temp_file(prefix, extension) result(temp_file)
+        character(len=*), intent(in) :: prefix
+        character(len=*), intent(in), optional :: extension
+        character(len=:), allocatable :: temp_file
+        character(len=32) :: random_suffix
+        character(len=256) :: base_temp_dir
+        character(len=:), allocatable :: ext
+
+        ! Get system temp directory
+        base_temp_dir = get_env('TMPDIR', '')
+        if (len_trim(base_temp_dir) == 0) then
+            base_temp_dir = get_env('TMP', '')
+            if (len_trim(base_temp_dir) == 0) then
+                base_temp_dir = get_env('TEMP', '')
+                if (len_trim(base_temp_dir) == 0) then
+                    base_temp_dir = get_system_temp_dir()
+                end if
+            end if
+        end if
+
+        ! Generate random suffix
+        call generate_random_suffix(random_suffix)
+
+        ! Handle extension
+        if (present(extension)) then
+            if (len_trim(extension) > 0) then
+                if (extension(1:1) == '.') then
+                    ext = trim(extension)
+                else
+                    ext = '.'//trim(extension)
+                end if
+            else
+                ext = ''
+            end if
+        else
+            ext = ''
+        end if
+
+        ! Create unique temp file path directly in temp directory
+        temp_file = join_path(trim(base_temp_dir), &
+                             trim(prefix)//'_'//trim(random_suffix)//ext)
+
+    end function create_temp_file
+
     subroutine cleanup_temp_dir(temp_dir)
         character(len=*), intent(in) :: temp_dir
         integer :: ios
@@ -72,11 +153,11 @@ contains
         if (len_trim(temp_dir) > 0) then
             if (get_os_type() == OS_WINDOWS) then
                 ! Windows system - use rmdir command
-                call execute_command_line('rmdir /s /q "'//trim(temp_dir)// &
+                call execute_command_line('rmdir /s /q "'//trim(escape_quotes(temp_dir))// &
                                           '" 2>nul', exitstat=ios)
             else
                 ! Unix/Linux system - use rm command
-                call execute_command_line('rm -rf "'//trim(temp_dir)//'"', exitstat=ios)
+                call execute_command_line('rm -rf "'//trim(escape_quotes(temp_dir))//'"', exitstat=ios)
             end if
             ! Don't error on cleanup failure - just warn
             if (ios /= 0) then
@@ -271,11 +352,11 @@ contains
             character(len=:), allocatable :: temp_file, pwd_cmd, rm_cmd
             temp_file = join_path(get_system_temp_dir(), 'fortran_pwd.tmp')
             if (get_os_type() == OS_WINDOWS) then
-                pwd_cmd = 'cd > "'//temp_file//'"'
-                rm_cmd = 'del /f "'//temp_file//'"'
+                pwd_cmd = 'cd > "'//escape_quotes(temp_file)//'"'
+                rm_cmd = 'del /f "'//escape_quotes(temp_file)//'"'
             else
-                pwd_cmd = 'pwd > "'//temp_file//'"'
-                rm_cmd = 'rm -f "'//temp_file//'"'
+                pwd_cmd = 'pwd > "'//escape_quotes(temp_file)//'"'
+                rm_cmd = 'rm -f "'//escape_quotes(temp_file)//'"'
             end if
             call execute_command_line(pwd_cmd, wait=.true.)
             open (newunit=unit, file=temp_file, status='old', iostat=iostat)
@@ -391,7 +472,44 @@ contains
 
         ! Skip if directory already exists
         if (exists(dir_path)) then
-            return
+            ! Check if it's actually a directory or a file
+            block
+                logical :: is_dir, path_exists
+                integer :: ios
+                ! Use inquire with directory attribute for reliable detection
+                inquire(file=trim(dir_path), exist=path_exists, iostat=ios)
+                if (ios == 0 .and. path_exists) then
+                    ! Check if it's a directory by trying to list it
+                    if (get_os_type() == OS_WINDOWS) then
+                        call execute_command_line('dir "'//trim(escape_quotes(dir_path))//'" >nul 2>&1', exitstat=ios)
+                    else
+                        call execute_command_line('test -d "'//trim(escape_quotes(dir_path))//'"', exitstat=ios)
+                    end if
+                    is_dir = (ios == 0)
+                    if (.not. is_dir) then
+                        print '(a,a,a)', 'ERROR: Path exists as file, not directory: ', trim(dir_path)
+                        ! Try to remove the file and create directory
+                        if (get_os_type() == OS_WINDOWS) then
+                            ! Use attrib to remove any attributes that might prevent deletion
+                            call execute_command_line('attrib -R -H -S "'//trim(escape_quotes(dir_path))//'" 2>nul', exitstat=ios)
+                            call execute_command_line('del /f /q "'//trim(escape_quotes(dir_path))//'" 2>nul', exitstat=ios)
+                        else
+                            call execute_command_line('rm -f "'//trim(escape_quotes(dir_path))//'" 2>/dev/null', exitstat=ios)
+                        end if
+                        if (ios == 0) then
+                            print *, 'Removed file, will create directory instead'
+                            ! Don't return - continue to create directory below
+                        else
+                            print *, 'Failed to remove file, cannot create directory'
+                            return
+                        end if
+                    else
+                        ! It's already a directory, nothing to do
+                        return
+                    end if
+                end if
+            end block
+            ! If we removed the file, continue to create directory
         end if
 
         ! Skip invalid paths that would cause problems
@@ -400,9 +518,15 @@ contains
 
         ! Use runtime OS detection instead of preprocessor
         if (get_os_type() == OS_WINDOWS) then
-      command = 'if not exist "'//trim(dir_path)//'" mkdir "'//trim(dir_path)//'" 2>nul'
+            ! Force removal of any existing file at this path first 
+            call execute_command_line('if exist "'//trim(escape_quotes(dir_path))//'" attrib -R -H -S "'// &
+                                     trim(escape_quotes(dir_path))//'" 2>nul', exitstat=exitstat)
+            call execute_command_line('if exist "'//trim(escape_quotes(dir_path))//'" del /f /q "'// &
+                                     trim(escape_quotes(dir_path))//'" 2>nul', exitstat=exitstat)
+            ! Now create directory
+            command = 'mkdir "'//trim(escape_quotes(dir_path))//'" 2>nul'
         else
-            command = 'mkdir -p "'//trim(dir_path)//'" 2>/dev/null'
+            command = 'mkdir -p "'//trim(escape_quotes(dir_path))//'" 2>/dev/null'
         end if
 
         call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
@@ -421,8 +545,7 @@ contains
         ! Use this as the cache directory
         cache_dir = temp_base
 
-        ! Ensure it exists
-        call mkdir(cache_dir)
+        ! Don't call mkdir again - create_temp_dir already creates the directory
 
     end function create_test_cache_dir
 

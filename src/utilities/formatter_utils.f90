@@ -1,5 +1,6 @@
 module formatter_utils
     use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path
+    use system_utils, only: escape_shell_arg
     implicit none
     private
     public :: format_fortran_code, format_fortran_file
@@ -32,7 +33,8 @@ contains
 
         ! Format using fprettify
         output_file = get_temp_file_path(temp_dir, 'output.f90')
-        write(command, '(A)') 'fprettify "'//trim(input_file)//'" > "'//trim(output_file)//'" 2>/dev/null'
+        write(command, '(A)') 'fprettify "'//trim(escape_shell_arg(input_file))//'" > "'// &
+                              trim(escape_shell_arg(output_file))//'" 2>/dev/null'
         call execute_command_line(trim(command), exitstat=iostat)
 
         if (iostat /= 0) then
@@ -79,7 +81,7 @@ contains
         integer :: iostat
 
         ! Format file in place
-        write (command, '(A)') 'fprettify "'//trim(filename)//'" 2>/dev/null'
+        write (command, '(A)') 'fprettify "'//trim(escape_shell_arg(filename))//'" 2>/dev/null'
         call execute_command_line(trim(command), exitstat=iostat)
 
         success = (iostat == 0)

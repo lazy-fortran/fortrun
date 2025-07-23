@@ -9,7 +9,7 @@ program main
     use notebook_parser
     use notebook_executor
     use notebook_renderer
-    use temp_utils, only: create_temp_dir, get_temp_file_path
+    use temp_utils, only: create_temp_dir, get_temp_file_path, create_temp_file
     use test_cli, only: handle_test_command
     implicit none
 
@@ -158,7 +158,7 @@ print '(a)', '                    (.f90: user flags only, .f: opinionated + user
         is_lowercase_fortran = is_simple_fortran_file(input_file)
 
         ! Create temporary output file
-        temp_output = get_temp_file_path(create_temp_dir('fortran_main'), 'output.f90')
+        temp_output = create_temp_file('fortran_main_output', '.f90')
 
         ! Process based on file type
         if (is_lowercase_fortran) then
@@ -171,7 +171,11 @@ print '(a)', '                    (.f90: user flags only, .f: opinionated + user
             end if
         else
             ! For standard Fortran files, just copy them as-is
-call execute_command_line('cp '//trim(input_file)//' '//trim(temp_output), exitstat=ios)
+            block
+                use system_utils, only: escape_shell_arg
+                call execute_command_line('cp "'//trim(escape_shell_arg(input_file))//'" "'// &
+                                          trim(escape_shell_arg(temp_output))//'"', exitstat=ios)
+            end block
             if (ios /= 0) then
                 error_msg = 'Failed to copy file'
             else

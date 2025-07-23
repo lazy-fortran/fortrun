@@ -121,8 +121,8 @@ This means two different programs that use the same set of modules will share th
 
 **Registry Format** (`~/.config/fortran/registry.toml`):
 ```toml
-[packages.fortplotlib]
-git = "https://github.com/krystophny/fortplotlib"
+[packages.fortplot]
+git = "https://github.com/krystophny/fortplot"
 prefix = "fortplot"  # Any module starting with "fortplot"
 
 [packages.pyplot-fortran]
@@ -132,7 +132,7 @@ git = "https://github.com/jacobwilliams/pyplot-fortran"
 
 **Smart Resolution Strategy**:
 1. **Explicit mappings**: Direct module-to-package mappings
-2. **Prefix matching**: `fortplot_scatter` → `fortplotlib` (via prefix)
+2. **Prefix matching**: `fortplot_scatter` → `fortplot` (via prefix)
 3. **Underscore inference**: `pyplot_module` → `pyplot-fortran`
 4. **Fallback**: `module_name` → `package-name`
 
@@ -156,7 +156,7 @@ name = "hello"
 main = "main.f90"              # User's file (possibly preprocessed)
 
 [dependencies]
-fortplotlib = { git = "https://github.com/..." }  # Auto-resolved
+fortplot = { git = "https://github.com/..." }  # Auto-resolved
 ```
 
 **Key Insight**: Each build gets a unique project name based on content hash, preventing conflicts when multiple `fortran` invocations run simultaneously.
@@ -261,7 +261,7 @@ fortran plot.f90     # Recompiles pyplot-fortran (no sharing)
 │   ├── pyplot-fortran_v1.2.3/  # Compiled package by version
 │   │   ├── *.mod               # Module interfaces
 │   │   └── *.o                 # Compiled objects
-│   └── fortplotlib_latest/     # Latest version cache
+│   └── fortplot_latest/     # Latest version cache
 └── builds/                      # Enhanced project cache
     └── calc_ABC123_pyplot-v1.2.3/  # Includes package versions in hash
 ```

@@ -24,12 +24,12 @@ program test_registry_resolver
     stop 1
   end if
   
-  if (trim(package_name) /= 'fortplotlib') then
-    write(error_unit, *) 'FAIL: Expected fortplotlib, got ', trim(package_name)
+  if (trim(package_name) /= 'fortplot') then
+    write(error_unit, *) 'FAIL: Expected fortplot, got ', trim(package_name)
     stop 1
   end if
   
-  print *, 'PASS: fortplot -> fortplotlib'
+  print *, 'PASS: fortplot -> fortplot'
   
   ! Test 2: Module with prefix (fortplot_utils)
   print *
@@ -41,12 +41,12 @@ program test_registry_resolver
     stop 1
   end if
   
-  if (trim(package_name) /= 'fortplotlib') then
-    write(error_unit, *) 'FAIL: Expected fortplotlib, got ', trim(package_name)
+  if (trim(package_name) /= 'fortplot') then
+    write(error_unit, *) 'FAIL: Expected fortplot, got ', trim(package_name)
     stop 1
   end if
   
-  print *, 'PASS: fortplot_utils -> fortplotlib (via prefix)'
+  print *, 'PASS: fortplot_utils -> fortplot (via prefix)'
   
   ! Test 3: Module with underscore inference
   print *
@@ -82,7 +82,7 @@ program test_registry_resolver
   print *, 'Test 5: Git URL retrieval'
   call resolve_module_to_package('fortplot', package_name, git_url, found)
   
-  if (index(git_url, 'github.com/krystophny/fortplotlib') == 0) then
+  if (index(git_url, 'github.com/krystophny/fortplot') == 0) then
     write(error_unit, *) 'FAIL: Incorrect git URL: ', trim(git_url)
     stop 1
   end if
@@ -104,8 +104,8 @@ contains
     write(unit, '(a)') '# Test registry'
     write(unit, '(a)') '[packages]'
     write(unit, '(a)') ''
-    write(unit, '(a)') '[packages.fortplotlib]'
-    write(unit, '(a)') 'git = "https://github.com/krystophny/fortplotlib"'
+    write(unit, '(a)') '[packages.fortplot]'
+    write(unit, '(a)') 'git = "https://github.com/krystophny/fortplot"'
     write(unit, '(a)') 'prefix = "fortplot"'
     write(unit, '(a)') ''
     write(unit, '(a)') '[packages.pyplot-fortran]'

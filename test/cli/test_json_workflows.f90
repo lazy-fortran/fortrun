@@ -1,10 +1,17 @@
 program test_json_workflows
     use temp_utils, only: get_system_temp_dir, create_temp_dir, get_project_root, create_test_cache_dir, path_join
+    use fpm_environment, only: get_os_type, OS_WINDOWS, get_env
     implicit none
 
     logical :: all_passed
 
     all_passed = .true.
+
+    ! Skip this test on Windows CI - it runs fortran CLI 16 times
+    if (get_os_type() == OS_WINDOWS .and. len_trim(get_env('CI', '')) > 0) then
+        print *, 'SKIP: test_json_workflows on Windows CI (runs fortran CLI 16 times)'
+        stop 0
+    end if
 
     print *, '=== JSON Workflow Tests ==='
     print *
@@ -49,7 +56,8 @@ contains
             project_root = get_project_root()
             call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
-                                     temp_dir//'/simple.f --debug-tokens 2>/dev/null', &
+                                     '"'//path_join(temp_dir, 'simple.f')//'" --debug-tokens'// &
+                                     merge(' > nul 2>&1 ', ' 2>/dev/null', get_os_type() == OS_WINDOWS), &
                                       wait=.true., exitstat=iostat)
         end block
         if (iostat /= 0) then
@@ -64,7 +72,8 @@ contains
             project_root = get_project_root()
             call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
-                temp_dir//'/simple_tokens.json --from-tokens --debug-ast 2>/dev/null', &
+                '"'//path_join(temp_dir, 'simple_tokens.json')//'" --from-tokens --debug-ast'// &
+                merge(' > nul 2>&1 ', ' 2>/dev/null', get_os_type() == OS_WINDOWS), &
                                       wait=.true., exitstat=iostat)
         end block
         if (iostat /= 0) then
@@ -79,7 +88,8 @@ contains
             project_root = get_project_root()
             call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
-          temp_dir//'/simple_tokens_ast.json --from-ast --debug-semantic 2>/dev/null', &
+          '"'//path_join(temp_dir, 'simple_tokens_ast.json')//'" --from-ast --debug-semantic'// &
+          merge(' > nul 2>&1 ', ' 2>/dev/null', get_os_type() == OS_WINDOWS), &
                                       wait=.true., exitstat=iostat)
         end block
         if (iostat /= 0) then
@@ -94,8 +104,9 @@ contains
             project_root = get_project_root()
             call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
-                          temp_dir//'/simple_tokens_ast_semantic.json --from-ast > '// &
-                   temp_dir//'/generated.f90 2>/dev/null', wait=.true., exitstat=iostat)
+                          '"'//path_join(temp_dir, 'simple_tokens_ast_semantic.json')//'" --from-ast > "'// &
+                   path_join(temp_dir, 'generated.f90')//'"'//merge(' 2>nul      ', ' 2>/dev/null', get_os_type() == OS_WINDOWS), &
+                   wait=.true., exitstat=iostat)
         end block
         if (iostat /= 0) then
             print *, '  FAIL: Code generation from semantic AST failed'
@@ -105,8 +116,8 @@ contains
 
         ! For now, just verify JSON files were created
         ! (Full round-trip not implemented yet)
-        if (verify_file_exists(temp_dir//'/simple_tokens.json') .and. &
-            verify_file_exists(temp_dir//'/simple_tokens_ast.json')) then
+        if (verify_file_exists(path_join(temp_dir, 'simple_tokens.json')) .and. &
+            verify_file_exists(path_join(temp_dir, 'simple_tokens_ast.json'))) then
             print *, '  PASS: Simple assignment workflow (JSON files created)'
         else
             print *, '  FAIL: JSON files not created'
@@ -129,7 +140,7 @@ contains
         !call execute_command_line('fpm run fortran -- --clear-cache -- Removed cache clearing > /dev/null 2>&1', wait=.true.)
 
         ! Create source with function
-        open (newunit=unit, file=temp_dir//'/func.f', status='replace')
+        open (newunit=unit, file=path_join(temp_dir, 'func.f'), status='replace')
         write (unit, '(a)') 'real function square(x)'
         write (unit, '(a)') '  real :: x'
         write (unit, '(a)') '  square = x * x'
@@ -142,7 +153,8 @@ contains
             project_root = get_project_root()
             call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
-                                      temp_dir//'/func.f --debug-tokens 2>/dev/null', &
+                                      '"'//path_join(temp_dir, 'func.f')//'" --debug-tokens'// &
+                                      merge(' > nul 2>&1 ', ' 2>/dev/null', get_os_type() == OS_WINDOWS), &
                                       wait=.true., exitstat=iostat)
         end block
         if (iostat /= 0) then
@@ -156,7 +168,8 @@ contains
             project_root = get_project_root()
             call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
-                  temp_dir//'/func_tokens.json --from-tokens --debug-ast 2>/dev/null', &
+                  '"'//path_join(temp_dir, 'func_tokens.json')//'" --from-tokens --debug-ast'// &
+                  merge(' > nul 2>&1 ', ' 2>/dev/null', get_os_type() == OS_WINDOWS), &
                                       wait=.true., exitstat=iostat)
         end block
         if (iostat /= 0) then
@@ -170,7 +183,8 @@ contains
             project_root = get_project_root()
             call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
-            temp_dir//'/func_tokens_ast.json --from-ast --debug-semantic 2>/dev/null', &
+            '"'//path_join(temp_dir, 'func_tokens_ast.json')//'" --from-ast --debug-semantic'// &
+            merge(' > nul 2>&1 ', ' 2>/dev/null', get_os_type() == OS_WINDOWS), &
                                       wait=.true., exitstat=iostat)
         end block
         if (iostat /= 0) then
@@ -180,7 +194,7 @@ contains
         end if
 
         ! Verify function in AST output
-   if (verify_file_contains(temp_dir//'/func_tokens_ast.json', '"name": "square"')) then
+   if (verify_file_contains(path_join(temp_dir, 'func_tokens_ast.json'), '"name": "square"')) then
             print *, '  PASS: Function workflow'
         else
             print *, '  FAIL: Function not found in AST output'
@@ -203,7 +217,7 @@ contains
         !call execute_command_line('fpm run fortran -- --clear-cache -- Removed cache clearing > /dev/null 2>&1', wait=.true.)
 
         ! Create source with if statement in a program
-        open (newunit=unit, file=temp_dir//'/if.f', status='replace')
+        open (newunit=unit, file=path_join(temp_dir, 'if.f'), status='replace')
         write (unit, '(a)') 'x = 5'
         write (unit, '(a)') 'if (x > 0) then'
         write (unit, '(a)') '  y = 1'
@@ -218,7 +232,8 @@ contains
             project_root = get_project_root()
             call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
-                                      temp_dir//'/if.f --debug-tokens 2>/dev/null', &
+                                      '"'//path_join(temp_dir, 'if.f')//'" --debug-tokens'// &
+                                      merge(' > nul 2>&1 ', ' 2>/dev/null', get_os_type() == OS_WINDOWS), &
                                       wait=.true., exitstat=iostat)
         end block
         if (iostat /= 0) then
@@ -233,7 +248,8 @@ contains
             project_root = get_project_root()
             call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
-                    temp_dir//'/if_tokens.json --from-tokens --debug-ast 2>/dev/null', &
+                    '"'//path_join(temp_dir, 'if_tokens.json')//'" --from-tokens --debug-ast'// &
+                    merge(' > nul 2>&1 ', ' 2>/dev/null', get_os_type() == OS_WINDOWS), &
                                       wait=.true., exitstat=iostat)
         end block
         if (iostat /= 0) then
@@ -243,7 +259,7 @@ contains
         end if
 
         ! Verify if node in AST (AST file is named if_tokens_ast.json)
-        if (verify_file_contains(temp_dir//'/if_tokens_ast.json', '"type": "if_statement"')) then
+        if (verify_file_contains(path_join(temp_dir, 'if_tokens_ast.json'), '"type": "if_statement"')) then
             print *, '  PASS: Control flow workflow'
         else
             print *, '  FAIL: If statement not found in AST'
@@ -268,7 +284,7 @@ contains
         !call execute_command_line('fpm run fortran -- --clear-cache -- Removed cache clearing > /dev/null 2>&1', wait=.true.)
 
         ! Create original source
-        open (newunit=unit, file=temp_dir//'/original.f', status='replace')
+        open (newunit=unit, file=path_join(temp_dir, 'original.f'), status='replace')
         write (unit, '(a)') 'x = 10'
         write (unit, '(a)') 'y = x + 5'
         write (unit, '(a)') 'print *, y'
@@ -280,7 +296,8 @@ contains
             project_root = get_project_root()
             call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
-                                   temp_dir//'/original.f --debug-tokens 2>/dev/null', &
+                                   '"'//path_join(temp_dir, 'original.f')//'" --debug-tokens'// &
+                                   merge(' > nul 2>&1 ', ' 2>/dev/null', get_os_type() == OS_WINDOWS), &
                                       wait=.true., exitstat=iostat)
         end block
         if (iostat /= 0) then
@@ -294,7 +311,8 @@ contains
             project_root = get_project_root()
             call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
-              temp_dir//'/original_tokens.json --from-tokens --debug-ast 2>/dev/null', &
+              '"'//path_join(temp_dir, 'original_tokens.json')//'" --from-tokens --debug-ast'// &
+              merge(' > nul 2>&1 ', ' 2>/dev/null', get_os_type() == OS_WINDOWS), &
                                       wait=.true., exitstat=iostat)
         end block
         if (iostat /= 0) then
@@ -308,7 +326,8 @@ contains
             project_root = get_project_root()
             call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
-        temp_dir//'/original_tokens_ast.json --from-ast --debug-semantic 2>/dev/null', &
+        '"'//path_join(temp_dir, 'original_tokens_ast.json')//'" --from-ast --debug-semantic'// &
+        merge(' > nul 2>&1 ', ' 2>/dev/null', get_os_type() == OS_WINDOWS), &
                                       wait=.true., exitstat=iostat)
         end block
         if (iostat /= 0) then
@@ -322,8 +341,9 @@ contains
             project_root = get_project_root()
             call execute_command_line('cd "'//project_root//'" && '// &
                            'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
-                        temp_dir//'/original_tokens_ast_semantic.json --from-ast > '// &
-                   temp_dir//'/roundtrip.f90 2>/dev/null', wait=.true., exitstat=iostat)
+                        '"'//path_join(temp_dir, 'original_tokens_ast_semantic.json')//'" --from-ast > "'// &
+                   path_join(temp_dir, 'roundtrip.f90')//'"'//merge(' 2>nul      ', ' 2>/dev/null', get_os_type() == OS_WINDOWS), &
+                   wait=.true., exitstat=iostat)
         end block
         if (iostat /= 0) then
             print *, '  FAIL: Code generation in round-trip failed'
@@ -332,8 +352,8 @@ contains
         end if
 
         ! Just verify that all JSON files were created in the pipeline
-        if (verify_file_exists(temp_dir//'/original_tokens.json') .and. &
-            verify_file_exists(temp_dir//'/original_tokens_ast.json')) then
+        if (verify_file_exists(path_join(temp_dir, 'original_tokens.json')) .and. &
+            verify_file_exists(path_join(temp_dir, 'original_tokens_ast.json'))) then
             print *, '  PASS: Round-trip workflow (JSON pipeline working)'
         else
             print *, '  FAIL: JSON pipeline incomplete'

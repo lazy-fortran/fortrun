@@ -3,7 +3,7 @@ module test_execution
     use omp_lib
     use temp_utils, only: get_system_temp_dir, get_temp_file_path
     use fpm_environment, only: get_os_type, OS_WINDOWS
-    use system_utils, only: sys_remove_file
+    use system_utils, only: sys_remove_file, escape_shell_arg
     implicit none
     private
 
@@ -41,16 +41,27 @@ contains
         integer :: thread_id
 
         ! Initialize result - extract name from executable path
-        if (get_os_type() == OS_WINDOWS) then
+        ! First, try extracting the first word (handles commands with arguments)
+        idx = index(test_executable, ' ')
+        if (idx > 0) then
+            ! Command has arguments, extract first word
+            result%name = test_executable(1:idx-1)
+            ! Now check if the first word is actually a path
+            idx = max(index(result%name, '/', back=.true.), &
+                      index(result%name, '\', back=.true.))
+            if (idx > 0) then
+                ! First word is a path, extract just the filename
+                result%name = result%name(idx + 1:)
+            end if
+        else
+            ! No arguments, check if it's a path
             idx = max(index(test_executable, '/', back=.true.), &
                       index(test_executable, '\', back=.true.))
-        else
-            idx = index(test_executable, '/', back=.true.)
-        end if
-        if (idx > 0) then
-            result%name = test_executable(idx + 1:)
-        else
-            result%name = trim(test_executable)
+            if (idx > 0) then
+                result%name = test_executable(idx + 1:)
+            else
+                result%name = trim(test_executable)
+            end if
         end if
         result%executable = trim(test_executable)
         result%status = TEST_RUNNING
@@ -70,9 +81,10 @@ contains
 
         ! Create command to run test executable directly
         if (get_os_type() == OS_WINDOWS) then
-            command = trim(test_executable)//" > "//trim(temp_file)//" 2>&1"
+            command = '"'//trim(escape_shell_arg(test_executable))//'" > "'//trim(escape_shell_arg(temp_file))//'" 2>&1'
         else
-         command = "timeout 60 "//trim(test_executable)//" > "//trim(temp_file)//" 2>&1"
+            command = 'timeout 60 "'//trim(escape_shell_arg(test_executable))// &
+                      '" > "'//trim(escape_shell_arg(temp_file))//'" 2>&1'
         end if
 
         ! Run test and capture output

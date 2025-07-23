@@ -1,5 +1,6 @@
 module figure_capture
     use temp_utils, only: mkdir
+    use system_utils, only: sys_remove_file, sys_remove_dir, escape_shell_arg
     use iso_c_binding, only: c_int
     implicit none
     private
@@ -55,11 +56,8 @@ contains
     end subroutine init_figure_capture
 
     subroutine finalize_figure_capture()
-        character(len=256) :: command
-
         ! Clean up temporary directory
-        command = 'rm -rf "'//trim(temp_figure_dir)//'"'
-        call execute_command_line(command)
+        call sys_remove_dir(temp_figure_dir)
 
         ! Disable capture
         capture_enabled = .false.
@@ -145,7 +143,7 @@ contains
         end if
 
         ! Use base64 command to encode PNG file
-        command = 'base64 -w 0 "'//trim(png_file)//'"'
+        command = 'base64 -w 0 "'//trim(escape_shell_arg(png_file))//'"'
         call execute_and_capture_output(command, command_output, exit_code)
 
         if (exit_code == 0) then
@@ -167,7 +165,7 @@ contains
 
         temp_file = './fortran_fig_cmd.out'
 
-        full_command = trim(command)//' > '//trim(temp_file)//' 2>&1'
+        full_command = trim(command)//' > '//trim(escape_shell_arg(temp_file))//' 2>&1'
         call execute_command_line(full_command, exitstat=exit_code)
 
         inquire (file=temp_file, size=file_size)
@@ -192,12 +190,12 @@ contains
             output = ""
         end if
 
-        call execute_command_line('rm -f '//trim(temp_file))
+        call sys_remove_file(temp_file)
 
     end subroutine execute_and_capture_output
 
-    ! Placeholder procedures for fortplotlib interface
-    ! These would be replaced by actual fortplotlib calls
+    ! Placeholder procedures for fortplot interface
+    ! These would be replaced by actual fortplot calls
     subroutine fortplot_show_original()
         ! Original show() implementation would go here
         ! For now, just print a message
@@ -207,7 +205,7 @@ contains
     subroutine fortplot_savefig(filename)
         character(len=*), intent(in) :: filename
 
-        ! This would call the actual fortplotlib savefig
+        ! This would call the actual fortplot savefig
         ! For now, create a placeholder PNG file
         call create_placeholder_png(filename)
 
@@ -218,10 +216,10 @@ contains
         character(len=512) :: command
 
         ! Create a simple placeholder PNG using convert (ImageMagick)
-        ! In a real implementation, this would be handled by fortplotlib
+        ! In a real implementation, this would be handled by fortplot
         command = 'convert -size 800x600 xc:lightblue -pointsize 24 '// &
                  '-fill black -gravity center -annotate +0+0 "Figure Placeholder" "'// &
-                  trim(filename)//'"'
+                  trim(escape_shell_arg(filename))//'"'
         call execute_command_line(command)
 
         ! If ImageMagick is not available, create an empty file

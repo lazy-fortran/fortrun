@@ -1,5 +1,5 @@
 program test_cli_json_options
-    use temp_utils, only: get_system_temp_dir
+    use temp_utils, only: get_system_temp_dir, path_join
     implicit none
 
     logical :: all_passed
@@ -37,16 +37,22 @@ contains
             integer :: iostat
 
             ! Create a simple JSON tokens file with a basic statement
-            call execute_command_line('echo ''{"tokens": ['// &
-                      '{"type": "identifier", "text": "x", "line": 1, "column": 1},'// &
-                        '{"type": "operator", "text": "=", "line": 1, "column": 3},'// &
-                          '{"type": "number", "text": "1", "line": 1, "column": 5},'// &
-                               '{"type": "eof", "text": "", "line": 1, "column": 6}'// &
-                              ']}'' > '//temp_dir//'/test_tokens.json', exitstat=iostat)
+            block
+                integer :: unit
+                open(newunit=unit, file=path_join(temp_dir, 'test_tokens.json'), status='replace')
+                write(unit, '(a)') '{"tokens": ['
+                write(unit, '(a)') '  {"type": "identifier", "text": "x", "line": 1, "column": 1},'
+                write(unit, '(a)') '  {"type": "operator", "text": "=", "line": 1, "column": 3},'
+                write(unit, '(a)') '  {"type": "number", "text": "1", "line": 1, "column": 5},'
+                write(unit, '(a)') '  {"type": "eof", "text": "", "line": 1, "column": 6}'
+                write(unit, '(a)') ']}'
+                close(unit)
+                iostat = 0
+            end block
 
             if (iostat == 0) then
                 ! Test --from-tokens option with wait flag for CI reliability
-     call execute_command_line('fpm run fortran -- '//temp_dir//'/test_tokens.json '// &
+     call execute_command_line('fpm run fortran -- "'//path_join(temp_dir, 'test_tokens.json')//'" '// &
                                           '--from-tokens', wait=.true., exitstat=iostat)
 
                 if (iostat == 0) then
@@ -67,12 +73,17 @@ contains
             integer :: iostat
 
             ! Create a simple JSON AST file
-         call execute_command_line('echo ''{"type": "program", "name": "test"}'' > '// &
-                                      temp_dir//'/test_ast.json', exitstat=iostat)
+            block
+                integer :: unit
+                open(newunit=unit, file=path_join(temp_dir, 'test_ast.json'), status='replace')
+                write(unit, '(a)') '{"type": "program", "name": "test"}'
+                close(unit)
+                iostat = 0
+            end block
 
             if (iostat == 0) then
                 ! Test --from-ast option with wait flag for CI reliability
-        call execute_command_line('fpm run fortran -- '//temp_dir//'/test_ast.json '// &
+        call execute_command_line('fpm run fortran -- "'//path_join(temp_dir, 'test_ast.json')//'" '// &
                                           '--from-ast', wait=.true., exitstat=iostat)
 
                 if (iostat == 0) then
@@ -93,12 +104,17 @@ contains
             integer :: iostat
 
             ! Create a simple JSON semantic file
-           call execute_command_line('echo ''{"annotated_ast": {"type": "program", '// &
-              '"name": "test"}}'' > '//temp_dir//'/test_semantic.json', exitstat=iostat)
+            block
+                integer :: unit
+                open(newunit=unit, file=path_join(temp_dir, 'test_semantic.json'), status='replace')
+                write(unit, '(a)') '{"annotated_ast": {"type": "program", "name": "test"}}'
+                close(unit)
+                iostat = 0
+            end block
 
             if (iostat == 0) then
                 ! Test --from-semantic option with wait flag for CI reliability
-   call execute_command_line('fpm run fortran -- '//temp_dir//'/test_semantic.json '// &
+   call execute_command_line('fpm run fortran -- "'//path_join(temp_dir, 'test_semantic.json')//'" '// &
                                         '--from-semantic', wait=.true., exitstat=iostat)
 
                 if (iostat == 0) then
@@ -116,7 +132,8 @@ contains
         ! Clean up test files
         block
             integer :: iostat
-            call execute_command_line('rm -f '//temp_dir//'/test_*.json '//temp_dir//'/test_*.f90', &
+            call execute_command_line('rm -f "'//path_join(temp_dir, 'test_*.json')//'" "'// &
+                                       path_join(temp_dir, 'test_*.f90')//'"', &
                                       exitstat=iostat)
         end block
 

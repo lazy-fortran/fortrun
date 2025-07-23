@@ -152,7 +152,7 @@ contains
 
         print *, '  Test 3: End-to-end notebook with figures...'
 
-        ! Create notebook with minimal code that doesn't need fortplotlib
+        ! Create notebook with minimal code that doesn't need fortplot
         notebook_content = "! %% [markdown]"//new_line('a')// &
                            "! # Plot Demo"//new_line('a')// &
                            "! %%"//new_line('a')// &
@@ -195,7 +195,7 @@ contains
 
             print *, '    ✓ End-to-end notebook execution working'
 
-            ! Note: Figure capture integration depends on actual fortplotlib
+            ! Note: Figure capture integration depends on actual fortplot
             ! In a real environment, show() calls would generate figures
 
         end block

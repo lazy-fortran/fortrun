@@ -193,8 +193,8 @@ do i = 1, n_points
 end do
 
 ! NOTE: Figure support in notebooks is work in progress
-! Create plots with fortplotlib (WIP - currently shows placeholder text)
-use fortplotlib
+! Create plots with fortplot (WIP - currently shows placeholder text)
+use fortplot
 call figure()
 call plot(x_data, y_sin, 'b-', label='sin(x)')
 call xlabel('x')

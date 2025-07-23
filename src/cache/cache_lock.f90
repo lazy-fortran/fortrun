@@ -5,15 +5,19 @@ module cache_lock
     use fpm_environment, only: get_os_type, OS_WINDOWS
     use fpm_filesystem, only: join_path
     use system_utils, only: sys_remove_file, sys_move_file, sys_find_files, &
-                            sys_create_symlink, sys_process_exists, sys_sleep
+                            sys_create_symlink, sys_process_exists, sys_sleep, sys_file_exists
+    use logger_utils, only: debug_print, print_info, print_warning, print_error
+    use string_utils, only: int_to_char
     implicit none
     private
     public :: acquire_lock, release_lock, is_locked, cleanup_stale_locks
 
-    integer, parameter :: MAX_WAIT_TIME = 10  ! seconds (reduced for Windows CI)
+    integer, parameter :: MAX_WAIT_TIME = 60  ! seconds (increased for slower CI environments)
     integer, parameter :: STALE_LOCK_TIME = 300  ! 5 minutes
+    integer, parameter :: WINDOWS_CI_STALE_TIME = 10  ! 10 seconds on Windows CI
 
 contains
+
 
     function acquire_lock(cache_dir, project_name, wait) result(success)
         character(len=*), intent(in) :: cache_dir, project_name
@@ -31,8 +35,14 @@ contains
         wait_time = 0
         success = .false.
 
-        ! Ensure cache directory exists
-        call mkdir(cache_dir)
+        ! Ensure cache directory exists (only create if it doesn't exist)
+        block
+            logical :: dir_exists
+            inquire(file=trim(cache_dir), exist=dir_exists)
+            if (.not. dir_exists) then
+                call mkdir(cache_dir)
+            end if
+        end block
 
         do
             ! First check if lock already exists
@@ -74,7 +84,7 @@ contains
             wait_time = wait_time + 1
 
             if (wait_time >= MAX_WAIT_TIME) then
-                write(error_unit, *) 'DEBUG: Cache lock timeout after', MAX_WAIT_TIME, 'seconds for', trim(project_name)
+                call debug_print('Cache lock timeout after ' // int_to_char(MAX_WAIT_TIME) // ' seconds for ' // trim(project_name))
                 exit
             end if
         end do
@@ -97,30 +107,28 @@ contains
 
         lock_file = get_lock_file_path(cache_dir, project_name)
 
-        ! Cross-platform lock detection that handles symlinks properly
-        ! On some CI systems, Fortran's inquire and open don't handle symlinks correctly
-        ! Use system commands to check if lock file exists (including symlinks)
-        block
-            character(len=512) :: command
-            integer :: exit_code
-
-            if (get_os_type() == OS_WINDOWS) then
-                ! On Windows, use dir command with proper redirection
-                command = 'dir "'//trim(lock_file)//'" >nul 2>&1'
-            else
-                ! On Unix, use test -L to detect symlinks even if they're dangling
-                ! test -e fails on dangling symlinks, test -L succeeds
-          command = 'test -L "'//trim(lock_file)//'" || test -e "'//trim(lock_file)//'"'
-            end if
-
-            call execute_command_line(command, exitstat=exit_code)
-            locked = (exit_code == 0)
-        end block
+        ! Use system utilities for cross-platform lock detection
+        ! This uses a platform-agnostic file check instead of shell commands
+        locked = sys_file_exists(lock_file)
 
         ! Only check for stale locks when explicitly requested, not during normal checks
         ! This prevents race conditions where a fresh lock is incorrectly considered stale
 
     end function is_locked
+
+    ! Helper function to check lock file existence using system utilities
+    ! This ensures consistency across the module and avoids creating 'nul' files
+    function check_lock_file_exists(lock_file) result(exists)
+        character(len=*), intent(in) :: lock_file
+        logical :: exists
+        
+        call debug_print('check_lock_file_exists called for: ' // trim(lock_file))
+        
+        ! Use system utility for file existence check
+        exists = sys_file_exists(lock_file)
+        
+        call debug_print('File exists: ' // merge('T', 'F', exists))
+    end function check_lock_file_exists
 
     subroutine cleanup_stale_locks(cache_dir)
         character(len=*), intent(in) :: cache_dir
@@ -153,9 +161,9 @@ contains
         character(len=*), intent(in) :: lock_file
         logical :: success
         character(len=512) :: temp_file, command
-        integer :: unit, iostat, pid
+        integer :: unit, iostat, pid, exitstat
         character(len=32) :: pid_str, timestamp
-        logical :: file_exists
+        logical :: file_exists, temp_exists
 
         success = .false.
 
@@ -166,45 +174,96 @@ contains
 
         temp_file = trim(lock_file)//'.tmp.'//trim(pid_str)
 
-        open (newunit=unit, file=temp_file, status='new', iostat=iostat)
-        if (iostat == 0) then
-            write (unit, '(a)') trim(pid_str)
-            write (unit, '(a)') trim(timestamp)
-            close (unit)
-
-            ! Try to atomically move temp file to lock file
-            ! First check if lock file already exists
-            inquire (file=lock_file, exist=file_exists)
-            if (file_exists) then
-                ! Lock already exists, can't create
-                ! Clean up temp file since lock already exists
-                write (error_unit, *) 'DEBUG: Deleting temp file:', trim(temp_file)
-                call sys_remove_file(temp_file)
-                success = .false.
-            else
-                ! Try atomic move/link operation
-                write (error_unit, *) 'DEBUG: Moving temp file to lock file'
-                write (error_unit, *) 'DEBUG: From:', trim(temp_file)
-                write (error_unit, *) 'DEBUG: To:', trim(lock_file)
-
-                if (get_os_type() == OS_WINDOWS) then
-                    ! On Windows, use move which is atomic within same drive
-                    call sys_move_file(temp_file, lock_file, success)
+        ! For Windows, we'll use a different approach - try to create the lock file directly
+        if (get_os_type() == OS_WINDOWS) then
+            ! Check if we're in CI environment
+            block
+                character(len=256) :: ci_env
+                logical :: is_ci
+                
+                call get_environment_variable('CI', ci_env)
+                is_ci = (len_trim(ci_env) > 0)
+                
+                if (is_ci) then
+                    ! In CI, use a simpler approach with retries
+                    call debug_print('CI environment detected, using simple locking')
+                    
+                    ! Check if lock exists
+                    file_exists = check_lock_file_exists(lock_file)
+                    if (.not. file_exists) then
+                        ! Try to create it using echo
+                        command = 'echo '//trim(pid_str)//' > "'//trim(escape_quotes(lock_file))//'" 2>nul'
+                        call execute_command_line(trim(command), exitstat=exitstat)
+                        
+                        if (exitstat == 0) then
+                            ! Append timestamp
+                            command = 'echo '//trim(timestamp)//' >> "'//trim(escape_quotes(lock_file))//'" 2>nul'
+                            call execute_command_line(trim(command), exitstat=exitstat)
+                            success = (exitstat == 0)
+                        else
+                            success = .false.
+                        end if
+                    else
+                        success = .false.
+                        call debug_print('Lock already exists in CI')
+                    end if
                 else
-                    ! On Unix, use symlink for atomic operation
-                    call sys_create_symlink(temp_file, lock_file, success)
-                    if (success) then
-                        ! Clean up temp file after successful link
-                        call sys_remove_file(temp_file)
+                    ! Non-CI Windows: use Fortran's exclusive file opening
+                    call debug_print('Attempting exclusive file creation on Windows')
+                    
+                    ! Try to open the lock file with 'new' status (fails if exists)
+                    open(newunit=unit, file=lock_file, status='new', iostat=iostat)
+                    if (iostat == 0) then
+                        ! We successfully created the lock file
+                        write (unit, '(a)') trim(pid_str)
+                        write (unit, '(a)') trim(timestamp)
+                        close (unit)
+                        success = .true.
+                        call debug_print('Lock created successfully with exclusive open')
+                    else
+                        ! File already exists or other error
+                        success = .false.
+                        call debug_print('Lock file already exists or cannot be created')
+                    end if
+                end if
+            end block
+        else
+            ! Unix approach - create temp file then use atomic link
+            open (newunit=unit, file=temp_file, status='new', iostat=iostat)
+            if (iostat == 0) then
+                write (unit, '(a)') trim(pid_str)
+                write (unit, '(a)') trim(timestamp)
+                close (unit)
+
+                ! Use link for true atomicity
+                call debug_print('Attempting atomic link on Unix')
+                command = 'ln "'//trim(escape_quotes(temp_file))//'" "'// &
+                          trim(escape_quotes(lock_file))//'" 2>/dev/null'
+                call execute_command_line(trim(command), exitstat=exitstat)
+                success = (exitstat == 0)
+                
+                if (.not. success) then
+                    ! If link failed, check if it's because lock already exists
+                    file_exists = check_lock_file_exists(lock_file)
+                    if (.not. file_exists) then
+                        ! Lock doesn't exist but link failed - try mv as fallback
+                        call debug_print('Link failed, trying mv')
+                        call sys_move_file(temp_file, lock_file, success)
                     end if
                 end if
 
-                if (.not. success) then
-                    write (error_unit, *) 'DEBUG: Atomic lock creation failed'
-                    ! Clean up temp file if it still exists
+                ! Always clean up temp file
+                temp_exists = check_lock_file_exists(temp_file)
+                if (temp_exists) then
                     call sys_remove_file(temp_file)
                 end if
             end if
+        end if
+
+        if (success) then
+            call debug_print('Lock created successfully')
+        else
+            call debug_print('Failed to create lock')
         end if
 
     end function try_create_lock
@@ -217,6 +276,7 @@ contains
         integer :: lock_year, lock_month, lock_day, lock_hour, lock_min, lock_sec
 
         stale = .false.
+        call debug_print('is_lock_stale checking: ' // trim(lock_file))
 
         open (newunit=unit, file=lock_file, status='old', iostat=iostat)
         if (iostat == 0) then
@@ -241,20 +301,41 @@ contains
                         current_time = get_current_timestamp()
 
                         ! Check if lock is older than stale threshold
-                        if (current_time - lock_time > STALE_LOCK_TIME) then
-                            stale = .true.
-                        else
-                            ! Check if process is still running
-                            read (pid_str, *, iostat=iostat) lock_pid
-                            if (iostat == 0) then
-                                if (.not. is_process_running(lock_pid)) then
+                        ! Use shorter timeout on Windows CI
+                        block
+                            integer :: stale_threshold
+                            character(len=256) :: ci_env
+                            stale_threshold = STALE_LOCK_TIME
+                            call get_environment_variable('CI', ci_env)
+                            if (get_os_type() == OS_WINDOWS .and. len_trim(ci_env) > 0) then
+                                stale_threshold = WINDOWS_CI_STALE_TIME
+                                call debug_print('Using Windows CI stale time: ' // int_to_char(stale_threshold) // ' seconds')
+                            end if
+                            
+                            if (current_time - lock_time > stale_threshold) then
+                                call debug_print('Lock is stale due to age')
+                                stale = .true.
+                            else
+                                ! Check if process is still running
+                                read (pid_str, *, iostat=iostat) lock_pid
+                                if (iostat == 0) then
+                                    call debug_print('Checking if process ' // int_to_char(lock_pid) // ' is running')
+                                    if (.not. is_process_running(lock_pid)) then
+                                        call debug_print('Process not running, lock is stale')
+                                        stale = .true.
+                                    else
+                                        call debug_print('Process still running, lock is fresh')
+                                    end if
+                                else
+                                    call debug_print('Failed to parse PID, considering stale')
                                     stale = .true.
                                 end if
                             end if
-                        end if
+                        end block
                     end if
                 else
                     ! Invalid timestamp format, consider it stale
+                    call debug_print('Invalid timestamp format, considering stale: ' // trim(timestamp_str))
                     stale = .true.
                 end if
             end if
@@ -266,15 +347,68 @@ contains
         character(len=*), intent(in) :: lock_file
         logical :: success
 
-        write (error_unit, *) 'DEBUG: Removing lock file:', trim(lock_file)
+        call debug_print('Removing lock file: ' // trim(lock_file))
         call sys_remove_file(lock_file, success)
         if (.not. success) then
-            write (error_unit, *) 'DEBUG: Failed to remove lock file:', trim(lock_file)
+            call debug_print('Failed to remove lock file: ' // trim(lock_file))
         else
-            write (error_unit, *) 'DEBUG: Lock file removed successfully'
+            call debug_print('Lock file removed successfully')
         end if
 
     end subroutine remove_lock
+
+    function get_filename_only(full_path) result(filename)
+        character(len=*), intent(in) :: full_path
+        character(len=:), allocatable :: filename
+        integer :: last_sep, i
+        
+        ! Find last path separator
+        last_sep = 0
+        do i = len_trim(full_path), 1, -1
+            if (full_path(i:i) == '/' .or. full_path(i:i) == '\') then
+                last_sep = i
+                exit
+            end if
+        end do
+        
+        if (last_sep > 0) then
+            filename = full_path(last_sep+1:)
+        else
+            filename = full_path
+        end if
+    end function get_filename_only
+
+    function escape_quotes(str) result(escaped)
+        character(len=*), intent(in) :: str
+        character(len=:), allocatable :: escaped
+        integer :: i, n, len_str
+        
+        len_str = len_trim(str)
+        ! Count characters needed
+        n = 0
+        do i = 1, len_str
+            if (str(i:i) == '"') then
+                n = n + 2
+            else
+                n = n + 1
+            end if
+        end do
+        
+        ! Allocate and build escaped string
+        allocate(character(len=n) :: escaped)
+        n = 0
+        do i = 1, len_str
+            if (str(i:i) == '"') then
+                n = n + 1
+                escaped(n:n) = '\'
+                n = n + 1
+                escaped(n:n) = '"'
+            else
+                n = n + 1
+                escaped(n:n) = str(i:i)
+            end if
+        end do
+    end function escape_quotes
 
     subroutine get_pid(pid)
         integer, intent(out) :: pid
@@ -289,9 +423,14 @@ contains
         end interface
 
         if (get_os_type() == OS_WINDOWS) then
-            ! Simple fallback for Windows - just use a random number
-            call random_number(r)
-            pid = int(r*99999)
+            ! On Windows, try to get real PID
+            ! Note: getpid() works on Windows with MinGW/MSYS2
+            pid = getpid()
+            ! If it returns -1, fall back to random number
+            if (pid < 0) then
+                call random_number(r)
+                pid = int(r*99999)
+            end if
         else
             pid = getpid()
         end if

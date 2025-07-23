@@ -13,15 +13,20 @@ module runner
     use fpm_environment, only: get_os_type, OS_WINDOWS
   use frontend_integration, only: compile_with_frontend, compile_with_frontend_debug, is_simple_fortran_file
     use debug_state, only: get_debug_flags
-    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, mkdir
+    use temp_utils, only: create_temp_dir, cleanup_temp_dir, get_temp_file_path, mkdir, create_temp_file
     use system_utils, only: sys_copy_file, sys_remove_file, sys_get_absolute_path, &
-                            sys_find_files, sys_list_files, sys_get_path_separator
-    use, intrinsic :: iso_fortran_env, only: int64
+                            sys_find_files, sys_list_files, sys_get_path_separator, &
+                            get_stderr_redirect, escape_shell_arg
+    use logger_utils, only: debug_print, print_info, print_warning, print_error, &
+                            set_logger_verbose_level
+    use string_utils, only: int_to_char
+    use, intrinsic :: iso_fortran_env, only: int64, error_unit
     implicit none
     private
     public :: run_fortran_file
 
 contains
+
 
     function get_cd_command() result(cd_cmd)
         character(len=32) :: cd_cmd
@@ -55,11 +60,14 @@ contains
         logical :: was_preprocessed
 
         exit_code = 0
+        
+        ! Initialize logger with current verbose level
+        call set_logger_verbose_level(verbose_level)
 
         ! Check if file exists
         inquire (file=filename, exist=file_exists)
         if (.not. file_exists) then
-            print '(a,a)', 'Error: File not found: ', trim(filename)
+            call print_error('File not found: ' // trim(filename))
             exit_code = 1
             return
         end if
@@ -67,7 +75,8 @@ contains
         ! Check file extension
         if (index(filename, '.f90') == 0 .and. index(filename, '.F90') == 0 .and. &
             index(filename, '.f') == 0 .and. index(filename, '.F') == 0) then
-            print '(a)', 'Error: Input file must have .f90, .F90, .f, or .F extension'
+            call debug_print('Checking extension for file: ' // trim(filename))
+            call print_error('Input file must have .f90, .F90, .f, or .F extension')
             exit_code = 1
             return
         end if
@@ -89,13 +98,13 @@ contains
 
             ! Get content-based cache directory first
             if (len_trim(custom_cache_dir) > 0) then
-                cache_dir = custom_cache_dir
+                cache_dir = trim(custom_cache_dir)
             else
-                cache_dir = get_cache_dir()
+                cache_dir = trim(get_cache_dir())
             end if
             call ensure_cache_dir(cache_dir, success)
             if (.not. success) then
-                print '(a)', 'Error: Failed to create cache directory'
+                call print_error('Failed to create cache directory')
                 exit_code = 1
                 return
             end if
@@ -104,9 +113,9 @@ contains
             content_hash = get_single_file_content_hash(absolute_path)
             if (content_hash == 'fallback_unknown') then
                 ! Fallback to basename if hashing fails
-           preprocessed_file = trim(cache_dir)//'/preprocessed_'//trim(basename)//'.f90'
+                preprocessed_file = join_path(trim(cache_dir), 'preprocessed_'//trim(basename)//'.f90')
             else
-       preprocessed_file = trim(cache_dir)//'/preprocessed_'//trim(content_hash)//'.f90'
+                preprocessed_file = join_path(trim(cache_dir), 'preprocessed_'//trim(content_hash)//'.f90')
             end if
 
             ! Check if already cached
@@ -160,10 +169,26 @@ contains
                     exit_code = 1
                     return
                 end if
+                
+                ! Debug: verify preprocessed file was created
+                inquire (file=preprocessed_file, exist=file_exists_flag)
+                if (.not. file_exists_flag) then
+                    call print_error('Frontend did not create preprocessed file: ' // trim(preprocessed_file))
+                    exit_code = 1
+                    return
+                end if
             else
                 if (verbose_level >= 2) then
               print '(a,a)', 'Using cached preprocessed file: ', trim(preprocessed_file)
                 end if
+            end if
+
+            ! Verify preprocessed file exists
+            inquire (file=preprocessed_file, exist=file_exists_flag)
+            if (.not. file_exists_flag) then
+                call print_error('Preprocessed file not created: ' // trim(preprocessed_file))
+                exit_code = 1
+                return
             end if
 
             ! Keep track of preprocessed file
@@ -178,14 +203,14 @@ contains
         ! Get cache directory (use custom if provided) - for .f90 files or if not set above
         if (.not. is_simple_fortran_file(filename)) then
             if (len_trim(custom_cache_dir) > 0) then
-                cache_dir = custom_cache_dir
+                cache_dir = trim(custom_cache_dir)
             else
-                cache_dir = get_cache_dir()
+                cache_dir = trim(get_cache_dir())
             end if
         end if
         call ensure_cache_dir(cache_dir, success)
         if (.not. success) then
-            print '(a)', 'Error: Failed to create cache directory'
+            call print_error('Failed to create cache directory')
             exit_code = 1
             return
         end if
@@ -199,36 +224,64 @@ contains
         ! Try to acquire lock for this project
         if (.not. acquire_lock(cache_dir, basename,.not. no_wait)) then
             if (no_wait) then
-print '(a)', 'Error: Cache is locked by another process. Use without --no-wait to wait.'
+call print_error('Cache is locked by another process. Use without --no-wait to wait.')
             else
-                print '(a)', 'Error: Timeout waiting for cache lock.'
+                call print_error('Timeout waiting for cache lock.')
             end if
             exit_code = 1
             return
         end if
 
         ! Check if project already exists (cache hit)
-        if (directory_exists(trim(project_dir)//'/build')) then
+        if (directory_exists(join_path(trim(project_dir), 'build'))) then
             if (verbose_level >= 1) then
                 print '(a)', 'Cache hit: Using existing build'
             end if
 
             ! Always update source files to allow incremental compilation
-            call update_source_files(working_file, project_dir)
+            call update_source_files(working_file, trim(project_dir))
         else
             ! Cache miss: need to set up project
             if (verbose_level >= 1) then
                 print '(a)', 'Cache miss: Setting up new build'
             end if
 
-            call mkdir(trim(project_dir)//'/app')
+            ! Create the project directory first
+            call mkdir(trim(project_dir))
+            
+            ! Verify the directory was created successfully
+            if (.not. directory_exists(trim(project_dir))) then
+                print '(a,a)', 'ERROR: Failed to create project directory: ', trim(project_dir)
+                exit_code = 1
+                call release_lock(cache_dir, basename)
+                return
+            end if
+            
+            call mkdir(join_path(trim(project_dir), 'app'))
+            
+            ! Verify app directory was created
+            if (.not. directory_exists(join_path(trim(project_dir), 'app'))) then
+                call print_error('Failed to create app directory in: ' // trim(project_dir))
+                exit_code = 1
+                call release_lock(cache_dir, basename)
+                return
+            end if
+
+            ! Verify working file exists before copying
+            inquire (file=trim(working_file), exist=file_exists_flag)
+            if (.not. file_exists_flag) then
+                call print_error('Working file does not exist: ' // trim(working_file))
+                exit_code = 1
+                call release_lock(cache_dir, basename)
+                return
+            end if
 
             ! Copy source files and generate FPM project only on cache miss
             if (present(custom_flags)) then
-          call setup_project_files(working_file, project_dir, basename, verbose_level, &
+          call setup_project_files(trim(working_file), trim(project_dir), basename, verbose_level, &
                                       custom_config_dir, was_preprocessed, custom_flags)
             else
-          call setup_project_files(working_file, project_dir, basename, verbose_level, &
+          call setup_project_files(trim(working_file), trim(project_dir), basename, verbose_level, &
                                          custom_config_dir, was_preprocessed, '')
             end if
         end if
@@ -258,31 +311,31 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
             ! Quiet mode: capture errors for helpful messages
             block
                 character(len=256) :: output_file
-                output_file = get_temp_file_path(create_temp_dir('fortran_build'), 'fpm_build_output.txt')
+                output_file = create_temp_file('fortran_build_fpm_build_output', '.txt')
                 if (len_trim(flag_string) > 0) then
-                  command = trim(get_cd_command())//' "'//trim(project_dir)//'" && '// &
-           'fpm build --flag "'//trim(flag_string)//'" > "'//trim(output_file)//'" 2>&1'
+                  command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && '// &
+           'fpm build --flag "'//trim(escape_shell_arg(flag_string))//'" > "'//trim(escape_shell_arg(output_file))//'" 2>&1'
                 else
-                  command = trim(get_cd_command())//' "'//trim(project_dir)//'" && '// &
-                              'fpm build > "'//trim(output_file)//'" 2>&1'
+                  command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && '// &
+                              'fpm build > "'//trim(escape_shell_arg(output_file))//'" 2>&1'
                 end if
             end block
         else if (verbose_level >= 2) then
             ! Very verbose: show detailed build output
             if (len_trim(flag_string) > 0) then
-                command = trim(get_cd_command())//' "'//trim(project_dir)//'" && '// &
-                          'fpm build --verbose --flag "'//trim(flag_string)//'"'
+                command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && '// &
+                          'fpm build --verbose --flag "'//trim(escape_shell_arg(flag_string))//'"'
             else
-                command = trim(get_cd_command())//' "'//trim(project_dir)//'" && '// &
+                command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && '// &
                           'fpm build --verbose'
             end if
         else
             ! Normal verbose: show build progress
             if (len_trim(flag_string) > 0) then
-                command = trim(get_cd_command())//' "'//trim(project_dir)//'" && '// &
-                          'fpm build --flag "'//trim(flag_string)//'"'
+                command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && '// &
+                          'fpm build --flag "'//trim(escape_shell_arg(flag_string))//'"'
             else
-                command = trim(get_cd_command())//' "'//trim(project_dir)//'" && '// &
+                command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && '// &
                           'fpm build'
             end if
         end if
@@ -290,14 +343,17 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         ! TODO: Add jobs_flag when FPM supports it
         ! Future: 'fpm build' // trim(jobs_flag) // '--flag ...
 
-     call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat, wait=.true.)
+        call debug_print('About to execute FPM build command: '//trim(command))
+        call debug_print('Project directory: '//trim(project_dir))
+        
+        call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat, wait=.true.)
 
         if (cmdstat /= 0 .or. exitstat /= 0) then
             if (verbose_level == 0) then
                 ! Parse FPM errors and provide helpful messages
                 block
                     character(len=256) :: output_file
-                    output_file = get_temp_file_path(create_temp_dir('fortran_build'), 'fpm_build_output.txt')
+                    output_file = create_temp_file('fortran_build_fpm_build_output', '.txt')
                     call provide_helpful_error_message(output_file)
                 end block
             end if
@@ -307,19 +363,25 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         end if
 
         ! Cache newly compiled dependency modules after successful build
-        call cache_build_artifacts(project_dir, verbose_level)
+        call cache_build_artifacts(trim(project_dir), verbose_level)
 
         ! Run the executable using fpm run
-        command = trim(get_cd_command())//' "'//trim(project_dir)//'" && fpm run '//trim(basename)
-
-        if (verbose_level >= 1) then
-            print '(a,a)', 'DEBUG: Running command: ', trim(command)
+        if (verbose_level == 0) then
+            ! Quiet mode: suppress FPM stderr messages but show program output
+            command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && fpm run "'// &
+                      trim(escape_shell_arg(basename))//'"'//get_stderr_redirect()
+        else
+            command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))// &
+                      '" && fpm run "'//trim(escape_shell_arg(basename))//'"'
         end if
 
-     call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat, wait=.true.)
+        call debug_print('Running command: ' // trim(command))
+        
+
+        call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat, wait=.true.)
 
         if (cmdstat /= 0) then
-            print '(a)', 'Error: Failed to execute fpm'
+            call print_error('Failed to execute fpm')
             exit_code = 1
         else if (exitstat /= 0) then
             ! FPM returned non-zero, likely compilation error
@@ -444,7 +506,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
 
         ! Implement module cache integration
         if (mod_cache%enabled .and. n_modules > 0) then
-      call setup_module_cache_for_build(mod_cache, project_dir, modules, n_modules, verbose_level)
+      call setup_module_cache_for_build(mod_cache, trim(project_dir), modules, n_modules, verbose_level)
         end if
 
     end subroutine generate_fpm_with_dependencies
@@ -468,7 +530,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
             print '(a)', 'Checking module cache for dependencies...'
         end if
 
-        build_dir = trim(project_dir)//'/build'
+        build_dir = join_path(trim(project_dir), 'build')
         call mkdir(trim(build_dir))
 
         ! Check each dependency module for cached versions
@@ -571,9 +633,10 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
 
     end subroutine cache_build_artifacts
 
-    subroutine copy_local_modules(main_file, project_dir)
+    subroutine copy_local_modules(main_file, project_dir, verbose_level)
         use iso_fortran_env, only: error_unit
         character(len=*), intent(in) :: main_file, project_dir
+        integer, intent(in), optional :: verbose_level
         character(len=256) :: source_dir
         character(len=512) :: command
         integer :: i, last_slash
@@ -594,7 +657,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         end if
 
         ! Create src directory
-        call mkdir(trim(project_dir)//'/src')
+        call mkdir(join_path(trim(project_dir), 'src'))
 
         ! Copy all .f90 files except the main file (only files, not directories)
         block
@@ -604,19 +667,51 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
             logical :: success
 
             ! Get list of files to copy
-            call get_f90_files_except_main(source_dir, main_file, files, num_files)
+            if (present(verbose_level)) then
+                call get_f90_files_except_main(source_dir, main_file, files, num_files, verbose_level)
+            else
+                call get_f90_files_except_main(source_dir, main_file, files, num_files, 0)
+            end if
 
-            do j = 1, num_files
-            end do
+            if (present(verbose_level)) then
+              if (verbose_level >= 3) then
+                call debug_print('Module copying debug info:')
+                call debug_print('Found ' // int_to_char(num_files) // ' files to copy')
+                do j = 1, num_files
+                    call debug_print('File ' // int_to_char(j) // ': ' // trim(files(j)))
+                end do
+              end if
+            end if
 
             ! Copy each file to the src directory
             do j = 1, num_files
-                dest_file = trim(project_dir)//'/src/'//extract_basename(files(j))
+                dest_file = join_path(join_path(trim(project_dir), 'src'), extract_basename(files(j)))
+                call debug_print('Copying: '//trim(files(j))//' -> '//trim(dest_file))
                 call sys_copy_file(files(j), dest_file, success)
                 if (.not. success) then
-                    print '(a,a)', 'Warning: Failed to copy ', trim(files(j))
+                    call print_warning('Failed to copy ' // trim(files(j)))
+                    print '(a,a)', '  Destination was: ', trim(dest_file)
+                else
+                    call debug_print('Successfully copied: '//trim(extract_basename(files(j))))
                 end if
             end do
+            
+            ! Verify what files are now in the project src directory
+            if (present(verbose_level)) then
+              if (verbose_level >= 3) then
+                call debug_print('Verifying files in project src directory:')
+                block
+                    character(len=512) :: src_dir, verify_files(100)
+                    integer :: num_verify_files, k
+                    src_dir = join_path(trim(project_dir), 'src')
+                    call sys_list_files(src_dir, '*.f90', verify_files, num_verify_files)
+                    call debug_print('Files in project src: ' // int_to_char(num_verify_files))
+                    do k = 1, num_verify_files
+                        call debug_print('Src file[' // int_to_char(k) // ']: ' // trim(verify_files(k)))
+                    end do
+                end block
+              end if
+            end if
         end block
 
     end subroutine copy_local_modules
@@ -630,7 +725,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         open (newunit=unit, file=error_file, status='old', iostat=iostat)
         if (iostat /= 0) then
             ! If we can't read the error file, fall back to generic message
-            print '(a)', 'Error: Build failed. Run with -v to see details.'
+            call print_error('Build failed. Run with -v to see details.')
             return
         end if
 
@@ -674,8 +769,10 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
             print '(a,a)', 'Project structure hash: ', trim(structure_hash)
         end if
 
-        ! Create project directory based on structure hash
-     project_dir = join_path(trim(cache_dir), trim(basename)//'_'//trim(structure_hash))
+        ! Create project directory based on structure hash  
+        ! Use basename without extension to avoid path confusion
+        project_dir = join_path(trim(cache_dir), trim(extract_basename_no_ext(source_file))//'_'//trim(structure_hash))
+        
 
     end subroutine get_project_hash_and_directory
 
@@ -684,7 +781,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         logical :: exists
 
         ! Check if directory exists by checking for current directory marker
-        inquire (file=trim(dir_path)//'/.', exist=exists)
+        inquire (file=join_path(dir_path, '.'), exist=exists)
 
     end function directory_exists
 
@@ -699,9 +796,19 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
 
         ! Copy the source file to app directory
         block
-            logical :: copy_success
+            logical :: copy_success, src_exists
             character(len=256) :: dest_file
-            dest_file = trim(project_dir)//'/app/main.f90'
+            
+            ! Check if source file exists
+            inquire (file=absolute_path, exist=src_exists)
+            if (.not. src_exists) then
+                call print_error('Source file does not exist: ' // trim(absolute_path))
+                exitstat = 1
+                cmdstat = 1
+                return
+            end if
+            
+            dest_file = join_path(join_path(trim(project_dir), 'app'), 'main.f90')
             call sys_copy_file(absolute_path, dest_file, copy_success)
             if (copy_success) then
                 exitstat = 0
@@ -709,16 +816,18 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
             else
                 exitstat = 1
                 cmdstat = 1
+                call print_error('Failed to copy source file')
+                print '(a,a)', '  From: ', trim(absolute_path)
+                print '(a,a)', '  To: ', trim(dest_file)
             end if
         end block
 
         if (cmdstat /= 0 .or. exitstat /= 0) then
-            print '(a)', 'Error: Failed to copy source file'
             return
         end if
 
         ! Copy all other .f90 files from the same directory to src/
-        call copy_local_modules(absolute_path, project_dir)
+        call copy_local_modules(absolute_path, trim(project_dir), verbose_level)
 
         ! Scan for module dependencies and generate fpm.toml
         ! Sanitize basename for use as package name (limit length and remove spaces)
@@ -741,10 +850,10 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
             end if
 
             if (present(custom_flags)) then
-        call generate_fpm_with_dependencies(absolute_path, project_dir, trim(sanitized_name), verbose_level, &
+        call generate_fpm_with_dependencies(absolute_path, trim(project_dir), trim(sanitized_name), verbose_level, &
                                   custom_config_dir, is_preprocessed_file, custom_flags)
             else
-        call generate_fpm_with_dependencies(absolute_path, project_dir, trim(sanitized_name), verbose_level, &
+        call generate_fpm_with_dependencies(absolute_path, trim(project_dir), trim(sanitized_name), verbose_level, &
                                             custom_config_dir, is_preprocessed_file, '')
             end if
         end block
@@ -760,7 +869,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         block
             logical :: copy_success
             character(len=256) :: dest_file
-            dest_file = trim(project_dir)//'/app/main.f90'
+            dest_file = join_path(join_path(trim(project_dir), 'app'), 'main.f90')
             call sys_copy_file(absolute_path, dest_file, copy_success)
             if (copy_success) then
                 exitstat = 0
@@ -772,11 +881,11 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         end block
 
         if (cmdstat /= 0 .or. exitstat /= 0) then
-            print '(a)', 'Warning: Failed to update main source file in cache'
+            call print_warning('Failed to update main source file in cache')
         end if
 
         ! Update any local module files (copy all .f90 files from source directory)
-        call copy_local_modules(absolute_path, project_dir)
+        call copy_local_modules(absolute_path, trim(project_dir))
 
     end subroutine update_source_files
 
@@ -788,7 +897,7 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         character(len=512) :: combined_dependencies
 
         ! Get all .f90 files in the source directory except the main file
-        call get_f90_files_except_main(source_dir, main_file, all_files, num_files)
+        call get_f90_files_except_main(source_dir, main_file, all_files, num_files, 0)
 
         ! Combine local module files to create structure hash
         combined_dependencies = ''
@@ -800,22 +909,23 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
 
         ! If no local modules, use a simple hash based on the main file path
         if (len_trim(combined_dependencies) == 0) then
-            structure_hash = 'simple_'//extract_basename(main_file)
+            structure_hash = 'simple_'//extract_basename_no_ext(main_file)
         else
             ! Generate hash based on local module files (not their content, just structure)
             structure_hash = get_content_hash(all_files(1:num_files))
             if (structure_hash == 'fallback_unknown') then
-                structure_hash = 'struct_'//extract_basename(main_file)
+                structure_hash = 'struct_'//extract_basename_no_ext(main_file)
             end if
         end if
 
     end function get_project_structure_hash
 
-    subroutine get_f90_files_except_main(source_dir, main_file, files, num_files)
+    subroutine get_f90_files_except_main(source_dir, main_file, files, num_files, verbose_level)
         use iso_fortran_env, only: error_unit
         character(len=*), intent(in) :: source_dir, main_file
         character(len=*), intent(out) :: files(:)
         integer, intent(out) :: num_files
+        integer, intent(in) :: verbose_level
         character(len=512) :: command, temp_file
         integer :: unit, iostat, i
         character(len=512) :: line, main_basename
@@ -828,18 +938,32 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
             character(len=512) :: all_files(1000)
             integer :: total_files, j
 
+            if (verbose_level >= 3) then
+                call debug_print('Searching in directory: ' // trim(source_dir))
+                call debug_print('Main file basename: ' // trim(main_basename))
+            end if
+
             ! First get .f90 files
             call sys_list_files(source_dir, '*.f90', all_files, total_files)
+            if (verbose_level >= 3) then
+                call debug_print('Found .f90 files: ' // int_to_char(total_files))
+            end if
 
             ! Then get .F90 files and add to list
             if (total_files < size(all_files)) then
                 call sys_list_files(source_dir, '*.F90', all_files(total_files + 1:), j)
                 total_files = total_files + j
+                if (verbose_level >= 3) then
+                    call debug_print('Total files after .F90 search: ' // int_to_char(total_files))
+                end if
             end if
 
             ! Show all found files
-            do i = 1, total_files
-            end do
+            if (verbose_level >= 3) then
+                do i = 1, total_files
+                    call debug_print('All files[' // int_to_char(i) // ']: ' // trim(all_files(i)))
+                end do
+            end if
 
             ! Filter out the main file
             num_files = 0
@@ -848,8 +972,14 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
                     num_files = num_files + 1
                     if (num_files <= size(files)) then
                         files(num_files) = trim(all_files(i))
+                        if (verbose_level >= 3) then
+                            call debug_print('Added file[' // int_to_char(num_files) // ']: ' // trim(files(num_files)))
+                        end if
                     end if
                 else
+                    if (verbose_level >= 3) then
+                        call debug_print('Skipping main file: ' // trim(all_files(i)) // ' (contains main basename)')
+                    end if
                 end if
             end do
 
@@ -870,6 +1000,29 @@ print '(a)', 'Error: Cache is locked by another process. Use without --no-wait t
         end if
 
     end function extract_basename
+
+    function extract_basename_no_ext(filepath) result(basename)
+        character(len=*), intent(in) :: filepath
+        character(len=256) :: basename
+        integer :: last_slash, last_dot
+
+        last_slash = max(index(filepath, '/', back=.true.), index(filepath, '\', back=.true.))
+        last_dot = index(filepath, '.', back=.true.)
+        
+        if (last_slash > 0) then
+            if (last_dot > last_slash) then
+                basename = filepath(last_slash + 1:last_dot - 1)
+            else
+                basename = filepath(last_slash + 1:)
+            end if
+        else
+            if (last_dot > 0) then
+                basename = filepath(1:last_dot - 1)
+            else
+                basename = filepath
+            end if
+        end if
+    end function extract_basename_no_ext
 
     subroutine generate_flag_string(is_preprocessed_file, custom_flags, flag_string)
         logical, intent(in) :: is_preprocessed_file

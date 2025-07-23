@@ -1,4 +1,5 @@
 module module_scanner
+  use logger_utils, only: print_error
   implicit none
   private
   public :: scan_modules, module_info
@@ -41,7 +42,7 @@ contains
     
     open(newunit=unit, file=filename, status='old', iostat=iostat)
     if (iostat /= 0) then
-      print *, 'Error: Cannot open file ', trim(filename)
+      call print_error('Cannot open file '//trim(filename))
       return
     end if
     
@@ -75,8 +76,15 @@ contains
     
     ! Allocate output array
     if (n_modules > 0) then
-      allocate(modules(n_modules))
-      modules = temp_modules(1:n_modules)
+      ! Handle case where we found more modules than max_modules
+      if (n_modules > max_modules) then
+        allocate(modules(max_modules))
+        modules = temp_modules(1:max_modules)
+        n_modules = max_modules  ! Update count to reflect actual stored
+      else
+        allocate(modules(n_modules))
+        modules = temp_modules(1:n_modules)
+      end if
     else
       allocate(modules(0))
     end if

@@ -58,8 +58,8 @@ program test_fmp_version_generation
             found_with_version = .true.
         end if
 
-        ! Check for fortplotlib without version
-        if (index(line, 'fortplotlib') > 0 .and. index(line, 'tag =') == 0) then
+        ! Check for fortplot without version
+        if (index(line, 'fortplot') > 0 .and. index(line, 'tag =') == 0) then
             found_without_version = .true.
         end if
     end do
@@ -74,10 +74,10 @@ program test_fmp_version_generation
     print *, 'PASS: pyplot-fortran with version v1.0.0 found in fpm.toml'
 
     if (.not. found_without_version) then
-        write (error_unit, *) 'Error: fortplotlib without version not found in fpm.toml'
+        write (error_unit, *) 'Error: fortplot without version not found in fpm.toml'
         stop 1
     end if
-    print *, 'PASS: fortplotlib without version found in fpm.toml'
+    print *, 'PASS: fortplot without version found in fpm.toml'
 
     ! Clean up
     call sys_remove_dir(project_dir)
@@ -100,8 +100,8 @@ contains
         write (unit, '(a)') 'git = "https://github.com/jacobwilliams/pyplot-fortran"'
         write (unit, '(a)') 'version = "v1.0.0"'
         write (unit, '(a)') ''
-        write (unit, '(a)') '[packages.fortplotlib]'
-        write (unit, '(a)') 'git = "https://github.com/krystophny/fortplotlib"'
+        write (unit, '(a)') '[packages.fortplot]'
+        write (unit, '(a)') 'git = "https://github.com/krystophny/fortplot"'
         write (unit, '(a)') 'prefix = "fortplot"'
         close (unit)
 

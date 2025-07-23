@@ -7,8 +7,9 @@ module cache
     use fpm_filesystem, only: list_files, read_lines, join_path, exists, run
     use fpm_environment, only: get_os_type, OS_WINDOWS
     use fpm_strings, only: string_t, fnv_1a
-    use temp_utils, only: create_temp_dir, get_temp_file_path
+    use temp_utils, only: create_temp_dir, get_temp_file_path, create_temp_file
     use temp_utils, only: mkdir
+    use system_utils, only: escape_shell_arg
     implicit none
     private
   public :: get_cache_dir, ensure_cache_dir, ensure_cache_structure, get_cache_subdir, &
@@ -19,30 +20,45 @@ module cache
 contains
 
     function get_cache_dir() result(cache_dir)
-        character(len=256) :: cache_dir
-        character(len=256) :: home_dir
+        character(len=:), allocatable :: cache_dir
+        character(len=:), allocatable :: temp_dir, home_dir
+        character(len=256) :: temp_buffer, home_buffer
         integer :: status
 
         ! Try to get XDG_CACHE_HOME first (Linux standard)
-        call get_environment_variable('XDG_CACHE_HOME', cache_dir, status=status)
+        call get_environment_variable('XDG_CACHE_HOME', temp_buffer, status=status)
 
-        if (status == 0 .and. len_trim(cache_dir) > 0) then
-            cache_dir = join_path(trim(cache_dir), 'fortran')
+        if (status == 0 .and. len_trim(temp_buffer) > 0) then
+            temp_dir = trim(temp_buffer)
+            cache_dir = join_path(temp_dir, 'fortran')
         else
             ! Fallback to HOME directory
-            call get_environment_variable('HOME', home_dir, status=status)
+            call get_environment_variable('HOME', home_buffer, status=status)
 
             if (status == 0) then
+                home_dir = trim(home_buffer)
                 ! Linux/macOS: ~/.cache/fortran
-                cache_dir = join_path(trim(home_dir), '.cache', 'fortran')
+                cache_dir = join_path(home_dir, '.cache', 'fortran')
             else
                 ! Windows fallback: try LOCALAPPDATA
-                call get_environment_variable('LOCALAPPDATA', cache_dir, status=status)
+                call get_environment_variable('LOCALAPPDATA', temp_buffer, status=status)
                 if (status == 0) then
-                    cache_dir = join_path(trim(cache_dir), 'fortran', 'cache')
+                    temp_dir = trim(temp_buffer)
+                    cache_dir = join_path(temp_dir, 'fortran', 'cache')
                 else
-                    ! Last resort - use current directory
-                    cache_dir = join_path('.', '.fortran-cache')
+                    ! Last resort - use system temp directory
+                    block
+                        use system_utils, only: sys_get_temp_dir
+                        character(len=:), allocatable :: temp_path
+                        
+                        temp_path = sys_get_temp_dir()
+                        if (len_trim(temp_path) > 0) then
+                            cache_dir = join_path(temp_path, 'fortran-cache')
+                        else
+                            ! Ultimate fallback - use current directory
+                            cache_dir = '.fortran-cache'
+                        end if
+                    end block
                 end if
             end if
         end if
@@ -73,7 +89,7 @@ contains
     subroutine ensure_cache_structure(cache_dir, success)
         character(len=*), intent(in) :: cache_dir
         logical, intent(out) :: success
-        character(len=512) :: builds_dir, modules_dir, executables_dir, metadata_dir
+ character(len=:), allocatable :: builds_dir, modules_dir, executables_dir, metadata_dir
 
         ! Create main cache directory first
         call ensure_cache_dir(cache_dir, success)
@@ -98,8 +114,8 @@ contains
 
     function get_cache_subdir(subdir_name) result(subdir_path)
         character(len=*), intent(in) :: subdir_name
-        character(len=512) :: subdir_path
-        character(len=256) :: cache_dir
+        character(len=:), allocatable :: subdir_path
+        character(len=:), allocatable :: cache_dir
 
         cache_dir = get_cache_dir()
         subdir_path = join_path(trim(cache_dir), trim(subdir_name))
@@ -110,7 +126,7 @@ contains
         character(len=*), intent(in) :: cache_key
         character(len=*), intent(in) :: module_files(:)
         logical, intent(out) :: success
-        character(len=512) :: modules_dir, dest_file, command
+        character(len=:), allocatable :: modules_dir, dest_file, command
         integer :: i, exitstat
 
         ! Get modules cache directory
@@ -129,9 +145,11 @@ contains
 
                 ! Use cross-platform copy command
                 if (get_os_type() == OS_WINDOWS) then
-        command = 'copy "'//trim(module_files(i))//'" "'//trim(dest_file)//'" >nul 2>&1'
+                    command = 'copy "'//trim(escape_shell_arg(module_files(i)))//'" "'// &
+                              trim(escape_shell_arg(dest_file))//'" >nul 2>&1'
                 else
-                    command = 'cp "'//trim(module_files(i))//'" "'//trim(dest_file)//'"'
+                    command = 'cp "'//trim(escape_shell_arg(module_files(i)))//'" "'// &
+                              trim(escape_shell_arg(dest_file))//'" >/dev/null 2>&1'
                 end if
 
                 call run(command, exitstat=exitstat)
@@ -147,7 +165,7 @@ contains
     subroutine store_executable_cache(cache_key, executable_path, success)
         character(len=*), intent(in) :: cache_key, executable_path
         logical, intent(out) :: success
-        character(len=512) :: executables_dir, dest_file, command
+        character(len=:), allocatable :: executables_dir, dest_file, command
         integer :: exitstat
 
         ! Get executables cache directory
@@ -162,9 +180,11 @@ contains
    dest_file = join_path(trim(executables_dir), trim(extract_filename(executable_path)))
 
         if (get_os_type() == OS_WINDOWS) then
-        command = 'copy "'//trim(executable_path)//'" "'//trim(dest_file)//'" >nul 2>&1'
+            command = 'copy "'//trim(escape_shell_arg(executable_path))//'" "'// &
+                      trim(escape_shell_arg(dest_file))//'" >nul 2>&1'
         else
-            command = 'cp "'//trim(executable_path)//'" "'//trim(dest_file)//'"'
+            command = 'cp "'//trim(escape_shell_arg(executable_path))//'" "'// &
+                      trim(escape_shell_arg(dest_file))//'" >/dev/null 2>&1'
         end if
 
         call run(command, exitstat=exitstat)
@@ -172,7 +192,7 @@ contains
 
         if (success .and. get_os_type() /= OS_WINDOWS) then
             ! Make executable (not needed on Windows)
-            command = 'chmod +x "'//trim(dest_file)//'"'
+            command = 'chmod +x "'//trim(escape_shell_arg(dest_file))//'"'
             call run(command, exitstat=exitstat)
             success = (exitstat == 0)
         end if
@@ -277,7 +297,7 @@ contains
         !> Store compiled modules and executables in cache
         character(len=*), intent(in) :: hash_key, build_dir
         logical, intent(out) :: success
-        character(len=512) :: cache_path, command
+        character(len=:), allocatable :: cache_path, command
         integer :: exitstat
 
         ! Create cache directory for this hash
@@ -287,9 +307,11 @@ contains
 
         ! Copy build artifacts to cache using cross-platform commands
         if (get_os_type() == OS_WINDOWS) then
- command = 'xcopy /E /I /Y "'//trim(build_dir)//'\*" "'//trim(cache_path)//'" >nul 2>&1'
+            command = 'xcopy /E /I /Y "'//trim(escape_shell_arg(build_dir))//'" "'// &
+                      trim(escape_shell_arg(cache_path))//'" >nul 2>&1'
         else
-            command = 'cp -r "'//trim(build_dir)//'"/* "'//trim(cache_path)//'/"'
+            command = 'cp -r "'//trim(escape_shell_arg(build_dir))//'/." "'// &
+                      trim(escape_shell_arg(cache_path))//'/" >/dev/null 2>&1'
         end if
 
         call run(command, exitstat=exitstat)
@@ -301,7 +323,7 @@ contains
         !> Retrieve cached build artifacts
         character(len=*), intent(in) :: hash_key, target_dir
         logical, intent(out) :: success
-        character(len=512) :: cache_path, command
+        character(len=:), allocatable :: cache_path, command
         integer :: exitstat
 
         ! Check if cache exists
@@ -317,9 +339,11 @@ contains
 
         ! Copy cached artifacts to target using cross-platform commands
         if (get_os_type() == OS_WINDOWS) then
-command = 'xcopy /E /I /Y "'//trim(cache_path)//'\*" "'//trim(target_dir)//'" >nul 2>&1'
+            command = 'xcopy /E /I /Y "'//trim(escape_shell_arg(cache_path))//'" "'// &
+                      trim(escape_shell_arg(target_dir))//'" >nul 2>&1'
         else
-            command = 'cp -r "'//trim(cache_path)//'"/* "'//trim(target_dir)//'/"'
+            command = 'cp -r "'//trim(escape_shell_arg(cache_path))//'/." "'// &
+                      trim(escape_shell_arg(target_dir))//'/" >/dev/null 2>&1'
         end if
 
         call run(command, exitstat=exitstat)
@@ -331,7 +355,7 @@ command = 'xcopy /E /I /Y "'//trim(cache_path)//'\*" "'//trim(target_dir)//'" >n
         !> Check if cache entry exists
         character(len=*), intent(in) :: hash_key
         logical :: cache_found
-        character(len=512) :: cache_path
+        character(len=:), allocatable :: cache_path
 
         cache_path = join_path(trim(get_cache_subdir('builds')), trim(hash_key))
         cache_found = exists(trim(cache_path))
@@ -342,16 +366,16 @@ command = 'xcopy /E /I /Y "'//trim(cache_path)//'\*" "'//trim(target_dir)//'" >n
         !> Remove cache entry
         character(len=*), intent(in) :: hash_key
         logical, intent(out) :: success
-        character(len=512) :: cache_path, command
+        character(len=:), allocatable :: cache_path, command
         integer :: exitstat
 
         cache_path = join_path(trim(get_cache_subdir('builds')), trim(hash_key))
 
         ! Use cross-platform directory removal commands
         if (get_os_type() == OS_WINDOWS) then
-            command = 'rmdir /S /Q "'//trim(cache_path)//'" >nul 2>&1'
+            command = 'rmdir /S /Q "'//trim(escape_shell_arg(cache_path))//'" >nul 2>&1'
         else
-            command = 'rm -rf "'//trim(cache_path)//'"'
+            command = 'rm -rf "'//trim(escape_shell_arg(cache_path))//'" >/dev/null 2>&1'
         end if
 
         call run(command, exitstat=exitstat)
@@ -409,7 +433,7 @@ command = 'xcopy /E /I /Y "'//trim(cache_path)//'\*" "'//trim(target_dir)//'" >n
         character(len=*), intent(in) :: custom_cache_dir
         logical, intent(out) :: success
         character(len=256) :: cache_dir
-        character(len=512) :: command
+        character(len=:), allocatable :: command
         integer :: exitstat, cmdstat
 
         success = .false.
@@ -431,11 +455,11 @@ command = 'xcopy /E /I /Y "'//trim(cache_path)//'\*" "'//trim(target_dir)//'" >n
 
         ! Clear cache directory contents
         ! Use platform-specific commands
-#ifdef _WIN32
-        command = 'rmdir /S /Q "'//trim(cache_dir)//'"'
-#else
-        command = 'rm -rf "'//trim(cache_dir)//'"/*'
-#endif
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'rmdir /S /Q "'//trim(escape_shell_arg(cache_dir))//'"'
+        else
+            command = 'rm -rf "'//trim(escape_shell_arg(cache_dir))//'"'
+        end if
 
         call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat)
 
@@ -449,7 +473,7 @@ command = 'xcopy /E /I /Y "'//trim(cache_path)//'\*" "'//trim(target_dir)//'" >n
         character(len=*), intent(in) :: custom_cache_dir
         character(len=*), intent(out) :: info
         character(len=256) :: cache_dir
-        character(len=512) :: command, size_output
+        character(len=:), allocatable :: command, size_output
         integer :: unit, ios, exitstat, cmdstat
         integer :: num_files, num_dirs
         logical :: exists
@@ -469,19 +493,19 @@ command = 'xcopy /E /I /Y "'//trim(cache_path)//'\*" "'//trim(target_dir)//'" >n
         end if
 
         ! Get cache size and file count
-#ifdef _WIN32
-        ! Windows: Use dir command
-        command = 'dir /s "'//trim(cache_dir)//'" 2>nul | find "File(s)"'
-#else
-        ! Unix-like: Use du and find commands
-        command = 'du -sh "'//trim(cache_dir)//'" 2>/dev/null | cut -f1'
-#endif
+        if (get_os_type() == OS_WINDOWS) then
+            ! Windows: Use dir command
+            command = 'dir /s "'//trim(escape_shell_arg(cache_dir))//'" 2>nul | find "File(s)"'
+        else
+            ! Unix-like: Use du and find commands
+            command = 'du -sh "'//trim(escape_shell_arg(cache_dir))//'" 2>/dev/null | cut -f1'
+        end if
 
         ! Execute command and capture output
         block
             character(len=256) :: temp_file
-      temp_file = get_temp_file_path(create_temp_dir('fortran_cache'), 'cache_size.tmp')
-            call execute_command_line(command//' > '//trim(temp_file), &
+      temp_file = create_temp_file('fortran_cache_cache_size', '.tmp')
+            call execute_command_line(command//' > '//trim(escape_shell_arg(temp_file)), &
                                       exitstat=exitstat, cmdstat=cmdstat)
 
             size_output = "unknown"
@@ -496,16 +520,16 @@ command = 'xcopy /E /I /Y "'//trim(cache_path)//'\*" "'//trim(target_dir)//'" >n
         end block
 
         ! Count files and directories
-#ifdef _WIN32
-        command = 'dir /b /s "'//trim(cache_dir)//'" 2>nul | find /c /v ""'
-#else
-        command = 'find "'//trim(cache_dir)//'" -type f 2>/dev/null | wc -l'
-#endif
+        if (get_os_type() == OS_WINDOWS) then
+            command = 'dir /b /s "'//trim(escape_shell_arg(cache_dir))//'" 2>nul | find /c /v ""'
+        else
+            command = 'find "'//trim(escape_shell_arg(cache_dir))//'" -type f 2>/dev/null | wc -l'
+        end if
 
         block
             character(len=256) :: temp_file
-     temp_file = get_temp_file_path(create_temp_dir('fortran_cache'), 'cache_count.tmp')
-            call execute_command_line(command//' > '//trim(temp_file), &
+     temp_file = create_temp_file('fortran_cache_cache_count', '.tmp')
+            call execute_command_line(command//' > '//trim(escape_shell_arg(temp_file)), &
                                       exitstat=exitstat, cmdstat=cmdstat)
 
             num_files = 0
