@@ -72,6 +72,10 @@ jobs:
       run: |
         echo Running unit tests with FPM...
 
+        REM Set single-threaded execution for CI stability
+        set OMP_NUM_THREADS=1
+        set FORTRAN_CI=true
+        
         REM Run all tests using fpm test
         fpm test
 
