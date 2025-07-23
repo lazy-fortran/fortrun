@@ -42,8 +42,12 @@ contains
         test_file = temp_mgr%get_file_path('debug_test.f90')
         open(newunit=unit, file=test_file, status='replace')
         write(unit, '(a)') '! Test program for debug output'
-        write(unit, '(a)') 'x = 42'
-        write(unit, '(a)') 'print *, x'
+        write(unit, '(a)') 'program debug_test'
+        write(unit, '(a)') '  implicit none'
+        write(unit, '(a)') '  integer :: x'
+        write(unit, '(a)') '  x = 42'
+        write(unit, '(a)') '  print *, x'
+        write(unit, '(a)') 'end program debug_test'
         close(unit)
 
         ! Test with different debug scenarios
