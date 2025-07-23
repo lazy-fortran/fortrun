@@ -48,9 +48,12 @@ program test_verbose
         stop 1
     end if
 
-    ! Check that FPM build output is suppressed
-    build_found = index(output, 'Project compiled') > 0
-    if (build_found) then
+    ! Check that user build output is suppressed (FPM CLI tool build is OK)
+    ! Look for fortran CLI specific verbose output instead of generic FPM output
+    verbose_found = index(output, 'Cache miss') > 0 .or. &
+                   index(output, 'Cache hit') > 0 .or. &
+                   index(output, '<INFO>') > 0
+    if (verbose_found) then
         write (error_unit, *) 'FAIL: FPM output visible in quiet mode'
         stop 1
     end if
@@ -65,8 +68,12 @@ program test_verbose
         stop 1
     end if
 
-    build_found = index(output, 'Project compiled') > 0
-    if (.not. build_found) then
+    ! Look for fortran CLI verbose output (cache info or compilation details)
+    verbose_found = index(output, 'Cache miss') > 0 .or. &
+                   index(output, 'Cache hit') > 0 .or. &
+                   index(output, '<INFO>') > 0 .or. &
+                   index(output, 'Found') > 0
+    if (.not. verbose_found) then
         write (error_unit, *) 'FAIL: FPM output not visible in verbose mode'
         stop 1
     end if

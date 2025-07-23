@@ -1,0 +1,12 @@
+name = "cache_fail"
+version = "0.1.0"
+
+[fortran]
+implicit-external = false
+source-form = "free"
+
+[[executable]]
+name = "cache_fail"
+main = "main.f90"
+
+[executable.dependencies]

@@ -143,7 +143,7 @@ contains
         end if
 
         ! Use base64 command to encode PNG file
-        command = 'base64 -w 0 "'//trim(png_file)//'"'
+        command = 'base64 -w 0 "'//trim(escape_shell_arg(png_file))//'"'
         call execute_and_capture_output(command, command_output, exit_code)
 
         if (exit_code == 0) then

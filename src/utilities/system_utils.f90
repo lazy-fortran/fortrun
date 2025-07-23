@@ -28,9 +28,9 @@ contains
 
 
         if (get_os_type() == OS_WINDOWS) then
-            command = 'copy /Y "'//trim(source)//'" "'//trim(dest)//'" >nul 2>&1'
+            command = 'copy /Y "'//trim(escape_shell_arg(source))//'" "'//trim(escape_shell_arg(dest))//'" >nul 2>&1'
         else
-            command = 'cp "'//trim(source)//'" "'//trim(dest)//'" 2>/dev/null'
+            command = 'cp "'//trim(escape_shell_arg(source))//'" "'//trim(escape_shell_arg(dest))//'" 2>/dev/null'
         end if
 
         call execute_command_line(command, exitstat=exitstat)
@@ -54,9 +54,9 @@ contains
         integer :: exitstat
 
         if (get_os_type() == OS_WINDOWS) then
-            command = 'xcopy /E /I /Y "'//trim(source)//'" "'//trim(dest)//'" >nul 2>&1'
+            command = 'xcopy /E /I /Y "'//trim(escape_shell_arg(source))//'" "'//trim(escape_shell_arg(dest))//'" >nul 2>&1'
         else
-            command = 'cp -r "'//trim(source)//'" "'//trim(dest)//'" 2>/dev/null'
+            command = 'cp -r "'//trim(escape_shell_arg(source))//'" "'//trim(escape_shell_arg(dest))//'" 2>/dev/null'
         end if
 
         call execute_command_line(command, exitstat=exitstat)
@@ -79,9 +79,9 @@ contains
         integer :: exitstat
 
         if (get_os_type() == OS_WINDOWS) then
-            command = 'del /f /q "'//trim(filepath)//'" 2>nul'
+            command = 'del /f /q "'//trim(escape_shell_arg(filepath))//'" 2>nul'
         else
-            command = 'rm -f "'//trim(filepath)//'" 2>/dev/null'
+            command = 'rm -f "'//trim(escape_shell_arg(filepath))//'" 2>/dev/null'
         end if
 
         call execute_command_line(command, exitstat=exitstat)
@@ -96,9 +96,9 @@ contains
         integer :: exitstat
 
         if (get_os_type() == OS_WINDOWS) then
-            command = 'rmdir /s /q "'//trim(dirpath)//'" 2>nul'
+            command = 'rmdir /s /q "'//trim(escape_shell_arg(dirpath))//'" 2>nul'
         else
-            command = 'rm -rf "'//trim(dirpath)//'" 2>/dev/null'
+            command = 'rm -rf "'//trim(escape_shell_arg(dirpath))//'" 2>/dev/null'
         end if
 
         call execute_command_line(command, exitstat=exitstat)
@@ -113,9 +113,9 @@ contains
         integer :: exitstat
 
         if (get_os_type() == OS_WINDOWS) then
-            command = 'move /Y "'//trim(source)//'" "'//trim(dest)//'" >nul 2>&1'
+            command = 'move /Y "'//trim(escape_shell_arg(source))//'" "'//trim(escape_shell_arg(dest))//'" >nul 2>&1'
         else
-            command = 'mv "'//trim(source)//'" "'//trim(dest)//'" 2>/dev/null'
+            command = 'mv "'//trim(escape_shell_arg(source))//'" "'//trim(escape_shell_arg(dest))//'" 2>/dev/null'
         end if
 
         call execute_command_line(command, exitstat=exitstat)
