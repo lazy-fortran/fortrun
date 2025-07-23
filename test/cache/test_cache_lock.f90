@@ -4,6 +4,7 @@ program test_cache_lock
     use temp_utils, only: mkdir
     use system_utils, only: sys_remove_dir, sys_find_files, sys_file_exists
     use fpm_environment, only: get_os_type, OS_WINDOWS, get_env
+    use logger_utils, only: debug_print
     implicit none
 
     character(len=:), allocatable :: temp_cache_dir
@@ -28,14 +29,12 @@ program test_cache_lock
     flush (6)
 
     ! Add debug print before calling create_test_cache_dir
-    print '(a)', 'test_cache_lock: DEBUG - About to call create_test_cache_dir'
-    flush (6)
+    call debug_print('test_cache_lock: About to call create_test_cache_dir')
 
     temp_cache_dir = create_test_cache_dir('cache_lock_test')
 
     ! Add debug print after successful call
-    print '(a)', 'test_cache_lock: DEBUG - create_test_cache_dir call completed'
-    flush (6)
+    call debug_print('test_cache_lock: create_test_cache_dir call completed')
 
     print '(a,a)', 'test_cache_lock: Created directory: ', trim(temp_cache_dir)
     flush (6)
@@ -51,17 +50,19 @@ program test_cache_lock
     ! Verify directory was created
     block
         logical :: dir_exists
-        print '(a)', 'test_cache_lock: DEBUG - About to check if directory exists'
-        flush (6)
+        call debug_print('test_cache_lock: About to check if directory exists')
 
         inquire (file=trim(temp_cache_dir), exist=dir_exists)
 
-   print '(a,l)', 'test_cache_lock: DEBUG - Directory exists check result: ', dir_exists
-        flush (6)
+        if (dir_exists) then
+            call debug_print('test_cache_lock: Directory exists check result: T')
+        else
+            call debug_print('test_cache_lock: Directory exists check result: F')
+        end if
 
         if (.not. dir_exists) then
             print '(a)', '  ✗ CRITICAL: Cache directory was not created!'
-            print '(a,a)', '  DEBUG: Expected directory: ', trim(temp_cache_dir)
+            call debug_print('Expected directory: ' // trim(temp_cache_dir))
             flush (6)
             stop 1
         else
@@ -69,13 +70,11 @@ program test_cache_lock
         end if
     end block
     print '(a)', '  Attempting to acquire lock...'
-    print '(a)', 'test_cache_lock: DEBUG - About to call acquire_lock'
-    flush (6)
+    call debug_print('test_cache_lock: About to call acquire_lock')
 
     success = acquire_lock(trim(temp_cache_dir), 'test_project', .false.)
 
-    print '(a)', 'test_cache_lock: DEBUG - acquire_lock call completed'
-    flush (6)
+    call debug_print('test_cache_lock: acquire_lock call completed')
     print '(a,l)', '  acquire_lock returned: ', success
     if (success) then
         print '(a)', '  ✓ Lock acquired successfully'
@@ -85,7 +84,11 @@ program test_cache_lock
             character(len=256) :: lock_path
             lock_path = path_join(temp_cache_dir, 'test_project.lock')
             file_exists = sys_file_exists(lock_path)
-            print '(a,a,l)', '  DEBUG: Lock file exists at ', trim(lock_path), ': ', file_exists
+            if (file_exists) then
+                call debug_print('Lock file exists at ' // trim(lock_path) // ': T')
+            else
+                call debug_print('Lock file exists at ' // trim(lock_path) // ': F')
+            end if
         end block
         ! List directory contents right after acquiring lock
         call list_lock_files(temp_cache_dir)
@@ -191,7 +194,7 @@ contains
         character(len=*), intent(in) :: cache_dir
         
         ! Simple debug output - just a marker for test output
-        print '(a)', '  DEBUG: Lock files check completed'
+        call debug_print('Lock files check completed')
     end subroutine list_lock_files
 
     subroutine get_temp_dir(dir)

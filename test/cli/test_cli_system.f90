@@ -5,6 +5,7 @@ program test_cli_system
     use temp_utils, only: mkdir
     use system_utils, only: sys_remove_dir, sys_run_command, sys_copy_file, sys_run_command_with_exit_code
     use fpm_environment, only: get_os_type, OS_WINDOWS, get_env
+    use logger_utils, only: debug_print
     implicit none
 
     character(len=512) :: command, test_file
@@ -860,20 +861,20 @@ contains
         character(len=1024) :: line
         integer :: unit, iostat
 
-        print *, 'DEBUG: Contents of output file: ', trim(output_file)
+        call debug_print('Contents of output file: ' // trim(output_file))
         open (newunit=unit, file=output_file, status='old', iostat=iostat)
         if (iostat /= 0) then
-            print *, 'DEBUG: Could not open output file'
+            call debug_print('Could not open output file')
             return
         end if
 
         do
             read (unit, '(a)', iostat=iostat) line
             if (iostat /= 0) exit
-            print *, 'DEBUG: ', trim(line)
+            call debug_print(trim(line))
         end do
         close (unit)
-        print *, 'DEBUG: End of output file'
+        call debug_print('End of output file')
     end subroutine debug_output_file
 
 end program test_cli_system

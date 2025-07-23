@@ -3,6 +3,7 @@ program test_frontend_test_cases
     use frontend, only: compile_source, compilation_options_t, BACKEND_FORTRAN
     use temp_utils, only: temp_dir_manager
     use formatter_utils, only: format_fortran_code
+    use logger_utils, only: debug_print
     implicit none
 
     integer :: test_count = 0, pass_count = 0, skip_count = 0, fail_count = 0
@@ -164,7 +165,7 @@ contains
 
         ! Debug: print what we're compiling
         if (test_name == "function_call_inference") then
-            print *, "DEBUG: Compiling ", trim(input_file), " to ", trim(actual_file)
+            call debug_print("Compiling " // trim(input_file) // " to " // trim(actual_file))
         end if
 
         call compile_source(input_file, options, error_msg)
@@ -242,8 +243,8 @@ contains
 
             ! Additional debug for function_call_inference
             if (test_name == "function_call_inference") then
-                print *, "DEBUG: Expected file: ", trim(expected_file)
-                print *, "DEBUG: Actual file: ", trim(actual_file)
+                call debug_print("Expected file: " // trim(expected_file))
+                call debug_print("Actual file: " // trim(actual_file))
             end if
         end if
 

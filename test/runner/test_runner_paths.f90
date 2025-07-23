@@ -3,6 +3,7 @@ program test_runner_paths
     use runner
     use temp_utils, only: temp_dir_manager, path_join
     use system_utils, only: sys_remove_file, sys_remove_dir
+    use logger_utils, only: debug_print
     implicit none
 
     logical :: all_tests_passed
@@ -37,6 +38,7 @@ contains
         integer :: exit_code, unit
         character(len=256) :: custom_config_dir
         character(len=256) :: ci_env
+        character(len=256) :: debug_msg
 
         print *, "Test 1: Custom cache directory paths"
         passed = .true.
@@ -44,8 +46,8 @@ contains
         ! Check if we're in CI
         call get_environment_variable('CI', ci_env)
         if (len_trim(ci_env) > 0) then
-            print *, "  DEBUG: Running in CI environment"
-            print *, "  DEBUG: OMP_NUM_THREADS should be 1 for this test"
+            call debug_print("Running in CI environment")
+            call debug_print("OMP_NUM_THREADS should be 1 for this test")
         end if
 
         ! Create a simple test program
@@ -62,8 +64,8 @@ contains
         custom_cache = path_join(temp_mgr%get_path(), 'custom_cache')
         custom_config_dir = ""
 
-        print *, "  DEBUG: About to run with custom cache dir: ", trim(custom_cache)
-        print *, "  DEBUG: Test file: ", trim(test_file)
+        call debug_print("About to run with custom cache dir: " // trim(custom_cache))
+        call debug_print("Test file: " // trim(test_file))
 
         call run_fortran_file(test_file, exit_code, 0, &  ! quiet mode
                              custom_cache, custom_config_dir, &
@@ -80,27 +82,28 @@ contains
         ! Use path_join for proper path separator handling
         custom_config_dir = path_join(temp_mgr%get_path(), 'custom_config')
 
-        print *, "  DEBUG: About to run with custom config dir: ", trim(custom_config_dir)
-        print *, "  DEBUG: Custom cache still: ", trim(custom_cache)
-        print *, "  DEBUG: Test file still: ", trim(test_file)
+        call debug_print("About to run with custom config dir: " // trim(custom_config_dir))
+        call debug_print("Custom cache still: " // trim(custom_cache))
+        call debug_print("Test file still: " // trim(test_file))
         
         ! Extra debug for Windows CI
         if (len_trim(ci_env) > 0) then
-            print *, "  DEBUG: Calling run_fortran_file with:"
-            print *, "    - test_file: ", trim(test_file)
-            print *, "    - exit_code: (output)"
-            print *, "    - verbose: 0"
-            print *, "    - cache_dir: ", trim(custom_cache)
-            print *, "    - config_dir: ", trim(custom_config_dir)
-            print *, "    - parallel: 1"
-            print *, "    - no_wait: .false."
+            call debug_print("Calling run_fortran_file with:")
+            call debug_print("  - test_file: " // trim(test_file))
+            call debug_print("  - exit_code: (output)")
+            call debug_print("  - verbose: 0")
+            call debug_print("  - cache_dir: " // trim(custom_cache))
+            call debug_print("  - config_dir: " // trim(custom_config_dir))
+            call debug_print("  - parallel: 1")
+            call debug_print("  - no_wait: .false.")
         end if
 
         call run_fortran_file(test_file, exit_code, 0, &
                              custom_cache, custom_config_dir, &
                              1, .false.)
 
-        print *, "  DEBUG: run_fortran_file returned with exit_code: ", exit_code
+        write(debug_msg, '(a,i0)') "run_fortran_file returned with exit_code: ", exit_code
+        call debug_print(trim(debug_msg))
 
         if (exit_code == 0) then
             print *, "  PASS: Custom config directory execution successful"

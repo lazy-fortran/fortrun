@@ -6,6 +6,7 @@ program test_examples
     use system_utils, only: sys_copy_file, sys_remove_dir, sys_list_files, sys_remove_file, &
                             sys_copy_dir, escape_shell_arg, sys_sleep
     use fpm_environment, only: get_os_type, OS_WINDOWS, get_env
+    use logger_utils, only: debug_print
     implicit none
 
     character(len=256), dimension(:), allocatable :: example_files
@@ -508,7 +509,7 @@ contains
         temp_output_file = create_temp_file('fortran_test_comparison', '.tmp')
 
         if (debug_paths) then
-            print '(a)', 'DEBUG: run_example_for_comparison'
+            call debug_print('run_example_for_comparison')
             print '(a,a)', '  filename: ', trim(filename)
             print '(a,a)', '  cache_dir: ', trim(cache_dir)
             print '(a,a)', '  temp_output_file: ', trim(temp_output_file)
@@ -626,25 +627,35 @@ contains
             character(len=256) :: ci_env
             call get_environment_variable('CI', ci_env)
             if (get_os_type() == OS_WINDOWS .and. len_trim(ci_env) > 0) then
-                print '(a)', 'DEBUG: About to call create_temp_dir'
+                call debug_print('About to call create_temp_dir')
                 temp_source_dir = create_temp_dir('fortran_test_source_mod_examples')
-                print '(a,a)', 'DEBUG: create_temp_dir returned: ', trim(temp_source_dir)
+                call debug_print('create_temp_dir returned: ' // trim(temp_source_dir))
                 
                 ! Check what actually exists
                 block
                     logical :: file_exists, is_file
                     character(len=512) :: check_cmd
+                    character(len=256) :: debug_msg
                     integer :: check_exit
                     
                     inquire(file=trim(temp_source_dir), exist=file_exists)
-                    print '(a,l1)', 'DEBUG: Path exists: ', file_exists
+                    if (file_exists) then
+                        call debug_print('Path exists: T')
+                    else
+                        call debug_print('Path exists: F')
+                    end if
                     
                     if (file_exists) then
                         ! Check if it's a file or directory
                         check_cmd = 'dir "'//trim(temp_source_dir)//'" >nul 2>&1'
                         call execute_command_line(trim(check_cmd), exitstat=check_exit)
-                        print '(a,i0)', 'DEBUG: dir command exit code: ', check_exit
-                        print '(a,l1)', 'DEBUG: Is directory: ', (check_exit == 0)
+                        write(debug_msg, '(a,i0)') 'dir command exit code: ', check_exit
+                        call debug_print(trim(debug_msg))
+                        if (check_exit == 0) then
+                            call debug_print('Is directory: T')
+                        else
+                            call debug_print('Is directory: F')
+                        end if
                         
                         ! Also try attrib to see file attributes
                         check_cmd = 'attrib "'//trim(temp_source_dir)//'"'
@@ -679,7 +690,7 @@ contains
                     
                     ! Debug the xcopy command on Windows CI
                     if (len_trim(ci_env) > 0) then
-                        print '(a)', 'DEBUG: xcopy command details:'
+                        call debug_print('xcopy command details:')
                         print '(a,a)', '  source_path: ', trim(source_path)
                         print '(a,a)', '  temp_source_dir: ', trim(temp_source_dir)
                     end if
