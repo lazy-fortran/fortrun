@@ -598,7 +598,7 @@ contains
     end function get_test_timestamp
 
     subroutine test_source_modification_with_cached_deps(n_passed, n_failed)
-        use temp_utils, only: get_project_root, path_join
+        use temp_utils, only: get_project_root, path_join, create_temp_file
         integer, intent(inout) :: n_passed, n_failed
         character(len=1024) :: output1, output2, output3
         integer :: exit_code1, exit_code2, exit_code3
