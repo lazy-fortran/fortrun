@@ -405,10 +405,10 @@ contains
 
         ! Skip cache miss verification - output capture is unreliable
 
-        ! On Windows CI, add a small delay to ensure lock is released
+        ! On Windows CI, add a delay to ensure lock is released
         if (get_os_type() == OS_WINDOWS .and. len_trim(get_env('CI', '')) > 0) then
             print '(a)', '  Waiting for lock release on Windows CI...'
-            call sys_sleep(2)  ! 2 second delay
+            call sys_sleep(5)  ! 5 second delay for cache lock release
         end if
 
         ! Second run - should use cache
