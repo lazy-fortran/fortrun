@@ -115,7 +115,8 @@ jobs:
     - name: Run Runner Tests
       if: matrix.test-group == 'runner'
       run: |
-        set OMP_NUM_THREADS=24
+        REM Use single thread for runner tests to avoid cache lock issues
+        set OMP_NUM_THREADS=1
         echo N | fpm test test_runner_paths
         echo N | fpm test test_runner_coverage
         echo N | fpm test test_runner_missing_lines
@@ -404,7 +405,8 @@ jobs:
     - name: Run Coverage Tests
       if: matrix.test-group == 'coverage'
       run: |
-        set OMP_NUM_THREADS=24
+        REM Use single thread for runner tests to avoid cache lock issues
+        set OMP_NUM_THREADS=1
         echo N | fpm test test_runner_comprehensive
         echo N | fpm test test_runner_integration_coverage
         echo N | fpm test test_string_utils_integration
