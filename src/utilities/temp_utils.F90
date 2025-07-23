@@ -477,8 +477,7 @@ contains
         ! Use this as the cache directory
         cache_dir = temp_base
 
-        ! Ensure it exists
-        call mkdir(cache_dir)
+        ! Don't call mkdir again - create_temp_dir already creates the directory
 
     end function create_test_cache_dir
 
