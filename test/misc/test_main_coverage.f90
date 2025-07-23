@@ -1,9 +1,16 @@
 program test_main_coverage
     use temp_utils, only: create_temp_dir, get_temp_file_path
     use system_utils, only: sys_remove_dir, sys_remove_file
+    use fpm_environment, only: get_os_type, OS_WINDOWS, get_env
     implicit none
 
     logical :: all_tests_passed
+
+    ! Skip this test on Windows CI - it runs fortran CLI 9 times
+    if (get_os_type() == OS_WINDOWS .and. len_trim(get_env('CI', '')) > 0) then
+        print *, 'SKIP: test_main_coverage on Windows CI (runs fortran CLI 9 times)'
+        stop 0
+    end if
 
     print *, "=== Main Application Coverage Tests ==="
     print *

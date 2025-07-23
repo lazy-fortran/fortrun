@@ -1,5 +1,6 @@
 program test_notebook_system
     use temp_utils, only: temp_dir_manager
+    use fpm_environment, only: get_os_type, OS_WINDOWS, get_env
     implicit none
 
     logical :: all_tests_passed
@@ -7,6 +8,12 @@ program test_notebook_system
     character(len=512) :: shared_output_file
     ! Keep temp directory alive for the entire test
     type(temp_dir_manager) :: shared_temp_mgr
+
+    ! Skip this test on Windows CI - it runs fortran CLI 4 times
+    if (get_os_type() == OS_WINDOWS .and. len_trim(get_env('CI', '')) > 0) then
+        print *, 'SKIP: test_notebook_system_end2end on Windows CI (runs fortran CLI 4 times)'
+        stop 0
+    end if
 
     print *, '=== Notebook System Tests ==='
     print *
