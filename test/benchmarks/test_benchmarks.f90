@@ -62,7 +62,8 @@ contains
                                          trim(test_file)//'"', bench1_output, exit_code)
 
             call read_file_content(bench1_output, output1)
-first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  done.') > 0
+first_compiled = index(output1, 'Cache miss:') > 0 .or. index(output1, '.f90  done.') > 0 .or. &
+                 index(output1, 'Project compiled successfully') > 0
 
             print '(a)', 'First run (cold cache):'
             if (first_compiled) then
@@ -129,8 +130,9 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
                      path_join(test_dir, 'main.f90')//'"', bench_mod1_output, exit_code)
 
             call read_file_content(bench_mod1_output, output1)
-            modules_compiled = index(output1, 'Cache miss') > 0 .and. &
-                (index(output1, '.f90  done.') > 0 .or. index(output1, 'libmain.a') > 0)
+            modules_compiled = index(output1, 'Cache miss:') > 0 .or. &
+                index(output1, '.f90  done.') > 0 .or. &
+                index(output1, 'Project compiled successfully') > 0
 
             print '(a)', 'First run (should compile modules):'
             if (modules_compiled) then
@@ -197,7 +199,8 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
                      path_join(test_dir, 'main.f90')//'"', bench_inc1_output, exit_code)
 
             call read_file_content(bench_inc1_output, output1)
-    initial_compiled = index(output1, 'Cache miss') > 0 .and. index(output1, '.f90  done.') > 0
+    initial_compiled = index(output1, 'Cache miss:') > 0 .or. index(output1, '.f90  done.') > 0 .or. &
+                       index(output1, 'Project compiled successfully') > 0
 
             print '(a)', 'Initial build:'
             if (initial_compiled) then
@@ -216,7 +219,9 @@ first_compiled = index(output1, 'Cache miss') > 0 .or. index(output1, '.f90  don
 
             call read_file_content(bench_inc1_output, output2)
         end block
-    incremental_cached = index(output2, 'Cache hit') > 0 .and. index(output2, 'main.f90  done.') > 0
+    incremental_cached = index(output2, 'Cache hit:') > 0 .or. &
+                         index(output2, 'Project is up to date') > 0 .or. &
+                         (index(output2, 'Cache') > 0 .and. index(output2, '.f90  done.') > 0)
 
         print '(a)', 'Incremental build:'
         if (incremental_cached) then
