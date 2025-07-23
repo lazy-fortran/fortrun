@@ -368,11 +368,11 @@ call print_error('Cache is locked by another process. Use without --no-wait to w
         ! Run the executable using fpm run
         if (verbose_level == 0) then
             ! Quiet mode: suppress FPM stderr messages but show program output
-            command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && fpm run '// &
-                      trim(escape_shell_arg(basename))//get_stderr_redirect()
+            command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && fpm run "'// &
+                      trim(escape_shell_arg(basename))//'"'//get_stderr_redirect()
         else
             command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))// &
-                      '" && fpm run '//trim(escape_shell_arg(basename))
+                      '" && fpm run "'//trim(escape_shell_arg(basename))//'"'
         end if
 
         call debug_print('Running command: ' // trim(command))
