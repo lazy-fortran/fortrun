@@ -300,8 +300,8 @@ output_file = get_temp_file_path(create_temp_dir('fortran_bench'), 'measure_outp
         integer :: unit
         character(len=512) :: command
 
-        ! Create directory
-        call mkdir(trim(dir_path))
+        ! Directory should already exist from create_temp_dir() call
+        ! Don't call mkdir again to avoid Windows CI file/directory conflicts
 
         ! Create module1.f90
         open (newunit=unit, file=path_join(dir_path, 'module1.f90'), status='replace')
