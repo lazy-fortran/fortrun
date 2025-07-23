@@ -12,7 +12,7 @@ module cache_lock
     private
     public :: acquire_lock, release_lock, is_locked, cleanup_stale_locks
 
-    integer, parameter :: MAX_WAIT_TIME = 10  ! seconds (reduced for Windows CI)
+    integer, parameter :: MAX_WAIT_TIME = 60  ! seconds (increased for slower CI environments)
     integer, parameter :: STALE_LOCK_TIME = 300  ! 5 minutes
 
 contains

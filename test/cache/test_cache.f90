@@ -12,12 +12,6 @@ program test_cache
     logical :: cache_exists
     character(len=:), allocatable :: temp_dir
     type(temp_dir_manager) :: temp_mgr
-    
-    ! Skip test on Windows CI due to cache lock timing issues
-    if (get_os_type() == OS_WINDOWS .and. len_trim(get_env('CI', '')) > 0) then
-        print *, 'SKIP: Cache test skipped on Windows CI due to lock timing issues'
-        stop 0
-    end if
 
     ! Create a temp directory for the test
     call temp_mgr%create('test_cache_work')
