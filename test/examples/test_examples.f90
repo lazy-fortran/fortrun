@@ -284,7 +284,7 @@ program test_examples
 contains
 
     subroutine run_example(filename, output, exit_code)
-        use temp_utils, only: get_project_root
+        use temp_utils, only: get_project_root, create_temp_file
         character(len=*), intent(in) :: filename
         character(len=*), intent(out) :: output
         integer, intent(out) :: exit_code
@@ -446,7 +446,7 @@ contains
     end subroutine test_incremental_compilation
 
     subroutine run_example_with_cache(filename, cache_dir, output, exit_code)
-        use temp_utils, only: get_project_root
+        use temp_utils, only: get_project_root, create_temp_file
         character(len=*), intent(in) :: filename, cache_dir
         character(len=*), intent(out) :: output
         integer, intent(out) :: exit_code
@@ -489,7 +489,7 @@ contains
 
     ! Run example for output comparison - captures only stdout, not debug stderr
     subroutine run_example_for_comparison(filename, cache_dir, output, exit_code)
-        use temp_utils, only: get_project_root
+        use temp_utils, only: get_project_root, create_temp_file
         use fpm_environment, only: get_os_type, OS_WINDOWS
         character(len=*), intent(in) :: filename, cache_dir
         character(len=*), intent(out) :: output
