@@ -56,7 +56,7 @@ contains
         ! This is expected behavior - nonexistent modules should cause build failure
         ! On Windows, the error format might be different
         call check_output_contains_any(path_join(get_system_temp_dir(), 'unknown_output.txt'), &
-            [ character(len=24) :: 'ERROR: Build failed', 'ERROR>', '<ERROR>', 'stopping due to failed' ])
+            [ character(len=24) :: '<ERROR>', 'ERROR>', 'ERROR: Build failed', 'stopping due to failed' ])
 
         ! Clean up
         call sys_remove_dir(test_dir)

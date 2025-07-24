@@ -39,7 +39,7 @@ program test_cli_output_clean
     ! Run fortran in quiet mode with custom cache directory
     output_file = temp_mgr%get_file_path('output1.txt')
     exit_file = temp_mgr%get_file_path('exit1.txt')
-    command = trim(fortran_exe) // ' --cache-dir "' // trim(temp_mgr%get_dir()) // '/test_cache" "' // trim(test_file) // '"'
+    command = trim(fortran_exe) // ' --cache-dir "' // trim(temp_mgr%get_path()) // '/test_cache" "' // trim(test_file) // '"'
     call sys_run_command_with_exit_code(command, output_file, exit_file)
     
     ! Read exit code
@@ -158,7 +158,7 @@ program test_cli_output_clean
     
     output_file = temp_mgr%get_file_path('output3.txt')
     exit_file = temp_mgr%get_file_path('exit3.txt')
-    command = trim(fortran_exe) // ' -v --cache-dir "' // trim(temp_mgr%get_dir()) // '/test_cache" "' // trim(test_file) // '"'
+    command = trim(fortran_exe) // ' -v --cache-dir "' // trim(temp_mgr%get_path()) // '/test_cache" "' // trim(test_file) // '"'
     call sys_run_command_with_exit_code(command, output_file, exit_file)
     
     ! Read exit code
