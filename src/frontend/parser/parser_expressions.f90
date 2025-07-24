@@ -2,7 +2,7 @@ module parser_expressions_module
     use iso_fortran_env, only: error_unit
     use lexer_core, only: token_t, TK_EOF, TK_NUMBER, TK_STRING, TK_IDENTIFIER, TK_OPERATOR, TK_KEYWORD
     use ast_core
-    use ast_factory, only: push_binary_op, push_literal, push_identifier, push_call_or_subscript
+    use ast_factory, only: push_binary_op, push_literal, push_identifier, push_call_or_subscript, push_array_literal
     use parser_state_module, only: parser_state_t, create_parser_state
     implicit none
     private
@@ -320,6 +320,62 @@ contains
                         end if
                     else
                         expr_index = 0
+                    end if
+                end block
+            else if (current%text == "[") then
+                ! Array literal: [1, 2, 3]
+                block
+                    type(token_t) :: bracket_token
+                    integer, allocatable :: element_indices(:)
+                    integer :: element_count
+                    integer, allocatable :: temp_indices(:)
+                    
+                    bracket_token = parser%consume()  ! consume '['
+                    element_count = 0
+                    allocate(temp_indices(100))  ! Start with space for 100 elements
+                    
+                    ! Check for empty array []
+                    current = parser%peek()
+                    if (current%text == "]") then
+                        current = parser%consume()  ! consume ']'
+                        allocate(element_indices(0))
+                        expr_index = push_array_literal(arena, element_indices, bracket_token%line, bracket_token%column)
+                    else
+                        ! Parse array elements
+                        do
+                            ! Parse element expression
+                            element_count = element_count + 1
+                            if (element_count > size(temp_indices)) then
+                                ! Resize array
+                                block
+                                    integer, allocatable :: new_indices(:)
+                                    allocate(new_indices(size(temp_indices) * 2))
+                                    new_indices(1:size(temp_indices)) = temp_indices
+                                    deallocate(temp_indices)
+                                    allocate(temp_indices(size(new_indices)))
+                                    temp_indices = new_indices
+                                end block
+                            end if
+                            
+                            temp_indices(element_count) = parse_comparison(parser, arena)
+                            
+                            ! Check for comma or closing bracket
+                            current = parser%peek()
+                            if (current%text == ",") then
+                                current = parser%consume()  ! consume ','
+                            else if (current%text == "]") then
+                                current = parser%consume()  ! consume ']'
+                                exit
+                            else
+                                ! Error: expected comma or closing bracket
+                                exit
+                            end if
+                        end do
+                        
+                        ! Copy to final array
+                        allocate(element_indices(element_count))
+                        element_indices = temp_indices(1:element_count)
+                        expr_index = push_array_literal(arena, element_indices, bracket_token%line, bracket_token%column)
                     end if
                 end block
             else if (current%text == ".not.") then

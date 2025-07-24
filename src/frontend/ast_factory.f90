@@ -5,7 +5,7 @@ module ast_factory
 
     ! Public interface for creating AST nodes in stack-based system
     public :: push_program, push_assignment, push_binary_op
-   public :: push_call_or_subscript, push_subroutine_call, push_identifier, push_literal
+   public :: push_call_or_subscript, push_subroutine_call, push_identifier, push_literal, push_array_literal
     public :: push_derived_type, push_declaration, push_parameter_declaration
     public :: push_if, push_do_loop, push_do_while, push_select_case
     public :: push_use_statement, push_include_statement, push_print_statement
@@ -109,6 +109,18 @@ contains
         call arena%push(lit, "literal", parent_index)
         lit_index = arena%size
     end function push_literal
+
+    ! Create array literal node and add to stack
+    function push_array_literal(arena, element_indices, line, column, parent_index) result(array_index)
+        type(ast_arena_t), intent(inout) :: arena
+        integer, intent(in) :: element_indices(:)
+        integer, intent(in), optional :: line, column, parent_index
+        integer :: array_index
+        type(array_literal_node) :: array_lit
+        array_lit = create_array_literal(element_indices, line, column)
+        call arena%push(array_lit, "array_literal", parent_index)
+        array_index = arena%size
+    end function push_array_literal
 
     ! Create derived type node and add to stack
     function push_derived_type(arena, name, component_indices, param_indices, &

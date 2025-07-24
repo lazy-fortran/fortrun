@@ -65,17 +65,19 @@ Focus on fixing the semantic analysis module dependencies rather than enabling e
 
 ## P1: Core Documented Features (Major Claims)
 
-### 4. Array Type Inference
-**Status**: README claims "✅ Type inference", but array tests broken
-**Key broken test**: `test_frontend_semantic_inference_arrays.f90.broken`
-**Documentation claim**: `data = [1, 2, 3, 4, 5]` → `integer :: data(5)`
+### 4. Array Type Inference ⚠️ **PARSER IMPLEMENTED**
+**Status**: Array literal parsing now IMPLEMENTED in parser
+**Progress**: 
+- ✅ Added `LITERAL_ARRAY` constant to AST core
+- ✅ Created `array_literal_node` AST node type  
+- ✅ Implemented `push_array_literal` function in ast_factory
+- ✅ Added array literal parsing `[1, 2, 3]` to `parse_primary` function
+- ⚠️ Semantic analysis still needed for type inference
 
-**TDD Approach**:
-- Parse array literal: `[1, 2, 3]` → ArrayLiteral AST
-- Infer homogeneous types: `[1, 2, 3]` → `integer, dimension(3)`
-- Infer from mixed compatible: `[1, 2.0]` → `real, dimension(2)`
-- Reject incompatible: `[1, "hello"]` → type error
-- Test actual array bounds and element types
+**Next Steps**:
+- Enable semantic analysis to infer array types from literals
+- Test array bounds inference: `[1, 2, 3]` → `integer, dimension(3)`
+- Add mixed type handling: `[1, 2.0]` → `real, dimension(2)`
 
 ### 5. Step 1 Type Enhancement
 **Status**: Examples show `real function` → `real(8) function` but tests broken

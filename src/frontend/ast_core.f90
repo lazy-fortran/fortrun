@@ -171,6 +171,14 @@ module ast_core
         procedure :: to_json => literal_to_json
     end type literal_node
 
+    ! Array literal node
+    type, extends(ast_node), public :: array_literal_node
+        integer, allocatable :: element_indices(:)  ! Indices to element expressions in arena
+    contains
+        procedure :: accept => array_literal_accept
+        procedure :: to_json => array_literal_to_json
+    end type array_literal_node
+
     ! Use statement node
     type, extends(ast_node), public :: use_statement_node
         character(len=:), allocatable :: module_name
@@ -343,12 +351,14 @@ module ast_core
     integer, parameter, public :: LITERAL_REAL = 2
     integer, parameter, public :: LITERAL_STRING = 3
     integer, parameter, public :: LITERAL_LOGICAL = 4
+    integer, parameter, public :: LITERAL_ARRAY = 5
 
     ! Public interface for creating nodes and stack
     public :: create_ast_stack
     public :: create_program, create_assignment, create_binary_op
     public :: create_function_def, create_subroutine_def, create_call_or_subscript, create_subroutine_call
-    public :: create_identifier, create_literal, create_use_statement, create_include_statement, create_print_statement
+    public :: create_identifier, create_literal, create_array_literal
+    public :: create_use_statement, create_include_statement, create_print_statement
     public :: create_declaration, create_do_loop, create_do_while, create_if, create_select_case
     public :: create_derived_type, create_interface_block, create_module
 
@@ -806,6 +816,15 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         if (present(line)) node%line = line
         if (present(column)) node%column = column
     end function create_literal
+
+    function create_array_literal(element_indices, line, column) result(node)
+        integer, intent(in) :: element_indices(:)
+        integer, intent(in), optional :: line, column
+        type(array_literal_node) :: node
+        node%element_indices = element_indices
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_array_literal
 
     function create_declaration(type_name, var_name, kind_value, initializer, dimensions, is_allocatable, line, column) result(node)
         character(len=*), intent(in) :: type_name
@@ -1368,6 +1387,8 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
             kind_name = 'string'
         case (LITERAL_LOGICAL)
             kind_name = 'logical'
+        case (LITERAL_ARRAY)
+            kind_name = 'array'
         case default
             kind_name = 'unknown'
         end select
@@ -1375,6 +1396,32 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
 
         call json%add(parent, obj)
     end subroutine literal_to_json
+
+    subroutine array_literal_accept(this, visitor)
+        class(array_literal_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine array_literal_accept
+
+    subroutine array_literal_to_json(this, json, parent)
+        class(array_literal_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj, elements_array
+        integer :: i
+        call json%create_object(obj, '')
+        call json%add(obj, 'type', 'array_literal')
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+        if (allocated(this%element_indices)) then
+            call json%create_array(elements_array, 'element_indices')
+            call json%add(obj, elements_array)
+            do i = 1, size(this%element_indices)
+                call json%add(elements_array, '', this%element_indices(i))
+            end do
+        end if
+        call json%add(parent, obj)
+    end subroutine array_literal_to_json
 
     subroutine use_statement_to_json(this, json, parent)
         class(use_statement_node), intent(in) :: this
