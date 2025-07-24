@@ -1,7 +1,7 @@
 program test_frontend_parser_do_loops
-    use lexer_core
-    use ast_core
-    use parser_core
+    use lexer_core, only: tokenize_core, token_t, TK_EOF
+    use ast_core, only: ast_node, do_loop_node, do_while_node, literal_node, binary_op_node, ast_arena_t, create_ast_stack
+    use parser_dispatcher_module, only: parse_statement_dispatcher
     implicit none
 
     logical :: all_passed
@@ -33,7 +33,8 @@ contains
         !     sum = sum + i
         ! end do
         type(token_t), allocatable :: tokens(:)
-        class(ast_node), allocatable :: stmt
+        type(ast_arena_t) :: arena
+        integer :: stmt_index
 
         test_simple_do_loop = .true.
 
@@ -55,15 +56,19 @@ contains
             tokens_with_eof(n + 1)%line = 1
             tokens_with_eof(n + 1)%column = 1
 
-            stmt = parse_statement(tokens_with_eof)
+            arena = create_ast_stack()
+            stmt_index = parse_statement_dispatcher(tokens_with_eof, arena)
         end block
 
-        if (.not. allocated(stmt)) then
+        if (stmt_index <= 0) then
             print '(a)', "FAIL: No AST node returned for simple do loop"
+            test_simple_do_loop = .false.
+        else if (.not. allocated(arena%entries(stmt_index)%node)) then
+            print '(a)', "FAIL: Node not allocated in arena"
             test_simple_do_loop = .false.
         else
             ! Check what type of node we get
-            select type (stmt)
+            select type (stmt => arena%entries(stmt_index)%node)
             type is (do_loop_node)
                 print '(a)', "PASS: Do loop parsed as do_loop_node"
 
@@ -81,11 +86,11 @@ contains
                 end if
 
                 ! Check start expression
-                if (.not. allocated(stmt%start_expr)) then
+                if (stmt%start_expr_index <= 0) then
                     print '(a)', "FAIL: No start expression in do loop"
                     test_simple_do_loop = .false.
-                else
-                    select type (start => stmt%start_expr)
+                else if (allocated(arena%entries(stmt%start_expr_index)%node)) then
+                    select type (start => arena%entries(stmt%start_expr_index)%node)
                     type is (literal_node)
                         if (start%value == "1") then
                             print '(a)', "PASS: Start expression is 1"
@@ -97,14 +102,17 @@ contains
                         print '(a)', "FAIL: Start expression is not a literal"
                         test_simple_do_loop = .false.
                     end select
+                else
+                    print '(a)', "FAIL: Start expression node not allocated"
+                    test_simple_do_loop = .false.
                 end if
 
                 ! Check end expression
-                if (.not. allocated(stmt%end_expr)) then
+                if (stmt%end_expr_index <= 0) then
                     print '(a)', "FAIL: No end expression in do loop"
                     test_simple_do_loop = .false.
-                else
-                    select type (end_expr => stmt%end_expr)
+                else if (allocated(arena%entries(stmt%end_expr_index)%node)) then
+                    select type (end_expr => arena%entries(stmt%end_expr_index)%node)
                     type is (literal_node)
                         if (end_expr%value == "10") then
                             print '(a)', "PASS: End expression is 10"
@@ -116,20 +124,23 @@ contains
                         print '(a)', "FAIL: End expression is not a literal"
                         test_simple_do_loop = .false.
                     end select
+                else
+                    print '(a)', "FAIL: End expression node not allocated"
+                    test_simple_do_loop = .false.
                 end if
 
                 ! Check step expression (should be optional)
-                if (allocated(stmt%step_expr)) then
+                if (stmt%step_expr_index > 0) then
                     print '(a)', "INFO: Step expression is present"
                 else
                    print '(a)', "INFO: No step expression (expected for simple do loop)"
                 end if
 
                 ! Check body
-                if (.not. allocated(stmt%body)) then
+                if (.not. allocated(stmt%body_indices)) then
                     print '(a)', "INFO: No body in do loop (expected for minimal test)"
                 else
-               print '(a,i0)', "INFO: Do loop body has ", size(stmt%body), " statements"
+               print '(a,i0)', "INFO: Do loop body has ", size(stmt%body_indices), " statements"
                 end if
 
             class default
@@ -137,6 +148,9 @@ contains
                 test_simple_do_loop = .false.
             end select
         end if
+
+        ! Clean up arena
+        if (allocated(arena%entries)) deallocate(arena%entries)
 
     end function test_simple_do_loop
 
@@ -146,7 +160,8 @@ contains
         !     print *, i
         ! end do
         type(token_t), allocatable :: tokens(:)
-        class(ast_node), allocatable :: stmt
+        type(ast_arena_t) :: arena
+        integer :: stmt_index
 
         test_do_loop_with_step = .true.
 
@@ -168,23 +183,27 @@ contains
             tokens_with_eof(n + 1)%line = 1
             tokens_with_eof(n + 1)%column = 1
 
-            stmt = parse_statement(tokens_with_eof)
+            arena = create_ast_stack()
+            stmt_index = parse_statement_dispatcher(tokens_with_eof, arena)
         end block
 
-        if (.not. allocated(stmt)) then
+        if (stmt_index <= 0) then
             print '(a)', "FAIL: No AST node returned for do loop with step"
             test_do_loop_with_step = .false.
+        else if (.not. allocated(arena%entries(stmt_index)%node)) then
+            print '(a)', "FAIL: Node not allocated in arena"
+            test_do_loop_with_step = .false.
         else
-            select type (stmt)
+            select type (stmt => arena%entries(stmt_index)%node)
             type is (do_loop_node)
                 print '(a)', "PASS: Do loop with step parsed as do_loop_node"
 
                 ! Check step expression
-                if (.not. allocated(stmt%step_expr)) then
+                if (stmt%step_expr_index <= 0) then
                     print '(a)', "FAIL: No step expression in do loop with step"
                     test_do_loop_with_step = .false.
-                else
-                    select type (step => stmt%step_expr)
+                else if (allocated(arena%entries(stmt%step_expr_index)%node)) then
+                    select type (step => arena%entries(stmt%step_expr_index)%node)
                     type is (literal_node)
                         if (step%value == "2") then
                             print '(a)', "PASS: Step expression is 2"
@@ -196,6 +215,9 @@ contains
                         print '(a)', "FAIL: Step expression is not a literal"
                         test_do_loop_with_step = .false.
                     end select
+                else
+                    print '(a)', "FAIL: Step expression node not allocated"
+                    test_do_loop_with_step = .false.
                 end if
 
             class default
@@ -203,6 +225,9 @@ contains
                 test_do_loop_with_step = .false.
             end select
         end if
+
+        ! Clean up arena
+        if (allocated(arena%entries)) deallocate(arena%entries)
 
     end function test_do_loop_with_step
 
@@ -212,7 +237,8 @@ contains
         !     x = x + 1
         ! end do
         type(token_t), allocatable :: tokens(:)
-        class(ast_node), allocatable :: stmt
+        type(ast_arena_t) :: arena
+        integer :: stmt_index
 
         test_do_while_loop = .true.
 
@@ -234,23 +260,27 @@ contains
             tokens_with_eof(n + 1)%line = 1
             tokens_with_eof(n + 1)%column = 1
 
-            stmt = parse_statement(tokens_with_eof)
+            arena = create_ast_stack()
+            stmt_index = parse_statement_dispatcher(tokens_with_eof, arena)
         end block
 
-        if (.not. allocated(stmt)) then
+        if (stmt_index <= 0) then
             print '(a)', "FAIL: No AST node returned for do while loop"
             test_do_while_loop = .false.
+        else if (.not. allocated(arena%entries(stmt_index)%node)) then
+            print '(a)', "FAIL: Node not allocated in arena"
+            test_do_while_loop = .false.
         else
-            select type (stmt)
+            select type (stmt => arena%entries(stmt_index)%node)
             type is (do_while_node)
                 print '(a)', "PASS: Do while loop parsed as do_while_node"
 
                 ! Check condition
-                if (.not. allocated(stmt%condition)) then
+                if (stmt%condition_index <= 0) then
                     print '(a)', "FAIL: No condition in do while loop"
                     test_do_while_loop = .false.
-                else
-                    select type (cond => stmt%condition)
+                else if (allocated(arena%entries(stmt%condition_index)%node)) then
+                    select type (cond => arena%entries(stmt%condition_index)%node)
                     type is (binary_op_node)
                         if (cond%operator == "<") then
                             print '(a)', "PASS: While condition operator is <"
@@ -262,13 +292,16 @@ contains
                         print '(a)', "FAIL: Condition is not a binary_op_node"
                         test_do_while_loop = .false.
                     end select
+                else
+                    print '(a)', "FAIL: Condition node not allocated"
+                    test_do_while_loop = .false.
                 end if
 
                 ! Check body
-                if (.not. allocated(stmt%body)) then
+                if (.not. allocated(stmt%body_indices)) then
                print '(a)', "INFO: No body in do while loop (expected for minimal test)"
                 else
-         print '(a,i0)', "INFO: Do while loop body has ", size(stmt%body), " statements"
+         print '(a,i0)', "INFO: Do while loop body has ", size(stmt%body_indices), " statements"
                 end if
 
             class default
@@ -276,6 +309,9 @@ contains
                 test_do_while_loop = .false.
             end select
         end if
+
+        ! Clean up arena
+        if (allocated(arena%entries)) deallocate(arena%entries)
 
     end function test_do_while_loop
 
@@ -285,7 +321,8 @@ contains
         !     if (condition) exit
         ! end do
         type(token_t), allocatable :: tokens(:)
-        class(ast_node), allocatable :: stmt
+        type(ast_arena_t) :: arena
+        integer :: stmt_index
 
         test_infinite_do_loop = .true.
 
@@ -307,14 +344,18 @@ contains
             tokens_with_eof(n + 1)%line = 1
             tokens_with_eof(n + 1)%column = 1
 
-            stmt = parse_statement(tokens_with_eof)
+            arena = create_ast_stack()
+            stmt_index = parse_statement_dispatcher(tokens_with_eof, arena)
         end block
 
-        if (.not. allocated(stmt)) then
+        if (stmt_index <= 0) then
             print '(a)', "FAIL: No AST node returned for infinite do loop"
             test_infinite_do_loop = .false.
+        else if (.not. allocated(arena%entries(stmt_index)%node)) then
+            print '(a)', "FAIL: Node not allocated in arena"
+            test_infinite_do_loop = .false.
         else
-            select type (stmt)
+            select type (stmt => arena%entries(stmt_index)%node)
             type is (do_loop_node)
                 print '(a)', "PASS: Infinite do loop parsed as do_loop_node"
 
@@ -339,12 +380,16 @@ print '(a)', "INFO: Infinite do loop parsed as do_while_node (alternate represen
             end select
         end if
 
+        ! Clean up arena
+        if (allocated(arena%entries)) deallocate(arena%entries)
+
     end function test_infinite_do_loop
 
     logical function test_nested_do_loops()
         ! TDD Test 5: Parse nested do loops
         type(token_t), allocatable :: tokens(:)
-        class(ast_node), allocatable :: stmt
+        type(ast_arena_t) :: arena
+        integer :: stmt_index
 
         test_nested_do_loops = .true.
 
@@ -366,14 +411,18 @@ print '(a)', "INFO: Infinite do loop parsed as do_while_node (alternate represen
             tokens_with_eof(n + 1)%line = 1
             tokens_with_eof(n + 1)%column = 1
 
-            stmt = parse_statement(tokens_with_eof)
+            arena = create_ast_stack()
+            stmt_index = parse_statement_dispatcher(tokens_with_eof, arena)
         end block
 
-        if (.not. allocated(stmt)) then
+        if (stmt_index <= 0) then
             print '(a)', "FAIL: No AST node returned for nested do loops"
             test_nested_do_loops = .false.
+        else if (.not. allocated(arena%entries(stmt_index)%node)) then
+            print '(a)', "FAIL: Node not allocated in arena"
+            test_nested_do_loops = .false.
         else
-            select type (stmt)
+            select type (stmt => arena%entries(stmt_index)%node)
             type is (do_loop_node)
                 print '(a)', "PASS: Nested do loop parsed as do_loop_node"
             class default
@@ -381,6 +430,9 @@ print '(a)', "INFO: Infinite do loop parsed as do_while_node (alternate represen
                 test_nested_do_loops = .false.
             end select
         end if
+
+        ! Clean up arena
+        if (allocated(arena%entries)) deallocate(arena%entries)
 
     end function test_nested_do_loops
 
