@@ -1,8 +1,8 @@
 program test_frontend_semantic_function_type_inference
     use semantic_analyzer, only: analyze_program, create_semantic_context, semantic_context_t
-    use ast_core
+    use ast_core, only: ast_arena_t, create_ast_stack, assignment_node, function_def_node
     use lexer_core
-    use parser_core
+    use parser_dispatcher_module, only: parse_statement_dispatcher
     implicit none
 
     logical :: all_passed
@@ -36,14 +36,20 @@ contains
 
         block
             type(token_t), allocatable :: tokens(:)
-            class(ast_node), allocatable :: ast_tree
+            type(ast_arena_t) :: arena
             type(semantic_context_t) :: ctx
+            integer :: stmt_index
 
             ! Parse "function square(x) square = x * x end function"
             call tokenize_core("function square(x) square = x * x end function", tokens)
-            ast_tree = parse_statement(tokens)
 
-            if (.not. allocated(ast_tree)) then
+            ! Create arena
+            arena = create_ast_stack()
+
+            ! Parse using dispatcher
+            stmt_index = parse_statement_dispatcher(tokens, arena)
+
+            if (stmt_index <= 0) then
                 print *, '  FAIL: Parse failed to produce AST'
                 test_simple_function_inference = .false.
                 return
@@ -51,17 +57,22 @@ contains
 
             ! Run semantic analysis
             ctx = create_semantic_context()
-            call analyze_program(ctx, ast_tree)
+            call analyze_program(ctx, arena, stmt_index)
 
             ! Check if semantic analysis ran without crash
-            select type (ast_tree)
-            type is (function_def_node)
-                print *, '  PASS: Simple function inference completed'
-                print *, '  INFO: Function name: ', ast_tree%name
-            class default
-                print *, '  FAIL: Expected function definition node'
+            if (allocated(arena%entries(stmt_index)%node)) then
+                select type (node => arena%entries(stmt_index)%node)
+                type is (function_def_node)
+                    print *, '  PASS: Simple function inference completed'
+                    print *, '  INFO: Function name: ', node%name
+                class default
+                    print *, '  FAIL: Expected function definition node'
+                    test_simple_function_inference = .false.
+                end select
+            else
+                print *, '  FAIL: Node not allocated in arena'
                 test_simple_function_inference = .false.
-            end select
+            end if
         end block
 
     end function test_simple_function_inference
@@ -72,14 +83,20 @@ contains
 
         block
             type(token_t), allocatable :: tokens(:)
-            class(ast_node), allocatable :: ast_tree
+            type(ast_arena_t) :: arena
             type(semantic_context_t) :: ctx
+            integer :: stmt_index
 
             ! Parse "result = sin(3.14)"
             call tokenize_core("result = sin(3.14)", tokens)
-            ast_tree = parse_statement(tokens)
 
-            if (.not. allocated(ast_tree)) then
+            ! Create arena
+            arena = create_ast_stack()
+
+            ! Parse using dispatcher
+            stmt_index = parse_statement_dispatcher(tokens, arena)
+
+            if (stmt_index <= 0) then
                 print *, '  FAIL: Parse failed to produce AST'
                 test_function_call_inference = .false.
                 return
@@ -87,21 +104,26 @@ contains
 
             ! Run semantic analysis
             ctx = create_semantic_context()
-            call analyze_program(ctx, ast_tree)
+            call analyze_program(ctx, arena, stmt_index)
 
             ! Check if semantic analysis ran without crash
-            select type (ast_tree)
-            type is (assignment_node)
-                if (allocated(ast_tree%inferred_type)) then
-                    print *, '  PASS: Function call inference completed'
-                    print *, '  INFO: Inferred type: ', ast_tree%inferred_type_name
-                else
-                    print *, '  PARTIAL: Assignment processed but type not stored'
-                end if
-            class default
-                print *, '  FAIL: Expected assignment node'
+            if (allocated(arena%entries(stmt_index)%node)) then
+                select type (node => arena%entries(stmt_index)%node)
+                type is (assignment_node)
+                    if (allocated(node%inferred_type)) then
+                        print *, '  PASS: Function call inference completed'
+                        print *, '  INFO: Inferred type: ', node%inferred_type_name
+                    else
+                        print *, '  PARTIAL: Assignment processed but type not stored'
+                    end if
+                class default
+                    print *, '  FAIL: Expected assignment node'
+                    test_function_call_inference = .false.
+                end select
+            else
+                print *, '  FAIL: Node not allocated in arena'
                 test_function_call_inference = .false.
-            end select
+            end if
         end block
 
     end function test_function_call_inference
@@ -112,14 +134,20 @@ contains
 
         block
             type(token_t), allocatable :: tokens(:)
-            class(ast_node), allocatable :: ast_tree
+            type(ast_arena_t) :: arena
             type(semantic_context_t) :: ctx
+            integer :: stmt_index
 
             ! Parse "function add(a, b) add = a + b end function"
             call tokenize_core("function add(a, b) add = a + b end function", tokens)
-            ast_tree = parse_statement(tokens)
 
-            if (.not. allocated(ast_tree)) then
+            ! Create arena
+            arena = create_ast_stack()
+
+            ! Parse using dispatcher
+            stmt_index = parse_statement_dispatcher(tokens, arena)
+
+            if (stmt_index <= 0) then
                 print *, '  FAIL: Parse failed to produce AST'
                 test_function_with_parameters_inference = .false.
                 return
@@ -127,20 +155,25 @@ contains
 
             ! Run semantic analysis
             ctx = create_semantic_context()
-            call analyze_program(ctx, ast_tree)
+            call analyze_program(ctx, arena, stmt_index)
 
             ! Check if semantic analysis ran without crash
-            select type (ast_tree)
-            type is (function_def_node)
-                print *, '  PASS: Function with parameters inference completed'
-                print *, '  INFO: Function name: ', ast_tree%name
-                if (allocated(ast_tree%params)) then
-                    print *, '  INFO: Parameter count: ', size(ast_tree%params)
-                end if
-            class default
-                print *, '  FAIL: Expected function definition node'
+            if (allocated(arena%entries(stmt_index)%node)) then
+                select type (node => arena%entries(stmt_index)%node)
+                type is (function_def_node)
+                    print *, '  PASS: Function with parameters inference completed'
+                    print *, '  INFO: Function name: ', node%name
+                    if (allocated(node%param_indices)) then
+                        print *, '  INFO: Parameter count: ', size(node%param_indices)
+                    end if
+                class default
+                    print *, '  FAIL: Expected function definition node'
+                    test_function_with_parameters_inference = .false.
+                end select
+            else
+                print *, '  FAIL: Node not allocated in arena'
                 test_function_with_parameters_inference = .false.
-            end select
+            end if
         end block
 
     end function test_function_with_parameters_inference
@@ -151,14 +184,20 @@ contains
 
         block
             type(token_t), allocatable :: tokens(:)
-            class(ast_node), allocatable :: ast_tree
+            type(ast_arena_t) :: arena
             type(semantic_context_t) :: ctx
+            integer :: stmt_index
 
             ! Parse simplified factorial: "function fact(n) fact = n end function"
             call tokenize_core("function fact(n) fact = n end function", tokens)
-            ast_tree = parse_statement(tokens)
 
-            if (.not. allocated(ast_tree)) then
+            ! Create arena
+            arena = create_ast_stack()
+
+            ! Parse using dispatcher
+            stmt_index = parse_statement_dispatcher(tokens, arena)
+
+            if (stmt_index <= 0) then
                 print *, '  FAIL: Parse failed to produce AST'
                 test_recursive_function_inference = .false.
                 return
@@ -166,17 +205,22 @@ contains
 
             ! Run semantic analysis
             ctx = create_semantic_context()
-            call analyze_program(ctx, ast_tree)
+            call analyze_program(ctx, arena, stmt_index)
 
             ! Check if semantic analysis ran without crash
-            select type (ast_tree)
-            type is (function_def_node)
-                print *, '  PASS: Recursive function inference completed'
-                print *, '  INFO: Function name: ', ast_tree%name
-            class default
-                print *, '  FAIL: Expected function definition node'
+            if (allocated(arena%entries(stmt_index)%node)) then
+                select type (node => arena%entries(stmt_index)%node)
+                type is (function_def_node)
+                    print *, '  PASS: Recursive function inference completed'
+                    print *, '  INFO: Function name: ', node%name
+                class default
+                    print *, '  FAIL: Expected function definition node'
+                    test_recursive_function_inference = .false.
+                end select
+            else
+                print *, '  FAIL: Node not allocated in arena'
                 test_recursive_function_inference = .false.
-            end select
+            end if
         end block
 
     end function test_recursive_function_inference
