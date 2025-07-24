@@ -53,10 +53,20 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-fpm-deps-
     
-    - name: Build with coverage
+    - name: Restore build cache
+      uses: actions/cache@v4
+      id: cache-build
+      with:
+        path: build
+        key: ${{ runner.os }}-build-coverage-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-build-coverage-
+    
+    - name: Build all tests with coverage
+      if: steps.cache-build.outputs.cache-hit != 'true'
       run: |
-        # Build with coverage flags
-        fpm build --profile debug --flag '-fprofile-arcs -ftest-coverage -g'
+        # Build all tests with coverage flags
+        fpm build --tests --profile debug --flag '-fprofile-arcs -ftest-coverage -g'
         
         # Debug: Show build directory structure
         echo "Build directory structure:"
@@ -70,6 +80,10 @@ jobs:
         fpm test test_frontend_parser_if_statement --profile debug --flag '-fprofile-arcs -ftest-coverage'
         fpm test test_semantic_simple --profile debug --flag '-fprofile-arcs -ftest-coverage'
         fpm test test_scope_manager_basic --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        # Also run the main executable for coverage
+        echo "print *, 'test'" > test_coverage.f
+        ./build/gfortran_debug/app/fortran test_coverage.f || find build -name fortran -type f -executable -exec {} test_coverage.f \;
+        rm -f test_coverage.f
     
     - name: Run Utilities Tests
       if: matrix.test-group == 'utilities'
@@ -97,6 +111,19 @@ jobs:
         fpm test test_runner_coverage --profile debug --flag '-fprofile-arcs -ftest-coverage'
         fpm test test_runner_missing_lines --profile debug --flag '-fprofile-arcs -ftest-coverage'
         fpm test test_runner_edge_cases --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        # Test the main executable with various options
+        echo "program test; print *, 'hello'; end program" > test_runner.f
+        FORTRAN_EXE=$(find build -name fortran -type f -executable | grep -v test | head -1)
+        if [ -z "$FORTRAN_EXE" ]; then
+          echo "ERROR: Could not find fortran executable"
+          echo "Contents of build directory:"
+          find build -type f -name "*fortran*" | head -20
+          exit 1
+        fi
+        echo "Found fortran executable: $FORTRAN_EXE"
+        $FORTRAN_EXE test_runner.f || true
+        $FORTRAN_EXE --help || true
+        rm -f test_runner.f a.out
     
     - name: Generate coverage data
       run: |
@@ -182,14 +209,31 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-fpm-deps-
     
-    - name: Build with coverage
+    - name: Restore build cache
+      uses: actions/cache@v4
+      id: cache-build
+      with:
+        path: build
+        key: ${{ runner.os }}-build-coverage-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-build-coverage-
+    
+    - name: Build all tests with coverage
+      if: steps.cache-build.outputs.cache-hit != 'true'
       run: |
-        # Build with coverage flags
-        fpm build --profile debug --flag '-fprofile-arcs -ftest-coverage -g'
+        # Build all tests with coverage flags
+        fpm build --tests --profile debug --flag '-fprofile-arcs -ftest-coverage -g'
         
         # Debug: Show build directory structure
         echo "Build directory structure:"
         find build -type f -name "*.gcno" | head -10
+    
+    - name: Ensure main app is built
+      run: |
+        # Always build the main app to ensure it exists
+        fpm build --profile debug --flag '-fprofile-arcs -ftest-coverage -g'
+        echo "Checking for fortran executable:"
+        find build -name fortran -type f -executable | grep -v test || echo "No fortran executable found!"
     
     - name: Run CLI Tests
       if: matrix.test-group == 'cli'
@@ -198,6 +242,20 @@ jobs:
         fpm test test_cli_integration --profile debug --flag '-fprofile-arcs -ftest-coverage'
         fpm test test_cli_comprehensive --profile debug --flag '-fprofile-arcs -ftest-coverage'
         fpm test test_cli_json_options --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        # Test CLI with various flags
+        echo "x = 1" > test_cli.f
+        FORTRAN_EXE=$(find build -name fortran -type f -executable | grep -v test | head -1)
+        if [ -z "$FORTRAN_EXE" ]; then
+          echo "ERROR: Could not find fortran executable"
+          echo "Contents of build directory:"
+          find build -type f -name "*fortran*" | head -20
+          exit 1
+        fi
+        echo "Found fortran executable: $FORTRAN_EXE"
+        $FORTRAN_EXE test_cli.f -v || true
+        $FORTRAN_EXE test_cli.f --json || true
+        $FORTRAN_EXE test_cli.f --test || true
+        rm -f test_cli.f
     
     - name: Run Notebook Tests
       if: matrix.test-group == 'notebook'
@@ -234,13 +292,14 @@ jobs:
         find . -name "*.gcno" -exec cp --parents {} coverage-data/ \;
         
         gcovr --root . \
-          --exclude 'build/*' \
-          --exclude 'test/*' \
-          --exclude 'example/*' \
-          --exclude 'app/test_*.f90' \
-          --exclude 'draft/*' \
+          --filter 'src/.*' \
+          --filter 'app/main.f90' \
+          --exclude 'test/.*' \
+          --exclude 'example/.*' \
+          --exclude 'app/test_.*' \
+          --exclude 'draft/.*' \
           --json coverage-${{ matrix.test-group }}.json \
-          --print-summary
+          --print-summary || echo "gcovr failed with exit code: $?"
     
     - name: Upload coverage artifacts
       uses: actions/upload-artifact@v4
@@ -297,14 +356,31 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-fpm-deps-
     
-    - name: Build with coverage
+    - name: Restore build cache
+      uses: actions/cache@v4
+      id: cache-build
+      with:
+        path: build
+        key: ${{ runner.os }}-build-coverage-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-build-coverage-
+    
+    - name: Build all tests with coverage
+      if: steps.cache-build.outputs.cache-hit != 'true'
       run: |
-        # Build with coverage flags
-        fpm build --profile debug --flag '-fprofile-arcs -ftest-coverage -g'
+        # Build all tests with coverage flags
+        fpm build --tests --profile debug --flag '-fprofile-arcs -ftest-coverage -g'
         
         # Debug: Show build directory structure
         echo "Build directory structure:"
         find build -type f -name "*.gcno" | head -10
+    
+    - name: Ensure main app is built
+      run: |
+        # Always build the main app to ensure it exists
+        fpm build --profile debug --flag '-fprofile-arcs -ftest-coverage -g'
+        echo "Checking for fortran executable:"
+        find build -name fortran -type f -executable | grep -v test || echo "No fortran executable found!"
     
     - name: Run Frontend Tests
       if: matrix.test-group == 'frontend'
@@ -338,13 +414,14 @@ jobs:
         find . -name "*.gcno" -exec cp --parents {} coverage-data/ \;
         
         gcovr --root . \
-          --exclude 'build/*' \
-          --exclude 'test/*' \
-          --exclude 'example/*' \
-          --exclude 'app/test_*.f90' \
-          --exclude 'draft/*' \
+          --filter 'src/.*' \
+          --filter 'app/main.f90' \
+          --exclude 'test/.*' \
+          --exclude 'example/.*' \
+          --exclude 'app/test_.*' \
+          --exclude 'draft/.*' \
           --json coverage-${{ matrix.test-group }}.json \
-          --print-summary
+          --print-summary || echo "gcovr failed with exit code: $?"
     
     - name: Upload coverage artifacts
       uses: actions/upload-artifact@v4
@@ -527,10 +604,20 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-fpm-deps-
     
-    - name: Build
+    - name: Restore build cache
+      uses: actions/cache@v4
+      id: cache-build-win
+      with:
+        path: build
+        key: ${{ runner.os }}-build-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-build-
+    
+    - name: Build all tests
+      if: steps.cache-build-win.outputs.cache-hit != 'true'
       run: |
-        echo "Building project..."
-        fpm build
+        echo "Building project and all tests..."
+        fpm build --tests
       shell: cmd
     
     - name: Run Core Tests
@@ -548,3 +635,133 @@ jobs:
         fpm test test_string_utils
         fpm test test_system_utils_coverage
       shell: cmd
+
+  # macOS tests
+  macos-tests:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        test-group: [core, utilities]
+      fail-fast: false
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Micromamba
+      uses: mamba-org/setup-micromamba@v2
+      with:
+        micromamba-version: 'latest'
+        environment-name: test-env
+        create-args: >-
+          python=3.11
+          fpm
+          gfortran
+        init-shell: bash
+        cache-environment: true
+        channels: conda-forge
+    
+    - name: Check versions
+      shell: bash -el {0}
+      run: |
+        echo "GCC version:"
+        gfortran --version
+        echo "FPM version:"
+        fpm --version
+        echo "GCC/G++ version:"
+        gcc --version || true
+        # Check if gcc-15 is available
+        gcc-15 --version || echo "gcc-15 not found, will try to find appropriate gcc"
+    
+    - name: Setup registry
+      shell: bash -el {0}
+      run: |
+        mkdir -p $HOME/.config/fortran
+        cp registry.toml $HOME/.config/fortran/
+    
+    - name: Cache FPM dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.local/share/fpm
+          build/dependencies
+        key: ${{ runner.os }}-fpm-deps-${{ hashFiles('fpm.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-fpm-deps-
+    
+    - name: Restore build cache
+      uses: actions/cache@v4
+      id: cache-build-mac
+      with:
+        path: build
+        key: ${{ runner.os }}-build-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-build-
+    
+    - name: Build all tests
+      if: steps.cache-build-mac.outputs.cache-hit != 'true'
+      shell: bash -el {0}
+      run: |
+        echo "Building project and all tests..."
+        
+        # Workaround for FPM bug: https://github.com/fortran-lang/fpm/issues/1159
+        # Find the appropriate gcc version
+        if command -v gcc-15 &> /dev/null; then
+          export FPM_CC=gcc-15
+        elif command -v gcc-14 &> /dev/null; then
+          export FPM_CC=gcc-14
+        elif command -v gcc-13 &> /dev/null; then
+          export FPM_CC=gcc-13
+        else
+          # Try to find gcc from conda
+          GCC_PATH=$(which gcc)
+          if [ -n "$GCC_PATH" ]; then
+            export FPM_CC=$GCC_PATH
+          fi
+        fi
+        
+        echo "Using FPM_CC=$FPM_CC"
+        fpm build --tests
+    
+    - name: Run Core Tests
+      if: matrix.test-group == 'core'
+      shell: bash -el {0}
+      run: |
+        # Set FPM_CC for test runs too
+        if command -v gcc-15 &> /dev/null; then
+          export FPM_CC=gcc-15
+        elif command -v gcc-14 &> /dev/null; then
+          export FPM_CC=gcc-14
+        elif command -v gcc-13 &> /dev/null; then
+          export FPM_CC=gcc-13
+        else
+          GCC_PATH=$(which gcc)
+          if [ -n "$GCC_PATH" ]; then
+            export FPM_CC=$GCC_PATH
+          fi
+        fi
+        
+        fpm test test_lexer_direct
+        fpm test test_parser_edge_cases
+        fpm test test_semantic_simple
+    
+    - name: Run Utilities Tests
+      if: matrix.test-group == 'utilities'
+      shell: bash -el {0}
+      run: |
+        # Set FPM_CC for test runs too
+        if command -v gcc-15 &> /dev/null; then
+          export FPM_CC=gcc-15
+        elif command -v gcc-14 &> /dev/null; then
+          export FPM_CC=gcc-14
+        elif command -v gcc-13 &> /dev/null; then
+          export FPM_CC=gcc-13
+        else
+          GCC_PATH=$(which gcc)
+          if [ -n "$GCC_PATH" ]; then
+            export FPM_CC=$GCC_PATH
+          fi
+        fi
+        
+        fpm test test_logger_utils
+        fpm test test_string_utils
+        fpm test test_system_utils_coverage

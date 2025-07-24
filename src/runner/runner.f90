@@ -55,9 +55,11 @@ contains
         character(len=256) :: absolute_path, preprocessed_file, working_file
         character(len=32) :: jobs_flag, content_hash
         character(len=1024) :: preprocess_error
+        character(len=256) :: build_output_file
         integer :: exitstat, cmdstat
         integer :: i, last_slash
-        logical :: was_preprocessed
+        logical :: was_preprocessed, is_cache_miss
+        real :: start_time, end_time
 
         exit_code = 0
         
@@ -233,7 +235,9 @@ call print_error('Cache is locked by another process. Use without --no-wait to w
         end if
 
         ! Check if project already exists (cache hit)
-        if (directory_exists(join_path(trim(project_dir), 'build'))) then
+        is_cache_miss = .not. directory_exists(join_path(trim(project_dir), 'build'))
+        
+        if (.not. is_cache_miss) then
             if (verbose_level >= 1) then
                 print '(a)', 'Cache hit: Using existing build'
             end if
@@ -244,6 +248,11 @@ call print_error('Cache is locked by another process. Use without --no-wait to w
             ! Cache miss: need to set up project
             if (verbose_level >= 1) then
                 print '(a)', 'Cache miss: Setting up new build'
+            else
+                ! Quiet mode: show subtle indicator and start timing
+                write(*, '(a)', advance='no') 'Compiling... '
+                flush(6)
+                call cpu_time(start_time)
             end if
 
             ! Create the project directory first
@@ -308,18 +317,15 @@ call print_error('Cache is locked by another process. Use without --no-wait to w
         end if
 
         if (verbose_level == 0) then
-            ! Quiet mode: capture errors for helpful messages
-            block
-                character(len=256) :: output_file
-                output_file = create_temp_file('fortran_build_fpm_build_output', '.txt')
-                if (len_trim(flag_string) > 0) then
-                  command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && '// &
-           'fpm build --flag "'//trim(escape_shell_arg(flag_string))//'" > "'//trim(escape_shell_arg(output_file))//'" 2>&1'
-                else
-                  command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && '// &
-                              'fpm build > "'//trim(escape_shell_arg(output_file))//'" 2>&1'
-                end if
-            end block
+            ! Quiet mode: capture output for error reporting
+            build_output_file = create_temp_file('fortran_build_fpm_build_output', '.txt')
+            if (len_trim(flag_string) > 0) then
+              command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && '// &
+       'fpm build --flag "'//trim(escape_shell_arg(flag_string))//'" > "'//trim(escape_shell_arg(build_output_file))//'" 2>&1'
+            else
+              command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && '// &
+                          'fpm build > "'//trim(escape_shell_arg(build_output_file))//'" 2>&1'
+            end if
         else if (verbose_level >= 2) then
             ! Very verbose: show detailed build output
             if (len_trim(flag_string) > 0) then
@@ -347,15 +353,22 @@ call print_error('Cache is locked by another process. Use without --no-wait to w
         call debug_print('Project directory: '//trim(project_dir))
         
         call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat, wait=.true.)
+        
+        ! Calculate timing but don't show yet
+        if (verbose_level == 0 .and. is_cache_miss) then
+            call cpu_time(end_time)
+        end if
 
         if (cmdstat /= 0 .or. exitstat /= 0) then
             if (verbose_level == 0) then
-                ! Parse FPM errors and provide helpful messages
-                block
-                    character(len=256) :: output_file
-                    output_file = create_temp_file('fortran_build_fpm_build_output', '.txt')
-                    call provide_helpful_error_message(output_file)
-                end block
+                ! Show timing even on error
+                if (is_cache_miss) then
+                    write(*, '(f0.1,a)') end_time - start_time, 's'
+                end if
+                ! Show the build errors
+                call show_build_errors(build_output_file)
+                ! Clean up temp file
+                call sys_remove_file(build_output_file)
             end if
             call release_lock(cache_dir, basename)
             exit_code = 1
@@ -364,21 +377,72 @@ call print_error('Cache is locked by another process. Use without --no-wait to w
 
         ! Cache newly compiled dependency modules after successful build
         call cache_build_artifacts(trim(project_dir), verbose_level)
+        
+        ! Show timing after successful build for cache miss
+        if (verbose_level == 0 .and. is_cache_miss) then
+            write(*, '(f0.1,a)') end_time - start_time, 's'
+        end if
+        
+        ! Clean up build output file if it was created
+        if (verbose_level == 0) then
+            call sys_remove_file(build_output_file)
+        end if
 
         ! Run the executable using fpm run
         if (verbose_level == 0) then
-            ! Quiet mode: suppress FPM stderr messages but show program output
-            command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && fpm run "'// &
-                      trim(escape_shell_arg(basename))//'"'//get_stderr_redirect()
+            ! Quiet mode: capture output to filter FPM messages but show errors
+            block
+                character(len=256) :: temp_output
+                integer :: unit, iostat
+                character(len=1024) :: line
+                logical :: has_error
+                
+                temp_output = create_temp_file('fortran_run_output', '.txt')
+                
+                ! Run fpm and capture all output
+                command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))//'" && fpm run "'// &
+                          trim(escape_shell_arg(basename))//'" > "'//trim(escape_shell_arg(temp_output))//'" 2>&1'
+                
+                call debug_print('Running command: ' // trim(command))
+                call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat, wait=.true.)
+                
+                ! Check if there was an error
+                has_error = (cmdstat /= 0 .or. exitstat /= 0)
+                
+                ! Read and filter output
+                open(newunit=unit, file=temp_output, status='old', iostat=iostat)
+                if (iostat == 0) then
+                    do
+                        read(unit, '(a)', iostat=iostat) line
+                        if (iostat /= 0) exit
+                        
+                        ! Filter out FPM progress messages unless there's an error
+                        if (has_error) then
+                            ! Show everything on error
+                            write(*, '(a)') trim(line)
+                        else
+                            ! Filter out FPM messages on success
+                            if (index(line, '[') == 0 .or. index(line, '%]') == 0) then
+                                if (index(line, 'Project is up to date') == 0 .and. &
+                                    index(line, 'Project compiled successfully') == 0) then
+                                    write(*, '(a)') trim(line)
+                                end if
+                            end if
+                        end if
+                    end do
+                    close(unit)
+                end if
+                
+                ! Clean up temp file
+                call sys_remove_file(temp_output)
+            end block
         else
             command = trim(get_cd_command())//' "'//trim(escape_shell_arg(project_dir))// &
                       '" && fpm run "'//trim(escape_shell_arg(basename))//'"'
+            
+            call debug_print('Running command: ' // trim(command))
+            call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat, wait=.true.)
         end if
-
-        call debug_print('Running command: ' // trim(command))
-        
-
-        call execute_command_line(command, exitstat=exitstat, cmdstat=cmdstat, wait=.true.)
 
         if (cmdstat /= 0) then
             call print_error('Failed to execute fpm')
@@ -745,6 +809,66 @@ call print_error('Cache is locked by another process. Use without --no-wait to w
         call sys_remove_file(error_file)
 
     end subroutine provide_helpful_error_message
+
+    subroutine show_build_errors(error_file)
+        character(len=*), intent(in) :: error_file
+        integer :: unit, iostat
+        character(len=512) :: line
+        logical :: found_error, in_error_section
+
+        ! Read the error file and show all compilation errors
+        open (newunit=unit, file=error_file, status='old', iostat=iostat)
+        if (iostat /= 0) then
+            ! If we can't read the error file, fall back to generic message
+            call print_error('Build failed. Run with -v to see details.')
+            return
+        end if
+
+        found_error = .false.
+        in_error_section = .false.
+        
+        do
+            read (unit, '(a)', iostat=iostat) line
+            if (iostat /= 0) exit
+
+            ! Show compilation errors and their context
+            if (index(line, '.f90:') > 0 .or. index(line, '.f:') > 0 .or. &
+                index(line, '.F90:') > 0 .or. index(line, '.F:') > 0) then
+                ! Found a file:line reference, show it and the next few lines
+                in_error_section = .true.
+                found_error = .true.
+                print '(a)', trim(line)
+            else if (index(line, 'Error:') > 0 .or. index(line, 'Warning:') > 0 .or. &
+                     index(line, 'error:') > 0 .or. index(line, 'warning:') > 0) then
+                in_error_section = .true.
+                found_error = .true.
+                print '(a)', trim(line)
+            else if (index(line, '<ERROR>') > 0 .or. index(line, 'ERROR>') > 0 .or. &
+                     index(line, 'Fatal Error') > 0) then
+                found_error = .true.
+                print '(a)', trim(line)
+            else if (in_error_section .and. len_trim(line) > 0) then
+                ! Continue showing lines after an error
+                print '(a)', trim(line)
+                if (index(line, 'compilation terminated') > 0 .or. &
+                    index(line, 'stopping due to') > 0) then
+                    in_error_section = .false.
+                end if
+            else
+                in_error_section = .false.
+            end if
+        end do
+
+        close (unit)
+
+        if (.not. found_error) then
+            call print_error('Build failed. Run with -v to see details.')
+        end if
+
+        ! Clean up error file
+        call sys_remove_file(error_file)
+
+    end subroutine show_build_errors
 
   subroutine get_project_hash_and_directory(source_file, basename, cache_dir, project_dir, verbose_level)
         character(len=*), intent(in) :: source_file, basename, cache_dir
