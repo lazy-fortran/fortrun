@@ -606,8 +606,81 @@ jobs:
         fpm test test_system_utils_coverage
       shell: cmd
 
-  # macOS tests temporarily disabled due to FPM compatibility issues
-  # TODO: Re-enable when FPM supports ARM64 macOS runners properly
-  # macos-tests:
-  #   runs-on: macos-latest
-  #   ...
+  # macOS tests
+  macos-tests:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        test-group: [core, utilities]
+      fail-fast: false
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Micromamba
+      uses: mamba-org/setup-micromamba@v2
+      with:
+        micromamba-version: 'latest'
+        environment-name: test-env
+        create-args: |
+          python=3.11
+          conda-forge::fpm
+          conda-forge::gfortran
+        init-shell: bash
+        cache-environment: true
+    
+    - name: Check versions
+      shell: bash -el {0}
+      run: |
+        echo "GCC version:"
+        gfortran --version
+        echo "FPM version:"
+        fpm --version
+    
+    - name: Setup registry
+      shell: bash -el {0}
+      run: |
+        mkdir -p $HOME/.config/fortran
+        cp registry.toml $HOME/.config/fortran/
+    
+    - name: Cache FPM dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.local/share/fpm
+          build/dependencies
+        key: ${{ runner.os }}-fpm-deps-${{ hashFiles('fpm.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-fpm-deps-
+    
+    - name: Restore build cache
+      uses: actions/cache@v4
+      id: cache-build-mac
+      with:
+        path: build
+        key: ${{ runner.os }}-build-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-build-
+    
+    - name: Build all tests
+      if: steps.cache-build-mac.outputs.cache-hit != 'true'
+      shell: bash -el {0}
+      run: |
+        echo "Building project and all tests..."
+        fpm build --tests
+    
+    - name: Run Core Tests
+      if: matrix.test-group == 'core'
+      shell: bash -el {0}
+      run: |
+        fpm test test_lexer_direct
+        fpm test test_parser_edge_cases
+        fpm test test_semantic_simple
+    
+    - name: Run Utilities Tests
+      if: matrix.test-group == 'utilities'
+      shell: bash -el {0}
+      run: |
+        fpm test test_logger_utils
+        fpm test test_string_utils
+        fpm test test_system_utils_coverage
