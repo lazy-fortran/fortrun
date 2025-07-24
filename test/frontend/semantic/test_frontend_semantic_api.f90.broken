@@ -1,6 +1,10 @@
 program test_frontend_semantic_api
     use semantic_analyzer, only: analyze_program, create_semantic_context, semantic_context_t
     use ast_core
+    use ast_factory, only: push_program, push_assignment, push_identifier, push_literal, push_binary_op
+    use lexer_core, only: tokenize_core, token_t
+    use parser_state_module, only: parser_state_t, create_parser_state
+    use parser_dispatcher_module, only: parse_statement_dispatcher
     implicit none
 
     logical :: all_passed
@@ -34,35 +38,37 @@ contains
         print *, 'Testing assignment analysis...'
 
         block
-            type(program_node) :: prog
+            type(ast_arena_t) :: arena
             type(semantic_context_t) :: ctx
-
-            ! Create simple assignment
-            prog%name = 'test_assign'
-            allocate (prog%body(1))
-
-            block
-                type(assignment_node), allocatable :: assign
-                type(identifier_node), allocatable :: target
-                type(literal_node), allocatable :: lit_value
-
-                allocate (assign)
-                allocate (target)
-                allocate (lit_value)
-
-                target%name = 'x'
-                lit_value%value = '42'
-                lit_value%literal_kind = LITERAL_INTEGER
-
-                allocate (assign%target, source=target)
-                allocate (assign%value, source=lit_value)
-
-                allocate (prog%body(1)%node, source=assign)
-            end block
-
-            ctx = create_semantic_context()
-            call analyze_program(ctx, prog)
-            print *, '  PASS: Assignment analysis'
+            integer :: prog_index, stmt_index
+            integer :: target_index, value_index
+            integer :: body_indices(1)
+            
+            ! Create arena and AST manually
+            arena = create_ast_stack()
+            
+            ! Create assignment: x = 42
+            ! Create identifier node for 'x'
+            target_index = push_identifier(arena, 'x', 2, 1)
+            
+            ! Create literal node for '42'
+            value_index = push_literal(arena, '42', LITERAL_INTEGER, 2, 5)
+            
+            ! Create assignment node
+            stmt_index = push_assignment(arena, target_index, value_index, 2, 1)
+            
+            ! Create program node with the assignment as body
+            body_indices(1) = stmt_index
+            prog_index = push_program(arena, 'test_assign', body_indices, 1, 1)
+            
+            if (prog_index > 0) then
+                ctx = create_semantic_context()
+                call analyze_program(ctx, arena, prog_index)
+                print *, '  PASS: Assignment analysis'
+            else
+                print *, '  FAIL: Could not create AST'
+                test_assignment_analysis = .false.
+            end if
         end block
 
     end function test_assignment_analysis
@@ -72,46 +78,53 @@ contains
         print *, 'Testing type inference...'
 
         block
-            type(program_node) :: prog
+            type(ast_arena_t) :: arena
             type(semantic_context_t) :: ctx
-
-            ! Create assignment for type inference
-            prog%name = 'test_inference'
-            allocate (prog%body(1))
-
-            block
-                type(assignment_node), allocatable :: assign
-                type(identifier_node), allocatable :: target
-                type(literal_node), allocatable :: lit_value
-
-                allocate (assign)
-                allocate (target)
-                allocate (lit_value)
-
-                target%name = 'pi'
-                lit_value%value = '3.14'
-                lit_value%literal_kind = LITERAL_REAL
-
-                allocate (assign%target, source=target)
-                allocate (assign%value, source=lit_value)
-
-                allocate (prog%body(1)%node, source=assign)
-            end block
-
-            ctx = create_semantic_context()
-            call analyze_program(ctx, prog)
-
-            ! Check if type inference was performed
-            select type (stmt => prog%body(1)%node)
-            type is (assignment_node)
-                if (allocated(stmt%inferred_type)) then
-                    print *, '  PASS: Type inference performed'
+            integer :: prog_index, stmt_index
+            integer :: target_index, value_index
+            integer :: body_indices(1)
+            
+            ! Create arena and AST manually
+            arena = create_ast_stack()
+            
+            ! Create assignment: pi = 3.14
+            ! Create identifier node for 'pi'
+            target_index = push_identifier(arena, 'pi', 2, 1)
+            
+            ! Create literal node for '3.14'
+            value_index = push_literal(arena, '3.14', LITERAL_REAL, 2, 6)
+            
+            ! Create assignment node
+            stmt_index = push_assignment(arena, target_index, value_index, 2, 1)
+            
+            ! Create program node with the assignment as body
+            body_indices(1) = stmt_index
+            prog_index = push_program(arena, 'test_inference', body_indices, 1, 1)
+            
+            if (prog_index > 0) then
+                ctx = create_semantic_context()
+                call analyze_program(ctx, arena, prog_index)
+                
+                ! Check if type inference was performed on the assignment
+                if (stmt_index > 0 .and. stmt_index <= arena%size) then
+                    select type (stmt => arena%entries(stmt_index)%node)
+                    type is (assignment_node)
+                        if (allocated(stmt%inferred_type)) then
+                            print *, '  PASS: Type inference performed'
+                        else
+                            print *, '  WARN: Type inference not performed'
+                        end if
+                    class default
+                        print *, '  WARN: Unexpected statement type'
+                    end select
                 else
-                    print *, '  WARN: Type inference not performed'
+                    print *, '  FAIL: Invalid statement index'
+                    test_type_inference = .false.
                 end if
-            class default
-                print *, '  WARN: Unexpected statement type'
-            end select
+            else
+                print *, '  FAIL: Could not create AST'
+                test_type_inference = .false.
+            end if
         end block
 
     end function test_type_inference
@@ -121,54 +134,39 @@ contains
         print *, 'Testing variable analysis...'
 
         block
-            type(program_node) :: prog
+            type(ast_arena_t) :: arena
             type(semantic_context_t) :: ctx
-
-            ! Create program with multiple variables
-            prog%name = 'test_vars'
-            allocate (prog%body(2))
-
+            integer :: prog_index, stmt1_index, stmt2_index
+            integer :: target1_index, value1_index
+            integer :: target2_index, value2_index
+            integer :: body_indices(2)
+            
+            ! Create arena and AST manually
+            arena = create_ast_stack()
+            
             ! First assignment: x = 1
-            block
-                type(assignment_node), allocatable :: assign1
-                type(identifier_node), allocatable :: target1
-                type(literal_node), allocatable :: lit_value1
-
-                allocate (assign1)
-                allocate (target1)
-                allocate (lit_value1)
-
-                target1%name = 'x'
-                lit_value1%value = '1'
-                lit_value1%literal_kind = LITERAL_INTEGER
-
-                allocate (assign1%target, source=target1)
-                allocate (assign1%value, source=lit_value1)
-
-                allocate (prog%body(1)%node, source=assign1)
-            end block
-
+            target1_index = push_identifier(arena, 'x', 2, 1)
+            value1_index = push_literal(arena, '1', LITERAL_INTEGER, 2, 5)
+            stmt1_index = push_assignment(arena, target1_index, value1_index, 2, 1)
+            
             ! Second assignment: y = x
-            block
-                type(assignment_node), allocatable :: assign2
-                type(identifier_node), allocatable :: target2, value2
-
-                allocate (assign2)
-                allocate (target2)
-                allocate (value2)
-
-                target2%name = 'y'
-                value2%name = 'x'
-
-                allocate (assign2%target, source=target2)
-                allocate (assign2%value, source=value2)
-
-                allocate (prog%body(2)%node, source=assign2)
-            end block
-
-            ctx = create_semantic_context()
-            call analyze_program(ctx, prog)
-            print *, '  PASS: Variable analysis'
+            target2_index = push_identifier(arena, 'y', 3, 1)
+            value2_index = push_identifier(arena, 'x', 3, 5)
+            stmt2_index = push_assignment(arena, target2_index, value2_index, 3, 1)
+            
+            ! Create program node with both assignments
+            body_indices(1) = stmt1_index
+            body_indices(2) = stmt2_index
+            prog_index = push_program(arena, 'test_vars', body_indices, 1, 1)
+            
+            if (prog_index > 0) then
+                ctx = create_semantic_context()
+                call analyze_program(ctx, arena, prog_index)
+                print *, '  PASS: Variable analysis'
+            else
+                print *, '  FAIL: Could not create AST'
+                test_variable_analysis = .false.
+            end if
         end block
 
     end function test_variable_analysis
@@ -178,41 +176,39 @@ contains
         print *, 'Testing expression analysis...'
 
         block
-            type(program_node) :: prog
+            type(ast_arena_t) :: arena
             type(semantic_context_t) :: ctx
-
-            prog%name = 'test_expr'
-            allocate (prog%body(1))
-
+            integer :: prog_index, stmt_index
+            integer :: target_index, binop_index
+            integer :: left_index, right_index
+            integer :: body_indices(1)
+            
+            ! Create arena and AST manually
+            arena = create_ast_stack()
+            
             ! Create assignment with binary operation: result = a + b
-            block
-                type(assignment_node), allocatable :: assign
-                type(identifier_node), allocatable :: target
-                type(binary_op_node), allocatable :: binop
-                type(identifier_node), allocatable :: left, right
-
-                allocate (assign)
-                allocate (target)
-                allocate (binop)
-                allocate (left)
-                allocate (right)
-
-                target%name = 'result'
-                left%name = 'a'
-                right%name = 'b'
-                binop%operator = '+'
-
-                allocate (binop%left, source=left)
-                allocate (binop%right, source=right)
-                allocate (assign%target, source=target)
-                allocate (assign%value, source=binop)
-
-                allocate (prog%body(1)%node, source=assign)
-            end block
-
-            ctx = create_semantic_context()
-            call analyze_program(ctx, prog)
-            print *, '  PASS: Expression analysis'
+            target_index = push_identifier(arena, 'result', 2, 1)
+            
+            ! Create binary operation: a + b
+            left_index = push_identifier(arena, 'a', 2, 10)
+            right_index = push_identifier(arena, 'b', 2, 14)
+            binop_index = push_binary_op(arena, '+', left_index, right_index, 2, 12)
+            
+            ! Create assignment node
+            stmt_index = push_assignment(arena, target_index, binop_index, 2, 1)
+            
+            ! Create program node
+            body_indices(1) = stmt_index
+            prog_index = push_program(arena, 'test_expr', body_indices, 1, 1)
+            
+            if (prog_index > 0) then
+                ctx = create_semantic_context()
+                call analyze_program(ctx, arena, prog_index)
+                print *, '  PASS: Expression analysis'
+            else
+                print *, '  FAIL: Could not create AST'
+                test_expression_analysis = .false.
+            end if
         end block
 
     end function test_expression_analysis
@@ -222,33 +218,32 @@ contains
         print *, 'Testing error detection...'
 
         block
-            type(program_node) :: prog
+            type(ast_arena_t) :: arena
             type(semantic_context_t) :: ctx
-
+            integer :: prog_index, stmt_index
+            integer :: target_index, value_index
+            integer :: body_indices(1)
+            
+            ! Create arena and AST manually
+            arena = create_ast_stack()
+            
             ! Create assignment with undefined variable: result = undefined_var
-            prog%name = 'test_error'
-            allocate (prog%body(1))
-
-            block
-                type(assignment_node), allocatable :: assign
-                type(identifier_node), allocatable :: target, value
-
-                allocate (assign)
-                allocate (target)
-                allocate (value)
-
-                target%name = 'result'
-                value%name = 'undefined_var'
-
-                allocate (assign%target, source=target)
-                allocate (assign%value, source=value)
-
-                allocate (prog%body(1)%node, source=assign)
-            end block
-
-            ctx = create_semantic_context()
-            call analyze_program(ctx, prog)
-            print *, '  PASS: Error detection test completed'
+            target_index = push_identifier(arena, 'result', 2, 1)
+            value_index = push_identifier(arena, 'undefined_var', 2, 10)
+            stmt_index = push_assignment(arena, target_index, value_index, 2, 1)
+            
+            ! Create program node
+            body_indices(1) = stmt_index
+            prog_index = push_program(arena, 'test_error', body_indices, 1, 1)
+            
+            if (prog_index > 0) then
+                ctx = create_semantic_context()
+                call analyze_program(ctx, arena, prog_index)
+                print *, '  PASS: Error detection test completed'
+            else
+                print *, '  FAIL: Could not create AST'
+                test_error_detection = .false.
+            end if
         end block
 
     end function test_error_detection
