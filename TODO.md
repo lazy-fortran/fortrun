@@ -1,19 +1,22 @@
-# TODO: Fix Documented but Non-Working Features
+# TODO: Focus on AST-Based Architecture
 
-## KEY FINDINGS FROM INVESTIGATION
+## CORE PRINCIPLE: AST-First Development
 
-### ✅ What Actually Works
-- **Lexer is robust and complete** - All 4 core lexer tests enabled and passing
-- **Parser has modern arena-based architecture** - Some functionality working
-- **Infrastructure is solid** - Module structure, caching, FPM integration work
+This project follows a proper compiler architecture using Abstract Syntax Trees (AST). All transformations and analysis should operate on the AST, not on text parsing or string manipulation.
 
-### ❌ Real Blocking Issues  
-- **Semantic Analysis is broken** - Module dependency hell prevents compilation
-- **Type inference is non-functional** - This is what breaks the documented features
-- **Build system complexity** - Standalone testing of semantic modules fails
+### ✅ What Works Well
+- **AST Core** - Robust arena-based AST system with type-safe node operations
+- **Lexer** - Complete and working (all 4 core tests passing)  
+- **Parser** - Modern arena-based architecture with proper AST generation
+- **Standardizer** - Clean AST transformation pipeline using `standardize_ast`
 
-### 📝 Updated Strategy
-Focus on fixing the semantic analysis module dependencies rather than enabling every individual test. The lexer works fine, parser partially works, but semantic analysis is the real bottleneck.
+### ❌ What to Avoid
+- **Text-based transformations** - Never parse source text directly
+- **String manipulation hacks** - All language processing should use AST
+- **Bypassing the pipeline** - Use lexer → parser → AST → standardizer → codegen
+
+### 📝 Development Strategy
+Work within the existing AST-based architecture. Use `standardize_ast` for transformations, build proper AST nodes, and maintain the clean separation of concerns.
 
 ---
 
