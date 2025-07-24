@@ -668,19 +668,19 @@ jobs:
       shell: bash -el {0}
       run: |
         echo "Building project and all tests..."
-        # On macOS, patch fpm.toml to remove OpenMP
+        # On macOS, we need to work around OpenMP issues
+        # First, let's see what's in the fpm.toml
+        cat fpm.toml | grep -i openmp || true
+        
+        # Remove OpenMP dependency on macOS
         if [[ "$RUNNER_OS" == "macOS" ]]; then
-          # Backup original fpm.toml
-          cp fpm.toml fpm.toml.bak
-          # Remove OpenMP flags from fpm.toml
-          sed -i '' 's/-fopenmp//g' fpm.toml
-          # Also try to set compiler flags
-          export CC="clang"
-          export CFLAGS="-O2"
-          export LDFLAGS=""
+          # Create a modified fpm.toml without OpenMP
+          sed 's/openmp = "\*"//g' fpm.toml > fpm.toml.tmp
+          mv fpm.toml.tmp fpm.toml
         fi
-        fpm update
-        fpm build --tests --flag="-fno-openmp"
+        
+        # Build without OpenMP
+        fpm build --tests --compiler gfortran
     
     - name: Run Core Tests
       if: matrix.test-group == 'core'
