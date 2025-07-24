@@ -114,6 +114,13 @@ jobs:
         # Test the main executable with various options
         echo "program test; print *, 'hello'; end program" > test_runner.f
         FORTRAN_EXE=$(find build -name fortran -type f -executable | grep -v test | head -1)
+        if [ -z "$FORTRAN_EXE" ]; then
+          echo "ERROR: Could not find fortran executable"
+          echo "Contents of build directory:"
+          find build -type f -name "*fortran*" | head -20
+          exit 1
+        fi
+        echo "Found fortran executable: $FORTRAN_EXE"
         $FORTRAN_EXE test_runner.f || true
         $FORTRAN_EXE --help || true
         rm -f test_runner.f a.out
@@ -231,6 +238,13 @@ jobs:
         # Test CLI with various flags
         echo "x = 1" > test_cli.f
         FORTRAN_EXE=$(find build -name fortran -type f -executable | grep -v test | head -1)
+        if [ -z "$FORTRAN_EXE" ]; then
+          echo "ERROR: Could not find fortran executable"
+          echo "Contents of build directory:"
+          find build -type f -name "*fortran*" | head -20
+          exit 1
+        fi
+        echo "Found fortran executable: $FORTRAN_EXE"
         $FORTRAN_EXE test_cli.f -v || true
         $FORTRAN_EXE test_cli.f --json || true
         $FORTRAN_EXE test_cli.f --test || true

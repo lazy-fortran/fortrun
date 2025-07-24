@@ -11,15 +11,32 @@ program test_cli_output_clean
     logical :: test_passed, found_unwanted
     type(temp_dir_manager) :: temp_mgr
     character(len=:), allocatable :: fortran_exe
+    character(len=512) :: find_command
+    integer :: find_unit, find_iostat
     
     print *, "=== Output Behavior Tests ==="
     print *
     
-    ! Get fortran executable path
+    ! Get fortran executable path by finding it
     if (get_os_type() == OS_WINDOWS) then
-        fortran_exe = 'build\gfortran_*\app\fortran.exe'
+        find_command = 'dir /s /b build\*.exe 2>nul | findstr "app\\fortran.exe" | findstr /v "test" > fortran_exe_path.txt'
     else
-        fortran_exe = './build/gfortran_*/app/fortran'
+        find_command = 'find build -name fortran -type f -executable | grep -v test | head -1 > fortran_exe_path.txt'
+    end if
+    
+    call execute_command_line(trim(find_command), wait=.true.)
+    
+    ! Read the executable path
+    fortran_exe = ''
+    open(newunit=find_unit, file='fortran_exe_path.txt', status='old', iostat=find_iostat)
+    if (find_iostat == 0) then
+        read(find_unit, '(a)') line
+        close(find_unit)
+        call sys_remove_file('fortran_exe_path.txt')
+        fortran_exe = trim(line)
+    else
+        print *, "ERROR: Could not find fortran executable"
+        stop 1
     end if
     
     ! Create temp directory
