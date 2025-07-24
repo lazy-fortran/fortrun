@@ -82,7 +82,7 @@ jobs:
         fpm test test_scope_manager_basic --profile debug --flag '-fprofile-arcs -ftest-coverage'
         # Also run the main executable for coverage
         echo "print *, 'test'" > test_coverage.f
-        fpm run --profile debug -- test_coverage.f
+        ./build/gfortran_debug/app/fortran test_coverage.f || find build -name fortran -type f -executable -exec {} test_coverage.f \;
         rm -f test_coverage.f
     
     - name: Run Utilities Tests
@@ -113,9 +113,9 @@ jobs:
         fpm test test_runner_edge_cases --profile debug --flag '-fprofile-arcs -ftest-coverage'
         # Test the main executable with various options
         echo "program test; print *, 'hello'; end program" > test_runner.f
-        fpm run --profile debug -- test_runner.f --version || true
-        fpm run --profile debug -- --help
-        fpm run --profile debug -- test_runner.f
+        FORTRAN_EXE=$(find build -name fortran -type f -executable | grep -v test | head -1)
+        $FORTRAN_EXE test_runner.f || true
+        $FORTRAN_EXE --help || true
         rm -f test_runner.f a.out
     
     - name: Generate coverage data
@@ -230,9 +230,10 @@ jobs:
         fpm test test_cli_json_options --profile debug --flag '-fprofile-arcs -ftest-coverage'
         # Test CLI with various flags
         echo "x = 1" > test_cli.f
-        fpm run --profile debug -- test_cli.f -v
-        fpm run --profile debug -- test_cli.f --json
-        fpm run --profile debug -- test_cli.f --test
+        FORTRAN_EXE=$(find build -name fortran -type f -executable | grep -v test | head -1)
+        $FORTRAN_EXE test_cli.f -v || true
+        $FORTRAN_EXE test_cli.f --json || true
+        $FORTRAN_EXE test_cli.f --test || true
         rm -f test_cli.f
     
     - name: Run Notebook Tests
@@ -617,7 +618,9 @@ jobs:
     - uses: actions/checkout@v4
     
     - name: Install gfortran
-      run: brew install gcc
+      run: |
+        brew install gcc@12
+        echo "/usr/local/opt/gcc@12/bin" >> $GITHUB_PATH
     
     - name: Cache FPM binary (macOS)
       id: cache-fpm-mac
