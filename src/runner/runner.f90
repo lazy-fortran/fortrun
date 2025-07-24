@@ -367,6 +367,8 @@ call print_error('Cache is locked by another process. Use without --no-wait to w
                 end if
                 ! Show the build errors
                 call show_build_errors(build_output_file)
+                ! Clean up temp file
+                call sys_remove_file(build_output_file)
             end if
             call release_lock(cache_dir, basename)
             exit_code = 1
@@ -379,6 +381,11 @@ call print_error('Cache is locked by another process. Use without --no-wait to w
         ! Show timing after successful build for cache miss
         if (verbose_level == 0 .and. is_cache_miss) then
             write(*, '(f0.1,a)') end_time - start_time, 's'
+        end if
+        
+        ! Clean up build output file if it was created
+        if (verbose_level == 0) then
+            call sys_remove_file(build_output_file)
         end if
 
         ! Run the executable using fpm run
@@ -831,11 +838,13 @@ call print_error('Cache is locked by another process. Use without --no-wait to w
                 in_error_section = .true.
                 found_error = .true.
                 print '(a)', trim(line)
-            else if (index(line, 'Error:') > 0 .or. index(line, 'Warning:') > 0) then
+            else if (index(line, 'Error:') > 0 .or. index(line, 'Warning:') > 0 .or. &
+                     index(line, 'error:') > 0 .or. index(line, 'warning:') > 0) then
                 in_error_section = .true.
                 found_error = .true.
                 print '(a)', trim(line)
-            else if (index(line, '<ERROR>') > 0) then
+            else if (index(line, '<ERROR>') > 0 .or. index(line, 'ERROR>') > 0 .or. &
+                     index(line, 'Fatal Error') > 0) then
                 found_error = .true.
                 print '(a)', trim(line)
             else if (in_error_section .and. len_trim(line) > 0) then
