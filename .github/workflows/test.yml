@@ -622,12 +622,13 @@ jobs:
       with:
         micromamba-version: 'latest'
         environment-name: test-env
-        create-args: |
+        create-args: >-
           python=3.11
-          conda-forge::fpm
-          conda-forge::gfortran
+          fpm
+          gfortran
         init-shell: bash
         cache-environment: true
+        channels: conda-forge
     
     - name: Check versions
       shell: bash -el {0}
