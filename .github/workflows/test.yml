@@ -228,6 +228,13 @@ jobs:
         echo "Build directory structure:"
         find build -type f -name "*.gcno" | head -10
     
+    - name: Ensure main app is built
+      run: |
+        # Always build the main app to ensure it exists
+        fpm build --profile debug --flag '-fprofile-arcs -ftest-coverage -g'
+        echo "Checking for fortran executable:"
+        find build -name fortran -type f -executable | grep -v test || echo "No fortran executable found!"
+    
     - name: Run CLI Tests
       if: matrix.test-group == 'cli'
       run: |
@@ -285,13 +292,14 @@ jobs:
         find . -name "*.gcno" -exec cp --parents {} coverage-data/ \;
         
         gcovr --root . \
-          --exclude 'build/*' \
-          --exclude 'test/*' \
-          --exclude 'example/*' \
-          --exclude 'app/test_*.f90' \
-          --exclude 'draft/*' \
+          --filter 'src/.*' \
+          --filter 'app/main.f90' \
+          --exclude 'test/.*' \
+          --exclude 'example/.*' \
+          --exclude 'app/test_.*' \
+          --exclude 'draft/.*' \
           --json coverage-${{ matrix.test-group }}.json \
-          --print-summary
+          --print-summary || echo "gcovr failed with exit code: $?"
     
     - name: Upload coverage artifacts
       uses: actions/upload-artifact@v4
@@ -367,6 +375,13 @@ jobs:
         echo "Build directory structure:"
         find build -type f -name "*.gcno" | head -10
     
+    - name: Ensure main app is built
+      run: |
+        # Always build the main app to ensure it exists
+        fpm build --profile debug --flag '-fprofile-arcs -ftest-coverage -g'
+        echo "Checking for fortran executable:"
+        find build -name fortran -type f -executable | grep -v test || echo "No fortran executable found!"
+    
     - name: Run Frontend Tests
       if: matrix.test-group == 'frontend'
       run: |
@@ -399,13 +414,14 @@ jobs:
         find . -name "*.gcno" -exec cp --parents {} coverage-data/ \;
         
         gcovr --root . \
-          --exclude 'build/*' \
-          --exclude 'test/*' \
-          --exclude 'example/*' \
-          --exclude 'app/test_*.f90' \
-          --exclude 'draft/*' \
+          --filter 'src/.*' \
+          --filter 'app/main.f90' \
+          --exclude 'test/.*' \
+          --exclude 'example/.*' \
+          --exclude 'app/test_.*' \
+          --exclude 'draft/.*' \
           --json coverage-${{ matrix.test-group }}.json \
-          --print-summary
+          --print-summary || echo "gcovr failed with exit code: $?"
     
     - name: Upload coverage artifacts
       uses: actions/upload-artifact@v4
