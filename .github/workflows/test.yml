@@ -619,8 +619,12 @@ jobs:
     
     - name: Install gfortran
       run: |
-        brew install gcc@12
-        echo "/usr/local/opt/gcc@12/bin" >> $GITHUB_PATH
+        brew install gcc
+        # Create symlinks for FPM compatibility
+        sudo mkdir -p /usr/local/opt
+        sudo ln -sf /opt/homebrew/opt/gcc /usr/local/opt/gcc
+        sudo ln -sf /opt/homebrew/opt/gcc@12 /usr/local/opt/gcc@12 || true
+        sudo ln -sf /opt/homebrew/opt/gcc@13 /usr/local/opt/gcc@13 || true
     
     - name: Cache FPM binary (macOS)
       id: cache-fpm-mac
@@ -632,9 +636,16 @@ jobs:
     - name: Install FPM
       if: steps.cache-fpm-mac.outputs.cache-hit != 'true'
       run: |
-        wget https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-macos-x86_64-gcc-12
-        chmod +x fpm-0.12.0-macos-x86_64-gcc-12
-        sudo mv fpm-0.12.0-macos-x86_64-gcc-12 /usr/local/bin/fpm
+        # Try to find the right FPM binary based on available gcc version
+        GCC_VER=$(gcc --version | head -1 | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | cut -d. -f1)
+        if [ "$GCC_VER" = "13" ]; then
+          wget https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-macos-x86_64-gcc-13 || \
+          wget https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-macos-x86_64-gcc-12
+        else
+          wget https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-macos-x86_64-gcc-12
+        fi
+        chmod +x fpm-0.12.0-macos-x86_64-gcc-*
+        sudo mv fpm-0.12.0-macos-x86_64-gcc-* /usr/local/bin/fpm
         fpm --version
     
     - name: Setup registry
