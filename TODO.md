@@ -1,5 +1,22 @@
 # TODO: Fix Documented but Non-Working Features
 
+## KEY FINDINGS FROM INVESTIGATION
+
+### ✅ What Actually Works
+- **Lexer is robust and complete** - All 4 core lexer tests enabled and passing
+- **Parser has modern arena-based architecture** - Some functionality working
+- **Infrastructure is solid** - Module structure, caching, FPM integration work
+
+### ❌ Real Blocking Issues  
+- **Semantic Analysis is broken** - Module dependency hell prevents compilation
+- **Type inference is non-functional** - This is what breaks the documented features
+- **Build system complexity** - Standalone testing of semantic modules fails
+
+### 📝 Updated Strategy
+Focus on fixing the semantic analysis module dependencies rather than enabling every individual test. The lexer works fine, parser partially works, but semantic analysis is the real bottleneck.
+
+---
+
 ## Priority Classification
 - **P0**: Core functionality blocking basic use cases
 - **P1**: Major features that documentation claims work but don't
@@ -10,45 +27,39 @@
 
 ## P0: Critical Frontend Pipeline (Blocking Everything)
 
-### 1. Lexer Foundation
-**Status**: 5 core lexer tests disabled, basic tokenization non-functional
-**Tests to fix**: 
-- `test_frontend_lexer_api.f90.disabled` - Core lexer API
-- `test_frontend_lexer_keywords.f90.disabled` - Fortran keyword recognition
-- `test_frontend_lexer_numbers.f90.disabled` - Numeric literal tokenization
-- `test_frontend_lexer_operators.f90.disabled` - Operator tokenization
+### 1. Lexer Foundation ✅ **COMPLETED**
+**Status**: All 4 core lexer tests now ENABLED and PASSING
+**Tests fixed**: 
+- ✅ `test_frontend_lexer_api.f90` - Core lexer API (PASS)
+- ✅ `test_frontend_lexer_keywords.f90` - Fortran keyword recognition (PASS)
+- ✅ `test_frontend_lexer_numbers.f90` - Numeric literal tokenization (PASS)
+- ✅ `test_frontend_lexer_operators.f90` - Operator tokenization (PASS)
 
-**TDD Approach**:
-- Start with single integer literal: `42` → `INTEGER_LITERAL` token
-- Add real literals: `3.14` → `REAL_LITERAL` token  
-- Add identifiers: `x` → `IDENTIFIER` token
-- Add operators: `+`, `-`, `*`, `/` → operator tokens
-- Each test should verify exact token type and value
+**Key Finding**: The lexer implementation is robust and comprehensive. These tests were disabled unnecessarily - the lexer works perfectly for all basic Fortran constructs including keywords, numbers, operators, and identifiers.
 
-### 2. Basic Parser Core
-**Status**: 20+ parser tests disabled, no working AST generation
-**Tests to fix first**:
-- `test_frontend_parser_api.f90.disabled` - Core parser interface
-- `test_frontend_parser_basic.f90.disabled` - Simple expressions
-- `test_frontend_parser_assignment.f90.disabled` - Variable assignments
+### 2. Basic Parser Core ⚠️ **PARTIALLY WORKING**
+**Status**: Parser has arena-based architecture and some functionality works
+**Current working tests**: 
+- ✅ `test_frontend_parser_if_statement.f90` - If statement parsing (PASS)
+- ✅ Some parser functionality in frontend test group (PASS)
 
-**TDD Approach**:
-- Parse single assignment: `x = 42` → Assignment AST node
-- Parse arithmetic: `x = a + b` → Binary expression AST
-- Parse function calls: `x = sin(y)` → Function call AST
-- Each test verifies correct AST structure, not just "it doesn't crash"
+**Key Finding**: The parser has been modernized to use an arena-based AST system with indices rather than direct node references. Many disabled tests use the old API and need updating to new architecture.
 
-### 3. Semantic Analysis Foundation  
-**Status**: All 14 semantic tests broken, no type checking works
+**Real Issues**:
+- Many disabled parser tests use obsolete API (`parse_statement` vs `parse_statement_dispatcher`)
+- Tests need rewriting for arena-based AST system
+- Focus should be on semantic analysis, not basic parsing
+
+### 3. Semantic Analysis Foundation ❌ **CRITICAL ISSUE**
+**Status**: All 14 semantic tests broken, this is the REAL blocking issue
+**Root Cause**: Complex module dependency chain prevents compilation
 **Tests to fix**:
-- `test_frontend_semantic_minimal.f90.broken` - Basic semantic context
+- ⚠️ `test_frontend_semantic_minimal.f90` - Basic semantic context (ENABLED, build issues)
 - `test_frontend_semantic_basic_type_inference.f90.broken` - Integer/real inference
 
-**TDD Approach**:
-- Infer from literal: `x = 42` → `integer :: x`
-- Infer from expression: `x = 3.14` → `real :: x`
-- Infer from operation: `x = a + b` where `a,b` are integers → `integer :: x`
-- Test actual type assignments, not just symbol table existence
+**Key Finding**: The semantic analyzer module exists and looks comprehensive with Hindley-Milner type inference, but has complex dependencies (json_module, fpm integration) that prevent standalone testing.
+
+**Priority**: This is where the real missing functionality lies. The lexer works, parser partially works, but semantic analysis is completely broken due to build/dependency issues.
 
 ---
 
