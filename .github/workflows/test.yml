@@ -626,6 +626,8 @@ jobs:
           python=3.11
           fpm
           gfortran
+          gcc
+          openmp
         init-shell: bash
         cache-environment: true
         channels: conda-forge
@@ -668,6 +670,9 @@ jobs:
       shell: bash -el {0}
       run: |
         echo "Building project and all tests..."
+        # Use gcc from conda instead of system clang for C files
+        export CC=gcc
+        export CXX=g++
         fpm build --tests
     
     - name: Run Core Tests
