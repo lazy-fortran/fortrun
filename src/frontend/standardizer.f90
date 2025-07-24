@@ -16,6 +16,7 @@ module standardizer
 
     public :: standardize_ast
     public :: standardize_ast_json
+    public :: standardize_file
 
 contains
 
@@ -214,6 +215,53 @@ contains
         arena%entries(prog_index)%node = prog
 
     end subroutine insert_contains_statement
+
+    ! File-based standardization interface
+    subroutine standardize_file(input_file, output_file, error_msg)
+        use frontend, only: compile_source, compilation_options_t
+        character(len=*), intent(in) :: input_file
+        character(len=*), intent(in) :: output_file
+        character(len=*), intent(out) :: error_msg
+        type(compilation_options_t) :: options
+
+        error_msg = ""
+
+        ! Set up compilation options for standardization
+        options%backend = 1  ! BACKEND_FORTRAN
+        options%debug_tokens = .false.
+        options%debug_ast = .false.
+        options%debug_semantic = .false.
+        options%debug_standardize = .false.
+        options%debug_codegen = .false.
+        options%optimize = .false.
+        options%output_file = output_file
+
+        ! Use the full frontend pipeline
+        call compile_source(input_file, options, error_msg)
+
+    end subroutine standardize_file
+
+    ! Helper to write output file
+    subroutine write_output_file(filename, content, error_msg)
+        character(len=*), intent(in) :: filename
+        character(len=*), intent(in) :: content
+        character(len=*), intent(out) :: error_msg
+        integer :: unit, ios
+
+        error_msg = ""
+        open(newunit=unit, file=filename, status='replace', action='write', iostat=ios)
+        if (ios /= 0) then
+            error_msg = "Unable to open output file: " // filename
+            return
+        end if
+
+        write(unit, '(A)', iostat=ios) content
+        if (ios /= 0) then
+            error_msg = "Error writing to output file: " // filename
+        end if
+
+        close(unit)
+    end subroutine write_output_file
 
     ! JSON interface for standardization
     subroutine standardize_ast_json(json_file_path, output_file, error_msg)
@@ -760,10 +808,13 @@ contains
                             end do
 
                             if (is_param_decl) then
-                                ! Update the declaration to have intent(in) and real(8)
-                                stmt%type_name = "real"
-                                stmt%has_kind = .true.
-                                stmt%kind_value = 8
+                                ! Update the declaration to have intent(in) and preserve/enhance type
+                                if (stmt%type_name == "real") then
+                                    stmt%type_name = "real"
+                                    stmt%has_kind = .true.
+                                    stmt%kind_value = 8
+                                ! Keep integer, logical, character as-is
+                                end if
                                 stmt%intent = "in"
                                 stmt%has_intent = .true.
                                 param_names_found(param_idx) = func_def%body_indices(i)
