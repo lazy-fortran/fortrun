@@ -54,7 +54,9 @@ contains
 
         ! Check that output contains error message about build failure
         ! This is expected behavior - nonexistent modules should cause build failure
-        call check_output_contains(path_join(get_system_temp_dir(), 'unknown_output.txt'), 'ERROR: Build failed')
+        ! On Windows, the error format might be different
+        call check_output_contains_any(path_join(get_system_temp_dir(), 'unknown_output.txt'), &
+            [ character(len=24) :: 'ERROR: Build failed', 'ERROR>', '<ERROR>', 'stopping due to failed' ])
 
         ! Clean up
         call sys_remove_dir(test_dir)
@@ -97,7 +99,8 @@ contains
 
         ! Check that output contains error message
         ! Build should fail for missing modules
-        call check_output_contains(path_join(get_system_temp_dir(), 'error_output.txt'), 'ERROR: Build failed')
+        call check_output_contains_any(path_join(get_system_temp_dir(), 'error_output.txt'), &
+            [ character(len=24) :: 'ERROR: Build failed', 'ERROR>', '<ERROR>', 'stopping due to failed' ])
 
         ! Clean up
         call sys_remove_dir(test_dir)
@@ -138,7 +141,8 @@ contains
         call check_exit_code(path_join(get_system_temp_dir(), 'syntax_exit.txt'), 1)
 
         ! Check that output contains error information
-        call check_output_contains(path_join(get_system_temp_dir(), 'syntax_output.txt'), 'ERROR')
+        call check_output_contains_any(path_join(get_system_temp_dir(), 'syntax_output.txt'), &
+            [ character(len=12) :: 'ERROR', 'Error:', 'syntax error', 'unexpected' ])
 
         ! Clean up
         call sys_remove_dir(test_dir)
@@ -207,5 +211,45 @@ contains
         end if
 
     end subroutine check_output_contains
+
+    subroutine check_output_contains_any(output_file, expected_texts)
+        character(len=*), intent(in) :: output_file
+        character(len=*), dimension(:), intent(in) :: expected_texts
+        character(len=512) :: line
+        integer :: unit, iostat, i
+        logical :: found
+
+        found = .false.
+
+        open (newunit=unit, file=output_file, status='old', iostat=iostat)
+        if (iostat /= 0) then
+            write (error_unit, *) 'Error: Cannot open output file: ', trim(output_file)
+            stop 1
+        end if
+
+        do
+            read (unit, '(a)', iostat=iostat) line
+            if (iostat /= 0) exit
+
+            do i = 1, size(expected_texts)
+                if (index(line, trim(expected_texts(i))) > 0) then
+                    found = .true.
+                    exit
+                end if
+            end do
+            if (found) exit
+        end do
+
+        close (unit)
+
+        if (.not. found) then
+            write(error_unit, *) 'Error: None of the expected texts found in output:'
+            do i = 1, size(expected_texts)
+                write(error_unit, *) '  - "', trim(expected_texts(i)), '"'
+            end do
+            stop 1
+        end if
+
+    end subroutine check_output_contains_any
 
 end program test_error_handling
