@@ -528,14 +528,43 @@ contains
         integer, intent(in) :: node_index
         character(len=:), allocatable :: code
         character(len=:), allocatable :: init_code
+        character(len=:), allocatable :: type_str
         integer :: i
 
-        ! Generate basic declaration
-        code = node%type_name
+        ! Determine the type string
+        if (len_trim(node%type_name) > 0) then
+            type_str = node%type_name
+        else if (allocated(node%inferred_type)) then
+            ! Handle type inference
+            select case (node%inferred_type%kind)
+            case (TINT)
+                type_str = "integer"
+            case (TREAL)
+                type_str = "real(8)"
+            case (TCHAR)
+                if (node%inferred_type%size > 0) then
+                    type_str = "character(len="//trim(adjustl(int_to_string(node%inferred_type%size)))//")"
+                else
+                    type_str = "character"
+                end if
+            case (TLOGICAL)
+                type_str = "logical"
+            case default
+                type_str = "real"  ! Default to real
+            end select
+        else
+            type_str = "real"  ! Default fallback
+        end if
 
-        ! Add kind if present
-        if (node%has_kind) then
+        ! Generate basic declaration
+        code = type_str
+
+        ! Add kind if present (but not for character which uses len)
+        if (node%has_kind .and. node%type_name /= "character") then
             code = code//"("//trim(adjustl(int_to_string(node%kind_value)))//")"
+        else if (node%type_name == "character" .and. node%has_kind) then
+            ! For character, kind_value is actually the length
+            code = "character(len="//trim(adjustl(int_to_string(node%kind_value)))//")"
         end if
 
         ! Add intent if present

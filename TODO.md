@@ -140,9 +140,17 @@ Work within the existing AST-based architecture. Use `standardize_ast` for trans
 
 ## P2: Integration and Advanced Features
 
-### 8. Code Generation Pipeline
-**Status**: All codegen tests disabled, no AST → Fortran conversion
-**Key tests**: All in `test/frontend/codegen/*.disabled`
+### 8. Code Generation Pipeline ⚠️ **SIGNIFICANT PROGRESS**
+**Status**: Code generation working! 5 tests enabled and passing
+**Progress**:
+- ✅ `test_frontend_codegen_basic.f90` - ENABLED and PASS
+- ✅ `test_frontend_codegen_assignment.f90` - ENABLED and PASS
+- ✅ `test_frontend_codegen_expressions.f90` - ENABLED and PASS
+- ✅ `test_frontend_codegen_type_declarations.f90` - ENABLED and PASS
+- ✅ `test_frontend_codegen_program.f90` - ENABLED and PASS
+- ❌ 3 tests still disabled (program_structure, json, api)
+
+**Key Finding**: Code generation works well with arena-based API! Tests just needed updating.
 
 **TDD Approach**:
 - Simple assignment codegen: Assignment AST → `integer :: x; x = 42`

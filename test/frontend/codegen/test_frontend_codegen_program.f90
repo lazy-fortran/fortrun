@@ -1,5 +1,6 @@
 program test_codegen_program
     use ast_core
+    use ast_factory
     use codegen_core
     implicit none
 
@@ -24,26 +25,25 @@ program test_codegen_program
 contains
 
     logical function test_statement_generation()
-        type(assignment_node) :: assign
-        type(identifier_node) :: target
-        type(literal_node) :: value
-        type(binary_op_node) :: expr
+        type(ast_arena_t) :: arena
+        integer :: target_idx, x_idx, y_idx, expr_idx, assign_idx
         character(len=:), allocatable :: code
 
         test_statement_generation = .true.
         print '(a)', "Testing statement code generation..."
 
+        ! Initialize arena
+        arena = create_ast_stack()
+
         ! Create assignment with expression: z = x + y
-        target = create_identifier("z", 1, 1)
-        value = create_literal("10", LITERAL_INTEGER, 1, 5)
-        expr = create_binary_op( &
-            create_identifier("x", 1, 5), &
-            create_identifier("y", 1, 9), &
-            "+", 1, 7)
-        assign = create_assignment(target, expr, 1, 1)
+        target_idx = push_identifier(arena, "z", 1, 1)
+        x_idx = push_identifier(arena, "x", 1, 5)
+        y_idx = push_identifier(arena, "y", 1, 9)
+        expr_idx = push_binary_op(arena, x_idx, y_idx, "+", 1, 7)
+        assign_idx = push_assignment(arena, target_idx, expr_idx, 1, 1)
 
         ! Generate code
-        code = generate_code(assign)
+        code = generate_code_from_arena(arena, assign_idx)
 
         ! Check generated code
         if (code /= "z = x + y") then
@@ -54,20 +54,27 @@ contains
         else
             print '(a)', "PASS: Statement generation"
         end if
+
+        ! Clean up
+        call arena%clear()
     end function test_statement_generation
 
     logical function test_use_statement()
-        type(use_statement_node) :: use_stmt
+        type(ast_arena_t) :: arena
+        integer :: use_idx
         character(len=:), allocatable :: code
 
         test_use_statement = .true.
         print '(a)', "Testing use statement generation..."
 
+        ! Initialize arena
+        arena = create_ast_stack()
+
         ! Create use statement
-        use_stmt = create_use_statement("iso_fortran_env", line=1, column=1)
+        use_idx = push_use_statement(arena, "iso_fortran_env", line=1, column=1)
 
         ! Generate code
-        code = generate_code(use_stmt)
+        code = generate_code_from_arena(arena, use_idx)
 
         ! Check generated code
         if (code /= "use iso_fortran_env") then
@@ -78,25 +85,30 @@ contains
         else
             print '(a)', "PASS: Use statement generation"
         end if
+
+        ! Clean up
+        call arena%clear()
     end function test_use_statement
 
     logical function test_print_statement()
-        type(print_statement_node) :: print_stmt
-        type(identifier_node) :: var
-        type(ast_node_wrapper), allocatable :: wrapper_args(:)
+        type(ast_arena_t) :: arena
+        integer :: var_idx, print_idx
+        integer :: arg_indices(1)
         character(len=:), allocatable :: code
 
         test_print_statement = .true.
         print '(a)', "Testing print statement generation..."
 
-        ! Create print statement with one argument using wrapper pattern
-        var = create_identifier("result", 1, 7)
-        allocate(wrapper_args(1))
-        allocate(wrapper_args(1)%node, source=var)
-        print_stmt = create_print_statement(wrapper_args, line=1, column=1)
+        ! Initialize arena
+        arena = create_ast_stack()
+
+        ! Create print statement with one argument
+        var_idx = push_identifier(arena, "result", 1, 7)
+        arg_indices(1) = var_idx
+        print_idx = push_print_statement(arena, "*", arg_indices, line=1, column=1)
 
         ! Generate code
-        code = generate_code(print_stmt)
+        code = generate_code_from_arena(arena, print_idx)
 
         ! Check generated code
         if (code /= "print *, result") then
@@ -107,6 +119,9 @@ contains
         else
             print '(a)', "PASS: Print statement generation"
         end if
+
+        ! Clean up
+        call arena%clear()
     end function test_print_statement
 
 end program test_codegen_program
