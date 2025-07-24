@@ -218,26 +218,24 @@ contains
 
     ! File-based standardization interface
     subroutine standardize_file(input_file, output_file, error_msg)
-        use frontend, only: compile_source, compilation_options_t
         character(len=*), intent(in) :: input_file
         character(len=*), intent(in) :: output_file
         character(len=*), intent(out) :: error_msg
-        type(compilation_options_t) :: options
+        
+        ! Simple approach: just run the fortran executable
+        character(len=512) :: command
+        integer :: exit_status
 
         error_msg = ""
 
-        ! Set up compilation options for standardization
-        options%backend = 1  ! BACKEND_FORTRAN
-        options%debug_tokens = .false.
-        options%debug_ast = .false.
-        options%debug_semantic = .false.
-        options%debug_standardize = .false.
-        options%debug_codegen = .false.
-        options%optimize = .false.
-        options%output_file = output_file
-
-        ! Use the full frontend pipeline
-        call compile_source(input_file, options, error_msg)
+        ! Use the fortran executable to compile the file
+        command = 'fpm run fortran -- "' // trim(input_file) // '" --output "' // trim(output_file) // '"'
+        
+        call execute_command_line(command, exitstat=exit_status)
+        
+        if (exit_status /= 0) then
+            error_msg = "Compilation failed"
+        end if
 
     end subroutine standardize_file
 
