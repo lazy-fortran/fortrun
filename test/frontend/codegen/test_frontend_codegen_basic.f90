@@ -1,5 +1,6 @@
 program test_codegen_basic
     use ast_core
+    use ast_factory
     use codegen_core
     implicit none
 
@@ -25,17 +26,21 @@ program test_codegen_basic
 contains
 
     logical function test_literal_codegen()
-        type(literal_node) :: literal
+        type(ast_arena_t) :: arena
+        integer :: lit_index
         character(len=:), allocatable :: code
 
         test_literal_codegen = .true.
         print '(a)', "Testing literal code generation..."
 
+        ! Create arena
+        arena = create_ast_stack()
+
         ! Create integer literal
-        literal = create_literal("42", LITERAL_INTEGER, 1, 1)
+        lit_index = push_literal(arena, "42", LITERAL_INTEGER, 1, 1)
 
         ! Generate code
-        code = generate_code(literal)
+        code = generate_code_from_arena(arena, lit_index)
 
         ! Check generated code
         if (code /= "42") then
@@ -49,17 +54,21 @@ contains
     end function test_literal_codegen
 
     logical function test_identifier_codegen()
-        type(identifier_node) :: ident
+        type(ast_arena_t) :: arena
+        integer :: id_index
         character(len=:), allocatable :: code
 
         test_identifier_codegen = .true.
         print '(a)', "Testing identifier code generation..."
 
+        ! Create arena
+        arena = create_ast_stack()
+
         ! Create identifier
-        ident = create_identifier("x", 1, 1)
+        id_index = push_identifier(arena, "x", 1, 1)
 
         ! Generate code
-        code = generate_code(ident)
+        code = generate_code_from_arena(arena, id_index)
 
         ! Check generated code
         if (code /= "x") then
@@ -73,21 +82,23 @@ contains
     end function test_identifier_codegen
 
     logical function test_assignment_codegen()
-        type(assignment_node) :: assign
-        type(identifier_node) :: target
-        type(literal_node) :: value
+        type(ast_arena_t) :: arena
+        integer :: target_index, value_index, assign_index
         character(len=:), allocatable :: code
 
         test_assignment_codegen = .true.
         print '(a)', "Testing assignment code generation..."
 
+        ! Create arena
+        arena = create_ast_stack()
+
         ! Create assignment: x = 42
-        target = create_identifier("x", 1, 1)
-        value = create_literal("42", LITERAL_INTEGER, 1, 5)
-        assign = create_assignment(target, value, 1, 1)
+        target_index = push_identifier(arena, "x", 1, 1)
+        value_index = push_literal(arena, "42", LITERAL_INTEGER, 1, 5)
+        assign_index = push_assignment(arena, target_index, value_index, 1, 1)
 
         ! Generate code
-        code = generate_code(assign)
+        code = generate_code_from_arena(arena, assign_index)
 
         ! Check generated code
         if (code /= "x = 42") then
@@ -101,20 +112,23 @@ contains
     end function test_assignment_codegen
 
     logical function test_binary_op_codegen()
-        type(binary_op_node) :: binop
-        type(identifier_node) :: left, right
+        type(ast_arena_t) :: arena
+        integer :: left_index, right_index, binop_index
         character(len=:), allocatable :: code
 
         test_binary_op_codegen = .true.
         print '(a)', "Testing binary operation code generation..."
 
+        ! Create arena
+        arena = create_ast_stack()
+
         ! Create binary operation: a + b
-        left = create_identifier("a", 1, 1)
-        right = create_identifier("b", 1, 5)
-        binop = create_binary_op(left, right, "+", 1, 3)
+        left_index = push_identifier(arena, "a", 1, 1)
+        right_index = push_identifier(arena, "b", 1, 5)
+        binop_index = push_binary_op(arena, left_index, right_index, "+", 1, 3)
 
         ! Generate code
-        code = generate_code(binop)
+        code = generate_code_from_arena(arena, binop_index)
 
         ! Check generated code
         if (code /= "a + b") then

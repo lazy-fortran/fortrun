@@ -1,5 +1,6 @@
 program test_codegen_expressions
     use ast_core
+    use ast_factory
     use codegen_core
     implicit none
 
@@ -24,28 +25,31 @@ program test_codegen_expressions
 contains
 
     logical function test_nested_binary_ops()
-        type(binary_op_node) :: outer_op, inner_op
-        type(identifier_node) :: a, b, c
+        type(ast_arena_t) :: arena
+        integer :: a_idx, b_idx, c_idx, inner_op_idx, outer_op_idx
         character(len=:), allocatable :: code
 
         test_nested_binary_ops = .true.
         print '(a)', "Testing nested binary operations..."
 
-        ! Create: a + b * c
-        a = create_identifier("a", 1, 1)
-        b = create_identifier("b", 1, 5)
-        c = create_identifier("c", 1, 9)
+        ! Create arena
+        arena = create_ast_stack()
 
-        inner_op = create_binary_op(b, c, "*", 1, 7)
-        outer_op = create_binary_op(a, inner_op, "+", 1, 3)
+        ! Create: a + b * c
+        a_idx = push_identifier(arena, "a", 1, 1)
+        b_idx = push_identifier(arena, "b", 1, 5)
+        c_idx = push_identifier(arena, "c", 1, 9)
+
+        inner_op_idx = push_binary_op(arena, b_idx, c_idx, "*", 1, 7)
+        outer_op_idx = push_binary_op(arena, a_idx, inner_op_idx, "+", 1, 3)
 
         ! Generate code
-        code = generate_code(outer_op)
+        code = generate_code_from_arena(arena, outer_op_idx)
 
         ! Check generated code
-        if (code /= "a + b * c") then
+        if (code /= "a + b*c") then
             print '(a)', "FAIL: Nested operation code generation incorrect"
-            print '(a)', "  Expected: 'a + b * c'"
+            print '(a)', "  Expected: 'a + b*c'"
             print '(a)', "  Got: '" // code // "'"
             test_nested_binary_ops = .false.
         else
@@ -54,27 +58,30 @@ contains
     end function test_nested_binary_ops
 
     logical function test_parentheses_needed()
-        type(binary_op_node) :: outer_op, inner_op
-        type(identifier_node) :: a, b, c
+        type(ast_arena_t) :: arena
+        integer :: a_idx, b_idx, c_idx, inner_op_idx, outer_op_idx
         character(len=:), allocatable :: code
 
         test_parentheses_needed = .true.
         print '(a)', "Testing parentheses generation..."
 
-        ! Create: (a + b) * c
-        a = create_identifier("a", 1, 2)
-        b = create_identifier("b", 1, 6)
-        c = create_identifier("c", 1, 11)
+        ! Create arena
+        arena = create_ast_stack()
 
-        inner_op = create_binary_op(a, b, "+", 1, 4)
-        outer_op = create_binary_op(inner_op, c, "*", 1, 9)
+        ! Create: (a + b) * c
+        a_idx = push_identifier(arena, "a", 1, 2)
+        b_idx = push_identifier(arena, "b", 1, 6)
+        c_idx = push_identifier(arena, "c", 1, 11)
+
+        inner_op_idx = push_binary_op(arena, a_idx, b_idx, "+", 1, 4)
+        outer_op_idx = push_binary_op(arena, inner_op_idx, c_idx, "*", 1, 9)
 
         ! Generate code
-        code = generate_code(outer_op)
+        code = generate_code_from_arena(arena, outer_op_idx)
 
         ! For now, we don't handle parentheses automatically
         ! This is a known limitation we'll fix later
-        if (code /= "a + b * c") then
+        if (code /= "a + b*c") then
             print '(a)', "NOTE: Parentheses not yet handled in codegen"
             print '(a)', "  Got: '" // code // "'"
         end if
@@ -84,30 +91,33 @@ contains
     end function test_parentheses_needed
 
     logical function test_complex_expression()
-        type(binary_op_node) :: add_op, mul_op, sub_op
-        type(identifier_node) :: a, b, c, d
+        type(ast_arena_t) :: arena
+        integer :: a_idx, b_idx, c_idx, d_idx, mul_op_idx, add_op_idx, sub_op_idx
         character(len=:), allocatable :: code
 
         test_complex_expression = .true.
         print '(a)', "Testing complex expression generation..."
 
-        ! Create: a * b + c - d
-        a = create_identifier("a", 1, 1)
-        b = create_identifier("b", 1, 5)
-        c = create_identifier("c", 1, 9)
-        d = create_identifier("d", 1, 13)
+        ! Create arena
+        arena = create_ast_stack()
 
-        mul_op = create_binary_op(a, b, "*", 1, 3)
-        add_op = create_binary_op(mul_op, c, "+", 1, 7)
-        sub_op = create_binary_op(add_op, d, "-", 1, 11)
+        ! Create: a * b + c - d
+        a_idx = push_identifier(arena, "a", 1, 1)
+        b_idx = push_identifier(arena, "b", 1, 5)
+        c_idx = push_identifier(arena, "c", 1, 9)
+        d_idx = push_identifier(arena, "d", 1, 13)
+
+        mul_op_idx = push_binary_op(arena, a_idx, b_idx, "*", 1, 3)
+        add_op_idx = push_binary_op(arena, mul_op_idx, c_idx, "+", 1, 7)
+        sub_op_idx = push_binary_op(arena, add_op_idx, d_idx, "-", 1, 11)
 
         ! Generate code
-        code = generate_code(sub_op)
+        code = generate_code_from_arena(arena, sub_op_idx)
 
         ! Check generated code
-        if (code /= "a * b + c - d") then
+        if (code /= "a*b + c - d") then
             print '(a)', "FAIL: Complex expression code generation incorrect"
-            print '(a)', "  Expected: 'a * b + c - d'"
+            print '(a)', "  Expected: 'a*b + c - d'"
             print '(a)', "  Got: '" // code // "'"
             test_complex_expression = .false.
         else
