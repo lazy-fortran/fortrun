@@ -636,16 +636,12 @@ jobs:
     - name: Install FPM
       if: steps.cache-fpm-mac.outputs.cache-hit != 'true'
       run: |
-        # Try to find the right FPM binary based on available gcc version
-        GCC_VER=$(gcc --version | head -1 | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | cut -d. -f1)
-        if [ "$GCC_VER" = "13" ]; then
-          wget https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-macos-x86_64-gcc-13 || \
-          wget https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-macos-x86_64-gcc-12
-        else
-          wget https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-macos-x86_64-gcc-12
-        fi
-        chmod +x fpm-0.12.0-macos-x86_64-gcc-*
-        sudo mv fpm-0.12.0-macos-x86_64-gcc-* /usr/local/bin/fpm
+        # Build FPM from source since prebuilt binaries have architecture issues
+        git clone https://github.com/fortran-lang/fpm.git --depth 1 --branch v0.12.0
+        cd fpm
+        ./install.sh --prefix=/usr/local
+        cd ..
+        rm -rf fpm
         fpm --version
     
     - name: Setup registry
