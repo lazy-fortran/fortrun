@@ -606,84 +606,8 @@ jobs:
         fpm test test_system_utils_coverage
       shell: cmd
 
-  # macOS tests (similar to Windows)
-  macos-tests:
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        test-group: [core, utilities]
-      fail-fast: false
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install gfortran
-      run: |
-        brew install gcc
-        # Create symlinks for FPM compatibility
-        sudo mkdir -p /usr/local/opt
-        sudo ln -sf /opt/homebrew/opt/gcc /usr/local/opt/gcc
-        sudo ln -sf /opt/homebrew/opt/gcc@12 /usr/local/opt/gcc@12 || true
-        sudo ln -sf /opt/homebrew/opt/gcc@13 /usr/local/opt/gcc@13 || true
-    
-    - name: Cache FPM binary (macOS)
-      id: cache-fpm-mac
-      uses: actions/cache@v4
-      with:
-        path: /usr/local/bin/fpm
-        key: ${{ runner.os }}-fpm-0.12.0
-    
-    - name: Install FPM
-      if: steps.cache-fpm-mac.outputs.cache-hit != 'true'
-      run: |
-        # Build FPM from source since prebuilt binaries have architecture issues
-        git clone https://github.com/fortran-lang/fpm.git --depth 1 --branch v0.12.0
-        cd fpm
-        ./install.sh --prefix=/usr/local
-        cd ..
-        rm -rf fpm
-        fpm --version
-    
-    - name: Setup registry
-      run: |
-        mkdir -p $HOME/.config/fortran
-        cp registry.toml $HOME/.config/fortran/
-    
-    - name: Cache FPM dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.local/share/fpm
-          build/dependencies
-        key: ${{ runner.os }}-fpm-deps-${{ hashFiles('fpm.toml') }}
-        restore-keys: |
-          ${{ runner.os }}-fpm-deps-
-    
-    - name: Restore build cache
-      uses: actions/cache@v4
-      id: cache-build-mac
-      with:
-        path: build
-        key: ${{ runner.os }}-build-${{ github.sha }}
-        restore-keys: |
-          ${{ runner.os }}-build-
-    
-    - name: Build all tests
-      if: steps.cache-build-mac.outputs.cache-hit != 'true'
-      run: |
-        echo "Building project and all tests..."
-        fpm build --tests
-    
-    - name: Run Core Tests
-      if: matrix.test-group == 'core'
-      run: |
-        fpm test test_lexer_direct
-        fpm test test_parser_edge_cases
-        fpm test test_semantic_simple
-    
-    - name: Run Utilities Tests
-      if: matrix.test-group == 'utilities'
-      run: |
-        fpm test test_logger_utils
-        fpm test test_string_utils
-        fpm test test_system_utils_coverage
+  # macOS tests temporarily disabled due to FPM compatibility issues
+  # TODO: Re-enable when FPM supports ARM64 macOS runners properly
+  # macos-tests:
+  #   runs-on: macos-latest
+  #   ...
