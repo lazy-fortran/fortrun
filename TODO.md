@@ -120,12 +120,15 @@ Work within the existing AST-based architecture. Use `standardize_ast` for trans
 - Chain inference: `x = f(y)` where `f` is defined elsewhere
 - Complex calls: `x = g(f(y))` with nested function resolution
 
-### 7. Control Flow Parsing ⚠️ **PARTIALLY WORKING**
-**Status**: If statements work, but do loop tests use obsolete API
-**Key tests**:
+### 7. Control Flow Parsing ✅ **COMPLETED**
+**Status**: All control flow parsing tests now enabled and passing
+**Progress**:
 - ✅ `test_frontend_parser_if_statement.f90` - WORKING (all tests pass)
-- ❌ `test_frontend_parser_do_loops.f90.disabled` - API incompatible
-- ❌ `test_frontend_parser_do_loop.f90.disabled` - API incompatible
+- ✅ `test_frontend_parser_do_loops.f90` - ENABLED and PASS (all tests)
+- ✅ `test_frontend_parser_do_loop.f90` - ENABLED and PASS (2/2 tests)
+- ✅ `test_frontend_parser_do_while.f90` - ENABLED and PASS (2/2 tests)
+
+**Key Finding**: Control flow parsing works perfectly! Tests just needed updating to arena-based API.
 
 **TDD Approach**:
 - Simple do loop: `do i = 1, 10; end do` → LoopNode AST
