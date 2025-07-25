@@ -150,7 +150,7 @@ contains
         end if
 
         ! Clean up arena
-        if (allocated(arena%entries)) deallocate(arena%entries)
+        call arena%clear()
 
     end function test_simple_do_loop
 
@@ -227,7 +227,7 @@ contains
         end if
 
         ! Clean up arena
-        if (allocated(arena%entries)) deallocate(arena%entries)
+        call arena%clear()
 
     end function test_do_loop_with_step
 
@@ -311,7 +311,7 @@ contains
         end if
 
         ! Clean up arena
-        if (allocated(arena%entries)) deallocate(arena%entries)
+        call arena%clear()
 
     end function test_do_while_loop
 
@@ -381,7 +381,7 @@ print '(a)', "INFO: Infinite do loop parsed as do_while_node (alternate represen
         end if
 
         ! Clean up arena
-        if (allocated(arena%entries)) deallocate(arena%entries)
+        call arena%clear()
 
     end function test_infinite_do_loop
 
@@ -432,7 +432,7 @@ print '(a)', "INFO: Infinite do loop parsed as do_while_node (alternate represen
         end if
 
         ! Clean up arena
-        if (allocated(arena%entries)) deallocate(arena%entries)
+        call arena%clear()
 
     end function test_nested_do_loops
 
