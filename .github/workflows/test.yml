@@ -391,6 +391,7 @@ jobs:
         fpm test test_frontend_parser_array_params --profile debug --flag '-fprofile-arcs -ftest-coverage'
         fpm test test_frontend_parser_explicit_types --profile debug --flag '-fprofile-arcs -ftest-coverage'
         fpm test test_frontend_full_explicit_params --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_parser_expressions_comprehensive --profile debug --flag '-fprofile-arcs -ftest-coverage'
     
     - name: Run Integration Tests
       if: matrix.test-group == 'integration'

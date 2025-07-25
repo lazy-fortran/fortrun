@@ -341,6 +341,7 @@ jobs:
         echo N | fpm test test_frontend_parser_explicit_types
         echo N | fpm test test_frontend_full_explicit_params
         echo N | fpm test test_frontend_parser_param_nodes
+        echo N | fpm test test_parser_expressions_comprehensive
       shell: cmd
 
     - name: Run Examples Tests
