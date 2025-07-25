@@ -291,6 +291,9 @@ contains
         type is (assignment_node)
             typ = infer_assignment(this, arena, expr, expr_index)
 
+        type is (array_literal_node)
+            typ = infer_array_literal(this, arena, expr, expr_index)
+
         class default
             ! Return real type as default for unsupported expressions
             typ = create_mono_type(TREAL)
@@ -1269,5 +1272,54 @@ contains
         lhs%next_var_id = rhs%next_var_id
         lhs%subst = rhs%subst            ! Uses substitution_t assignment (deep copy)
     end subroutine semantic_context_assign
+
+    ! Infer type of array literal
+    function infer_array_literal(this, arena, arr_node, expr_index) result(typ)
+        class(semantic_context_t), intent(inout) :: this
+        type(ast_arena_t), intent(inout) :: arena
+        type(array_literal_node), intent(in) :: arr_node
+        integer, intent(in) :: expr_index
+        type(mono_type_t) :: typ
+        type(mono_type_t) :: elem_type, current_type
+        type(mono_type_t), allocatable :: array_args(:)
+        integer :: i
+        logical :: all_same_type
+
+        ! If no elements, default to integer array
+        if (.not. allocated(arr_node%element_indices) .or. size(arr_node%element_indices) == 0) then
+            allocate(array_args(1))
+            array_args(1) = create_mono_type(TINT)
+            typ = create_mono_type(TARRAY, args=array_args)
+            typ%size = 0
+            return
+        end if
+
+        ! Infer type of first element
+        elem_type = this%infer(arena, arr_node%element_indices(1))
+        all_same_type = .true.
+
+        ! Check if all elements have the same type
+        do i = 2, size(arr_node%element_indices)
+            current_type = this%infer(arena, arr_node%element_indices(i))
+            
+            ! If types differ, we need to find common type
+            if (current_type%kind /= elem_type%kind) then
+                all_same_type = .false.
+                ! Promote to real if mixing integer and real
+                if ((elem_type%kind == TINT .and. current_type%kind == TREAL) .or. &
+                    (elem_type%kind == TREAL .and. current_type%kind == TINT)) then
+                    elem_type = create_mono_type(TREAL)
+                    elem_type%size = 8  ! real(8)
+                end if
+            end if
+        end do
+
+        ! Create array type with element type in args(1)
+        allocate(array_args(1))
+        array_args(1) = elem_type
+        typ = create_mono_type(TARRAY, args=array_args)
+        typ%size = size(arr_node%element_indices)
+
+    end function infer_array_literal
 
 end module semantic_analyzer
