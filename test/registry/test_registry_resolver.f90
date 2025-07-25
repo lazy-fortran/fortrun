@@ -1,19 +1,25 @@
 program test_registry_resolver
   use registry_resolver, only: resolve_module_to_package, load_registry_from_path
+  use temp_utils, only: create_temp_dir, path_join
   use, intrinsic :: iso_fortran_env, only: error_unit
   implicit none
   
   character(len=128) :: package_name, git_url
+  character(len=:), allocatable :: temp_dir, registry_file
   logical :: found
   
   print *, '=== Registry Resolver Tests ==='
   print *
   
-  ! Create a test registry in current directory
-  call create_test_registry()
+  ! Create temp directory for test
+  temp_dir = create_temp_dir('registry_test')
+  registry_file = path_join(temp_dir, 'test_registry.toml')
+  
+  ! Create a test registry in temp directory
+  call create_test_registry(registry_file)
   
   ! Load the registry from the test file
-  call load_registry_from_path('test_registry.toml')
+  call load_registry_from_path(registry_file)
   
   ! Test 1: Resolve module with prefix (fortplot)
   print *, 'Test 1: Module with prefix (fortplot)'
@@ -92,15 +98,15 @@ program test_registry_resolver
   print *
   print *, 'All registry resolver tests passed!'
   
-  ! Clean up test registry
-  call execute_command_line('rm -f test_registry.toml')
+  ! No cleanup needed - temp directory will be cleaned automatically
   
 contains
 
-  subroutine create_test_registry()
+  subroutine create_test_registry(registry_path)
+    character(len=*), intent(in) :: registry_path
     integer :: unit
     
-    open(newunit=unit, file='test_registry.toml', status='replace')
+    open(newunit=unit, file=registry_path, status='replace')
     write(unit, '(a)') '# Test registry'
     write(unit, '(a)') '[packages]'
     write(unit, '(a)') ''

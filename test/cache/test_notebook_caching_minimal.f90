@@ -1,5 +1,5 @@
 program test_notebook_caching_minimal
-    use temp_utils, only: temp_dir_manager
+    use temp_utils, only: temp_dir_manager, create_temp_dir
     use cache, only: get_cache_dir, get_content_hash
     use fpm_environment, only: get_os_type, OS_WINDOWS
     implicit none
@@ -38,13 +38,8 @@ contains
         print *, 'Test 1: Cache directory creation'
         call flush (6)
 
-        ! Use a simple test directory path
-        if (get_os_type() == OS_WINDOWS) then
-            call get_environment_variable('TEMP', test_cache_dir)
-            test_cache_dir = trim(test_cache_dir)//'\test_minimal_notebook_cache'
-        else
-            test_cache_dir = '/tmp/test_minimal_notebook_cache'
-        end if
+        ! Use temp_utils to get a proper test directory
+        test_cache_dir = create_temp_dir('test_minimal_notebook_cache')
 
         ! Create the directory with cross-platform command
         block

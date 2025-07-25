@@ -1,12 +1,13 @@
 program test_cli_output_clean
     !> Test that fortran executable output is clean in quiet mode
-    use temp_utils, only: temp_dir_manager, create_temp_file
+    use temp_utils, only: temp_dir_manager, create_temp_file, create_temp_dir, path_join
     use system_utils, only: sys_run_command_with_exit_code, sys_remove_file
     use fpm_environment, only: get_os_type, OS_WINDOWS, get_env
     implicit none
 
     character(len=512) :: command, test_file, output_file, exit_file
     character(len=1024) :: output_content, line
+    character(len=:), allocatable :: temp_dir, exe_path_file
     integer :: exit_code, unit, iostat
     logical :: test_passed, found_unwanted
     type(temp_dir_manager) :: temp_mgr
@@ -17,22 +18,25 @@ program test_cli_output_clean
     print *, "=== Output Behavior Tests ==="
     print *
     
+    ! Create temp directory for this test
+    temp_dir = create_temp_dir('cli_output_test')
+    exe_path_file = path_join(temp_dir, 'fortran_exe_path.txt')
+    
     ! Get fortran executable path by finding it
     if (get_os_type() == OS_WINDOWS) then
-        find_command = 'dir /s /b build\*.exe 2>nul | findstr "app\\fortran.exe" | findstr /v "test" > fortran_exe_path.txt'
+        find_command = 'dir /s /b build\*.exe 2>nul | findstr "app\\fortran.exe" | findstr /v "test" > "' // exe_path_file // '"'
     else
-        find_command = 'find build -name fortran -type f -executable | grep -v test | head -1 > fortran_exe_path.txt'
+        find_command = 'find build -name fortran -type f -executable | grep -v test | head -1 > "' // exe_path_file // '"'
     end if
     
     call execute_command_line(trim(find_command), wait=.true.)
     
     ! Read the executable path
     fortran_exe = ''
-    open(newunit=find_unit, file='fortran_exe_path.txt', status='old', iostat=find_iostat)
+    open(newunit=find_unit, file=exe_path_file, status='old', iostat=find_iostat)
     if (find_iostat == 0) then
         read(find_unit, '(a)') line
         close(find_unit)
-        call sys_remove_file('fortran_exe_path.txt')
         fortran_exe = trim(line)
     else
         print *, "ERROR: Could not find fortran executable"

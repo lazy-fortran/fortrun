@@ -28,38 +28,38 @@ program test_json_workflows_simple
 contains
 
     logical function test_tokens_json_creation()
-        character(len=:), allocatable :: temp_dir, cache_dir
+        character(len=:), allocatable :: temp_dir, cache_dir, test_file
         integer :: iostat, unit
 
         test_tokens_json_creation = .true.
-        temp_dir = get_system_temp_dir()
+        temp_dir = create_temp_dir('json_test_tokens')
         cache_dir = create_test_cache_dir('json_simple_basic')
+        test_file = path_join(temp_dir, 'test_tokens.f')
 
         print *, 'Testing token JSON creation...'
 
-        ! Create simple source
-        open (newunit=unit, file='test_tokens.f', status='replace')
+        ! Create simple source in temp directory
+        open (newunit=unit, file=test_file, status='replace')
         write (unit, '(a)') 'x = 1'
         close (unit)
 
         ! Generate tokens JSON
         block
-            character(len=:), allocatable :: project_root
+            character(len=:), allocatable :: project_root, fortran_exe
             project_root = get_project_root()
-            call execute_command_line('cd "'//project_root//'" && '// &
-                           'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+            fortran_exe = project_root//'/build/gfortran_C7198B2030710F70/app/fortran'
+            call execute_command_line('cd "'//temp_dir//'" && '// &
+                           '"'//fortran_exe//'" --cache-dir "'//trim(cache_dir)//'" '// &
                                       'test_tokens.f --debug-tokens'// &
                                       merge(' > nul 2>&1      ', ' > /dev/null 2>&1', get_os_type() == OS_WINDOWS), &
                                       wait=.true., exitstat=iostat)
         end block
 
         if (iostat == 0) then
-            ! Check if tokens JSON was created
-            inquire (file='test_tokens_tokens.json', exist=test_tokens_json_creation)
+            ! Check if tokens JSON was created in temp dir
+            inquire (file=path_join(temp_dir, 'test_tokens_tokens.json'), exist=test_tokens_json_creation)
             if (test_tokens_json_creation) then
                 print *, '  PASS: Tokens JSON created'
-                ! Clean up
-   call execute_command_line('rm -f test_tokens.f test_tokens_tokens.json', wait=.true.)
             else
                 print *, '  FAIL: Tokens JSON not found'
             end if
@@ -71,26 +71,28 @@ contains
     end function test_tokens_json_creation
 
     logical function test_ast_json_creation()
-        character(len=:), allocatable :: temp_dir, cache_dir
+        character(len=:), allocatable :: temp_dir, cache_dir, test_file
         integer :: iostat, unit
 
         test_ast_json_creation = .true.
-        temp_dir = get_system_temp_dir()
+        temp_dir = create_temp_dir('json_test_ast')
         cache_dir = create_test_cache_dir('json_simple_ast')
+        test_file = path_join(temp_dir, 'test_ast.f')
 
         print *, 'Testing AST JSON creation...'
 
-        ! Create simple source
-        open (newunit=unit, file='test_ast.f', status='replace')
+        ! Create simple source in temp directory
+        open (newunit=unit, file=test_file, status='replace')
         write (unit, '(a)') 'y = 2 * 3'
         close (unit)
 
         ! Generate AST JSON (through tokens first)
         block
-            character(len=:), allocatable :: project_root
+            character(len=:), allocatable :: project_root, fortran_exe
             project_root = get_project_root()
-            call execute_command_line('cd "'//project_root//'" && '// &
-                           'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+            fortran_exe = project_root//'/build/gfortran_C7198B2030710F70/app/fortran'
+            call execute_command_line('cd "'//temp_dir//'" && '// &
+                           '"'//fortran_exe//'" --cache-dir "'//trim(cache_dir)//'" '// &
                                       'test_ast.f --debug-tokens'// &
                                       merge(' > nul 2>&1      ', ' > /dev/null 2>&1', get_os_type() == OS_WINDOWS), &
                                       wait=.true., exitstat=iostat)
@@ -99,21 +101,20 @@ contains
         if (iostat == 0) then
             ! Now parse tokens to AST
             block
-                character(len=:), allocatable :: project_root
+                character(len=:), allocatable :: project_root, fortran_exe
                 project_root = get_project_root()
-                call execute_command_line('cd "'//project_root//'" && '// &
-                           'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+                fortran_exe = project_root//'/build/gfortran_C7198B2030710F70/app/fortran'
+                call execute_command_line('cd "'//temp_dir//'" && '// &
+                           '"'//fortran_exe//'" --cache-dir "'//trim(cache_dir)//'" '// &
                     'test_ast_tokens.json --from-tokens --debug-ast'// &
                     merge(' > nul 2>&1      ', ' > /dev/null 2>&1', get_os_type() == OS_WINDOWS), &
                                           wait=.true., exitstat=iostat)
             end block
 
             if (iostat == 0) then
-                inquire (file='test_ast_tokens_ast.json', exist=test_ast_json_creation)
+                inquire (file=path_join(temp_dir, 'test_ast_tokens_ast.json'), exist=test_ast_json_creation)
                 if (test_ast_json_creation) then
                     print *, '  PASS: AST JSON created'
-                    ! Clean up
-                    call execute_command_line('rm -f test_ast.f test_ast_tokens.json test_ast_tokens_ast.json', wait=.true.)
                 else
                     print *, '  FAIL: AST JSON not found'
                 end if
@@ -129,17 +130,18 @@ contains
     end function test_ast_json_creation
 
     logical function test_json_from_tokens()
-        character(len=:), allocatable :: temp_dir, cache_dir
+        character(len=:), allocatable :: temp_dir, cache_dir, test_file
         integer :: iostat, unit
 
         test_json_from_tokens = .true.
-        temp_dir = get_system_temp_dir()
+        temp_dir = create_temp_dir('json_test_direct')
         cache_dir = create_test_cache_dir('json_simple_tokens')
+        test_file = path_join(temp_dir, 'direct_tokens.json')
 
         print *, 'Testing JSON from tokens workflow...'
 
-        ! Create a tokens JSON file directly
-        open (newunit=unit, file='direct_tokens.json', status='replace')
+        ! Create a tokens JSON file directly in temp directory
+        open (newunit=unit, file=test_file, status='replace')
         write (unit, '(a)') '{"tokens": ['
     write (unit, '(a)') '  {"type": "identifier", "text": "z", "line": 1, "column": 1},'
       write (unit, '(a)') '  {"type": "operator", "text": "=", "line": 1, "column": 3},'
@@ -150,10 +152,11 @@ contains
 
         ! Process tokens JSON
         block
-            character(len=:), allocatable :: project_root
+            character(len=:), allocatable :: project_root, fortran_exe
             project_root = get_project_root()
-            call execute_command_line('cd "'//project_root//'" && '// &
-                           'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+            fortran_exe = project_root//'/build/gfortran_C7198B2030710F70/app/fortran'
+            call execute_command_line('cd "'//temp_dir//'" && '// &
+                           '"'//fortran_exe//'" --cache-dir "'//trim(cache_dir)//'" '// &
                                   'direct_tokens.json --from-tokens'// &
                                   merge(' > nul 2>&1      ', ' > /dev/null 2>&1', get_os_type() == OS_WINDOWS), &
                                       wait=.true., exitstat=iostat)
@@ -166,8 +169,7 @@ contains
             test_json_from_tokens = .false.
         end if
 
-        ! Clean up
-    call execute_command_line('rm -f direct_tokens.json direct_tokens.f90', wait=.true.)
+        ! No manual cleanup needed - temp_dir will be cleaned automatically
 
     end function test_json_from_tokens
 
