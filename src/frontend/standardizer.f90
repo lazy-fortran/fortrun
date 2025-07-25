@@ -383,7 +383,62 @@ contains
                     ! Create declaration node
                     decl_node%type_name = trim(var_types(i))
                     decl_node%var_name = trim(var_names(i))
-                    decl_node%is_array = .false.
+                    
+                    ! Check if this variable is an array by looking it up in the arena
+                    block
+                        logical :: found_array_type
+                        integer :: j
+                        found_array_type = .false.
+                        
+                        ! Search for the identifier node with this name to check its inferred type
+                        do j = 1, arena%size
+                            if (allocated(arena%entries(j)%node)) then
+                                select type (node => arena%entries(j)%node)
+                                type is (identifier_node)
+                                    if (trim(node%name) == trim(var_names(i))) then
+                                        if (allocated(node%inferred_type)) then
+                                            if (node%inferred_type%kind == TARRAY) then
+                                                found_array_type = .true.
+                                                decl_node%is_array = .true.
+                                                ! Use fixed-size array if size is known
+                                                if (allocated(decl_node%dimension_indices)) deallocate(decl_node%dimension_indices)
+                                                allocate(decl_node%dimension_indices(1))
+                                                if (node%inferred_type%size > 0) then
+                                                    ! Create literal node for the size
+                                                    block
+                                                        type(literal_node) :: size_literal
+                                                        character(len=20) :: size_str
+                                                        write(size_str, '(i0)') node%inferred_type%size
+                                                        size_literal = create_literal(trim(size_str), LITERAL_INTEGER, 1, 1)
+                                                        call arena%push(size_literal, "literal", prog_index)
+                                                        decl_node%dimension_indices(1) = arena%size
+                                                    end block
+                                                else
+                                                    decl_node%dimension_indices(1) = 0  ! Allocatable dimension
+                                                end if
+                                                exit
+                                            end if
+                                        end if
+                                    end if
+                                end select
+                            end if
+                        end do
+                        
+                        if (.not. found_array_type) then
+                            decl_node%is_array = .false.
+                        end if
+                    end block
+                    
+                    ! If array with deferred shape, mark as allocatable
+                    if (decl_node%is_array .and. allocated(decl_node%dimension_indices)) then
+                        if (size(decl_node%dimension_indices) > 0) then
+                            if (decl_node%dimension_indices(1) == 0) then
+                                ! This is a deferred shape array, needs allocatable
+                                decl_node%is_allocatable = .true.
+                            end if
+                        end if
+                    end if
+                    
                     decl_node%has_kind = .false.
                     decl_node%initializer_index = 0
                     decl_node%line = 1
@@ -532,7 +587,7 @@ contains
 
                 ! Determine type from inferred_type if available
                 if (allocated(identifier%inferred_type)) then
-                var_types(var_count) = get_fortran_type_string(identifier%inferred_type)
+                    var_types(var_count) = get_fortran_type_string(identifier%inferred_type)
                 else
                     var_types(var_count) = "real(8)"  ! Default type
                 end if
@@ -609,10 +664,25 @@ contains
             else
                 type_str = "character(*)"
             end if
+        case (TARRAY)
+            ! For arrays, get the element type
+            if (allocated(mono_type%args) .and. size(mono_type%args) > 0) then
+                type_str = get_fortran_type_string(mono_type%args(1))
+            else
+                type_str = "real(8)"  ! Default array element type
+            end if
         case default
             type_str = "real(8)"  ! Default fallback
         end select
     end function get_fortran_type_string
+
+    ! Check if a mono_type_t is an array type
+    function is_array_type(mono_type) result(is_array)
+        type(mono_type_t), intent(in) :: mono_type
+        logical :: is_array
+        
+        is_array = (mono_type%kind == TARRAY)
+    end function is_array_type
 
     ! Standardize existing declaration nodes (e.g., real -> real(8))
     subroutine standardize_declarations(arena, prog)

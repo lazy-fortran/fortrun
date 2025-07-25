@@ -61,6 +61,8 @@ contains
             code = generate_code_use_statement(node)
         type is (contains_node)
             code = "contains"
+        type is (array_literal_node)
+            code = generate_code_array_literal(arena, node, node_index)
         class default
             code = "! Unknown node type"
         end select
@@ -572,6 +574,11 @@ contains
             code = code//", intent("//node%intent//")"
         end if
 
+        ! Add allocatable if present
+        if (node%is_allocatable) then
+            code = code//", allocatable"
+        end if
+
         code = code//" :: "//node%var_name
 
         ! Add array dimensions if present
@@ -897,6 +904,39 @@ contains
             end if
         end if
     end function generate_code_use_statement
+
+    ! Generate code for array literal
+    function generate_code_array_literal(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
+        type(array_literal_node), intent(in) :: node
+        integer, intent(in) :: node_index
+        character(len=:), allocatable :: code
+        character(len=:), allocatable :: elem_code
+        integer :: i
+
+        ! Check if we have elements
+        if (.not. allocated(node%element_indices) .or. size(node%element_indices) == 0) then
+            ! Empty array - use Fortran 2003 syntax
+            code = "[integer ::]"
+            return
+        end if
+
+        ! Generate array constructor
+        code = "(/ "
+        
+        ! Add each element
+        do i = 1, size(node%element_indices)
+            if (i > 1) code = code//", "
+            if (node%element_indices(i) > 0 .and. node%element_indices(i) <= arena%size) then
+                elem_code = generate_code_from_arena(arena, node%element_indices(i))
+                code = code//elem_code
+            else
+                code = code//"???"
+            end if
+        end do
+        
+        code = code//" /)"
+    end function generate_code_array_literal
 
     ! Helper function to convert integer to string
     function int_to_string(num) result(str)
