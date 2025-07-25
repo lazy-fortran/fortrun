@@ -368,7 +368,8 @@ contains
                                 exit
                             else
                                 ! Error: expected comma or closing bracket
-                                call parser%report_error('Expected "," or "]" in array literal', current%line, current%column)
+                                write(error_unit, *) 'Error: Expected "," or "]" in array literal at line ', &
+                                                    current%line, ', column ', current%column
                                 expr_index = 0
                                 return
                             end if
