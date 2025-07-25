@@ -45,12 +45,11 @@ contains
 
         ! Generate tokens JSON
         block
-            character(len=:), allocatable :: project_root, fortran_exe
+            character(len=:), allocatable :: project_root
             project_root = get_project_root()
-            fortran_exe = project_root//'/build/gfortran_C7198B2030710F70/app/fortran'
             call execute_command_line('cd "'//temp_dir//'" && '// &
-                           '"'//fortran_exe//'" --cache-dir "'//trim(cache_dir)//'" '// &
-                                      'test_tokens.f --debug-tokens'// &
+                           'cd "'//project_root//'" && fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+                                      '"'//temp_dir//'/test_tokens.f" --debug-tokens'// &
                                       merge(' > nul 2>&1      ', ' > /dev/null 2>&1', get_os_type() == OS_WINDOWS), &
                                       wait=.true., exitstat=iostat)
         end block
@@ -88,12 +87,11 @@ contains
 
         ! Generate AST JSON (through tokens first)
         block
-            character(len=:), allocatable :: project_root, fortran_exe
+            character(len=:), allocatable :: project_root
             project_root = get_project_root()
-            fortran_exe = project_root//'/build/gfortran_C7198B2030710F70/app/fortran'
             call execute_command_line('cd "'//temp_dir//'" && '// &
-                           '"'//fortran_exe//'" --cache-dir "'//trim(cache_dir)//'" '// &
-                                      'test_ast.f --debug-tokens'// &
+                           'cd "'//project_root//'" && fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+                                      '"'//temp_dir//'/test_ast.f" --debug-tokens'// &
                                       merge(' > nul 2>&1      ', ' > /dev/null 2>&1', get_os_type() == OS_WINDOWS), &
                                       wait=.true., exitstat=iostat)
         end block
@@ -101,12 +99,11 @@ contains
         if (iostat == 0) then
             ! Now parse tokens to AST
             block
-                character(len=:), allocatable :: project_root, fortran_exe
+                character(len=:), allocatable :: project_root
                 project_root = get_project_root()
-                fortran_exe = project_root//'/build/gfortran_C7198B2030710F70/app/fortran'
                 call execute_command_line('cd "'//temp_dir//'" && '// &
-                           '"'//fortran_exe//'" --cache-dir "'//trim(cache_dir)//'" '// &
-                    'test_ast_tokens.json --from-tokens --debug-ast'// &
+                           'cd "'//project_root//'" && fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+                    '"'//temp_dir//'/test_ast_tokens.json" --from-tokens --debug-ast'// &
                     merge(' > nul 2>&1      ', ' > /dev/null 2>&1', get_os_type() == OS_WINDOWS), &
                                           wait=.true., exitstat=iostat)
             end block
@@ -152,12 +149,11 @@ contains
 
         ! Process tokens JSON
         block
-            character(len=:), allocatable :: project_root, fortran_exe
+            character(len=:), allocatable :: project_root
             project_root = get_project_root()
-            fortran_exe = project_root//'/build/gfortran_C7198B2030710F70/app/fortran'
             call execute_command_line('cd "'//temp_dir//'" && '// &
-                           '"'//fortran_exe//'" --cache-dir "'//trim(cache_dir)//'" '// &
-                                  'direct_tokens.json --from-tokens'// &
+                           'cd "'//project_root//'" && fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" '// &
+                                  '"'//temp_dir//'/direct_tokens.json" --from-tokens'// &
                                   merge(' > nul 2>&1      ', ' > /dev/null 2>&1', get_os_type() == OS_WINDOWS), &
                                       wait=.true., exitstat=iostat)
         end block
