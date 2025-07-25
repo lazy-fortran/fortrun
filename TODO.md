@@ -1,259 +1,164 @@
-# TODO: Focus on AST-Based Architecture
+# TODO: Test Coverage Improvement Plan
 
-## 🎉 MAJOR MILESTONE: ALL 120 TESTS PASSING!
+## Current Status
+- **Overall Coverage**: 17.95% (up from 14.08%)
+- **Target Coverage**: 85% (ambitious but achievable)
+- **Patch Coverage**: 0% (119 lines of new code uncovered)
 
-Successfully migrated tests to arena-based AST architecture:
-- ✅ P0: Semantic Analysis - COMPLETED (4 tests enabled)
-- ✅ P1: Control Flow Parsing - COMPLETED (all do loop tests)
-- ✅ P2: Code Generation - SIGNIFICANT PROGRESS (5 tests enabled)
-- ✅ Test Suite: 120/120 tests passing
+## Coverage Gaps Analysis
 
-# TODO: Focus on AST-Based Architecture
+### 1. Parser Expression Module (36 lines uncovered)
+**File**: `src/frontend/parser/parser_expressions.f90`
+**Priority**: HIGH - Core parsing functionality
 
-## CORE PRINCIPLE: AST-First Development
+**Missing Tests**:
+- Array literal parsing `[1, 2, 3]`
+- Error handling for malformed arrays `[1, 2,]`
+- Expression precedence handling
+- Parentheses in expressions
+- Binary operators (arithmetic, logical, relational)
+- Unary operators (`-x`, `+y`, `.not.`)
+- Function call parsing
 
-This project follows a proper compiler architecture using Abstract Syntax Trees (AST). All transformations and analysis should operate on the AST, not on text parsing or string manipulation.
+**Action Items**:
+- [ ] Create `test_frontend_parser_expressions.f90` using arena-based API
+- [ ] Test all operator types and precedence rules
+- [ ] Test error cases for malformed expressions
+- [ ] Ensure array literal edge cases are covered
 
-### ✅ What Works Well
-- **AST Core** - Robust arena-based AST system with type-safe node operations
-- **Lexer** - Complete and working (all 4 core tests passing)  
-- **Parser** - Modern arena-based architecture with proper AST generation
-- **Standardizer** - Clean AST transformation pipeline using `standardize_ast`
+### 2. Semantic Analyzer (24 lines uncovered)
+**File**: `src/frontend/semantic/semantic_analyzer.f90`
+**Priority**: HIGH - Type inference is critical
 
-### ❌ What to Avoid
-- **Text-based transformations** - Never parse source text directly
-- **String manipulation hacks** - All language processing should use AST
-- **Bypassing the pipeline** - Use lexer → parser → AST → standardizer → codegen
+**Missing Tests**:
+- Array literal type inference (`infer_array_literal` function)
+- Mixed type promotion in arrays `[1, 2.0]` → `real`
+- Function type inference
+- Complex expression type inference
 
-### 📝 Development Strategy
-Work within the existing AST-based architecture. Use `standardize_ast` for transformations, build proper AST nodes, and maintain the clean separation of concerns.
+**Action Items**:
+- [ ] Extend array literal tests with edge cases
+- [ ] Add tests for type promotion scenarios
+- [ ] Create tests for function return type inference
+- [ ] Test nested expression type propagation
 
----
+### 3. AST Core (20 lines uncovered)
+**File**: `src/frontend/ast_core.f90`
+**Priority**: MEDIUM - Infrastructure code
 
-## Priority Classification
-- **P0**: Core functionality blocking basic use cases
-- **P1**: Major features that documentation claims work but don't
-- **P2**: Important functionality gaps for project maturity
-- **P3**: Nice-to-have features for completeness
+**Missing Tests**:
+- New node types (array_literal_node)
+- Node creation functions
+- Arena management edge cases
 
----
+**Action Items**:
+- [ ] Test array literal node creation
+- [ ] Test arena growth and memory management
+- [ ] Test node access patterns
 
-## P0: Critical Frontend Pipeline (Blocking Everything)
+### 4. Code Generation (17 lines uncovered)
+**File**: `src/frontend/codegen/codegen_core.f90`
+**Priority**: MEDIUM - Output generation
 
-### 1. Lexer Foundation ✅ **COMPLETED**
-**Status**: All 4 core lexer tests now ENABLED and PASSING
-**Tests fixed**: 
-- ✅ `test_frontend_lexer_api.f90` - Core lexer API (PASS)
-- ✅ `test_frontend_lexer_keywords.f90` - Fortran keyword recognition (PASS)
-- ✅ `test_frontend_lexer_numbers.f90` - Numeric literal tokenization (PASS)
-- ✅ `test_frontend_lexer_operators.f90` - Operator tokenization (PASS)
+**Missing Tests**:
+- Array literal code generation `[1, 2, 3]`
+- Complex nested structures
+- Proper indentation handling
 
-**Key Finding**: The lexer implementation is robust and comprehensive. These tests were disabled unnecessarily - the lexer works perfectly for all basic Fortran constructs including keywords, numbers, operators, and identifiers.
+**Action Items**:
+- [ ] Add array literal codegen tests
+- [ ] Test deeply nested code structures
+- [ ] Verify formatting consistency
 
-### 2. Basic Parser Core ⚠️ **PARTIALLY WORKING**
-**Status**: Parser has arena-based architecture and some functionality works
-**Current working tests**: 
-- ✅ `test_frontend_parser_if_statement.f90` - If statement parsing (PASS)
-- ✅ Some parser functionality in frontend test group (PASS)
+### 5. Utilities (12 lines uncovered)
+**File**: `src/utilities/temp_utils.F90`
+**Priority**: LOW - Support code
 
-**Key Finding**: The parser has been modernized to use an arena-based AST system with indices rather than direct node references. Many disabled tests use the old API and need updating to new architecture.
+**Missing Tests**:
+- `fortran_with_isolated_cache` function
+- `fortran_with_cache_dir` function
+- Windows-specific paths
 
-**Real Issues**:
-- Many disabled parser tests use obsolete API (`parse_statement` vs `parse_statement_dispatcher`)
-- Tests need rewriting for arena-based AST system
-- Focus should be on semantic analysis, not basic parsing
+**Action Items**:
+- [ ] Create utility function tests
+- [ ] Test Windows path handling
+- [ ] Test cache isolation
 
-### 3. Semantic Analysis Foundation ✅ **MAJOR PROGRESS**
-**Status**: Semantic tests were not actually broken! Just needed API updates for arena-based architecture
-**Progress**: Successfully enabled and fixed 5 out of 14 semantic tests:
-- ✅ `test_frontend_semantic_minimal.f90` - Basic semantic context (PASS)
-- ✅ `test_frontend_semantic_basic_type_inference.f90` - Integer/real/character inference (PASS)
-- ✅ `test_frontend_semantic_array_type_inference.f90` - Array type inference (PASS with known parser limitations)
-- ✅ `test_frontend_semantic_expression_type_inference.f90` - Expression type inference (PASS)
-- ⚠️ `test_frontend_semantic_function_type_inference.f90.runtime_error` - Function inference (runtime error in semantic analyzer)
+## Test Creation Strategy
 
-**Key Finding**: The semantic analyzer works well! Tests just needed updating to new arena-based parser API. The only real issue is a runtime bug when analyzing function definitions.
+### Phase 1: Parser Tests (Week 1)
+1. **Expression Parser Test Suite**
+   - Arithmetic: `a + b * c`, `(a + b) * c`
+   - Logical: `x .and. y .or. z`
+   - Relational: `a < b`, `x >= y`
+   - Array literals: `[1, 2, 3]`, `[1.0, 2.0]`
+   - Function calls: `sin(x)`, `max(a, b, c)`
+   - Error cases: Invalid syntax
 
-**Remaining Work**: Update remaining 9 semantic tests to new API. Most should work fine once updated.
+2. **Statement Parser Tests**
+   - Assignments: `x = expr`
+   - Declarations: `real :: x, y(10)`
+   - Control flow already tested ✓
 
----
+### Phase 2: Semantic Tests (Week 2)
+1. **Type Inference Test Suite**
+   - Literal inference: `42` → integer, `3.14` → real
+   - Array inference: `[1, 2]` → integer(2)
+   - Expression inference: `a + b` with known types
+   - Function return types
 
-## P1: Core Documented Features (Major Claims)
+2. **Scope and Symbol Tests**
+   - Variable scoping
+   - Function visibility
+   - Module imports
 
-### 4. Array Type Inference ⚠️ **PARSER IMPLEMENTED**
-**Status**: Array literal parsing now IMPLEMENTED in parser
-**Progress**: 
-- ✅ Added `LITERAL_ARRAY` constant to AST core
-- ✅ Created `array_literal_node` AST node type  
-- ✅ Implemented `push_array_literal` function in ast_factory
-- ✅ Added array literal parsing `[1, 2, 3]` to `parse_primary` function
-- ⚠️ Semantic analysis still needed for type inference
+### Phase 3: Integration Tests (Week 3)
+1. **End-to-End Tests**
+   - Parse → Analyze → Generate roundtrip
+   - Complex multi-file programs
+   - Error reporting and recovery
 
-**Next Steps**:
-- Enable semantic analysis to infer array types from literals
-- Test array bounds inference: `[1, 2, 3]` → `integer, dimension(3)`
-- Add mixed type handling: `[1, 2.0]` → `real, dimension(2)`
+2. **Performance Tests**
+   - Large file handling
+   - Memory usage verification
 
-### 5. Step 1 Type Enhancement ✅ **EXCELLENT PROGRESS**
-**Status**: Implemented standardize_file function with 7/9 total tests passing
-**Progress**: 
-- ✅ `test_step1_integration.f90` - ENABLED and mostly working (2/3 tests pass)
-- ✅ `test_step1_single_file.f90` - ENABLED and excellent results (5/6 tests pass)
+## Coverage Improvement Tactics
 
-**Working Features**:
-- ✅ Basic type upgrade: `real x` → `real(8) :: x`  
-- ✅ Function return upgrade: `real function f()` → `real(8) function f()`
-- ✅ Parameter intent: `integer :: a, b` → `integer, intent(in) :: a, b`
-- ✅ Type preservation: `integer` parameters stay integer
-- ✅ Program structure: Adds `implicit none` and proper `contains`
-- ✅ Forward type propagation: variable gets function return type
-- ✅ Multiple functions in single file handling
-- ✅ Nested function calls with proper type inference
+### 1. Use Coverage Reports
+```bash
+# Generate coverage report
+fpm test --coverage
+# View uncovered lines
+gcov -b src/frontend/parser/parser_expressions.f90
+```
 
-**Implementation Complete**:
-- ✅ Added `standardize_file` function using full frontend pipeline
-- ✅ Enhanced `standardize_function_parameters` to preserve original types
-- ✅ Fixed `real` → `real(8)` conversion for return types and declarations
-- ✅ Parameter intent(in) addition works correctly
+### 2. Focus on High-Impact Files
+- Parser and semantic analyzer are most critical
+- These handle core language features
+- Higher coverage here = more reliable compiler
 
-**Minor Issues**: 2 tests fail despite producing mostly correct output - may be test infrastructure or edge case handling
+### 3. Test-Driven Development
+- Write test first (red)
+- Implement minimal code (green)
+- Refactor and improve (clean)
 
-**Next Steps**: Step 1 implementation is excellent. Ready to move to next major feature.
+### 4. Edge Case Coverage
+- Empty inputs
+- Maximum size inputs
+- Invalid/malformed inputs
+- Boundary conditions
 
-### 6. Function Type Inference ❌ **NEEDS API UPDATE**
-**Status**: Tests use obsolete API and need modernization for arena-based architecture
-**Key test**: `test_frontend_semantic_function_type_inference.f90.broken` - API incompatible
+## Success Metrics
+- [ ] Patch coverage > 50% (60+ lines covered)
+- [ ] Overall coverage > 25% (realistic near-term goal)
+- [ ] All new features have tests
+- [ ] No flaky/intermittent failures
+- [ ] Tests run in < 30 seconds total
 
-**TDD Approach**:
-- Return type inference: `f = sin(x)` where sin returns real → `real :: f`
-- Parameter type inference: `call sub(42)` → parameter should be integer-compatible
-- Chain inference: `x = f(y)` where `f` is defined elsewhere
-- Complex calls: `x = g(f(y))` with nested function resolution
+## Implementation Priority
+1. **Immediate**: Parser expression tests (highest impact)
+2. **This Week**: Array literal type inference tests
+3. **Next Week**: Integration and roundtrip tests
+4. **Future**: Advanced features and edge cases
 
-### 7. Control Flow Parsing ✅ **COMPLETED**
-**Status**: All control flow parsing tests now enabled and passing
-**Progress**:
-- ✅ `test_frontend_parser_if_statement.f90` - WORKING (all tests pass)
-- ✅ `test_frontend_parser_do_loops.f90` - ENABLED and PASS (all tests)
-- ✅ `test_frontend_parser_do_loop.f90` - ENABLED and PASS (2/2 tests)
-- ✅ `test_frontend_parser_do_while.f90` - ENABLED and PASS (2/2 tests)
-
-**Key Finding**: Control flow parsing works perfectly! Tests just needed updating to arena-based API.
-
-**TDD Approach**:
-- Simple do loop: `do i = 1, 10; end do` → LoopNode AST
-- Do while: `do while (x > 0); end do` → WhileLoop AST  
-- If-then: `if (x > 0) then; y = 1; end if` → IfNode AST
-- If-else: Full if-then-else constructs with proper nesting
-
----
-
-## P2: Integration and Advanced Features
-
-### 8. Code Generation Pipeline ⚠️ **SIGNIFICANT PROGRESS**
-**Status**: Code generation working! 5 tests enabled and passing
-**Progress**:
-- ✅ `test_frontend_codegen_basic.f90` - ENABLED and PASS
-- ✅ `test_frontend_codegen_assignment.f90` - ENABLED and PASS
-- ✅ `test_frontend_codegen_expressions.f90` - ENABLED and PASS
-- ✅ `test_frontend_codegen_type_declarations.f90` - ENABLED and PASS
-- ✅ `test_frontend_codegen_program.f90` - ENABLED and PASS
-- ❌ 3 tests still disabled (program_structure, json, api)
-
-**Key Finding**: Code generation works well with arena-based API! Tests just needed updating.
-
-**TDD Approach**:
-- Simple assignment codegen: Assignment AST → `integer :: x; x = 42`
-- Expression codegen: Binary AST → `x = a + b`
-- Function codegen: Function AST → proper function declaration
-- Proper indentation and formatting in generated code
-
-### 9. End-to-End Integration
-**Status**: Integration tests disabled, no working pipeline
-**Key test**: `test_parse_and_codegen.f90.disabled`
-
-**TDD Approach**:
-- Round-trip test: `.f` → AST → `.f90` → same semantic meaning
-- Type preservation: Inferred types survive full pipeline
-- Complex programs: Multi-statement programs work end-to-end
-- Error propagation: Parse errors reported clearly to user
-
-### 10. JSON Workflow Pipeline
-**Status**: JSON workflow tests disabled
-**Key tests**: 
-- `test_json_workflow.f90.disabled`
-- `test_json_pipeline.f90.broken`
-
-**TDD Approach**:
-- Token JSON: Source → JSON token stream → reconstructable
-- AST JSON: Source → JSON AST → reconstructable AST
-- Semantic JSON: Include type information in JSON output
-- API consistency: JSON matches internal data structures
-
----
-
-## P3: Advanced Language Features
-
-### 11. Derived Types and Modules
-**Status**: Advanced parser tests all disabled
-**Key tests**: Multiple disabled tests for complex constructs
-
-**TDD Approach**:
-- Simple derived type: `type :: point; real :: x, y; end type`  
-- Type member access: `p%x` where p is point type
-- Module definitions: `module math; contains; end module`
-- Use statements: `use math, only: sin` with proper scoping
-
-### 12. Advanced Control Structures
-**Status**: select case, complex loops disabled
-
-**TDD Approach**:
-- Select case: `select case (x); case (1); case default; end select`
-- Nested loops: `do i = 1, n; do j = 1, m; end do; end do`
-- Loop control: `exit`, `cycle` statements with proper scope
-- Complex conditions: Multi-part logical expressions
-
-### 13. Figure Capture (Currently WIP)
-**Status**: README explicitly marks as work in progress
-
-**TDD Approach**:
-- Basic plot capture: `call plot(x, y)` → save figure file
-- Multiple figures: Handle multiple plots in single program
-- Format support: PNG, SVG output formats
-- Integration: Notebook mode with embedded figures
-
----
-
-## Test Quality Requirements
-
-### Avoid Shallow/Tautological Tests
-❌ **Bad**: `assert(parse_succeeded = .true.)` - just tests it didn't crash
-✅ **Good**: `assert(ast%type == INTEGER_ASSIGNMENT .and. ast%value == 42)`
-
-❌ **Bad**: `assert(infer_type() /= "")` - tests non-empty result  
-✅ **Good**: `assert(infer_type("x = 3.14") == "real")`
-
-### Fast, Independent Tests
-- Each test runs in <100ms
-- No file I/O unless testing file operations
-- No dependencies between tests
-- Clear test names: `test_infer_integer_from_literal()`
-
-### Comprehensive Coverage
-- Test success cases: normal valid input
-- Test edge cases: empty input, boundary values  
-- Test error cases: invalid syntax, type mismatches
-- Test integration: components working together
-
----
-
-## Implementation Strategy
-
-1. **Start with P0**: Fix core lexer, parser, semantic foundation
-2. **One test at a time**: Enable one disabled test, make it pass, move to next
-3. **TDD cycle**: Red (failing test) → Green (minimal fix) → Refactor (clean up)
-4. **No shortcuts**: Fix the actual functionality, don't just make tests pass
-5. **Clean as you go**: Remove obsolete code, improve interfaces
-6. **Small commits**: Each enabled test = one commit with clear message
-
-The goal is to systematically close the gap between documentation claims and actual working functionality through rigorous test-driven development.
+The focus is on systematic improvement through well-designed tests that actually verify functionality, not just increase coverage numbers.
