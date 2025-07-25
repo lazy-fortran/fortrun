@@ -335,13 +335,10 @@ jobs:
       if: matrix.test-group == 'frontend'
       run: |
         set OMP_NUM_THREADS=24
-        echo N | fpm test test_frontend_test_cases
-        echo N | fpm test test_frontend_parser_derived_types
-        echo N | fpm test test_frontend_parser_array_params
-        echo N | fpm test test_frontend_parser_explicit_types
-        echo N | fpm test test_frontend_full_explicit_params
-        echo N | fpm test test_frontend_parser_param_nodes
-        echo N | fpm test test_parser_expressions_comprehensive
+        :: Run all frontend tests using wildcards
+        echo N | fpm test "test_frontend_*"
+        :: Run all parser tests (including test_parser_expressions_comprehensive)
+        echo N | fpm test "test_*parser*"
       shell: cmd
 
     - name: Run Examples Tests
