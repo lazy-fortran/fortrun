@@ -31,6 +31,9 @@ program test_parser_expressions_comprehensive
     if (.not. test_function_calls()) all_passed = .false.
     if (.not. test_complex_expressions()) all_passed = .false.
     if (.not. test_error_cases()) all_passed = .false.
+    if (.not. test_member_access()) all_passed = .false.
+    if (.not. test_logical_literals()) all_passed = .false.
+    if (.not. test_large_arrays()) all_passed = .false.
 
     ! Report results
     print *
@@ -693,5 +696,173 @@ contains
         end select
         
     end function verify_precedence_structure_left
+
+    logical function test_member_access()
+        integer :: expr_index
+        
+        test_member_access = .true.
+        print *, 'Test 11: Member access operator (%)'
+        
+        ! Test simple member access
+        arena = create_ast_stack()
+        block
+            type(token_t), allocatable :: tokens(:)
+            call tokenize_core("obj%field", tokens)
+            expr_index = parse_expression(tokens, arena)
+            
+            if (expr_index == 0) then
+                print *, '  FAIL: Failed to parse "obj%field"'
+                test_member_access = .false.
+            else
+                select type (node => arena%entries(expr_index)%node)
+                class is (binary_op_node)
+                    if (node%operator == "%") then
+                        print *, '  OK: "obj%field" parsed as member access'
+                    else
+                        print *, '  FAIL: Expected % operator'
+                        test_member_access = .false.
+                    end if
+                class default
+                    print *, '  FAIL: Expected binary op for member access'
+                    test_member_access = .false.
+                end select
+            end if
+        end block
+        
+        ! Test nested member access
+        arena = create_ast_stack()
+        block
+            type(token_t), allocatable :: tokens(:)
+            call tokenize_core("obj%nested%field", tokens)
+            expr_index = parse_expression(tokens, arena)
+            
+            if (expr_index == 0) then
+                print *, '  FAIL: Failed to parse nested member access'
+                test_member_access = .false.
+            else
+                print *, '  OK: "obj%nested%field" parsed'
+            end if
+        end block
+        
+        if (test_member_access) then
+            print *, 'PASS: Member access operator'
+        end if
+        
+    end function test_member_access
+
+    logical function test_logical_literals()
+        integer :: expr_index
+        
+        test_logical_literals = .true.
+        print *, 'Test 12: Logical literals'
+        
+        ! Test .true.
+        arena = create_ast_stack()
+        block
+            type(token_t), allocatable :: tokens(:)
+            call tokenize_core(".true.", tokens)
+            expr_index = parse_expression(tokens, arena)
+            
+            if (expr_index == 0) then
+                print *, '  FAIL: Failed to parse ".true."'
+                test_logical_literals = .false.
+            else
+                select type (node => arena%entries(expr_index)%node)
+                class is (literal_node)
+                    if (node%value == ".true.") then
+                        print *, '  OK: ".true." parsed as logical literal'
+                    else
+                        print *, '  FAIL: Incorrect value for .true.'
+                        test_logical_literals = .false.
+                    end if
+                class default
+                    print *, '  FAIL: Expected literal node for .true.'
+                    test_logical_literals = .false.
+                end select
+            end if
+        end block
+        
+        ! Test .false.
+        arena = create_ast_stack()
+        block
+            type(token_t), allocatable :: tokens(:)
+            call tokenize_core(".false.", tokens)
+            expr_index = parse_expression(tokens, arena)
+            
+            if (expr_index == 0) then
+                print *, '  FAIL: Failed to parse ".false."'
+                test_logical_literals = .false.
+            else
+                print *, '  OK: ".false." parsed'
+            end if
+        end block
+        
+        ! Test logical literals in expressions
+        arena = create_ast_stack()
+        block
+            type(token_t), allocatable :: tokens(:)
+            call tokenize_core("x .and. .true.", tokens)
+            expr_index = parse_expression(tokens, arena)
+            
+            if (expr_index == 0) then
+                print *, '  FAIL: Failed to parse "x .and. .true."'
+                test_logical_literals = .false.
+            else
+                print *, '  OK: Logical literal in expression parsed'
+            end if
+        end block
+        
+        if (test_logical_literals) then
+            print *, 'PASS: Logical literals'
+        end if
+        
+    end function test_logical_literals
+
+    logical function test_large_arrays()
+        integer :: expr_index
+        character(len=1024) :: large_array_str
+        integer :: i
+        
+        test_large_arrays = .true.
+        print *, 'Test 13: Large arrays (>100 elements)'
+        
+        ! Build a string with 105 elements
+        large_array_str = "["
+        do i = 1, 105
+            if (i > 1) large_array_str = trim(large_array_str) // ", "
+            write(large_array_str, '(A,I0)') trim(large_array_str), i
+        end do
+        large_array_str = trim(large_array_str) // "]"
+        
+        arena = create_ast_stack()
+        block
+            type(token_t), allocatable :: tokens(:)
+            call tokenize_core(trim(large_array_str), tokens)
+            expr_index = parse_expression(tokens, arena)
+            
+            if (expr_index == 0) then
+                print *, '  FAIL: Failed to parse large array'
+                test_large_arrays = .false.
+            else
+                select type (node => arena%entries(expr_index)%node)
+                class is (array_literal_node)
+                    if (size(node%element_indices) == 105) then
+                        print *, '  OK: Large array with 105 elements parsed'
+                    else
+                        print *, '  FAIL: Expected 105 elements, got', size(node%element_indices)
+                        test_large_arrays = .false.
+                    end if
+                class default
+                    print *, '  FAIL: Expected array literal node'
+                    test_large_arrays = .false.
+                end select
+            end if
+        end block
+        
+        if (test_large_arrays) then
+            print *, 'PASS: Large arrays'
+        end if
+        
+    end function test_large_arrays
 
 end program test_parser_expressions_comprehensive
