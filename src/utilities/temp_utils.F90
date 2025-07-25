@@ -559,7 +559,13 @@ contains
         cache_dir = create_test_cache_dir(test_name)
         
         ! Build command with XDG_CACHE_HOME set
-        command_prefix = 'XDG_CACHE_HOME="' // trim(cache_dir) // '" fpm run fortran --'
+        if (get_os_type() == OS_WINDOWS) then
+            ! Windows: use set command inline
+            command_prefix = 'cmd /c "set XDG_CACHE_HOME=' // trim(cache_dir) // ' && fpm run fortran --'
+        else
+            ! Unix: use environment variable prefix
+            command_prefix = 'XDG_CACHE_HOME="' // trim(cache_dir) // '" fpm run fortran --'
+        end if
         
     end function fortran_with_isolated_cache
 
@@ -569,7 +575,13 @@ contains
         character(len=:), allocatable :: command_prefix
         
         ! Build command with XDG_CACHE_HOME set
-        command_prefix = 'XDG_CACHE_HOME="' // trim(cache_dir) // '" fpm run fortran --'
+        if (get_os_type() == OS_WINDOWS) then
+            ! Windows: use set command inline
+            command_prefix = 'cmd /c "set XDG_CACHE_HOME=' // trim(cache_dir) // ' && fpm run fortran --'
+        else
+            ! Unix: use environment variable prefix
+            command_prefix = 'XDG_CACHE_HOME="' // trim(cache_dir) // '" fpm run fortran --'
+        end if
         
     end function fortran_with_cache_dir
 

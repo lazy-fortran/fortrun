@@ -72,7 +72,7 @@ contains
     block
         character(len=1024) :: cmd
         if (get_os_type() == OS_WINDOWS) then
-            cmd = fortran_with_isolated_cache('fpm_cache_discovery') // ' "' // test_file // '" > nul 2>&1'
+            cmd = fortran_with_isolated_cache('fpm_cache_discovery') // ' "' // test_file // '"" > nul 2>&1'
             call execute_command_line(trim(cmd), exitstat=exit_code)
         else
             cmd = fortran_with_isolated_cache('fpm_cache_discovery') // ' "' // test_file // '" > /dev/null 2>&1'
@@ -126,7 +126,7 @@ contains
     block
         character(len=1024) :: cmd
         if (get_os_type() == OS_WINDOWS) then
-            cmd = fortran_with_isolated_cache('fpm_cache_info') // ' "' // test_file // '" > nul 2>&1'
+            cmd = fortran_with_isolated_cache('fpm_cache_info') // ' "' // test_file // '"" > nul 2>&1'
             call execute_command_line(trim(cmd), exitstat=exit_code)
         else
             cmd = fortran_with_isolated_cache('fpm_cache_info') // ' "' // test_file // '" > /dev/null 2>&1'
