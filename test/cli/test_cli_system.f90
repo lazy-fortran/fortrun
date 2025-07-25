@@ -2,7 +2,7 @@ program test_cli_system
     use, intrinsic :: iso_fortran_env, only: error_unit
     use cache, only: get_cache_dir
     use temp_utils, only: temp_dir_manager, create_test_cache_dir
-    use temp_utils, only: mkdir
+    use temp_utils, only: mkdir, fortran_with_isolated_cache
     use system_utils, only: sys_remove_dir, sys_run_command, sys_copy_file, sys_run_command_with_exit_code
     use fpm_environment, only: get_os_type, OS_WINDOWS, get_env
     use logger_utils, only: debug_print
@@ -106,7 +106,7 @@ contains
         output_file = temp_mgr%get_file_path('cli_test_output.txt')
         exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
 
-  command = 'fpm run fortran --'
+  command = fortran_with_isolated_cache('no_args')
         call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_help_output(output_file, test_passed)
@@ -131,7 +131,7 @@ contains
         output_file = temp_mgr%get_file_path('cli_test_output.txt')
         exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
 
-    command = 'fpm run fortran -- --help'
+    command = fortran_with_isolated_cache('help') // ' --help'
         call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_help_output(output_file, test_passed)
@@ -156,7 +156,7 @@ contains
         output_file = temp_mgr%get_file_path('cli_test_output.txt')
         exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
 
-    command = 'fpm run fortran -- -h'
+    command = fortran_with_isolated_cache('h_flag') // ' -h'
         call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_help_output(output_file, test_passed)
@@ -181,7 +181,7 @@ contains
         output_file = temp_mgr%get_file_path('cli_test_output.txt')
         exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
 
-        command = 'fpm run fortran -- "'//trim(test_file)//'"'
+        command = fortran_with_isolated_cache('basic_exec') // ' "'//trim(test_file)//'"'
         print *, 'Executing command: ', trim(command)
         call sys_run_command_with_exit_code(command, output_file, exit_file)
 
@@ -229,7 +229,7 @@ contains
 
         call temp_mgr%create('test_v_flag')
 
-        command = 'fpm run fortran -- -v '//trim(test_file)
+        command = fortran_with_isolated_cache('v_flag') // ' -v '//trim(test_file)
         call sys_run_command_with_exit_code(command, &
                   temp_mgr%get_file_path('cli_test_output_cold.txt'), &
                   temp_mgr%get_file_path('cli_test_exit.txt'))
@@ -246,7 +246,7 @@ contains
 
         ! Test 5b: Warm cache (should use existing build)
         print *, '  Test 5b: Warm cache behavior'
-        command = 'fpm run fortran -- -v '//trim(test_file)
+        command = fortran_with_isolated_cache('v_flag') // ' -v '//trim(test_file)
         call sys_run_command_with_exit_code(command, &
                   temp_mgr%get_file_path('cli_test_output_warm.txt'), &
                   temp_mgr%get_file_path('cli_test_exit.txt'))
@@ -275,7 +275,7 @@ contains
         output_file = temp_mgr%get_file_path('cli_test_output.txt')
         exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
 
-        command = 'fpm run fortran -- -vv '//trim(test_file)
+        command = fortran_with_isolated_cache('vv_flag') // ' -vv '//trim(test_file)
         call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_program_output(output_file, 'CLI System Test Output', test_passed)
@@ -301,7 +301,7 @@ contains
         output_file = temp_mgr%get_file_path('cli_test_output.txt')
         exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
 
-        command = 'fpm run fortran -- --verbose '//trim(test_file)
+        command = fortran_with_isolated_cache('verbose') // ' --verbose '//trim(test_file)
         call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_program_output(output_file, 'CLI System Test Output', test_passed)
@@ -327,7 +327,7 @@ contains
         output_file = temp_mgr%get_file_path('cli_test_output.txt')
         exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
 
-        command = 'fpm run fortran -- --verbose 1 '//trim(test_file)
+        command = fortran_with_isolated_cache('verbose1') // ' --verbose 1 '//trim(test_file)
         call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_program_output(output_file, 'CLI System Test Output', test_passed)
@@ -353,7 +353,7 @@ contains
         output_file = temp_mgr%get_file_path('cli_test_output.txt')
         exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
 
-        command = 'fpm run fortran -- --verbose 2 '//trim(test_file)
+        command = fortran_with_isolated_cache('verbose2') // ' --verbose 2 '//trim(test_file)
         call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_program_output(output_file, 'CLI System Test Output', test_passed)
@@ -380,7 +380,7 @@ contains
         exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
         custom_cache_dir = temp_mgr%get_file_path('custom_cache')
 
-    command = 'fpm run fortran -- --cache-dir "' // custom_cache_dir // '" ' // trim(test_file)
+    command = fortran_with_isolated_cache('cache_dir') // ' --cache-dir "' // custom_cache_dir // '" ' // trim(test_file)
         call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_program_output(output_file, 'CLI System Test Output', test_passed)
@@ -415,7 +415,7 @@ contains
         call mkdir(custom_config_dir)
         call sys_copy_file('registry.toml', trim(custom_config_dir)//'/registry.toml', copy_success, error_msg)
 
-    command = 'fpm run fortran -- --config-dir "' // custom_config_dir // '" ' // trim(test_file)
+    command = fortran_with_isolated_cache('config_dir') // ' --config-dir "' // custom_config_dir // '" ' // trim(test_file)
         call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_program_output(output_file, 'CLI System Test Output', test_passed)
@@ -441,7 +441,7 @@ contains
         exit_file = temp_mgr%get_file_path('cli_test_exit.txt')
 
         ! Test missing cache directory argument
-        command = 'fpm run fortran -- --cache-dir'
+        command = fortran_with_isolated_cache('invalid_args') // ' --cache-dir'
         call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_help_output(output_file, test_passed)
@@ -737,7 +737,7 @@ contains
         write (unit, '(a)') "print *, 'Hello from .f file'"
         close (unit)
 
-        command = 'fpm run fortran -- "'//trim(test_f_file)//'"'
+        command = fortran_with_isolated_cache('f_file') // ' "'//trim(test_f_file)//'"'
         call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_exit_code(exit_file, 0, exit_ok)
@@ -772,7 +772,7 @@ contains
         write (unit, '(a)') "This is not a Fortran file"
         close (unit)
 
-        command = 'fpm run fortran -- "'//trim(test_txt_file)//'"'
+        command = fortran_with_isolated_cache('invalid_ext') // ' "'//trim(test_txt_file)//'"'
         call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_exit_code(exit_file, 1, exit_ok)
@@ -812,7 +812,7 @@ contains
         close (unit)
 
         ! Test with custom optimization flags
-        command = 'fpm run fortran -- --flag "-O2" "'//trim(test_flag_file)//'"'
+        command = fortran_with_isolated_cache('flag_f90') // ' --flag "-O2" "'//trim(test_flag_file)//'"'
         call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_exit_code(exit_file, 0, exit_ok)
@@ -834,7 +834,7 @@ contains
         write (unit, '(a)') 'print *, "Flag test output with .f file"'
         close (unit)
 
-      command = 'fpm run fortran -- --flag "-Wall" "'//trim(test_flag_file)//'"'
+      command = fortran_with_isolated_cache('flag_f') // ' --flag "-Wall" "'//trim(test_flag_file)//'"'
         call sys_run_command_with_exit_code(command, output_file, exit_file)
 
         call check_exit_code(exit_file, 0, exit_ok)

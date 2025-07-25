@@ -1,5 +1,6 @@
 program test_main_coverage
-    use temp_utils, only: create_temp_dir, get_temp_file_path, create_temp_file
+    use temp_utils, only: create_temp_dir, get_temp_file_path, create_temp_file, &
+        fortran_with_isolated_cache
     use system_utils, only: sys_remove_dir, sys_remove_file
     use fpm_environment, only: get_os_type, OS_WINDOWS, get_env
     implicit none
@@ -45,7 +46,7 @@ contains
         passed = .true.
 
         ! Test --help flag
-        command = 'fpm run fortran -- --help'
+        command = fortran_with_isolated_cache('main_cov_help') // ' --help'
         call execute_and_capture(command, output, exit_code)
 
         if (exit_code /= 0) then
@@ -61,7 +62,7 @@ contains
         end if
 
         ! Test -h flag
-        command = 'fpm run fortran -- -h'
+        command = fortran_with_isolated_cache('main_cov_h') // ' -h'
         call execute_and_capture(command, output, exit_code)
 
         if (exit_code /= 0) then
@@ -87,7 +88,7 @@ contains
         call create_simple_program(test_file)
 
         ! Test normal execution
-        command = 'fpm run fortran -- '//trim(test_file)
+        command = fortran_with_isolated_cache('main_cov_normal') // ' '//trim(test_file)
         call execute_and_capture(command, output, exit_code)
 
         if (exit_code /= 0) then
@@ -122,7 +123,7 @@ contains
         call create_simple_notebook(test_file)
 
         ! Test notebook execution
-        command = 'fpm run fortran -- --notebook '//trim(test_file)
+        command = fortran_with_isolated_cache('main_cov_notebook') // ' --notebook '//trim(test_file)
         call execute_and_capture(command, output, exit_code)
 
         if (exit_code /= 0) then
@@ -158,7 +159,7 @@ test_file = create_temp_file('fortran_test_main_verbose', '.f90')
         call create_simple_program(test_file)
 
         ! Test -v verbose mode
-        command = 'fpm run fortran -- -v '//trim(test_file)
+        command = fortran_with_isolated_cache('main_cov_verbose_v') // ' -v '//trim(test_file)
         call execute_and_capture(command, output, exit_code)
 
         if (exit_code /= 0) then
@@ -166,7 +167,7 @@ test_file = create_temp_file('fortran_test_main_verbose', '.f90')
         end if
 
         ! Test -vv verbose mode
-        command = 'fpm run fortran -- -vv '//trim(test_file)
+        command = fortran_with_isolated_cache('main_cov_verbose_vv') // ' -vv '//trim(test_file)
         call execute_and_capture(command, output, exit_code)
 
         if (exit_code /= 0) then
@@ -177,7 +178,7 @@ test_file = create_temp_file('fortran_test_main_verbose', '.f90')
         test_file = create_temp_file('fortran_test_main_verbose_notebook', '.f')
         call create_simple_notebook(test_file)
 
-        command = 'fpm run fortran -- --notebook -v '//trim(test_file)
+        command = fortran_with_isolated_cache('main_cov_notebook_v') // ' --notebook -v '//trim(test_file)
         call execute_and_capture(command, output, exit_code)
 
         if (exit_code /= 0) then
@@ -216,7 +217,7 @@ test_file = create_temp_file('fortran_test_main_verbose', '.f90')
         call create_error_program(test_file)
 
         ! Test error handling in normal mode
-        command = 'fpm run fortran -- '//trim(test_file)//' 2>/dev/null'
+        command = fortran_with_isolated_cache('main_cov_error') // ' '//trim(test_file)//' 2>/dev/null'
         call execute_and_capture(command, output, exit_code)
 
         if (exit_code == 0) then
@@ -227,7 +228,7 @@ test_file = create_temp_file('fortran_test_main_verbose', '.f90')
         block
             character(len=256) :: test_file
             test_file = create_temp_file('fortran_test_definitely_nonexistent_file', '.f90')
-            command = 'fpm run fortran -- '//trim(test_file)//' 2>/dev/null'
+            command = fortran_with_isolated_cache('main_cov_nonexistent') // ' '//trim(test_file)//' 2>/dev/null'
         end block
         call execute_and_capture(command, output, exit_code)
 

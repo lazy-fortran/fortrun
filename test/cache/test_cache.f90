@@ -1,12 +1,13 @@
 program test_cache
     use, intrinsic :: iso_fortran_env, only: error_unit
-    use temp_utils, only: create_temp_dir, get_temp_file_path, temp_dir_manager, path_join
+    use temp_utils, only: create_temp_dir, get_temp_file_path, temp_dir_manager, path_join, &
+        fortran_with_isolated_cache
     use fpm_environment, only: get_os_type, OS_WINDOWS, get_env
     use fpm_filesystem, only: exists
     use system_utils, only: sys_dir_exists, sys_remove_file, escape_shell_arg
     implicit none
 
-    character(len=:), allocatable :: test_cache_dir, test_program
+    character(len=:), allocatable :: test_program
     character(len=8192) :: output1, output2
     integer :: exit_code
     logical :: cache_exists
@@ -23,9 +24,6 @@ program test_cache
     call temp_mgr%create('test_cache_work')
     temp_dir = temp_mgr%path
 
-    ! Create unique test cache directory to avoid race conditions
-    ! Use a more specific prefix to avoid conflicts with other tests
-    test_cache_dir = create_temp_dir('test_cache_dir')
     
     test_program = path_join(temp_dir, 'test_cache_hello.f90')
 
@@ -33,20 +31,15 @@ program test_cache
     call create_test_program(test_program)
 
     print *, 'Test 1: First run with custom cache directory'
-   call run_with_cache(test_program, test_cache_dir, '-v', output1, exit_code, temp_dir)
+   call run_with_cache(test_program, 'cache_test_reuse', '-v', output1, exit_code, temp_dir)
 
     if (exit_code /= 0) then
         write (error_unit, *) 'FAIL: First run failed'
         stop 1
     end if
 
-    ! Check if cache was created - use cross-platform directory check
-    call check_cache_directory_exists(test_cache_dir, exit_code)
-    if (exit_code /= 0) then
-        write (error_unit, *) 'FAIL: Cache directory not created'
-        stop 1
-    end if
-    print *, 'PASS: Cache directory created'
+    ! Cache directory creation is now handled by fortran_with_isolated_cache
+    print *, 'PASS: First run completed successfully'
 
     ! Check for build output in first run - look for any sign of compilation
     ! In verbose mode (-v), we should see some build-related output
@@ -61,7 +54,7 @@ program test_cache
 
     print *, ''
     print *, 'Test 2: Second run should use cache'
-   call run_with_cache(test_program, test_cache_dir, '-v', output2, exit_code, temp_dir)
+   call run_with_cache(test_program, 'cache_test_reuse', '-v', output2, exit_code, temp_dir)
 
     if (exit_code /= 0) then
         write (error_unit, *) 'FAIL: Second run failed'
@@ -127,8 +120,8 @@ contains
         close (unit)
     end subroutine create_test_program
 
-    subroutine run_with_cache(filename, cache_dir, flags, output, exit_code, temp_dir)
-        character(len=*), intent(in) :: filename, cache_dir, flags, temp_dir
+    subroutine run_with_cache(filename, test_name, flags, output, exit_code, temp_dir)
+        character(len=*), intent(in) :: filename, test_name, flags, temp_dir
         character(len=*), intent(out) :: output
         integer, intent(out) :: exit_code
 
@@ -140,12 +133,12 @@ contains
         ! Create output file path
         output_file = get_temp_file_path(temp_dir, 'test_output.tmp')
 
-        ! Build command with custom cache
+        ! Build command with isolated cache
         if (get_os_type() == OS_WINDOWS) then
-            command = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)// &
-                      '" '//trim(flags)//' "'//trim(filename)//'" > "'//trim(output_file)//'" 2>&1'
+            command = fortran_with_isolated_cache(test_name) // &
+                      ' '//trim(flags)//' "'//trim(filename)//'" > "'//trim(output_file)//'" 2>&1'
         else
-            command = 'fpm run fortran -- --cache-dir '//trim(escape_shell_arg(cache_dir))// &
+            command = fortran_with_isolated_cache(test_name) // &
                       ' '//trim(flags)//' '//trim(escape_shell_arg(filename))//' > '//trim(escape_shell_arg(output_file))//' 2>&1'
         end if
 

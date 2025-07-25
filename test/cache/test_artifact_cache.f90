@@ -156,12 +156,19 @@ contains
     end subroutine test_store_retrieve_cycle
 
     subroutine test_cache_management()
-        character(len=32) :: hash_key
+        character(len=48) :: hash_key
         logical :: success
+        real :: rand_val
+        integer :: rand_int
+        character(len=8) :: random_suffix
 
         print *, 'Test 3: Cache management'
 
-        hash_key = 'test_cache_key_12345'
+        ! Generate unique hash key to avoid conflicts with parallel tests
+        call random_number(rand_val)
+        rand_int = int(rand_val * 99999999)
+        write(random_suffix, '(I8.8)') rand_int
+        hash_key = 'test_cache_key_' // random_suffix
 
         ! Initially should not exist
         if (cache_exists(hash_key)) then
@@ -171,7 +178,7 @@ contains
 
         ! Create dummy cache entry
         call mkdir(trim(get_cache_dir())//'/builds/'//trim(hash_key))
-    call execute_command_line('touch "' // trim(get_cache_dir()) // '/builds/' // path_join(hash_key, 'dummy"'))
+        call execute_command_line('touch "' // trim(get_cache_dir()) // '/builds/' // path_join(hash_key, 'dummy"'))
 
         ! Should now exist
         if (.not. cache_exists(hash_key)) then
