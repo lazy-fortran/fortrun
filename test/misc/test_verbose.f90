@@ -1,6 +1,6 @@
 program test_verbose
     use, intrinsic :: iso_fortran_env, only: error_unit
-    use temp_utils, only: create_temp_dir, get_temp_file_path
+    use temp_utils, only: create_temp_dir, get_temp_file_path, fortran_with_isolated_cache
     use system_utils, only: sys_remove_dir, sys_remove_file, escape_shell_arg
     implicit none
 
@@ -120,22 +120,17 @@ contains
         integer, intent(out) :: exit_code
 
         character(len=512) :: command
-        character(len=256) :: temp_cache
-        character(len=:), allocatable :: temp_dir, temp_output_file
+        character(len=:), allocatable :: temp_dir, temp_output_file, command_prefix
         integer :: unit, iostat
         character(len=2048) :: line
-
-        ! Use temporary cache to ensure fresh builds
-        temp_cache = './test_verbose_cache'
-        call sys_remove_dir(temp_cache)
 
         ! Create temp directory and file path
         temp_dir = create_temp_dir('fortran_test')
         temp_output_file = get_temp_file_path(temp_dir, 'test_output.tmp')
 
-        ! Build command with custom cache
-        command = 'fpm run fortran -- --cache-dir "'//trim(escape_shell_arg(temp_cache))// &
-                  '" '//trim(flags)//' "'// &
+        ! Build command with isolated cache
+        command_prefix = fortran_with_isolated_cache('test_verbose')
+        command = trim(command_prefix)//' '//trim(flags)//' "'// &
                   trim(escape_shell_arg(filename))//'" > "'//trim(escape_shell_arg(temp_output_file))//'" 2>&1'
 
         ! Run command
