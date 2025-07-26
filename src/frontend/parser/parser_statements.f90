@@ -700,6 +700,10 @@ contains
                                 token = parser%consume()
                             end do
                         end if
+                    else if (token%kind == TK_KEYWORD .and. token%text == "optional") then
+                        ! Mark current type as optional (stored with intent value 4)
+                        current_intent = 4  ! Using 4 to indicate optional
+                        token = parser%consume()
                     end if
                 end if
 

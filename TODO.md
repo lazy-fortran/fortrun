@@ -160,8 +160,8 @@ end subroutine
 - [x] Violations caught by gfortran backend
 - [ ] (Optional) Implement semantic checks for earlier error detection
 
-### 8. OPTIONAL Parameters
-**Status**: Not implemented
+### 8. OPTIONAL Parameters ✓
+**Status**: COMPLETED - OPTIONAL attribute and PRESENT intrinsic working
 
 **RED Test**:
 ```fortran
@@ -183,10 +183,10 @@ call compute(1.0, 2.0, 0.01)  ! With optional
 ```
 
 **Implementation Tasks**:
-- [ ] Parse OPTIONAL attribute
-- [ ] Implement PRESENT intrinsic
-- [ ] Handle optional arguments in calls
-- [ ] Type check with optional parameters
+- [x] Parse OPTIONAL attribute
+- [x] Implement PRESENT intrinsic
+- [x] Handle optional arguments in calls
+- [x] Type check with optional parameters
 
 ## Low Priority - Advanced Features
 

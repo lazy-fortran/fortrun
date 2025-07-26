@@ -955,6 +955,16 @@ contains
                 char_type = create_mono_type(TCHAR)
                 typ = create_fun_type(char_type, int_type)
             end block
+            
+        case ("present")
+            ! present(optional_param) -> logical
+            ! Takes any type and returns logical
+            block
+                type(mono_type_t) :: param_type, logical_type
+                param_type = create_mono_type(TVAR, var=this%fresh_type_var())
+                logical_type = create_mono_type(TLOGICAL)
+                typ = create_fun_type(param_type, logical_type)
+            end block
 
         case default
             ! Return empty type to indicate not found
