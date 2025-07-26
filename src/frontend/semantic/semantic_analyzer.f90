@@ -914,6 +914,48 @@ contains
                 typ = create_fun_type(array_type, result_type)
             end block
 
+        ! String intrinsic functions
+        case ("len")
+            ! len(string) -> integer
+            block
+                type(mono_type_t) :: char_type
+                char_type = create_mono_type(TCHAR)
+                typ = create_fun_type(char_type, int_type)
+            end block
+            
+        case ("len_trim")
+            ! len_trim(string) -> integer
+            block
+                type(mono_type_t) :: char_type
+                char_type = create_mono_type(TCHAR)
+                typ = create_fun_type(char_type, int_type)
+            end block
+            
+        case ("trim")
+            ! trim(string) -> string
+            block
+                type(mono_type_t) :: char_type
+                char_type = create_mono_type(TCHAR)
+                typ = create_fun_type(char_type, char_type)
+            end block
+            
+        case ("adjustl", "adjustr")
+            ! adjustl/adjustr(string) -> string
+            block
+                type(mono_type_t) :: char_type
+                char_type = create_mono_type(TCHAR)
+                typ = create_fun_type(char_type, char_type)
+            end block
+            
+        case ("index")
+            ! index(string, substring) -> integer
+            ! For now, simplified as string -> integer
+            block
+                type(mono_type_t) :: char_type
+                char_type = create_mono_type(TCHAR)
+                typ = create_fun_type(char_type, int_type)
+            end block
+
         case default
             ! Return empty type to indicate not found
             typ%kind = 0

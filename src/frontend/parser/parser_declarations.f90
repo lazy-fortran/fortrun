@@ -75,6 +75,14 @@ contains
                         if (var_token%kind == TK_NUMBER) then
                             var_token = parser%consume()
                             type_spec = type_spec//var_token%text
+                        else if (var_token%kind == TK_OPERATOR .and. var_token%text == ":") then
+                            ! Handle len=: for deferred length
+                            var_token = parser%consume()
+                            type_spec = type_spec//":"
+                        else if (var_token%kind == TK_OPERATOR .and. var_token%text == "*") then
+                            ! Handle len=* for assumed length
+                            var_token = parser%consume()
+                            type_spec = type_spec//"*"
                         end if
                     end if
 
