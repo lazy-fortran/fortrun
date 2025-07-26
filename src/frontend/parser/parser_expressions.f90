@@ -382,7 +382,6 @@ contains
                                         if (next2%kind == TK_OPERATOR .and. next2%text == "=") then
                                             ! This is an implied do loop!
                                             ! Parse: (expr, var=start,end[,step])
-                                            print *, 'DEBUG: Parsing implied do loop, var=', next1%text
                                             
                                             ! We already have the first expression in temp_indices(element_count)
                                             ! next1 contains the loop variable name
