@@ -48,6 +48,8 @@ contains
                 stmt_index = parse_if(parser, arena)
             case ("do")
                 stmt_index = parse_do_loop(parser, arena)
+            case ("where")
+                stmt_index = parse_where_construct(parser, arena)
             case ("select")
                 stmt_index = parse_select_case(parser, arena)
             case ("function")

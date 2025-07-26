@@ -92,8 +92,8 @@ end do outer
 - [x] Implement control flow in AST
 - [x] Generate proper jump statements
 
-### 5. WHERE Construct
-**Status**: Not implemented
+### 5. WHERE Construct ✓
+**Status**: COMPLETED - Both single-line and multi-line WHERE constructs working
 
 **RED Test**:
 ```fortran
@@ -109,10 +109,10 @@ where (a > 0) b = 1.0/a    ! Single line form
 ```
 
 **Implementation Tasks**:
-- [ ] Add WHERE/ELSEWHERE/END WHERE parsing
-- [ ] Create WHERE AST node with mask expression
-- [ ] Implement array masking in code generation
-- [ ] Handle nested WHERE constructs
+- [x] Add WHERE/ELSEWHERE/END WHERE parsing
+- [x] Create WHERE AST node with mask expression
+- [x] Implement array masking in code generation
+- [x] Handle nested WHERE constructs
 
 ### 6. Character String Operations
 **Status**: Basic support, needs enhancement

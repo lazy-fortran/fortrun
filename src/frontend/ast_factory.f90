@@ -12,6 +12,7 @@ module ast_factory
     public :: push_function_def, push_subroutine_def, push_interface_block, push_module
     public :: push_stop, push_return
     public :: push_cycle, push_exit
+    public :: push_where
     public :: build_ast_from_nodes
 
 contains
@@ -661,5 +662,25 @@ contains
         call arena%push(exit_stmt, "exit_node", parent_index)
         exit_index = arena%size
     end function push_exit
+    
+    ! Create WHERE construct node and add to stack
+    function push_where(arena, mask_expr_index, where_body_indices, elsewhere_body_indices, &
+                       line, column, parent_index) result(where_index)
+        type(ast_arena_t), intent(inout) :: arena
+        integer, intent(in) :: mask_expr_index
+        integer, intent(in), optional :: where_body_indices(:)
+        integer, intent(in), optional :: elsewhere_body_indices(:)
+        integer, intent(in), optional :: line, column, parent_index
+        integer :: where_index
+        type(where_node) :: where_stmt
+        
+        where_stmt = create_where(mask_expr_index=mask_expr_index, &
+                                where_body_indices=where_body_indices, &
+                                elsewhere_body_indices=elsewhere_body_indices, &
+                                line=line, column=column)
+        
+        call arena%push(where_stmt, "where_node", parent_index)
+        where_index = arena%size
+    end function push_where
 
 end module ast_factory

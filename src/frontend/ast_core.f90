@@ -371,6 +371,16 @@ module ast_core
         procedure :: accept => exit_accept
         procedure :: to_json => exit_to_json
     end type exit_node
+    
+    ! WHERE construct node
+    type, extends(ast_node), public :: where_node
+        integer :: mask_expr_index = 0                ! Mask expression index
+        integer, allocatable :: where_body_indices(:) ! WHERE body statement indices
+        integer, allocatable :: elsewhere_body_indices(:) ! ELSEWHERE body statement indices (optional)
+    contains
+        procedure :: accept => where_accept
+        procedure :: to_json => where_to_json
+    end type where_node
 
     ! Case statement wrapper
     type, public :: case_wrapper
@@ -402,6 +412,7 @@ module ast_core
     public :: create_derived_type, create_interface_block, create_module
     public :: create_stop, create_return
     public :: create_cycle, create_exit
+    public :: create_where
 
 contains
 
@@ -1229,6 +1240,32 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         if (present(line)) node%line = line
         if (present(column)) node%column = column
     end function create_exit
+    
+    ! Create a WHERE node
+    function create_where(mask_expr_index, where_body_indices, elsewhere_body_indices, line, column) result(node)
+        integer, intent(in) :: mask_expr_index
+        integer, intent(in), optional :: where_body_indices(:)
+        integer, intent(in), optional :: elsewhere_body_indices(:)
+        integer, intent(in), optional :: line, column
+        type(where_node) :: node
+        
+        node%mask_expr_index = mask_expr_index
+        
+        if (present(where_body_indices)) then
+            if (size(where_body_indices) > 0) then
+                node%where_body_indices = where_body_indices
+            end if
+        end if
+        
+        if (present(elsewhere_body_indices)) then
+            if (size(elsewhere_body_indices) > 0) then
+                node%elsewhere_body_indices = elsewhere_body_indices
+            end if
+        end if
+        
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_where
 
     ! JSON serialization implementations (I'll include the key ones)
 
@@ -2036,6 +2073,46 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         
         call json%add(parent, obj)
     end subroutine exit_to_json
+    
+    subroutine where_to_json(this, json, parent)
+        class(where_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj
+        integer :: i
+        
+        call json%create_object(obj, '')
+        call json%add(obj, 'node_type', 'where')
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+        call json%add(obj, 'mask_expr_index', this%mask_expr_index)
+        
+        ! Add WHERE body indices
+        if (allocated(this%where_body_indices)) then
+            block
+                type(json_value), pointer :: arr
+                call json%create_array(arr, 'where_body_indices')
+                do i = 1, size(this%where_body_indices)
+                    call json%add(arr, '', this%where_body_indices(i))
+                end do
+                call json%add(obj, arr)
+            end block
+        end if
+        
+        ! Add ELSEWHERE body indices if present
+        if (allocated(this%elsewhere_body_indices)) then
+            block
+                type(json_value), pointer :: arr
+                call json%create_array(arr, 'elsewhere_body_indices')
+                do i = 1, size(this%elsewhere_body_indices)
+                    call json%add(arr, '', this%elsewhere_body_indices(i))
+                end do
+                call json%add(obj, arr)
+            end block
+        end if
+        
+        call json%add(parent, obj)
+    end subroutine where_to_json
 
     ! High-performance arena memory management operations
 
@@ -2209,6 +2286,12 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         class(*), intent(inout) :: visitor
         ! Basic accept implementation - can be overridden
     end subroutine exit_accept
+    
+    subroutine where_accept(this, visitor)
+        class(where_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine where_accept
 
     ! Deep copy an AST entry
     function ast_entry_deep_copy(this) result(copy)
