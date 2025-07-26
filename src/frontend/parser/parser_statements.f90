@@ -14,6 +14,7 @@ module parser_statements_module
     public :: parse_interface_block, parse_module, parse_program_statement
     public :: parse_typed_parameters
     public :: parse_stop_statement, parse_return_statement
+    public :: parse_cycle_statement, parse_exit_statement
 
 contains
 
@@ -242,6 +243,74 @@ contains
         ! Create RETURN node
         return_index = push_return(arena, line=line, column=column)
     end function parse_return_statement
+    
+    ! Parse CYCLE statement: cycle [loop-label]
+    function parse_cycle_statement(parser, arena) result(cycle_index)
+        type(parser_state_t), intent(inout) :: parser
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: cycle_index
+        
+        type(token_t) :: token
+        integer :: line, column
+        character(len=:), allocatable :: loop_label
+        
+        ! Consume 'cycle' keyword
+        token = parser%peek()
+        line = token%line
+        column = token%column
+        token = parser%consume()
+        
+        ! Check for optional loop label
+        token = parser%peek()
+        if (token%kind == TK_IDENTIFIER) then
+            loop_label = token%text
+            token = parser%consume()
+        else
+            loop_label = ""
+        end if
+        
+        ! Create CYCLE node
+        if (len_trim(loop_label) > 0) then
+            cycle_index = push_cycle(arena, loop_label=loop_label, &
+                                   line=line, column=column)
+        else
+            cycle_index = push_cycle(arena, line=line, column=column)
+        end if
+    end function parse_cycle_statement
+    
+    ! Parse EXIT statement: exit [loop-label]
+    function parse_exit_statement(parser, arena) result(exit_index)
+        type(parser_state_t), intent(inout) :: parser
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: exit_index
+        
+        type(token_t) :: token
+        integer :: line, column
+        character(len=:), allocatable :: loop_label
+        
+        ! Consume 'exit' keyword
+        token = parser%peek()
+        line = token%line
+        column = token%column
+        token = parser%consume()
+        
+        ! Check for optional loop label
+        token = parser%peek()
+        if (token%kind == TK_IDENTIFIER) then
+            loop_label = token%text
+            token = parser%consume()
+        else
+            loop_label = ""
+        end if
+        
+        ! Create EXIT node
+        if (len_trim(loop_label) > 0) then
+            exit_index = push_exit(arena, loop_label=loop_label, &
+                                 line=line, column=column)
+        else
+            exit_index = push_exit(arena, line=line, column=column)
+        end if
+    end function parse_exit_statement
 
     ! Parse only list helper
     subroutine parse_only_list(parser, only_list, rename_list)

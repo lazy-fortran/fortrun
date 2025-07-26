@@ -67,6 +67,10 @@ contains
             code = generate_code_stop(arena, node, node_index)
         type is (return_node)
             code = generate_code_return(arena, node, node_index)
+        type is (cycle_node)
+            code = generate_code_cycle(arena, node, node_index)
+        type is (exit_node)
+            code = generate_code_exit(arena, node, node_index)
         class default
             code = "! Unknown node type"
         end select
@@ -583,6 +587,34 @@ contains
         
         code = with_indent("return")
     end function generate_code_return
+    
+    ! Generate code for CYCLE statement
+    function generate_code_cycle(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
+        type(cycle_node), intent(in) :: node
+        integer, intent(in) :: node_index
+        character(len=:), allocatable :: code
+        
+        if (allocated(node%loop_label) .and. len_trim(node%loop_label) > 0) then
+            code = with_indent("cycle "//node%loop_label)
+        else
+            code = with_indent("cycle")
+        end if
+    end function generate_code_cycle
+    
+    ! Generate code for EXIT statement
+    function generate_code_exit(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
+        type(exit_node), intent(in) :: node
+        integer, intent(in) :: node_index
+        character(len=:), allocatable :: code
+        
+        if (allocated(node%loop_label) .and. len_trim(node%loop_label) > 0) then
+            code = with_indent("exit "//node%loop_label)
+        else
+            code = with_indent("exit")
+        end if
+    end function generate_code_exit
 
     ! Generate code for declaration
     function generate_code_declaration(arena, node, node_index) result(code)

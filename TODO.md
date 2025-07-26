@@ -66,8 +66,8 @@ root = sqrt(16.0)       ! Should be 4.0
 
 ## Medium Priority - Control Flow
 
-### 4. CYCLE and EXIT Statements
-**Status**: Not implemented
+### 4. CYCLE and EXIT Statements ✓
+**Status**: COMPLETED - Tokens, parsing, AST nodes, and code generation all working
 
 **RED Test**:
 ```fortran
@@ -87,10 +87,10 @@ end do outer
 ```
 
 **Implementation Tasks**:
-- [ ] Add CYCLE and EXIT tokens
-- [ ] Parse with optional loop labels
-- [ ] Implement control flow in AST
-- [ ] Generate proper jump statements
+- [x] Add CYCLE and EXIT tokens
+- [x] Parse with optional loop labels
+- [x] Implement control flow in AST
+- [x] Generate proper jump statements
 
 ### 5. WHERE Construct
 **Status**: Not implemented

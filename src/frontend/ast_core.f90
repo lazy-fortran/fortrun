@@ -355,6 +355,22 @@ module ast_core
         procedure :: accept => return_accept
         procedure :: to_json => return_to_json
     end type return_node
+    
+    ! CYCLE statement node
+    type, extends(ast_node), public :: cycle_node
+        character(len=:), allocatable :: loop_label  ! Optional loop label to cycle
+    contains
+        procedure :: accept => cycle_accept
+        procedure :: to_json => cycle_to_json
+    end type cycle_node
+    
+    ! EXIT statement node
+    type, extends(ast_node), public :: exit_node
+        character(len=:), allocatable :: loop_label  ! Optional loop label to exit
+    contains
+        procedure :: accept => exit_accept
+        procedure :: to_json => exit_to_json
+    end type exit_node
 
     ! Case statement wrapper
     type, public :: case_wrapper
@@ -385,6 +401,7 @@ module ast_core
     public :: create_declaration, create_do_loop, create_do_while, create_if, create_select_case
     public :: create_derived_type, create_interface_block, create_module
     public :: create_stop, create_return
+    public :: create_cycle, create_exit
 
 contains
 
@@ -1184,6 +1201,34 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         if (present(line)) node%line = line
         if (present(column)) node%column = column
     end function create_return
+    
+    ! Create a CYCLE node
+    function create_cycle(loop_label, line, column) result(node)
+        character(len=*), intent(in), optional :: loop_label
+        integer, intent(in), optional :: line, column
+        type(cycle_node) :: node
+        
+        if (present(loop_label)) then
+            node%loop_label = loop_label
+        end if
+        
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_cycle
+    
+    ! Create an EXIT node
+    function create_exit(loop_label, line, column) result(node)
+        character(len=*), intent(in), optional :: loop_label
+        integer, intent(in), optional :: line, column
+        type(exit_node) :: node
+        
+        if (present(loop_label)) then
+            node%loop_label = loop_label
+        end if
+        
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_exit
 
     ! JSON serialization implementations (I'll include the key ones)
 
@@ -1955,6 +2000,42 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         
         call json%add(parent, obj)
     end subroutine return_to_json
+    
+    subroutine cycle_to_json(this, json, parent)
+        class(cycle_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj
+        
+        call json%create_object(obj, '')
+        call json%add(obj, 'node_type', 'cycle')
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+        
+        if (allocated(this%loop_label)) then
+            call json%add(obj, 'loop_label', this%loop_label)
+        end if
+        
+        call json%add(parent, obj)
+    end subroutine cycle_to_json
+    
+    subroutine exit_to_json(this, json, parent)
+        class(exit_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj
+        
+        call json%create_object(obj, '')
+        call json%add(obj, 'node_type', 'exit')
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+        
+        if (allocated(this%loop_label)) then
+            call json%add(obj, 'loop_label', this%loop_label)
+        end if
+        
+        call json%add(parent, obj)
+    end subroutine exit_to_json
 
     ! High-performance arena memory management operations
 
@@ -2116,6 +2197,18 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         class(*), intent(inout) :: visitor
         ! Basic accept implementation - can be overridden
     end subroutine return_accept
+    
+    subroutine cycle_accept(this, visitor)
+        class(cycle_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine cycle_accept
+    
+    subroutine exit_accept(this, visitor)
+        class(exit_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine exit_accept
 
     ! Deep copy an AST entry
     function ast_entry_deep_copy(this) result(copy)

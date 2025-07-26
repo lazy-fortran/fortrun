@@ -11,6 +11,7 @@ module ast_factory
     public :: push_use_statement, push_include_statement, push_print_statement
     public :: push_function_def, push_subroutine_def, push_interface_block, push_module
     public :: push_stop, push_return
+    public :: push_cycle, push_exit
     public :: build_ast_from_nodes
 
 contains
@@ -632,5 +633,33 @@ contains
         call arena%push(return_stmt, "return_node", parent_index)
         return_index = arena%size
     end function push_return
+    
+    ! Create CYCLE statement node and add to stack
+    function push_cycle(arena, loop_label, line, column, parent_index) result(cycle_index)
+        type(ast_arena_t), intent(inout) :: arena
+        character(len=*), intent(in), optional :: loop_label
+        integer, intent(in), optional :: line, column, parent_index
+        integer :: cycle_index
+        type(cycle_node) :: cycle_stmt
+        
+        cycle_stmt = create_cycle(loop_label=loop_label, line=line, column=column)
+        
+        call arena%push(cycle_stmt, "cycle_node", parent_index)
+        cycle_index = arena%size
+    end function push_cycle
+    
+    ! Create EXIT statement node and add to stack
+    function push_exit(arena, loop_label, line, column, parent_index) result(exit_index)
+        type(ast_arena_t), intent(inout) :: arena
+        character(len=*), intent(in), optional :: loop_label
+        integer, intent(in), optional :: line, column, parent_index
+        integer :: exit_index
+        type(exit_node) :: exit_stmt
+        
+        exit_stmt = create_exit(loop_label=loop_label, line=line, column=column)
+        
+        call arena%push(exit_stmt, "exit_node", parent_index)
+        exit_index = arena%size
+    end function push_exit
 
 end module ast_factory

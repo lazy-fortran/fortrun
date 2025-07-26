@@ -4,7 +4,7 @@ module parser_control_flow_module
     use ast_types, only: LITERAL_STRING
     use parser_state_module
   use parser_expressions_module, only: parse_primary, parse_expression, parse_logical_or
-    use parser_statements_module, only: parse_print_statement
+    use parser_statements_module, only: parse_print_statement, parse_cycle_statement, parse_exit_statement
     use parser_declarations_module, only: parse_declaration, parse_multi_declaration
     use ast_core
     use ast_factory, only: push_if, push_do_loop, push_do_while, push_select_case, &
@@ -779,6 +779,12 @@ contains
             case ("print")
                 ! Parse print statement
                 stmt_index = parse_print_statement(parser, arena)
+            case ("cycle")
+                ! Parse cycle statement
+                stmt_index = parse_cycle_statement(parser, arena)
+            case ("exit")
+                ! Parse exit statement
+                stmt_index = parse_exit_statement(parser, arena)
             case default
                 ! Unknown keyword
                 stmt_index = 0
