@@ -1023,6 +1023,17 @@ contains
             ! Unknown type - use type variable
             typ = create_mono_type(TVAR, var=ctx%fresh_type_var())
         end select
+        
+        ! If this is an array declaration, wrap the type in an array type
+        if (decl%is_array) then
+            block
+                type(mono_type_t), allocatable :: array_args(:)
+                allocate(array_args(1))
+                array_args(1) = typ  ! Element type
+                typ = create_mono_type(TARRAY, args=array_args)
+                ! TODO: Set array size from dimension_indices
+            end block
+        end if
 
         ! Check if this variable already exists in scope
         block

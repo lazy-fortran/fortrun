@@ -377,9 +377,36 @@ contains
 
         ! Create declaration nodes
         if (var_count > 0) then
-            allocate (declaration_indices(var_count))
-            do i = 1, var_count
-                if (var_declared(i)) then
+            ! First count how many declarations we'll actually create
+            block
+                integer :: actual_count
+                actual_count = 0
+                do i = 1, var_count
+                    if (var_declared(i)) then
+                        ! Check if this variable already has an explicit declaration
+                        if (.not. has_explicit_declaration(arena, prog, var_names(i))) then
+                            actual_count = actual_count + 1
+                        end if
+                    end if
+                end do
+                
+                if (actual_count == 0) then
+                    allocate (declaration_indices(0))
+                    return
+                end if
+                
+                allocate (declaration_indices(actual_count))
+            end block
+            
+            ! Now create the declaration nodes
+            block
+                integer :: decl_idx
+                decl_idx = 0
+                do i = 1, var_count
+                    if (var_declared(i)) then
+                        ! Check if this variable already has an explicit declaration
+                        if (.not. has_explicit_declaration(arena, prog, var_names(i))) then
+                            decl_idx = decl_idx + 1
                     ! Create declaration node
                     decl_node%type_name = trim(var_types(i))
                     decl_node%var_name = trim(var_names(i))
@@ -445,9 +472,11 @@ contains
                     decl_node%column = 1
 
                     call arena%push(decl_node, "declaration", prog_index)
-                    declaration_indices(i) = arena%size
-                end if
-            end do
+                    declaration_indices(decl_idx) = arena%size
+                        end if
+                    end if
+                end do
+            end block
         else
             allocate (declaration_indices(0))
         end if
@@ -471,6 +500,9 @@ contains
         if (.not. allocated(arena%entries(stmt_index)%node)) return
 
         select type (stmt => arena%entries(stmt_index)%node)
+        type is (declaration_node)
+            ! Mark this variable as already declared - don't generate implicit declaration
+            call mark_variable_declared(stmt%var_name, var_names, var_declared, var_count)
         type is (assignment_node)
             call collect_assignment_vars(arena, stmt_index, var_names, var_types, var_declared, var_count, &
                                          function_names, func_count)
@@ -641,6 +673,50 @@ contains
             end if
         end if
     end subroutine add_variable
+    
+    ! Mark a variable as already declared
+    subroutine mark_variable_declared(var_name, var_names, var_declared, var_count)
+        character(len=*), intent(in) :: var_name
+        character(len=64), intent(in) :: var_names(:)
+        logical, intent(inout) :: var_declared(:)
+        integer, intent(in) :: var_count
+        integer :: i
+        
+        ! Find the variable if it exists and mark it as declared
+        do i = 1, var_count
+            if (trim(var_names(i)) == trim(var_name)) then
+                var_declared(i) = .false.  ! Mark as already declared - don't generate implicit declaration
+                return
+            end if
+        end do
+    end subroutine mark_variable_declared
+    
+    ! Check if a variable already has an explicit declaration
+    function has_explicit_declaration(arena, prog, var_name) result(has_decl)
+        type(ast_arena_t), intent(in) :: arena
+        type(program_node), intent(in) :: prog
+        character(len=*), intent(in) :: var_name
+        logical :: has_decl
+        integer :: i
+        
+        has_decl = .false.
+        
+        if (allocated(prog%body_indices)) then
+            do i = 1, size(prog%body_indices)
+                if (prog%body_indices(i) > 0 .and. prog%body_indices(i) <= arena%size) then
+                    if (allocated(arena%entries(prog%body_indices(i))%node)) then
+                        select type (stmt => arena%entries(prog%body_indices(i))%node)
+                        type is (declaration_node)
+                            if (trim(stmt%var_name) == trim(var_name)) then
+                                has_decl = .true.
+                                return
+                            end if
+                        end select
+                    end if
+                end if
+            end do
+        end if
+    end function has_explicit_declaration
 
     ! Convert mono_type_t to Fortran type string
     function get_fortran_type_string(mono_type) result(type_str)
