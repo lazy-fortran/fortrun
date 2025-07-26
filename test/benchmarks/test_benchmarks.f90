@@ -1,6 +1,7 @@
 program test_benchmarks
     use, intrinsic :: iso_fortran_env, only: int64
-    use temp_utils, only: create_temp_dir, get_temp_file_path, create_test_cache_dir, path_join, create_temp_file
+    use temp_utils, only: create_temp_dir, get_temp_file_path, create_test_cache_dir, path_join, create_temp_file, &
+                         fortran_with_isolated_cache
     use temp_utils, only: mkdir
     use system_utils, only: sys_remove_file, sys_remove_dir, sys_get_path_separator
     use fpm_environment, only: get_os_type, OS_WINDOWS, get_env
@@ -383,13 +384,13 @@ output_file = create_temp_file('fortran_bench_measure_output', '.txt')
         character(len=*), intent(in) :: args, output_file
         integer, intent(out) :: exit_code
         character(len=1024) :: command
+        character(len=:), allocatable :: cmd_prefix
 
+        ! Get isolated cache command prefix
+        cmd_prefix = fortran_with_isolated_cache('test_benchmarks')
+        
         ! Cross-platform command execution with output redirection
-        if (get_os_type() == OS_WINDOWS) then
-        command = 'fpm run fortran -- '//trim(args)//' > "'//trim(output_file)//'" 2>&1'
-        else
-        command = 'fpm run fortran -- '//trim(args)//' > "'//trim(output_file)//'" 2>&1'
-        end if
+        command = trim(cmd_prefix) // ' ' // trim(args) // ' > "' // trim(output_file) // '" 2>&1'
 
         call execute_command_line(trim(command), exitstat=exit_code)
     end subroutine run_fortran_command_with_output

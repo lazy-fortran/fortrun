@@ -1,6 +1,6 @@
 program test_error_handling
     use, intrinsic :: iso_fortran_env, only: error_unit
-    use temp_utils, only: get_system_temp_dir, path_join
+    use temp_utils, only: get_system_temp_dir, path_join, fortran_with_isolated_cache
     use temp_utils, only: mkdir, path_join
     use system_utils, only: sys_remove_dir, sys_remove_file, sys_run_command_with_exit_code
     implicit none
@@ -43,8 +43,8 @@ contains
         write (unit, '(a)') 'end program test_unknown'
         close (unit)
 
-        ! Run the program and capture output
-        command = 'fpm run fortran -- '//trim(test_file)
+        ! Run the program and capture output with isolated cache
+        command = trim(fortran_with_isolated_cache('test_err_unknown')) // ' ' // trim(test_file)
         call sys_run_command_with_exit_code(command, &
                   path_join(get_system_temp_dir(), 'unknown_output.txt'), &
                   path_join(get_system_temp_dir(), 'unknown_exit.txt'))
@@ -89,7 +89,7 @@ contains
         close (unit)
 
         ! Run the program and capture output
-        command = 'fpm run fortran -- '//trim(test_file)
+        command = trim(fortran_with_isolated_cache('test_err_similar')) // ' ' // trim(test_file)
         call sys_run_command_with_exit_code(command, &
                   path_join(get_system_temp_dir(), 'error_output.txt'), &
                   path_join(get_system_temp_dir(), 'error_exit.txt'))
@@ -132,7 +132,7 @@ contains
         close (unit)
 
         ! Run the program and capture output
-        command = 'fpm run fortran -- '//trim(test_file)
+        command = trim(fortran_with_isolated_cache('test_err_similar')) // ' ' // trim(test_file)
         call sys_run_command_with_exit_code(command, &
                   path_join(get_system_temp_dir(), 'syntax_output.txt'), &
                   path_join(get_system_temp_dir(), 'syntax_exit.txt'))

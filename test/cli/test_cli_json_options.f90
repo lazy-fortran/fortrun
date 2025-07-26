@@ -1,5 +1,5 @@
 program test_cli_json_options
-    use temp_utils, only: get_system_temp_dir, path_join
+    use temp_utils, only: get_system_temp_dir, path_join, fortran_with_isolated_cache
     implicit none
 
     logical :: all_passed
@@ -52,8 +52,9 @@ contains
 
             if (iostat == 0) then
                 ! Test --from-tokens option with wait flag for CI reliability
-     call execute_command_line('fpm run fortran -- "'//path_join(temp_dir, 'test_tokens.json')//'" '// &
-                                          '--from-tokens', wait=.true., exitstat=iostat)
+     call execute_command_line(trim(fortran_with_isolated_cache('test_cli_json')) // ' "' // &
+                                          path_join(temp_dir, 'test_tokens.json') // '" --from-tokens', &
+                                          wait=.true., exitstat=iostat)
 
                 if (iostat == 0) then
                     print *, '    PASS: --from-tokens executed successfully'
@@ -83,8 +84,9 @@ contains
 
             if (iostat == 0) then
                 ! Test --from-ast option with wait flag for CI reliability
-        call execute_command_line('fpm run fortran -- "'//path_join(temp_dir, 'test_ast.json')//'" '// &
-                                          '--from-ast', wait=.true., exitstat=iostat)
+        call execute_command_line(trim(fortran_with_isolated_cache('test_cli_json_ast')) // ' "' // &
+                                          path_join(temp_dir, 'test_ast.json') // '" --from-ast', &
+                                          wait=.true., exitstat=iostat)
 
                 if (iostat == 0) then
                     print *, '    PASS: --from-ast executed successfully'
@@ -114,8 +116,9 @@ contains
 
             if (iostat == 0) then
                 ! Test --from-semantic option with wait flag for CI reliability
-   call execute_command_line('fpm run fortran -- "'//path_join(temp_dir, 'test_semantic.json')//'" '// &
-                                        '--from-semantic', wait=.true., exitstat=iostat)
+   call execute_command_line(trim(fortran_with_isolated_cache('test_cli_json_sem')) // ' "' // &
+                                        path_join(temp_dir, 'test_semantic.json') // '" --from-semantic', &
+                                        wait=.true., exitstat=iostat)
 
                 if (iostat == 0) then
                     print *, '    PASS: --from-semantic executed successfully'
