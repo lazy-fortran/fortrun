@@ -11,6 +11,7 @@ module frontend
     use ast_core
     use ast_factory, only: push_program, push_literal
     use semantic_analyzer, only: semantic_context_t, create_semantic_context, analyze_program
+    use semantic_analyzer_with_checks, only: analyze_program_with_checks
     use standardizer, only: standardize_ast
     use codegen_core, only: generate_code_from_arena, generate_code_polymorphic
     use logger, only: log_debug, log_verbose, set_verbose_level
@@ -64,7 +65,6 @@ contains
         type(token_t), allocatable :: tokens(:)
         type(ast_arena_t) :: arena
         integer :: prog_index
-        type(semantic_context_t) :: sem_ctx
         character(len=:), allocatable :: code, source
         integer :: unit, iostat
 
@@ -105,8 +105,8 @@ contains
         if (options%debug_ast) call debug_output_ast(input_file, arena, prog_index)
 
         ! Phase 3: Semantic Analysis (only for lowercase fortran)
-        sem_ctx = create_semantic_context()
-        call analyze_program(sem_ctx, arena, prog_index)
+        ! Use the version with INTENT checking
+        call analyze_program_with_checks(arena, prog_index)
    if (options%debug_semantic) call debug_output_semantic(input_file, arena, prog_index)
 
         ! Phase 4: Standardization (transform dialect to standard Fortran)
@@ -133,7 +133,6 @@ contains
         type(token_t), allocatable :: tokens(:)
         type(ast_arena_t) :: arena
         integer :: prog_index
-        type(semantic_context_t) :: sem_ctx
         character(len=:), allocatable :: code
 
         error_msg = ""
@@ -149,8 +148,8 @@ contains
        if (options%debug_ast) call debug_output_ast(tokens_json_file, arena, prog_index)
 
         ! Phase 3: Semantic Analysis (only for lowercase fortran)
-        sem_ctx = create_semantic_context()
-        call analyze_program(sem_ctx, arena, prog_index)
+        ! Use the version with INTENT checking
+        call analyze_program_with_checks(arena, prog_index)
         if (options%debug_semantic) call debug_output_semantic(tokens_json_file, arena, prog_index)
 
         ! Phase 4: Standardization (transform dialect to standard Fortran)
@@ -176,7 +175,6 @@ contains
 
         type(ast_arena_t) :: arena
         integer :: prog_index
-        type(semantic_context_t) :: sem_ctx
         character(len=:), allocatable :: code
 
         error_msg = ""
@@ -187,8 +185,12 @@ prog_index = push_literal(arena, "! JSON loading not implemented", LITERAL_STRIN
         if (options%debug_ast) call debug_output_ast(ast_json_file, arena, prog_index)
 
         ! Phase 3: Semantic Analysis
-        sem_ctx = create_semantic_context()
-        call analyze_program(sem_ctx, arena, prog_index)
+        ! Note: This path doesn't use INTENT checking since it's for testing
+        block
+            type(semantic_context_t) :: sem_ctx
+            sem_ctx = create_semantic_context()
+            call analyze_program(sem_ctx, arena, prog_index)
+        end block
 if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, prog_index)
 
         ! Phase 4: Standardization
@@ -214,7 +216,6 @@ if (options%debug_semantic) call debug_output_semantic(ast_json_file, arena, pro
 
         type(ast_arena_t) :: arena
         integer :: prog_index
-        type(semantic_context_t) :: sem_ctx
         character(len=:), allocatable :: code
 
         error_msg = ""

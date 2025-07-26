@@ -8,6 +8,7 @@ module semantic_analyzer
     use scope_manager
     use type_checker
     use ast_core
+    use parameter_tracker
     implicit none
     private
 
@@ -20,6 +21,7 @@ module semantic_analyzer
         type(scope_stack_t) :: scopes  ! Hierarchical scope management
         integer :: next_var_id = 0
         type(substitution_t) :: subst
+        type(parameter_tracker_t) :: param_tracker  ! Track parameter attributes
     contains
         procedure :: infer => infer_type
         procedure :: infer_stmt => infer_statement_type
@@ -233,6 +235,9 @@ contains
                     ! Use the existing type for consistency
                     typ = target_type
                 end if
+                
+                ! Check for INTENT violations will be done by caller if needed
+                ! This avoids circular dependency
 
                 ! Store type in the identifier node
                 if (.not. allocated(target%inferred_type)) then
@@ -1197,6 +1202,9 @@ contains
 
         ! Enter function scope
         call ctx%scopes%enter_function(func_def%name)
+        
+        ! Clear parameter tracker for new function
+        call ctx%param_tracker%clear()
 
         ! Process parameters and add to local scope
         if (allocated(func_def%param_indices)) then
@@ -1209,6 +1217,11 @@ contains
                 if (allocated(arena%entries(func_def%param_indices(i))%node)) then
                     select type (param => arena%entries(func_def%param_indices(i))%node)
                     type is (identifier_node)
+                        call ctx%scopes%define(param%name, &
+                      create_poly_type(forall_vars=[type_var_t::], mono=param_types(i)))
+                    type is (parameter_declaration_node)
+                        ! Track parameter with intent
+                        call ctx%param_tracker%add_parameter(param%name, param%intent)
                         call ctx%scopes%define(param%name, &
                       create_poly_type(forall_vars=[type_var_t::], mono=param_types(i)))
                     end select
@@ -1281,6 +1294,9 @@ contains
 
         ! Enter subroutine scope
         call ctx%scopes%enter_subroutine(sub_def%name)
+        
+        ! Clear parameter tracker for new subroutine
+        call ctx%param_tracker%clear()
 
         ! Process parameters and add to local scope
         if (allocated(sub_def%param_indices)) then
@@ -1289,6 +1305,12 @@ contains
                 if (allocated(arena%entries(sub_def%param_indices(i))%node)) then
                     select type (param => arena%entries(sub_def%param_indices(i))%node)
                     type is (identifier_node)
+                        call ctx%scopes%define(param%name, &
+                                          create_poly_type(forall_vars=[type_var_t::], &
+                                 mono=create_mono_type(TVAR, var=ctx%fresh_type_var())))
+                    type is (parameter_declaration_node)
+                        ! Track parameter with intent
+                        call ctx%param_tracker%add_parameter(param%name, param%intent)
                         call ctx%scopes%define(param%name, &
                                           create_poly_type(forall_vars=[type_var_t::], &
                                  mono=create_mono_type(TVAR, var=ctx%fresh_type_var())))

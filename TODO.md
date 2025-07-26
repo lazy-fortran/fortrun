@@ -21,7 +21,7 @@ All high and medium priority features have been successfully implemented:
 - ✓ Pipeline Tests
 - ✓ Advanced Type Inference
 
-Only one optional enhancement remains in the INTENT implementation.
+**Update**: The optional INTENT semantic check has now been implemented! The compiler now detects INTENT violations during semantic analysis phase.
 
 ## High Priority - Core Language Features
 
@@ -179,7 +179,7 @@ end subroutine
 - [x] Parse INTENT attribute in declarations
 - [x] Add intent tracking to parameter AST nodes
 - [x] Violations caught by gfortran backend
-- [ ] (Optional) Implement semantic checks for earlier error detection
+- [x] (Optional) Implement semantic checks for earlier error detection
 
 ### 8. OPTIONAL Parameters ✓
 **Status**: COMPLETED - OPTIONAL attribute and PRESENT intrinsic working
