@@ -363,6 +363,111 @@ contains
                             current = parser%peek()
                             if (current%text == ",") then
                                 current = parser%consume()  ! consume ','
+                                
+                                ! Check for implied do loop: (expr, var=start,end)
+                                ! Peek ahead to see if next token is identifier followed by =
+                                block
+                                    type(token_t) :: next1, next2
+                                    integer :: saved_pos
+                                    
+                                    next1 = parser%peek()
+                                    if (next1%kind == TK_IDENTIFIER) then
+                                        ! Save position
+                                        saved_pos = parser%current_token
+                                        
+                                        ! Consume identifier
+                                        next1 = parser%consume()
+                                        next2 = parser%peek()
+                                        
+                                        if (next2%kind == TK_OPERATOR .and. next2%text == "=") then
+                                            ! This is an implied do loop!
+                                            ! Parse: (expr, var=start,end[,step])
+                                            print *, 'DEBUG: Parsing implied do loop, var=', next1%text
+                                            
+                                            ! We already have the first expression in temp_indices(element_count)
+                                            ! next1 contains the loop variable name
+                                            block
+                                                character(len=:), allocatable :: loop_var
+                                                integer :: start_idx, end_idx, step_idx
+                                                integer :: loop_expr_idx
+                                                
+                                                loop_var = next1%text
+                                            
+                                            ! Consume the '='
+                                            current = parser%consume()
+                                            
+                                            ! Parse start expression
+                                            start_idx = parse_comparison(parser, arena)
+                                            
+                                            ! Expect comma
+                                            current = parser%peek()
+                                            if (current%text /= ",") then
+                                                write(error_unit, *) 'Error: Expected "," after loop start at line ', &
+                                                    current%line
+                                                expr_index = 0
+                                                return
+                                            end if
+                                            current = parser%consume()
+                                            
+                                            ! Parse end expression
+                                            end_idx = parse_comparison(parser, arena)
+                                            
+                                            ! Check for optional step
+                                            step_idx = 0
+                                            current = parser%peek()
+                                            if (current%text == ",") then
+                                                current = parser%consume()
+                                                step_idx = parse_comparison(parser, arena)
+                                            end if
+                                            
+                                            ! Expect closing parenthesis
+                                            current = parser%peek()
+                                            if (current%text /= ")") then
+                                                write(error_unit, *) 'Error: Expected ")" after implied do loop at line ', &
+                                                    current%line
+                                                expr_index = 0
+                                                return
+                                            end if
+                                            current = parser%consume()
+                                            
+                                            ! Expect closing bracket
+                                            current = parser%peek()
+                                            if (current%text /= "]") then
+                                                write(error_unit, *) 'Error: Expected "]" after implied do loop at line ', &
+                                                    current%line
+                                                expr_index = 0
+                                                return
+                                            end if
+                                            current = parser%consume()
+                                            
+                                            ! Create a do_loop_node for the implied do
+                                            block
+                                                use ast_factory, only: push_do_loop
+                                                integer, allocatable :: body_idx_array(:)
+                                                
+                                                ! The body is the expression we already parsed
+                                                allocate(body_idx_array(1))
+                                                body_idx_array(1) = temp_indices(element_count)
+                                                
+                                                ! Create the do loop node
+                                                loop_expr_idx = push_do_loop(arena, loop_var, start_idx, end_idx, &
+                                                                           step_idx, body_idx_array, &
+                                                                           bracket_token%line, bracket_token%column)
+                                                
+                                                ! Create an array with the implied do loop as its element
+                                                allocate(element_indices(1))
+                                                element_indices(1) = loop_expr_idx
+                                                expr_index = push_array_literal(arena, element_indices, &
+                                                                              bracket_token%line, bracket_token%column)
+                                            end block
+                                            end block
+                                            return
+                                        else
+                                            ! Not an implied do loop, restore position
+                                            parser%current_token = saved_pos
+                                        end if
+                                    end if
+                                end block
                             else if (current%text == "]") then
                                 current = parser%consume()  ! consume ']'
                                 exit
