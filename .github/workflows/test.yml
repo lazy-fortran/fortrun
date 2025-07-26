@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]  # Coverage only on Linux for now
-        test-group: [core, utilities, cache, runner]
+        test-group: [core, utilities, cache, runner, misc]
       fail-fast: false
     
     steps:
@@ -108,6 +108,8 @@ jobs:
         fpm test test_runner_coverage --profile debug --flag '-fprofile-arcs -ftest-coverage'
         fpm test test_runner_missing_lines --profile debug --flag '-fprofile-arcs -ftest-coverage'
         fpm test test_runner_edge_cases --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_testing_discovery --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_testing_execution --profile debug --flag '-fprofile-arcs -ftest-coverage'
         # Test the main executable with various options
         echo "program test; print *, 'hello'; end program" > test_runner.f
         FORTRAN_EXE=$(find build -name fortran -type f -executable | grep -v test | head -1)
@@ -121,6 +123,19 @@ jobs:
         $FORTRAN_EXE test_runner.f || true
         $FORTRAN_EXE --help || true
         rm -f test_runner.f a.out
+    
+    - name: Run Misc Tests
+      if: matrix.test-group == 'misc'
+      run: |
+        # Run all misc tests with wildcard
+        fpm test "test_*extend*" --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test "test_*alloc*" --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test "test_*nested*" --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_verbose --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_different_directories --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_error_handling --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_file_isolation --profile debug --flag '-fprofile-arcs -ftest-coverage'
+        fpm test test_main_coverage --profile debug --flag '-fprofile-arcs -ftest-coverage'
     
     - name: Generate coverage data
       run: |
