@@ -32,7 +32,7 @@ contains
         character(len=:), allocatable :: input_file, output_file
         character(len=256) :: error_msg, line
         type(compilation_options_t) :: options
-        integer :: unit
+        integer :: unit, iostat
         logical :: found_array_decl, found_sum_call
         
         test_basic_array_compilation = .true.
@@ -72,8 +72,8 @@ contains
         found_sum_call = .false.
         open(newunit=unit, file=output_file, status='old')
         do
-            read(unit, '(a)', iostat=unit) line
-            if (unit /= 0) exit
+            read(unit, '(a)', iostat=iostat) line
+            if (iostat /= 0) exit
             ! Debug output
             if (len_trim(line) > 0) print *, '  DEBUG: ', trim(line)
             if (index(line, 'arr(3)') > 0) found_array_decl = .true.
@@ -94,7 +94,7 @@ contains
         character(len=:), allocatable :: input_file, output_file
         character(len=256) :: error_msg
         type(compilation_options_t) :: options
-        integer :: unit
+        integer :: unit, iostat
         character(len=256) :: line
         logical :: found_allocatable
         
@@ -127,8 +127,8 @@ contains
         found_allocatable = .false.
         open(newunit=unit, file=output_file, status='old')
         do
-            read(unit, '(a)', iostat=unit) line
-            if (unit /= 0) exit
+            read(unit, '(a)', iostat=iostat) line
+            if (iostat /= 0) exit
             if (index(line, 'allocatable') > 0 .and. index(line, 'empty_arr') > 0) then
                 found_allocatable = .true.
                 print *, '  Found declaration:', trim(line)
@@ -150,7 +150,7 @@ contains
         character(len=:), allocatable :: input_file, output_file
         character(len=256) :: error_msg
         type(compilation_options_t) :: options
-        integer :: unit
+        integer :: unit, iostat
         
         test_mixed_array_types = .true.
         print *, 'Testing mixed type arrays...'
@@ -188,7 +188,7 @@ contains
         character(len=:), allocatable :: input_file, output_file
         character(len=256) :: error_msg
         type(compilation_options_t) :: options
-        integer :: unit
+        integer :: unit, iostat
         character(len=256) :: line
         logical :: found_char_array
         
@@ -213,8 +213,8 @@ contains
         found_char_array = .false.
         open(newunit=unit, file=output_file, status='old')
         do
-            read(unit, '(a)', iostat=unit) line
-            if (unit /= 0) exit
+            read(unit, '(a)', iostat=iostat) line
+            if (iostat /= 0) exit
             if (index(line, 'character') > 0 .and. index(line, 'words(3)') > 0) then
                 found_char_array = .true.
                 exit
@@ -235,7 +235,7 @@ contains
         character(len=:), allocatable :: input_file, output_file
         character(len=256) :: error_msg, line
         type(compilation_options_t) :: options
-        integer :: unit
+        integer :: unit, iostat
         logical :: found_results_array
         
         test_expression_arrays = .true.
@@ -267,8 +267,8 @@ contains
         found_results_array = .false.
         open(newunit=unit, file=output_file, status='old')
         do
-            read(unit, '(a)', iostat=unit) line
-            if (unit /= 0) exit
+            read(unit, '(a)', iostat=iostat) line
+            if (iostat /= 0) exit
             if (index(line, 'results(4)') > 0) then
                 found_results_array = .true.
                 exit
@@ -289,7 +289,7 @@ contains
         character(len=:), allocatable :: input_file, output_file
         character(len=256) :: error_msg
         type(compilation_options_t) :: options
-        integer :: unit
+        integer :: unit, iostat
         character(len=256) :: line
         logical :: found_large_array
         
@@ -314,8 +314,8 @@ contains
         found_large_array = .false.
         open(newunit=unit, file=output_file, status='old')
         do
-            read(unit, '(a)', iostat=unit) line
-            if (unit /= 0) exit
+            read(unit, '(a)', iostat=iostat) line
+            if (iostat /= 0) exit
             if (index(line, 'big(20)') > 0) then
                 found_large_array = .true.
                 exit
