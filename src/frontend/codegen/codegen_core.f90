@@ -928,8 +928,21 @@ contains
         do i = 1, size(node%element_indices)
             if (i > 1) code = code//", "
             if (node%element_indices(i) > 0 .and. node%element_indices(i) <= arena%size) then
-                elem_code = generate_code_from_arena(arena, node%element_indices(i))
-                code = code//elem_code
+                ! Check if this element is a do_loop_node (implied do)
+                if (allocated(arena%entries(node%element_indices(i))%node)) then
+                    select type (elem_node => arena%entries(node%element_indices(i))%node)
+                    type is (do_loop_node)
+                        ! Generate implied do syntax
+                        elem_code = generate_implied_do(arena, elem_node, node%element_indices(i))
+                        code = code//elem_code
+                    class default
+                        ! Regular element
+                        elem_code = generate_code_from_arena(arena, node%element_indices(i))
+                        code = code//elem_code
+                    end select
+                else
+                    code = code//"???"
+                end if
             else
                 code = code//"???"
             end if
@@ -937,6 +950,52 @@ contains
         
         code = code//" /)"
     end function generate_code_array_literal
+
+    ! Generate implied do loop for array constructors
+    function generate_implied_do(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
+        type(do_loop_node), intent(in) :: node
+        integer, intent(in) :: node_index
+        character(len=:), allocatable :: code
+        character(len=:), allocatable :: expr_code, start_code, end_code, step_code
+        
+        ! Generate the expression (body)
+        if (allocated(node%body_indices) .and. size(node%body_indices) > 0) then
+            if (node%body_indices(1) > 0 .and. node%body_indices(1) <= arena%size) then
+                expr_code = generate_code_from_arena(arena, node%body_indices(1))
+            else
+                expr_code = "???"
+            end if
+        else
+            expr_code = node%var_name  ! Just the variable if no expression
+        end if
+        
+        ! Generate start expression
+        if (node%start_expr_index > 0 .and. node%start_expr_index <= arena%size) then
+            start_code = generate_code_from_arena(arena, node%start_expr_index)
+        else
+            start_code = "1"
+        end if
+        
+        ! Generate end expression
+        if (node%end_expr_index > 0 .and. node%end_expr_index <= arena%size) then
+            end_code = generate_code_from_arena(arena, node%end_expr_index)
+        else
+            end_code = "?"
+        end if
+        
+        ! Build implied do syntax: (expr, var=start,end[,step])
+        code = "("//trim(expr_code)//", "//trim(node%var_name)//"="//trim(start_code)//","//trim(end_code)
+        
+        ! Add step if present
+        if (node%step_expr_index > 0 .and. node%step_expr_index <= arena%size) then
+            step_code = generate_code_from_arena(arena, node%step_expr_index)
+            code = code//","//trim(step_code)
+        end if
+        
+        code = code//")"
+        
+    end function generate_implied_do
 
     ! Helper function to convert integer to string
     function int_to_string(num) result(str)
