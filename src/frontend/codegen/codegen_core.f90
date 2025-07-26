@@ -379,17 +379,29 @@ contains
         character(len=:), allocatable :: args_code
         character(len=:), allocatable :: arg_code
         integer :: i
+        logical :: is_array_slice
+        type(binary_op_node), pointer :: bin_op
 
         ! Generate arguments
         args_code = ""
         if (allocated(node%arg_indices)) then
+            ! Check if this might be array slicing (single argument that's a binary op with ":")
+            is_array_slice = .false.
+            if (size(node%arg_indices) == 1 .and. node%arg_indices(1) > 0) then
+                select type (arg_node => arena%entries(node%arg_indices(1))%node)
+                type is (binary_op_node)
+                    if (trim(arg_node%operator) == ":") then
+                        is_array_slice = .true.
+                    end if
+                end select
+            end if
+            
             do i = 1, size(node%arg_indices)
-                if (len(args_code) > 0) then
+                if (len(args_code) > 0 .and. .not. is_array_slice) then
                     args_code = args_code//", "
                 end if
                 if (node%arg_indices(i) > 0) then
                     arg_code = generate_code_from_arena(arena, node%arg_indices(i))
-                    
                     args_code = args_code//arg_code
                 end if
             end do
