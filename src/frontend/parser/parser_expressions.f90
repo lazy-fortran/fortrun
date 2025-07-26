@@ -9,7 +9,7 @@ module parser_expressions_module
 
     ! Public expression parsing interface
     public :: parse_expression
-    public :: parse_logical_or, parse_logical_and, parse_comparison
+    public :: parse_range, parse_logical_or, parse_logical_and, parse_comparison
     public :: parse_member_access, parse_term, parse_factor, parse_primary
 
 contains
@@ -22,8 +22,79 @@ contains
         type(parser_state_t) :: parser
 
         parser = create_parser_state(tokens)
-        expr_index = parse_logical_or(parser, arena)
+        expr_index = parse_range(parser, arena)
     end function parse_expression
+
+    ! Parse range/slice operator (:) - lowest precedence after logical operators
+    function parse_range(parser, arena) result(expr_index)
+        type(parser_state_t), intent(inout) :: parser
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: expr_index
+        integer :: right_index
+        type(token_t) :: op_token
+        
+        ! Check if we start with a colon (empty lower bound)
+        op_token = parser%peek()
+        if (op_token%kind == TK_OPERATOR .and. op_token%text == ":") then
+            ! Empty lower bound case (e.g., :5)
+            op_token = parser%consume()  ! consume ':'
+            expr_index = 0  ! No lower bound
+            
+            ! Parse the upper bound (optional)
+            if (.not. parser%is_at_end()) then
+                block
+                    type(token_t) :: next_tok
+                    next_tok = parser%peek()
+                    ! Check if next token is not a closing paren or comma
+                    if (.not. (next_tok%kind == TK_OPERATOR .and. &
+                              (next_tok%text == ")" .or. next_tok%text == ","))) then
+                        right_index = parse_logical_or(parser, arena)
+                    else
+                        ! Empty upper bound too (just :)
+                        right_index = 0
+                    end if
+                end block
+            else
+                right_index = 0
+            end if
+            
+            expr_index = push_binary_op(arena, expr_index, right_index, ":", &
+                                      op_token%line, op_token%column)
+            return
+        end if
+
+        ! Normal case: parse lower bound first
+        expr_index = parse_logical_or(parser, arena)
+
+        ! Check for colon operator
+        if (.not. parser%is_at_end()) then
+            op_token = parser%peek()
+            if (op_token%kind == TK_OPERATOR .and. op_token%text == ":") then
+                op_token = parser%consume()  ! consume ':'
+                
+                ! Parse the upper bound (optional)
+                if (.not. parser%is_at_end()) then
+                    block
+                        type(token_t) :: next_tok
+                        next_tok = parser%peek()
+                        ! Check if next token is not a closing paren or comma
+                        if (.not. (next_tok%kind == TK_OPERATOR .and. &
+                                  (next_tok%text == ")" .or. next_tok%text == ","))) then
+                            right_index = parse_logical_or(parser, arena)
+                        else
+                            ! Empty upper bound (e.g., arr(2:))
+                            right_index = 0
+                        end if
+                    end block
+                else
+                    right_index = 0
+                end if
+                
+                expr_index = push_binary_op(arena, expr_index, right_index, ":", &
+                                          op_token%line, op_token%column)
+            end if
+        end if
+    end function parse_range
 
     ! Parse logical OR operators (lowest precedence)
     function parse_logical_or(parser, arena) result(expr_index)
@@ -231,7 +302,7 @@ contains
                             ! Parse first argument
                             block
                                 integer :: arg_index
-                                arg_index = parse_comparison(parser, arena)
+                                arg_index = parse_range(parser, arena)
                                 if (arg_index > 0) then
                                     arg_count = 1
                                     allocate (arg_indices(1))
@@ -246,7 +317,7 @@ contains
                                         next_token = parser%consume()
 
                                         ! Parse next argument
-                                        arg_index = parse_comparison(parser, arena)
+                                        arg_index = parse_range(parser, arena)
                                         if (arg_index > 0) then
                                             ! Extend index array
                                             arg_indices = [arg_indices, arg_index]
@@ -296,7 +367,7 @@ contains
             ! Check for parentheses
             if (current%text == "(") then
                 current = parser%consume()  ! consume '('
-                expr_index = parse_comparison(parser, arena)  ! parse the expression inside
+                expr_index = parse_range(parser, arena)  ! parse the expression inside
                 current = parser%peek()
                 if (current%text == ")") then
                     current = parser%consume()  ! consume ')'

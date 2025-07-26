@@ -156,18 +156,30 @@ contains
         if (node%left_index > 0 .and. node%left_index <= arena%size) then
             left_code = generate_code_from_arena(arena, node%left_index)
         else
-            left_code = "???"
+            left_code = ""
         end if
 
         if (node%right_index > 0 .and. node%right_index <= arena%size) then
             right_code = generate_code_from_arena(arena, node%right_index)
         else
-            right_code = "???"
+            right_code = ""
         end if
 
         ! Combine with operator - match fprettify spacing rules
         ! fprettify: * and / get no spaces, +/- and comparisons get spaces
-        if (trim(node%operator) == '*' .or. trim(node%operator) == '/') then
+        if (trim(node%operator) == ':') then
+            ! Array slicing operator
+            if (len(left_code) == 0) then
+                ! Empty lower bound: :upper
+                code = ":"//right_code
+            else if (len(right_code) == 0) then
+                ! Empty upper bound: lower:
+                code = left_code//":"
+            else
+                ! Both bounds: lower:upper
+                code = left_code//":"//right_code
+            end if
+        else if (trim(node%operator) == '*' .or. trim(node%operator) == '/') then
             code = left_code//node%operator//right_code
         else
             code = left_code//" "//node%operator//" "//right_code
@@ -364,6 +376,7 @@ contains
         integer, intent(in) :: node_index
         character(len=:), allocatable :: code
         character(len=:), allocatable :: args_code
+        character(len=:), allocatable :: arg_code
         integer :: i
 
         ! Generate arguments
@@ -374,7 +387,24 @@ contains
                     args_code = args_code//", "
                 end if
                 if (node%arg_indices(i) > 0) then
-             args_code = args_code//generate_code_from_arena(arena, node%arg_indices(i))
+                    arg_code = generate_code_from_arena(arena, node%arg_indices(i))
+                    ! Check if this is a binary_op node with : operator
+                    if (node%arg_indices(i) <= arena%size .and. &
+                        allocated(arena%entries(node%arg_indices(i))%node)) then
+                        select type (arg_node => arena%entries(node%arg_indices(i))%node)
+                        type is (binary_op_node)
+                            if (trim(arg_node%operator) == ':') then
+                                ! For colon operator in subscripts, use the generated code directly
+                                args_code = args_code//arg_code
+                            else
+                                args_code = args_code//arg_code
+                            end if
+                        class default
+                            args_code = args_code//arg_code
+                        end select
+                    else
+                        args_code = args_code//arg_code
+                    end if
                 end if
             end do
         end if
