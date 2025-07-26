@@ -61,6 +61,8 @@ contains
             code = generate_code_use_statement(node)
         type is (contains_node)
             code = "contains"
+        type is (array_literal_node)
+            code = generate_code_array_literal(arena, node, node_index)
         class default
             code = "! Unknown node type"
         end select
@@ -134,6 +136,7 @@ contains
         ! Generate code for value
         if (node%value_index > 0 .and. node%value_index <= arena%size) then
             value_code = generate_code_from_arena(arena, node%value_index)
+            
         else
             value_code = "???"
         end if
@@ -154,18 +157,30 @@ contains
         if (node%left_index > 0 .and. node%left_index <= arena%size) then
             left_code = generate_code_from_arena(arena, node%left_index)
         else
-            left_code = "???"
+            left_code = ""
         end if
 
         if (node%right_index > 0 .and. node%right_index <= arena%size) then
             right_code = generate_code_from_arena(arena, node%right_index)
         else
-            right_code = "???"
+            right_code = ""
         end if
 
         ! Combine with operator - match fprettify spacing rules
         ! fprettify: * and / get no spaces, +/- and comparisons get spaces
-        if (trim(node%operator) == '*' .or. trim(node%operator) == '/') then
+        if (trim(node%operator) == ':') then
+            ! Array slicing operator
+            if (len(left_code) == 0) then
+                ! Empty lower bound: :upper
+                code = ":"//right_code
+            else if (len(right_code) == 0) then
+                ! Empty upper bound: lower:
+                code = left_code//":"
+            else
+                ! Both bounds: lower:upper
+                code = left_code//":"//right_code
+            end if
+        else if (trim(node%operator) == '*' .or. trim(node%operator) == '/') then
             code = left_code//node%operator//right_code
         else
             code = left_code//" "//node%operator//" "//right_code
@@ -362,17 +377,32 @@ contains
         integer, intent(in) :: node_index
         character(len=:), allocatable :: code
         character(len=:), allocatable :: args_code
+        character(len=:), allocatable :: arg_code
         integer :: i
+        logical :: is_array_slice
+        type(binary_op_node), pointer :: bin_op
 
         ! Generate arguments
         args_code = ""
         if (allocated(node%arg_indices)) then
+            ! Check if this might be array slicing (single argument that's a binary op with ":")
+            is_array_slice = .false.
+            if (size(node%arg_indices) == 1 .and. node%arg_indices(1) > 0) then
+                select type (arg_node => arena%entries(node%arg_indices(1))%node)
+                type is (binary_op_node)
+                    if (trim(arg_node%operator) == ":") then
+                        is_array_slice = .true.
+                    end if
+                end select
+            end if
+            
             do i = 1, size(node%arg_indices)
-                if (len(args_code) > 0) then
+                if (len(args_code) > 0 .and. .not. is_array_slice) then
                     args_code = args_code//", "
                 end if
                 if (node%arg_indices(i) > 0) then
-             args_code = args_code//generate_code_from_arena(arena, node%arg_indices(i))
+                    arg_code = generate_code_from_arena(arena, node%arg_indices(i))
+                    args_code = args_code//arg_code
                 end if
             end do
         end if
@@ -528,19 +558,53 @@ contains
         integer, intent(in) :: node_index
         character(len=:), allocatable :: code
         character(len=:), allocatable :: init_code
+        character(len=:), allocatable :: type_str
         integer :: i
 
-        ! Generate basic declaration
-        code = node%type_name
+        ! Determine the type string
+        if (len_trim(node%type_name) > 0) then
+            type_str = node%type_name
+        else if (allocated(node%inferred_type)) then
+            ! Handle type inference
+            select case (node%inferred_type%kind)
+            case (TINT)
+                type_str = "integer"
+            case (TREAL)
+                type_str = "real(8)"
+            case (TCHAR)
+                if (node%inferred_type%size > 0) then
+                    type_str = "character(len="//trim(adjustl(int_to_string(node%inferred_type%size)))//")"
+                else
+                    type_str = "character"
+                end if
+            case (TLOGICAL)
+                type_str = "logical"
+            case default
+                type_str = "real"  ! Default to real
+            end select
+        else
+            type_str = "real"  ! Default fallback
+        end if
 
-        ! Add kind if present
-        if (node%has_kind) then
+        ! Generate basic declaration
+        code = type_str
+
+        ! Add kind if present (but not for character which uses len)
+        if (node%has_kind .and. node%type_name /= "character") then
             code = code//"("//trim(adjustl(int_to_string(node%kind_value)))//")"
+        else if (node%type_name == "character" .and. node%has_kind) then
+            ! For character, kind_value is actually the length
+            code = "character(len="//trim(adjustl(int_to_string(node%kind_value)))//")"
         end if
 
         ! Add intent if present
         if (node%has_intent .and. allocated(node%intent)) then
             code = code//", intent("//node%intent//")"
+        end if
+
+        ! Add allocatable if present
+        if (node%is_allocatable) then
+            code = code//", allocatable"
         end if
 
         code = code//" :: "//node%var_name
@@ -868,6 +932,98 @@ contains
             end if
         end if
     end function generate_code_use_statement
+
+    ! Generate code for array literal
+    function generate_code_array_literal(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
+        type(array_literal_node), intent(in) :: node
+        integer, intent(in) :: node_index
+        character(len=:), allocatable :: code
+        character(len=:), allocatable :: elem_code
+        integer :: i
+
+        ! Check if we have elements
+        if (.not. allocated(node%element_indices) .or. size(node%element_indices) == 0) then
+            ! Empty array - use Fortran 2003 syntax
+            code = "[integer ::]"
+            return
+        end if
+
+        ! Generate array constructor
+        code = "(/ "
+        
+        ! Add each element
+        do i = 1, size(node%element_indices)
+            if (i > 1) code = code//", "
+            if (node%element_indices(i) > 0 .and. node%element_indices(i) <= arena%size) then
+                ! Check if this element is a do_loop_node (implied do)
+                if (allocated(arena%entries(node%element_indices(i))%node)) then
+                    select type (elem_node => arena%entries(node%element_indices(i))%node)
+                    type is (do_loop_node)
+                        ! Generate implied do syntax
+                        elem_code = generate_implied_do(arena, elem_node, node%element_indices(i))
+                        code = code//elem_code
+                    class default
+                        ! Regular element
+                        elem_code = generate_code_from_arena(arena, node%element_indices(i))
+                        code = code//elem_code
+                    end select
+                else
+                    code = code//"???"
+                end if
+            else
+                code = code//"???"
+            end if
+        end do
+        
+        code = code//" /)"
+    end function generate_code_array_literal
+
+    ! Generate implied do loop for array constructors
+    function generate_implied_do(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
+        type(do_loop_node), intent(in) :: node
+        integer, intent(in) :: node_index
+        character(len=:), allocatable :: code
+        character(len=:), allocatable :: expr_code, start_code, end_code, step_code
+        
+        ! Generate the expression (body)
+        if (allocated(node%body_indices) .and. size(node%body_indices) > 0) then
+            if (node%body_indices(1) > 0 .and. node%body_indices(1) <= arena%size) then
+                expr_code = generate_code_from_arena(arena, node%body_indices(1))
+            else
+                expr_code = "???"
+            end if
+        else
+            expr_code = node%var_name  ! Just the variable if no expression
+        end if
+        
+        ! Generate start expression
+        if (node%start_expr_index > 0 .and. node%start_expr_index <= arena%size) then
+            start_code = generate_code_from_arena(arena, node%start_expr_index)
+        else
+            start_code = "1"
+        end if
+        
+        ! Generate end expression
+        if (node%end_expr_index > 0 .and. node%end_expr_index <= arena%size) then
+            end_code = generate_code_from_arena(arena, node%end_expr_index)
+        else
+            end_code = "?"
+        end if
+        
+        ! Build implied do syntax: (expr, var=start,end[,step])
+        code = "("//trim(expr_code)//", "//trim(node%var_name)//"="//trim(start_code)//","//trim(end_code)
+        
+        ! Add step if present
+        if (node%step_expr_index > 0 .and. node%step_expr_index <= arena%size) then
+            step_code = generate_code_from_arena(arena, node%step_expr_index)
+            code = code//","//trim(step_code)
+        end if
+        
+        code = code//")"
+        
+    end function generate_implied_do
 
     ! Helper function to convert integer to string
     function int_to_string(num) result(str)

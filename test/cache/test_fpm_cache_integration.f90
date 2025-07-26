@@ -6,7 +6,7 @@ program test_fpm_cache_integration
     use fpm_error, only: error_t
     use, intrinsic :: iso_fortran_env, only: error_unit
     use temp_utils, only: temp_dir_manager, path_join
-    use temp_utils, only: mkdir
+    use temp_utils, only: mkdir, fortran_with_isolated_cache
     use system_utils, only: sys_remove_dir
     use fpm_environment, only: get_os_type, OS_WINDOWS
     implicit none
@@ -69,11 +69,16 @@ contains
 
         ! Instead of testing FPM API directly, test our Fortran CLI tool with long paths
         print *, 'Testing Fortran CLI tool with long path...'
-    if (get_os_type() == OS_WINDOWS) then
-        call execute_command_line('fpm run fortran -- "' // test_file // '" > nul 2>&1', exitstat=exit_code)
-    else
-        call execute_command_line('fpm run fortran -- "' // test_file // '" > /dev/null 2>&1', exitstat=exit_code)
-    end if
+    block
+        character(len=1024) :: cmd
+        if (get_os_type() == OS_WINDOWS) then
+            cmd = fortran_with_isolated_cache('fpm_cache_discovery') // ' "' // test_file // '"" > nul 2>&1'
+            call execute_command_line(trim(cmd), exitstat=exit_code)
+        else
+            cmd = fortran_with_isolated_cache('fpm_cache_discovery') // ' "' // test_file // '" > /dev/null 2>&1'
+            call execute_command_line(trim(cmd), exitstat=exit_code)
+        end if
+    end block
 
         if (exit_code == 0) then
             print *, 'Test 1 passed: Fortran CLI tool works with long paths'
@@ -118,11 +123,16 @@ contains
         close (unit)
 
         ! Test our Fortran CLI tool with this file
-    if (get_os_type() == OS_WINDOWS) then
-        call execute_command_line('fpm run fortran -- "' // test_file // '" > nul 2>&1', exitstat=exit_code)
-    else
-        call execute_command_line('fpm run fortran -- "' // test_file // '" > /dev/null 2>&1', exitstat=exit_code)
-    end if
+    block
+        character(len=1024) :: cmd
+        if (get_os_type() == OS_WINDOWS) then
+            cmd = fortran_with_isolated_cache('fpm_cache_info') // ' "' // test_file // '"" > nul 2>&1'
+            call execute_command_line(trim(cmd), exitstat=exit_code)
+        else
+            cmd = fortran_with_isolated_cache('fpm_cache_info') // ' "' // test_file // '" > /dev/null 2>&1'
+            call execute_command_line(trim(cmd), exitstat=exit_code)
+        end if
+    end block
 
         if (exit_code == 0) then
             print *, 'PASS: Can access source file path length:', len(test_file)

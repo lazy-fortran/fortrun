@@ -1,0 +1,142 @@
+{
+  "tokens": [
+    {
+      "type": "keyword",
+      "text": "program",
+      "line": 1,
+      "column": 1
+    },
+    {
+      "type": "identifier",
+      "text": "test_array_literal",
+      "line": 1,
+      "column": 9
+    },
+    {
+      "type": "keyword",
+      "text": "implicit",
+      "line": 2,
+      "column": 5
+    },
+    {
+      "type": "keyword",
+      "text": "none",
+      "line": 2,
+      "column": 14
+    },
+    {
+      "type": "keyword",
+      "text": "integer",
+      "line": 3,
+      "column": 5
+    },
+    {
+      "type": "operator",
+      "text": "::",
+      "line": 3,
+      "column": 13
+    },
+    {
+      "type": "identifier",
+      "text": "arr",
+      "line": 3,
+      "column": 16
+    },
+    {
+      "type": "operator",
+      "text": "(",
+      "line": 3,
+      "column": 19
+    },
+    {
+      "type": "number",
+      "text": "3",
+      "line": 3,
+      "column": 20
+    },
+    {
+      "type": "operator",
+      "text": ")",
+      "line": 3,
+      "column": 21
+    },
+    {
+      "type": "identifier",
+      "text": "arr",
+      "line": 4,
+      "column": 5
+    },
+    {
+      "type": "operator",
+      "text": "=",
+      "line": 4,
+      "column": 9
+    },
+    {
+      "type": "operator",
+      "text": "[",
+      "line": 4,
+      "column": 11
+    },
+    {
+      "type": "number",
+      "text": "10",
+      "line": 4,
+      "column": 12
+    },
+    {
+      "type": "operator",
+      "text": ",",
+      "line": 4,
+      "column": 14
+    },
+    {
+      "type": "number",
+      "text": "20",
+      "line": 4,
+      "column": 16
+    },
+    {
+      "type": "operator",
+      "text": ",",
+      "line": 4,
+      "column": 18
+    },
+    {
+      "type": "number",
+      "text": "30",
+      "line": 4,
+      "column": 20
+    },
+    {
+      "type": "operator",
+      "text": "]",
+      "line": 4,
+      "column": 22
+    },
+    {
+      "type": "keyword",
+      "text": "end",
+      "line": 5,
+      "column": 1
+    },
+    {
+      "type": "keyword",
+      "text": "program",
+      "line": 5,
+      "column": 5
+    },
+    {
+      "type": "identifier",
+      "text": "test_array_literal",
+      "line": 5,
+      "column": 13
+    },
+    {
+      "type": "eof",
+      "text": "",
+      "line": 6,
+      "column": 1
+    }
+  ]
+}

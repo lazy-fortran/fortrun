@@ -1,5 +1,5 @@
 program test_cli_json_options
-    use temp_utils, only: get_system_temp_dir, path_join
+    use temp_utils, only: get_system_temp_dir, path_join, fortran_with_isolated_cache, create_test_cache_dir
     implicit none
 
     logical :: all_passed
@@ -23,6 +23,24 @@ program test_cli_json_options
     end if
 
 contains
+
+    subroutine run_fortran_with_args(test_name, option, filename, exitstat)
+        use fpm_environment, only: get_os_type, OS_WINDOWS
+        character(len=*), intent(in) :: test_name, option, filename
+        integer, intent(out) :: exitstat
+        character(len=:), allocatable :: command
+        
+        if (get_os_type() == OS_WINDOWS) then
+            ! On Windows, we need to handle quoting carefully
+            command = 'cmd /c "set XDG_CACHE_HOME=' // trim(create_test_cache_dir(test_name)) // &
+                      ' && fpm run fortran -- ' // trim(option) // ' ""' // trim(filename) // '"""'
+        else
+            command = trim(fortran_with_isolated_cache(test_name)) // ' ' // trim(option) // ' "' // &
+                      trim(filename) // '"'
+        end if
+        
+        call execute_command_line(command, wait=.true., exitstat=exitstat)
+    end subroutine run_fortran_with_args
 
     logical function test_json_functionality()
         character(len=:), allocatable :: temp_dir
@@ -52,8 +70,8 @@ contains
 
             if (iostat == 0) then
                 ! Test --from-tokens option with wait flag for CI reliability
-     call execute_command_line('fpm run fortran -- "'//path_join(temp_dir, 'test_tokens.json')//'" '// &
-                                          '--from-tokens', wait=.true., exitstat=iostat)
+                call run_fortran_with_args('test_cli_json', '--from-tokens', &
+                                          path_join(temp_dir, 'test_tokens.json'), iostat)
 
                 if (iostat == 0) then
                     print *, '    PASS: --from-tokens executed successfully'
@@ -83,8 +101,8 @@ contains
 
             if (iostat == 0) then
                 ! Test --from-ast option with wait flag for CI reliability
-        call execute_command_line('fpm run fortran -- "'//path_join(temp_dir, 'test_ast.json')//'" '// &
-                                          '--from-ast', wait=.true., exitstat=iostat)
+                call run_fortran_with_args('test_cli_json_ast', '--from-ast', &
+                                          path_join(temp_dir, 'test_ast.json'), iostat)
 
                 if (iostat == 0) then
                     print *, '    PASS: --from-ast executed successfully'
@@ -114,8 +132,8 @@ contains
 
             if (iostat == 0) then
                 ! Test --from-semantic option with wait flag for CI reliability
-   call execute_command_line('fpm run fortran -- "'//path_join(temp_dir, 'test_semantic.json')//'" '// &
-                                        '--from-semantic', wait=.true., exitstat=iostat)
+                call run_fortran_with_args('test_cli_json_sem', '--from-semantic', &
+                                          path_join(temp_dir, 'test_semantic.json'), iostat)
 
                 if (iostat == 0) then
                     print *, '    PASS: --from-semantic executed successfully'

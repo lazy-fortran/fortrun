@@ -1,5 +1,6 @@
 program test_cli_integration
-    use temp_utils, only: create_temp_dir, get_temp_file_path, create_test_cache_dir, get_system_temp_dir, path_join
+    use temp_utils, only: create_temp_dir, get_temp_file_path, create_test_cache_dir, &
+        get_system_temp_dir, path_join, fortran_with_isolated_cache
     use fpm_environment, only: get_os_type, OS_WINDOWS, get_env
     implicit none
 
@@ -46,9 +47,7 @@ contains
             ! Create a simple .f file (lazy fortran)
             character(len=256) :: test_file, output_file, cmd
             character(len=256) :: test_dir
-            character(len=:), allocatable :: cache_dir
             test_dir = create_temp_dir('fortran_test')
-            cache_dir = create_test_cache_dir('cli_integration_basic')
             test_file = get_temp_file_path(test_dir, 'test_simple.f')
 
             open (newunit=unit, file=test_file, action='write', iostat=iostat)
@@ -65,10 +64,10 @@ contains
             ! Test processing the file
             output_file = get_temp_file_path(test_dir, 'test_output.f90')
             if (get_os_type() == OS_WINDOWS) then
-                cmd = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" "'// &
+                cmd = fortran_with_isolated_cache('cli_basic') // ' "'// &
                       trim(test_file)//'" > "'//trim(output_file)//'" 2>nul'
             else
-                cmd = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" "'// &
+                cmd = fortran_with_isolated_cache('cli_basic') // ' "'// &
                       trim(test_file)//'" > "'//trim(output_file)//'" 2>/dev/null'
             end if
             call execute_command_line(cmd, exitstat=iostat)
@@ -111,11 +110,9 @@ contains
             integer :: unit
             character(len=256) :: test_file, output_file, cmd
             character(len=256) :: test_dir
-            character(len=:), allocatable :: cache_dir
 
             ! Create a simple .f file
             test_dir = create_temp_dir('fortran_test')
-            cache_dir = create_test_cache_dir('cli_integration_debug')
             test_file = get_temp_file_path(test_dir, 'test_debug.f')
             open (newunit=unit, file=test_file, action='write', iostat=iostat)
             if (iostat /= 0) then
@@ -130,10 +127,10 @@ contains
             ! Test --debug-tokens
             output_file = get_temp_file_path(test_dir, 'debug_tokens.json')
             if (get_os_type() == OS_WINDOWS) then
-                cmd = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" "'// &
+                cmd = fortran_with_isolated_cache('cli_debug_tokens') // ' "'// &
                     trim(test_file)//'" --debug-tokens > "'//trim(output_file)//'" 2>nul'
             else
-                cmd = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" "'// &
+                cmd = fortran_with_isolated_cache('cli_debug_tokens') // ' "'// &
                     trim(test_file)//'" --debug-tokens > "'//trim(output_file)//'" 2>/dev/null'
             end if
             call execute_command_line(cmd, exitstat=iostat)
@@ -146,10 +143,10 @@ contains
             ! Test --debug-ast
             output_file = get_temp_file_path(test_dir, 'debug_ast.json')
             if (get_os_type() == OS_WINDOWS) then
-                cmd = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" "'// &
+                cmd = fortran_with_isolated_cache('cli_debug_ast') // ' "'// &
                       trim(test_file)//'" --debug-ast > "'//trim(output_file)//'" 2>nul'
             else
-                cmd = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" "'// &
+                cmd = fortran_with_isolated_cache('cli_debug_ast') // ' "'// &
                       trim(test_file)//'" --debug-ast > "'//trim(output_file)//'" 2>/dev/null'
             end if
             call execute_command_line(cmd, exitstat=iostat)
@@ -162,10 +159,10 @@ contains
             ! Test --debug-semantic
             output_file = get_temp_file_path(test_dir, 'debug_semantic.json')
             if (get_os_type() == OS_WINDOWS) then
-                cmd = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" "'// &
+                cmd = fortran_with_isolated_cache('cli_debug_semantic') // ' "'// &
                   trim(test_file)//'" --debug-semantic > "'//trim(output_file)//'" 2>nul'
             else
-                cmd = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" "'// &
+                cmd = fortran_with_isolated_cache('cli_debug_semantic') // ' "'// &
                   trim(test_file)//'" --debug-semantic > "'//trim(output_file)//'" 2>/dev/null'
             end if
             call execute_command_line(cmd, exitstat=iostat)
@@ -178,10 +175,10 @@ contains
             ! Test --debug-codegen
             output_file = get_temp_file_path(test_dir, 'debug_codegen.json')
             if (get_os_type() == OS_WINDOWS) then
-                cmd = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" "'// &
+                cmd = fortran_with_isolated_cache('cli_debug_codegen') // ' "'// &
                    trim(test_file)//'" --debug-codegen > "'//trim(output_file)//'" 2>nul'
             else
-                cmd = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" "'// &
+                cmd = fortran_with_isolated_cache('cli_debug_codegen') // ' "'// &
                    trim(test_file)//'" --debug-codegen > "'//trim(output_file)//'" 2>/dev/null'
             end if
             call execute_command_line(cmd, exitstat=iostat)
@@ -209,11 +206,9 @@ contains
             integer :: unit
             character(len=256) :: json_file, cmd
             character(len=256) :: test_dir
-            character(len=:), allocatable :: cache_dir
 
             ! Create minimal tokens JSON
             test_dir = create_temp_dir('fortran_test')
-            cache_dir = create_test_cache_dir('cli_integration_json')
             json_file = get_temp_file_path(test_dir, 'pipeline_tokens.json')
             open (newunit=unit, file=json_file, action='write', iostat=iostat)
             if (iostat /= 0) then
@@ -226,7 +221,7 @@ contains
             close (unit)
 
             ! Test --from-tokens
-            cmd = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" "'// &
+            cmd = fortran_with_isolated_cache('cli_from_tokens') // ' "'// &
                   trim(json_file)//'" --from-tokens'
             if (get_os_type() == OS_WINDOWS) then
                 cmd = trim(cmd)//' > nul 2>&1'
@@ -249,10 +244,10 @@ contains
 
             ! Test --from-ast
             if (get_os_type() == OS_WINDOWS) then
-                cmd = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" "'// &
+                cmd = fortran_with_isolated_cache('cli_from_ast') // ' "'// &
                       trim(json_file)//'" --from-ast > nul 2>&1'
             else
-                cmd = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" "'// &
+                cmd = fortran_with_isolated_cache('cli_from_ast') // ' "'// &
                       trim(json_file)//'" --from-ast > /dev/null 2>&1'
             end if
             call execute_command_line(cmd, exitstat=iostat)
@@ -277,15 +272,13 @@ contains
         block
             integer :: iostat
             character(len=256) :: test_file, cmd
-            character(len=:), allocatable :: cache_dir
 
-            cache_dir = create_test_cache_dir('cli_integration_error')
        test_file = path_join(get_system_temp_dir(), 'definitely_nonexistent_file_that_should_not_exist_9876543210.f')
             if (get_os_type() == OS_WINDOWS) then
-                cmd = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" "'// &
+                cmd = fortran_with_isolated_cache('cli_error_nonexistent') // ' "'// &
                       trim(test_file)//'" > nul 2>&1'
             else
-                cmd = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" "'// &
+                cmd = fortran_with_isolated_cache('cli_error_nonexistent') // ' "'// &
                       trim(test_file)//'" > /dev/null 2>&1'
             end if
             call execute_command_line(cmd, exitstat=iostat)
@@ -304,19 +297,17 @@ contains
 
             character(len=256) :: json_file, cmd
             character(len=256) :: test_dir
-            character(len=:), allocatable :: cache_dir
             test_dir = create_temp_dir('fortran_test')
-            cache_dir = create_test_cache_dir('cli_integration_json_error')
             json_file = get_temp_file_path(test_dir, 'invalid.json')
             open (newunit=unit, file=json_file, action='write', iostat=iostat)
             write (unit, '(a)') 'invalid json content'
             close (unit)
 
             if (get_os_type() == OS_WINDOWS) then
-                cmd = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" "'// &
+                cmd = fortran_with_isolated_cache('cli_error_invalid_json') // ' "'// &
                       trim(json_file)//'" --from-tokens > nul 2>&1'
             else
-                cmd = 'fpm run fortran -- --cache-dir "'//trim(cache_dir)//'" "'// &
+                cmd = fortran_with_isolated_cache('cli_error_invalid_json') // ' "'// &
                       trim(json_file)//'" --from-tokens > /dev/null 2>&1'
             end if
             call execute_command_line(cmd, exitstat=iostat)

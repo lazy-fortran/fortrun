@@ -1,0 +1,12 @@
+<ERROR> Compilation failed for object " app_main.f90.o "
+app/main.f90:4:18:
+Error: Symbol 'arr' at (1) already has basic type of INTEGER
+app/main.f90:6:30:
+Error: Unexpected PROGRAM statement at (1)
+app/main.f90:7:34:
+Error: Expected label 'main' for END PROGRAM statement at (1)
+app/main.f90:9:43:
+Error: Invalid character in name at (1)
+<ERROR> stopping due to failed compilation
+STOP 1
+STOP 1

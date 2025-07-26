@@ -309,7 +309,8 @@ contains
             two_char = source(pos:pos + 1)
             if (two_char == "==" .or. two_char == "/=" .or. &
                 two_char == "<=" .or. two_char == ">=" .or. &
-                two_char == "::" .or. two_char == "**") then
+                two_char == "::" .or. two_char == "**" .or. &
+                two_char == "//") then
 
                 token_count = token_count + 1
                 if (token_count > size(tokens)) then

@@ -1,7 +1,7 @@
 program test_system_utils_coverage
     use iso_fortran_env, only: error_unit
     use system_utils
-    use temp_utils, only: temp_dir_manager
+    use temp_utils, only: temp_dir_manager, path_join, create_temp_dir
     implicit none
 
     logical :: all_tests_passed
@@ -115,7 +115,13 @@ contains
         end if
 
         ! Test with non-existent source - exercises error path
-        call sys_copy_dir('/nonexistent/source', '/tmp/dest', success, error_msg)
+        block
+            character(len=:), allocatable :: nonexistent_src, temp_dest, test_temp_dir
+            test_temp_dir = create_temp_dir('test_sys_copy')
+            nonexistent_src = path_join(test_temp_dir, 'nonexistent_source')
+            temp_dest = path_join(test_temp_dir, 'dest')
+            call sys_copy_dir(nonexistent_src, temp_dest, success, error_msg)
+        end block
         if (.not. success) then
             print *, "  PASS: sys_copy_dir properly handles non-existent source"
         else

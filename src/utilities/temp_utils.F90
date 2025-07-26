@@ -10,7 +10,7 @@ module temp_utils
     private
     public :: create_temp_dir, create_temp_file, cleanup_temp_dir, get_temp_file_path, temp_dir_manager, &
               get_system_temp_dir, get_current_directory, get_project_root, path_join, &
-              mkdir, create_test_cache_dir
+              mkdir, create_test_cache_dir, fortran_with_isolated_cache, fortran_with_cache_dir
 
     ! Interface for getpid
     interface
@@ -548,5 +548,41 @@ contains
         ! Don't call mkdir again - create_temp_dir already creates the directory
 
     end function create_test_cache_dir
+
+    !> Create a command that runs fortran with isolated cache
+    function fortran_with_isolated_cache(test_name) result(command_prefix)
+        character(len=*), intent(in) :: test_name
+        character(len=:), allocatable :: command_prefix
+        character(len=:), allocatable :: cache_dir
+        
+        ! Create isolated cache directory for this test
+        cache_dir = create_test_cache_dir(test_name)
+        
+        ! Build command with XDG_CACHE_HOME set
+        if (get_os_type() == OS_WINDOWS) then
+            ! Windows: use set command inline
+            command_prefix = 'cmd /c "set XDG_CACHE_HOME=' // trim(cache_dir) // ' && fpm run fortran --'
+        else
+            ! Unix: use environment variable prefix
+            command_prefix = 'XDG_CACHE_HOME="' // trim(cache_dir) // '" fpm run fortran --'
+        end if
+        
+    end function fortran_with_isolated_cache
+
+    !> Create a command that runs fortran with specified cache directory
+    function fortran_with_cache_dir(cache_dir) result(command_prefix)
+        character(len=*), intent(in) :: cache_dir
+        character(len=:), allocatable :: command_prefix
+        
+        ! Build command with XDG_CACHE_HOME set
+        if (get_os_type() == OS_WINDOWS) then
+            ! Windows: use set command inline
+            command_prefix = 'cmd /c "set XDG_CACHE_HOME=' // trim(cache_dir) // ' && fpm run fortran --'
+        else
+            ! Unix: use environment variable prefix
+            command_prefix = 'XDG_CACHE_HOME="' // trim(cache_dir) // '" fpm run fortran --'
+        end if
+        
+    end function fortran_with_cache_dir
 
 end module temp_utils

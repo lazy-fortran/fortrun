@@ -152,6 +152,8 @@ module ast_core
     contains
         procedure :: accept => call_or_subscript_accept
         procedure :: to_json => call_or_subscript_to_json
+        procedure :: assign => call_or_subscript_assign
+        generic :: assignment(=) => assign
     end type call_or_subscript_node
 
     ! Identifier node
@@ -170,6 +172,16 @@ module ast_core
         procedure :: accept => literal_accept
         procedure :: to_json => literal_to_json
     end type literal_node
+
+    ! Array literal node
+    type, extends(ast_node), public :: array_literal_node
+        integer, allocatable :: element_indices(:)  ! Indices to element expressions in arena
+    contains
+        procedure :: accept => array_literal_accept
+        procedure :: to_json => array_literal_to_json
+        procedure :: assign => array_literal_assign
+        generic :: assignment(=) => assign
+    end type array_literal_node
 
     ! Use statement node
     type, extends(ast_node), public :: use_statement_node
@@ -253,6 +265,8 @@ module ast_core
     contains
         procedure :: accept => do_loop_accept
         procedure :: to_json => do_loop_to_json
+        procedure :: assign => do_loop_assign
+        generic :: assignment(=) => assign
     end type do_loop_node
 
     ! Do while loop node
@@ -343,12 +357,14 @@ module ast_core
     integer, parameter, public :: LITERAL_REAL = 2
     integer, parameter, public :: LITERAL_STRING = 3
     integer, parameter, public :: LITERAL_LOGICAL = 4
+    integer, parameter, public :: LITERAL_ARRAY = 5
 
     ! Public interface for creating nodes and stack
     public :: create_ast_stack
     public :: create_program, create_assignment, create_binary_op
     public :: create_function_def, create_subroutine_def, create_call_or_subscript, create_subroutine_call
-    public :: create_identifier, create_literal, create_use_statement, create_include_statement, create_print_statement
+    public :: create_identifier, create_literal, create_array_literal
+    public :: create_use_statement, create_include_statement, create_print_statement
     public :: create_declaration, create_do_loop, create_do_while, create_if, create_select_case
     public :: create_derived_type, create_interface_block, create_module
 
@@ -806,6 +822,15 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         if (present(line)) node%line = line
         if (present(column)) node%column = column
     end function create_literal
+
+    function create_array_literal(element_indices, line, column) result(node)
+        integer, intent(in) :: element_indices(:)
+        integer, intent(in), optional :: line, column
+        type(array_literal_node) :: node
+        node%element_indices = element_indices
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_array_literal
 
     function create_declaration(type_name, var_name, kind_value, initializer, dimensions, is_allocatable, line, column) result(node)
         character(len=*), intent(in) :: type_name
@@ -1368,6 +1393,8 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
             kind_name = 'string'
         case (LITERAL_LOGICAL)
             kind_name = 'logical'
+        case (LITERAL_ARRAY)
+            kind_name = 'array'
         case default
             kind_name = 'unknown'
         end select
@@ -1375,6 +1402,32 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
 
         call json%add(parent, obj)
     end subroutine literal_to_json
+
+    subroutine array_literal_accept(this, visitor)
+        class(array_literal_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine array_literal_accept
+
+    subroutine array_literal_to_json(this, json, parent)
+        class(array_literal_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj, elements_array
+        integer :: i
+        call json%create_object(obj, '')
+        call json%add(obj, 'type', 'array_literal')
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+        if (allocated(this%element_indices)) then
+            call json%create_array(elements_array, 'element_indices')
+            call json%add(obj, elements_array)
+            do i = 1, size(this%element_indices)
+                call json%add(elements_array, '', this%element_indices(i))
+            end do
+        end if
+        call json%add(parent, obj)
+    end subroutine array_literal_to_json
 
     subroutine use_statement_to_json(this, json, parent)
         class(use_statement_node), intent(in) :: this
@@ -2073,5 +2126,71 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
             end do
         end if
     end subroutine ast_arena_assign
+
+    ! Assignment operator for call_or_subscript_node (deep copy)
+    subroutine call_or_subscript_assign(lhs, rhs)
+        class(call_or_subscript_node), intent(out) :: lhs
+        type(call_or_subscript_node), intent(in) :: rhs
+        
+        ! Copy base class components
+        lhs%line = rhs%line
+        lhs%column = rhs%column
+        if (allocated(rhs%inferred_type)) then
+            allocate(lhs%inferred_type, source=rhs%inferred_type)
+        end if
+        
+        ! Copy specific components
+        lhs%name = rhs%name
+        
+        ! Deep copy allocatable array
+        if (allocated(rhs%arg_indices)) then
+            allocate(lhs%arg_indices(size(rhs%arg_indices)))
+            lhs%arg_indices = rhs%arg_indices
+        end if
+    end subroutine call_or_subscript_assign
+
+    ! Assignment operator for array_literal_node (deep copy)
+    subroutine array_literal_assign(lhs, rhs)
+        class(array_literal_node), intent(out) :: lhs
+        type(array_literal_node), intent(in) :: rhs
+        
+        ! Copy base class components
+        lhs%line = rhs%line
+        lhs%column = rhs%column
+        if (allocated(rhs%inferred_type)) then
+            allocate(lhs%inferred_type, source=rhs%inferred_type)
+        end if
+        
+        ! Deep copy allocatable array
+        if (allocated(rhs%element_indices)) then
+            allocate(lhs%element_indices(size(rhs%element_indices)))
+            lhs%element_indices = rhs%element_indices
+        end if
+    end subroutine array_literal_assign
+
+    ! Assignment operator for do_loop_node (deep copy)
+    subroutine do_loop_assign(lhs, rhs)
+        class(do_loop_node), intent(out) :: lhs
+        type(do_loop_node), intent(in) :: rhs
+        
+        ! Copy base class components
+        lhs%line = rhs%line
+        lhs%column = rhs%column
+        if (allocated(rhs%inferred_type)) then
+            allocate(lhs%inferred_type, source=rhs%inferred_type)
+        end if
+        
+        ! Copy specific components
+        lhs%var_name = rhs%var_name
+        lhs%start_expr_index = rhs%start_expr_index
+        lhs%end_expr_index = rhs%end_expr_index
+        lhs%step_expr_index = rhs%step_expr_index
+        
+        ! Deep copy allocatable array
+        if (allocated(rhs%body_indices)) then
+            allocate(lhs%body_indices(size(rhs%body_indices)))
+            lhs%body_indices = rhs%body_indices
+        end if
+    end subroutine do_loop_assign
 
 end module ast_core

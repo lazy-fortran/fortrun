@@ -51,17 +51,22 @@ contains
 
     subroutine test_cache_dir_creation(all_pass)
         logical, intent(inout) :: all_pass
-        character(:), allocatable :: cache_dir
-        logical :: test_pass
+        character(:), allocatable :: cache_dir, isolated_cache
+        logical :: test_pass, success
 
         print '(a)', 'Test 1: Cache directory creation'
 
+        ! Create isolated cache for this test
+        isolated_cache = create_test_cache_dir('module_cache_test')
+        
+        ! Still test the function but note we're using isolated cache for actual operations
         cache_dir = get_module_cache_dir()
         test_pass = len_trim(cache_dir) > 0
 
         if (test_pass) then
             print '(a)', '  ✓ Module cache directory path determined'
-            print '(a,a)', '    Path: ', cache_dir
+            print '(a,a)', '    System path: ', cache_dir
+            print '(a,a)', '    Test isolated path: ', isolated_cache
         else
             print '(a)', '  ✗ Failed to determine cache directory'
             all_pass = .false.

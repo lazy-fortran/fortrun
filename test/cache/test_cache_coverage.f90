@@ -1,7 +1,7 @@
 program test_cache_coverage
     use iso_fortran_env, only: error_unit
     use cache
-    use temp_utils, only: temp_dir_manager
+    use temp_utils, only: temp_dir_manager, create_test_cache_dir, fortran_with_cache_dir
     use system_utils, only: sys_remove_file, sys_remove_dir
     implicit none
 
@@ -33,13 +33,17 @@ contains
 
     function test_cache_operations() result(passed)
         logical :: passed
-        character(len=:), allocatable :: cache_dir, test_cache
+        character(len=:), allocatable :: cache_dir, test_cache, isolated_cache
         logical :: success
 
         print *, "Test 1: Basic cache operations"
         passed = .true.
 
-        ! Test getting cache directory
+        ! Create isolated cache for this test
+        isolated_cache = create_test_cache_dir('cache_ops')
+        call ensure_cache_structure(isolated_cache, success)
+        
+        ! Test getting cache directory (still test the function but don't rely on system cache)
         cache_dir = get_cache_dir()
         if (.not. allocated(cache_dir) .or. len_trim(cache_dir) == 0) then
             print *, "  FAIL: Failed to get cache directory"
@@ -48,7 +52,7 @@ contains
             print *, "  PASS: Got cache directory: ", trim(cache_dir)
         end if
 
-        ! Test custom cache directory
+        ! Test custom cache directory using isolated cache
         test_cache = temp_mgr%get_file_path('test_cache')
         call ensure_cache_dir(test_cache, success)
         if (.not. success) then
@@ -56,10 +60,10 @@ contains
             passed = .false.
         else
             print *, "  PASS: Created custom cache directory"
-            call sys_remove_dir(test_cache)
+            ! Cleanup handled by temp_dir_manager
         end if
 
-        ! Test cache structure creation
+        ! Test cache structure creation using isolated cache
         test_cache = temp_mgr%get_file_path('test_structure')
         call ensure_cache_structure(test_cache, success)
         if (.not. success) then
@@ -67,7 +71,7 @@ contains
             passed = .false.
         else
             print *, "  PASS: Created cache structure"
-            call sys_remove_dir(test_cache)
+            ! Cleanup handled by temp_dir_manager
         end if
 
     end function test_cache_operations
@@ -123,30 +127,34 @@ contains
 
     function test_cache_info() result(passed)
         logical :: passed
-        character(len=:), allocatable :: test_cache
+        character(len=:), allocatable :: test_cache, isolated_cache
         character(len=2048) :: cache_info
         logical :: success
 
         print *, "Test 3: Cache information functions"
         passed = .true.
 
+        ! Create isolated cache for this test
+        isolated_cache = create_test_cache_dir('cache_info')
+        call ensure_cache_structure(isolated_cache, success)
+        
         test_cache = temp_mgr%get_file_path('info_test_cache')
         
-        ! Test cache info for non-existent cache
-        call get_cache_info('', cache_info)
+        ! Test cache info for isolated cache
+        call get_cache_info(isolated_cache, cache_info)
         if (len_trim(cache_info) == 0) then
             print *, "  FAIL: Failed to get cache info"
             passed = .false.
         else
-            print *, "  PASS: Got cache info for default cache"
+            print *, "  PASS: Got cache info for isolated cache"
         end if
 
-        ! Test cache clearing
-        call clear_cache('', success)
+        ! Test cache clearing on isolated cache
+        call clear_cache(isolated_cache, success)
         if (.not. success) then
-            print *, "  FAIL: Failed to clear cache (this might be OK if cache doesn't exist)"
+            print *, "  INFO: Clear cache returned false (OK for empty cache)"
         else
-            print *, "  PASS: Successfully cleared cache"
+            print *, "  PASS: Successfully cleared isolated cache"
         end if
 
         ! Test cache existence check

@@ -1,0 +1,12 @@
+{
+  "input_file": "/var/tmp/ert/code/fortran/test_array_simple.f",
+  "generated_code": [
+    "program main",
+    "    implicit none",
+    "    character(len=31) :: arr",
+    "",
+    "    arr = !ERROR: Unrecognized operator '['",
+    "    print *, arr",
+    "end program main"
+  ]
+}

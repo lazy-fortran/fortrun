@@ -1,6 +1,6 @@
 program test_different_directories
     use, intrinsic :: iso_fortran_env, only: error_unit
-    use temp_utils, only: create_temp_dir, get_temp_file_path, path_join
+    use temp_utils, only: create_temp_dir, get_temp_file_path, path_join, fortran_with_isolated_cache
     use system_utils, only: sys_remove_dir, sys_remove_file, sys_run_command_with_exit_code
     use temp_utils, only: mkdir
     use fpm_environment, only: get_os_type, OS_WINDOWS, get_env
@@ -72,9 +72,10 @@ contains
             abs_exit_file = get_temp_file_path(temp_dir, 'abs_exit.txt')
 
             if (get_os_type() == OS_WINDOWS) then
-                command = 'fpm run fortran -- "' // trim(abs_path) // '"'
+                command = trim(fortran_with_isolated_cache('test_diff_dirs_abs')) // ' "' // trim(abs_path) // '"'
             else
-                command = 'ORIGINAL_DIR=$(pwd) && cd ' // trim(test_dir) // ' && cd $ORIGINAL_DIR && fpm run fortran -- "' // &
+                command = 'ORIGINAL_DIR=$(pwd) && cd ' // trim(test_dir) // ' && cd $ORIGINAL_DIR && ' // &
+                         trim(fortran_with_isolated_cache('test_diff_dirs_abs')) // ' "' // &
                          trim(abs_path)//'"'
             end if
             call sys_run_command_with_exit_code(command, abs_output_file, abs_exit_file)
@@ -106,10 +107,13 @@ contains
             rel_exit_file = get_temp_file_path(temp_dir, 'rel_exit.txt')
 
             if (get_os_type() == OS_WINDOWS) then
-                command = 'fpm run fortran -- '//path_join(test_dir, 'subdir/hello.f90')
+                command = trim(fortran_with_isolated_cache('test_diff_dirs_rel')) // ' '// &
+                         path_join(test_dir, 'subdir/hello.f90')
             else
                 command = 'ORIGINAL_DIR=$(pwd) && cd '//trim(test_dir)// &
-                         ' && cd $ORIGINAL_DIR && fpm run fortran -- '//path_join(test_dir, 'subdir/hello.f90')
+                         ' && cd $ORIGINAL_DIR && ' // &
+                         trim(fortran_with_isolated_cache('test_diff_dirs_rel')) // ' '// &
+                         path_join(test_dir, 'subdir/hello.f90')
             end if
             call sys_run_command_with_exit_code(command, rel_output_file, rel_exit_file)
 
@@ -144,9 +148,10 @@ character(len=:), allocatable :: temp_dir, diff_output_file, diff_exit_file, sys
             system_temp = create_temp_dir('system_temp')
 
       if (get_os_type() == OS_WINDOWS) then
-          command = 'fpm run fortran -- "' // trim(abs_path) // '"'
+          command = trim(fortran_with_isolated_cache('test_diff_dirs_other')) // ' "' // trim(abs_path) // '"'
       else
-          command = 'ORIGINAL_DIR=$(pwd) && cd ' // system_temp // ' && cd $ORIGINAL_DIR && fpm run fortran -- "' // &
+          command = 'ORIGINAL_DIR=$(pwd) && cd ' // system_temp // ' && cd $ORIGINAL_DIR && ' // &
+                   trim(fortran_with_isolated_cache('test_diff_dirs_other')) // ' "' // &
                trim(abs_path)//'"'
       end if
             call sys_run_command_with_exit_code(command, diff_output_file, diff_exit_file)

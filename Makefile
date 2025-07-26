@@ -61,6 +61,10 @@ test-module:
 	@chmod +x scripts/run-test-group.sh
 	@scripts/run-test-group.sh module
 
+test-misc:
+	@chmod +x scripts/run-test-group.sh
+	@scripts/run-test-group.sh misc
+
 test-frontend:
 	@chmod +x scripts/run-test-group.sh
 	@scripts/run-test-group.sh frontend
@@ -160,6 +164,7 @@ help:
 	@echo "  test-notebook    - Run notebook tests"
 	@echo "  test-fpm         - Run FPM-related tests"
 	@echo "  test-module      - Run module scanner tests"
+	@echo "  test-misc        - Run miscellaneous tests"
 	@echo "  test-frontend    - Run frontend tests (heavy)"
 	@echo "  test-integration - Run integration tests (heavy)"
 	@echo "  test-single      - Run single test with fpm test"

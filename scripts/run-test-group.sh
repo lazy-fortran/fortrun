@@ -29,11 +29,24 @@ run_test_group() {
     
     case $group in
         "core")
+            # Lexer tests
             fpm test test_lexer_direct
+            # Parser tests  
             fpm test test_parser_edge_cases
+            fpm test test_parse_multi_decl
+            fpm test test_param_body_order
+            fpm test test_param_order_explicit
             fpm test test_frontend_parser_if_statement
+            # Semantic tests
             fpm test test_semantic_simple
+            fpm test test_semantic_context_components
+            fpm test test_semantic_context_creation
+            fpm test test_exact_semantic_context
             fpm test test_scope_manager_basic
+            fpm test test_scope_pattern
+            fpm test test_minimal_type_system
+            fpm test test_function_type_creation
+            fpm test test_minimal_ast_inferred_type
             ;;
         "utilities")
             fpm test test_logger_utils
@@ -55,6 +68,8 @@ run_test_group() {
             fpm test test_runner_coverage
             fpm test test_runner_missing_lines
             fpm test test_runner_edge_cases
+            fpm test test_testing_discovery
+            fpm test test_testing_execution
             ;;
         "cli")
             fpm test test_cli_system
@@ -78,6 +93,17 @@ run_test_group() {
             fpm test test_module_scanner_extended
             fpm test test_module_scanner_coverage
             ;;
+        "misc")
+            # Miscellaneous tests
+            fpm test test_env_extend_operations
+            fpm test test_minimal_alloc_bug
+            fpm test test_nested_allocatable
+            fpm test test_verbose
+            fpm test test_different_directories
+            fpm test test_error_handling
+            fpm test test_file_isolation
+            fpm test test_main_coverage
+            ;;
         "frontend")
             export OMP_NUM_THREADS=4
             fpm test test_frontend_test_cases
@@ -92,6 +118,8 @@ run_test_group() {
             fpm test test_runner_integration_coverage
             fpm test test_runner_comprehensive
             fpm test test_examples
+            fpm test test_frontend_integration_trace
+            fpm test test_critical_functionality
             ;;
         "quick")
             # Run a quick subset for rapid feedback
@@ -102,14 +130,14 @@ run_test_group() {
             ;;
         "all")
             # Run all test groups
-            for g in core utilities cache runner cli notebook fpm module frontend integration; do
+            for g in core utilities cache runner cli notebook fpm module misc frontend integration; do
                 run_test_group "$g"
             done
             return
             ;;
         *)
             print_error "Unknown test group: $group"
-            echo "Available groups: core, utilities, cache, runner, cli, notebook, fpm, module, frontend, integration, quick, all"
+            echo "Available groups: core, utilities, cache, runner, cli, notebook, fpm, module, misc, frontend, integration, quick, all"
             exit 1
             ;;
     esac
@@ -119,7 +147,7 @@ run_test_group() {
 if [ $# -eq 0 ]; then
     print_error "No test group specified"
     echo "Usage: $0 <test-group> [test-group2 ...]"
-    echo "Available groups: core, utilities, cache, runner, cli, notebook, fpm, module, frontend, integration, quick, all"
+    echo "Available groups: core, utilities, cache, runner, cli, notebook, fpm, module, misc, frontend, integration, quick, all"
     exit 1
 fi
 

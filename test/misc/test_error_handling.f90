@@ -1,6 +1,6 @@
 program test_error_handling
     use, intrinsic :: iso_fortran_env, only: error_unit
-    use temp_utils, only: get_system_temp_dir, path_join
+    use temp_utils, only: get_system_temp_dir, path_join, fortran_with_isolated_cache
     use temp_utils, only: mkdir, path_join
     use system_utils, only: sys_remove_dir, sys_remove_file, sys_run_command_with_exit_code
     implicit none
@@ -22,9 +22,28 @@ program test_error_handling
 
 contains
 
+    subroutine run_fortran_capture_output(test_name, test_file, output_file, exit_file)
+        use fpm_environment, only: get_os_type, OS_WINDOWS
+        character(len=*), intent(in) :: test_name, test_file, output_file, exit_file
+        character(len=:), allocatable :: command, cache_dir
+        
+        ! Create cache directory
+        cache_dir = path_join(get_system_temp_dir(), test_name)
+        call mkdir(trim(cache_dir))
+        
+        if (get_os_type() == OS_WINDOWS) then
+            ! On Windows, construct the command carefully to avoid quoting issues
+            command = 'cmd /c "set XDG_CACHE_HOME=' // trim(cache_dir) // &
+                      ' && fpm run fortran -- ' // trim(test_file) // '"'
+        else
+            command = trim(fortran_with_isolated_cache(test_name)) // ' ' // trim(test_file)
+        end if
+        
+        call sys_run_command_with_exit_code(command, output_file, exit_file)
+    end subroutine run_fortran_capture_output
+
     subroutine test_unknown_module_error()
         character(len=256) :: test_file, test_dir
-        character(len=512) :: command
         integer :: unit
 
         print *, 'Test 1: Unknown module error message'
@@ -43,9 +62,8 @@ contains
         write (unit, '(a)') 'end program test_unknown'
         close (unit)
 
-        ! Run the program and capture output
-        command = 'fpm run fortran -- '//trim(test_file)
-        call sys_run_command_with_exit_code(command, &
+        ! Run the program and capture output with isolated cache
+        call run_fortran_capture_output('test_err_unknown', test_file, &
                   path_join(get_system_temp_dir(), 'unknown_output.txt'), &
                   path_join(get_system_temp_dir(), 'unknown_exit.txt'))
 
@@ -69,7 +87,6 @@ contains
 
     subroutine test_similar_module_suggestions()
         character(len=256) :: test_file, test_dir
-        character(len=512) :: command
         integer :: unit
 
         print *, 'Test 2: Module error forwarding'
@@ -89,8 +106,7 @@ contains
         close (unit)
 
         ! Run the program and capture output
-        command = 'fpm run fortran -- '//trim(test_file)
-        call sys_run_command_with_exit_code(command, &
+        call run_fortran_capture_output('test_err_similar', test_file, &
                   path_join(get_system_temp_dir(), 'error_output.txt'), &
                   path_join(get_system_temp_dir(), 'error_exit.txt'))
 
@@ -113,7 +129,6 @@ contains
 
     subroutine test_fpm_error_forwarding()
         character(len=256) :: test_file, test_dir
-        character(len=512) :: command
         integer :: unit
 
         print *, 'Test 3: FPM error forwarding'
@@ -132,8 +147,7 @@ contains
         close (unit)
 
         ! Run the program and capture output
-        command = 'fpm run fortran -- '//trim(test_file)
-        call sys_run_command_with_exit_code(command, &
+        call run_fortran_capture_output('test_err_syntax', test_file, &
                   path_join(get_system_temp_dir(), 'syntax_output.txt'), &
                   path_join(get_system_temp_dir(), 'syntax_exit.txt'))
 

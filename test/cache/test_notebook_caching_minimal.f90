@@ -1,6 +1,6 @@
 program test_notebook_caching_minimal
-    use temp_utils, only: temp_dir_manager
-    use cache, only: get_cache_dir, get_content_hash
+    use temp_utils, only: temp_dir_manager, create_temp_dir, create_test_cache_dir
+    use cache, only: get_cache_dir, get_content_hash, ensure_cache_structure
     use fpm_environment, only: get_os_type, OS_WINDOWS
     implicit none
 
@@ -38,13 +38,8 @@ contains
         print *, 'Test 1: Cache directory creation'
         call flush (6)
 
-        ! Use a simple test directory path
-        if (get_os_type() == OS_WINDOWS) then
-            call get_environment_variable('TEMP', test_cache_dir)
-            test_cache_dir = trim(test_cache_dir)//'\test_minimal_notebook_cache'
-        else
-            test_cache_dir = '/tmp/test_minimal_notebook_cache'
-        end if
+        ! Use temp_utils to get a proper test directory
+        test_cache_dir = create_temp_dir('test_minimal_notebook_cache')
 
         ! Create the directory with cross-platform command
         block
@@ -85,12 +80,17 @@ contains
 
     subroutine test_cache_concepts(passed)
         logical, intent(inout) :: passed
-        character(len=:), allocatable :: cache_dir_path
+        character(len=:), allocatable :: cache_dir_path, isolated_cache
+        logical :: success
 
         print *, 'Test 2: Cache concepts'
         call flush (6)
 
-        ! Test that we can get a cache directory path
+        ! Create isolated cache for this test
+        isolated_cache = create_test_cache_dir('nb_cache_concepts')
+        call ensure_cache_structure(isolated_cache, success)
+        
+        ! Test that we can get a cache directory path (still test the function)
         cache_dir_path = get_cache_dir()
 
         if (len_trim(cache_dir_path) == 0) then
@@ -100,7 +100,8 @@ contains
         end if
 
         ! Test basic cache directory concepts work
-        print *, '  Cache directory path: ', trim(cache_dir_path)
+        print *, '  System cache directory path: ', trim(cache_dir_path)
+        print *, '  Isolated test cache path: ', trim(isolated_cache)
         call flush (6)
 
         print *, '  PASS: Cache concepts work correctly'
