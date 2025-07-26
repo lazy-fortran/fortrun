@@ -61,6 +61,33 @@ See `.github/workflows/test-parallel.yml` for the parallel test configuration.
    - `scripts/run-test-group.sh` for local testing
    - `.github/workflows/test-parallel.yml` for CI
 
+## Test Naming Convention
+
+### File Naming
+All test files must follow this pattern: `test_<category>_<feature>.f90`
+
+Examples:
+- `test_lexer_keywords.f90` - Tests for lexer keyword recognition
+- `test_parser_expressions.f90` - Tests for parser expression handling
+- `test_cache_isolation.f90` - Tests for cache isolation features
+
+### Test Function Naming
+Test functions within files should be descriptive and follow a consistent pattern:
+- Start with the feature being tested
+- Include the specific behavior or edge case
+- Use underscores to separate words
+
+Examples:
+```fortran
+! Good test function names
+subroutine test_array_literal_type_inference()
+subroutine test_where_construct_single_line()
+subroutine test_optional_parameter_with_present()
+
+! Avoid vague names like:
+! test1(), test_basic(), test_it_works()
+```
+
 ## Test Best Practices
 
 1. **Keep tests focused**: Each test should verify one specific behavior
@@ -68,6 +95,9 @@ See `.github/workflows/test-parallel.yml` for the parallel test configuration.
 3. **Clean up resources**: Always clean up temporary files and directories
 4. **Use cross-platform paths**: Ensure tests work on both Unix and Windows
 5. **Minimize dependencies**: Tests should be as isolated as possible
+6. **Use error messages**: Include descriptive error messages in assertions
+7. **Test edge cases**: Don't just test the happy path
+8. **Isolate tests**: Use isolated cache/temp directories for parallel execution
 
 ## Performance Tips
 

@@ -1,4 +1,4 @@
-program test_semantic_analysis_red
+program test_semantic_analysis_green
     use frontend, only: compile_source, compilation_options_t, BACKEND_FORTRAN
     use temp_utils, only: create_temp_file
     implicit none
@@ -7,8 +7,8 @@ program test_semantic_analysis_red
     
     all_passed = .true.
     
-    print *, '=== Semantic Analysis RED Tests ==='
-    print *, 'These tests check semantic analysis failures (expected to fail)'
+    print *, '=== Semantic Analysis Tests ==='
+    print *, 'These tests check semantic analysis is working correctly'
     print *
     
     if (.not. test_array_assignment_semantics()) all_passed = .false.
@@ -17,8 +17,13 @@ program test_semantic_analysis_red
     if (.not. test_intrinsic_functions()) all_passed = .false.
     
     print *
-    print *, 'Semantic analysis RED tests completed'
-    stop 0  ! Exit 0 since failures are expected
+    if (all_passed) then
+        print *, 'All semantic analysis tests passed!'
+        stop 0
+    else
+        print *, 'Some semantic analysis tests failed!'
+        stop 1
+    end if
     
 contains
 
@@ -47,10 +52,10 @@ contains
         call compile_source(input_file, options, error_msg)
         
         if (error_msg /= '') then
-            print *, '  EXPECTED FAIL: ', trim(error_msg)
-        else
-            print *, '  UNEXPECTED SUCCESS: Array assignment should fail in semantic analysis'
+            print *, '  FAIL: ', trim(error_msg)
             test_array_assignment_semantics = .false.
+        else
+            print *, '  PASS: Array assignment semantic analysis working'
         end if
         
         ! Test 2: Array constructor assignment
@@ -68,10 +73,10 @@ contains
         call compile_source(input_file, options, error_msg)
         
         if (error_msg /= '') then
-            print *, '  EXPECTED FAIL: ', trim(error_msg)
-        else
-            print *, '  UNEXPECTED SUCCESS: Array constructor should fail in semantic analysis'
+            print *, '  FAIL: ', trim(error_msg)
             test_array_assignment_semantics = .false.
+        else
+            print *, '  PASS: Array constructor semantic analysis working'
         end if
         
     end function test_array_assignment_semantics
@@ -134,9 +139,10 @@ contains
         call compile_source(input_file, options, error_msg)
         
         if (error_msg /= '') then
-            print *, '  EXPECTED FAIL: Scope resolution issue - ', trim(error_msg)
+            print *, '  FAIL: Scope resolution issue - ', trim(error_msg)
+            test_scope_resolution = .false.
         else
-            print *, '  Scope resolution might be working'
+            print *, '  PASS: Scope resolution working'
         end if
         
     end function test_scope_resolution
@@ -169,11 +175,12 @@ contains
         call compile_source(input_file, options, error_msg)
         
         if (error_msg /= '') then
-            print *, '  EXPECTED FAIL: Intrinsic functions not fully supported - ', trim(error_msg)
+            print *, '  FAIL: Intrinsic functions - ', trim(error_msg)
+            test_intrinsic_functions = .false.
         else
-            print *, '  Intrinsic functions might be working'
+            print *, '  PASS: Intrinsic functions working'
         end if
         
     end function test_intrinsic_functions
     
-end program test_semantic_analysis_red
+end program test_semantic_analysis_green

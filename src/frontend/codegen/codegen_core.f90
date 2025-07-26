@@ -63,6 +63,16 @@ contains
             code = "contains"
         type is (array_literal_node)
             code = generate_code_array_literal(arena, node, node_index)
+        type is (stop_node)
+            code = generate_code_stop(arena, node, node_index)
+        type is (return_node)
+            code = generate_code_return(arena, node, node_index)
+        type is (cycle_node)
+            code = generate_code_cycle(arena, node, node_index)
+        type is (exit_node)
+            code = generate_code_exit(arena, node, node_index)
+        type is (where_node)
+            code = generate_code_where(arena, node, node_index)
         class default
             code = "! Unknown node type"
         end select
@@ -550,6 +560,137 @@ contains
             end do
         end if
     end function generate_code_print_statement
+    
+    ! Generate code for STOP statement
+    function generate_code_stop(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
+        type(stop_node), intent(in) :: node
+        integer, intent(in) :: node_index
+        character(len=:), allocatable :: code
+        character(len=:), allocatable :: stop_code_str
+        
+        code = with_indent("stop")
+        
+        ! Add stop code or message if present
+        if (allocated(node%stop_message) .and. len_trim(node%stop_message) > 0) then
+            code = code//" "//node%stop_message
+        else if (node%stop_code_index > 0 .and. node%stop_code_index <= arena%size) then
+            if (allocated(arena%entries(node%stop_code_index)%node)) then
+                stop_code_str = generate_code_from_arena(arena, node%stop_code_index)
+                code = code//" "//stop_code_str
+            else
+                code = code//" 0"  ! Default stop code
+            end if
+        end if
+    end function generate_code_stop
+    
+    ! Generate code for RETURN statement
+    function generate_code_return(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
+        type(return_node), intent(in) :: node
+        integer, intent(in) :: node_index
+        character(len=:), allocatable :: code
+        
+        code = with_indent("return")
+    end function generate_code_return
+    
+    ! Generate code for CYCLE statement
+    function generate_code_cycle(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
+        type(cycle_node), intent(in) :: node
+        integer, intent(in) :: node_index
+        character(len=:), allocatable :: code
+        
+        if (allocated(node%loop_label) .and. len_trim(node%loop_label) > 0) then
+            code = with_indent("cycle "//node%loop_label)
+        else
+            code = with_indent("cycle")
+        end if
+    end function generate_code_cycle
+    
+    ! Generate code for EXIT statement
+    function generate_code_exit(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
+        type(exit_node), intent(in) :: node
+        integer, intent(in) :: node_index
+        character(len=:), allocatable :: code
+        
+        if (allocated(node%loop_label) .and. len_trim(node%loop_label) > 0) then
+            code = with_indent("exit "//node%loop_label)
+        else
+            code = with_indent("exit")
+        end if
+    end function generate_code_exit
+    
+    ! Generate code for WHERE construct
+    function generate_code_where(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
+        type(where_node), intent(in) :: node
+        integer, intent(in) :: node_index
+        character(len=:), allocatable :: code
+        character(len=:), allocatable :: mask_code, stmt_code
+        integer :: i
+        
+        ! Generate mask expression
+        if (node%mask_expr_index > 0 .and. node%mask_expr_index <= arena%size) then
+            mask_code = generate_code_from_arena(arena, node%mask_expr_index)
+        else
+            mask_code = "???"
+        end if
+        
+        ! Check if this is a single-line WHERE
+        if (allocated(node%where_body_indices) .and. size(node%where_body_indices) == 1 .and. &
+            .not. allocated(node%elsewhere_body_indices)) then
+            ! Single-line WHERE
+            if (node%where_body_indices(1) > 0 .and. node%where_body_indices(1) <= arena%size) then
+                stmt_code = generate_code_from_arena(arena, node%where_body_indices(1))
+                ! Remove indentation from statement for single-line
+                stmt_code = adjustl(stmt_code)
+            else
+                stmt_code = "???"
+            end if
+            code = with_indent("where ("//mask_code//") "//stmt_code)
+        else
+            ! Multi-line WHERE construct
+            code = with_indent("where ("//mask_code//")")
+            
+            ! Increase indentation for body
+            call increase_indent()
+            
+            ! Generate WHERE body
+            if (allocated(node%where_body_indices)) then
+                do i = 1, size(node%where_body_indices)
+                    if (node%where_body_indices(i) > 0 .and. node%where_body_indices(i) <= arena%size) then
+                        stmt_code = generate_code_from_arena(arena, node%where_body_indices(i))
+                        code = code//new_line('A')//stmt_code
+                    end if
+                end do
+            end if
+            
+            ! Decrease indentation
+            call decrease_indent()
+            
+            ! Generate ELSEWHERE block if present
+            if (allocated(node%elsewhere_body_indices)) then
+                code = code//new_line('A')//with_indent("elsewhere")
+                
+                ! Increase indentation for elsewhere body
+                call increase_indent()
+                
+                do i = 1, size(node%elsewhere_body_indices)
+                    if (node%elsewhere_body_indices(i) > 0 .and. node%elsewhere_body_indices(i) <= arena%size) then
+                        stmt_code = generate_code_from_arena(arena, node%elsewhere_body_indices(i))
+                        code = code//new_line('A')//stmt_code
+                    end if
+                end do
+                
+                ! Decrease indentation
+                call decrease_indent()
+            end if
+            
+            code = code//new_line('A')//with_indent("end where")
+        end if
+    end function generate_code_where
 
     ! Generate code for declaration
     function generate_code_declaration(arena, node, node_index) result(code)

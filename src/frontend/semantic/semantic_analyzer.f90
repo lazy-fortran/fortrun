@@ -8,6 +8,7 @@ module semantic_analyzer
     use scope_manager
     use type_checker
     use ast_core
+    use parameter_tracker
     implicit none
     private
 
@@ -20,6 +21,7 @@ module semantic_analyzer
         type(scope_stack_t) :: scopes  ! Hierarchical scope management
         integer :: next_var_id = 0
         type(substitution_t) :: subst
+        type(parameter_tracker_t) :: param_tracker  ! Track parameter attributes
     contains
         procedure :: infer => infer_type
         procedure :: infer_stmt => infer_statement_type
@@ -233,6 +235,9 @@ contains
                     ! Use the existing type for consistency
                     typ = target_type
                 end if
+                
+                ! Check for INTENT violations will be done by caller if needed
+                ! This avoids circular dependency
 
                 ! Store type in the identifier node
                 if (.not. allocated(target%inferred_type)) then
@@ -307,6 +312,9 @@ contains
 
         type is (array_literal_node)
             typ = infer_array_literal(this, arena, expr, expr_index)
+
+        type is (do_loop_node)
+            typ = infer_implied_do_loop(this, arena, expr, expr_index)
 
         class default
             ! Return real type as default for unsupported expressions
@@ -557,26 +565,12 @@ contains
                     ! Unify current function type with expected
                     ! Check if we're trying to unify incompatible types
                     if (result_typ%kind /= TFUN .and. expected_fun_type%kind == TFUN) then
-                        print *, "WARNING: Trying to unify non-function type with function type"
-                        print *, "  This might be array subscripting, skipping unification"
                         ! Create a type variable as result
                         tv = ctx%fresh_type_var()
                         result_typ = create_mono_type(TVAR, var=tv)
                         cycle
                     end if
                     
-                    print *, "DEBUG infer_function_call: About to unify at line 546"
-                    print *, "  result_typ kind:", result_typ%kind
-                    print *, "  expected_fun_type kind:", expected_fun_type%kind
-                    if (result_typ%kind == TINT) then
-                        print *, "  result_typ is TINT"
-                    end if
-                    if (expected_fun_type%kind == TFUN) then
-                        print *, "  expected_fun_type is TFUN"
-                        if (allocated(expected_fun_type%args) .and. size(expected_fun_type%args) >= 1) then
-                            print *, "    arg type kind:", expected_fun_type%args(1)%kind
-                        end if
-                    end if
                     
                     s = ctx%unify(result_typ, expected_fun_type)
                     call ctx%compose_with_subst(s)
@@ -635,12 +629,10 @@ contains
 
         ! Both are concrete types
         if (t1_subst%kind /= t2_subst%kind) then
-            print *, "DEBUG: unify_types - t1 kind:", t1_subst%kind, "t2 kind:", t2_subst%kind
             
             ! Special case: trying to unify integer with function type likely means array subscripting
             if ((t1_subst%kind == TINT .and. t2_subst%kind == TFUN) .or. &
                 (t1_subst%kind == TFUN .and. t2_subst%kind == TINT)) then
-                print *, "WARNING: Trying to unify integer with function - likely array subscripting"
                 ! Return empty substitution to continue
                 subst%count = 0
                 allocate(subst%vars(0))
@@ -848,8 +840,10 @@ contains
         case ("real", "float")
             typ = create_fun_type(int_type, real_type)
 
-            ! Min/max (for now, just real -> real)
+            ! Min/max - variadic functions that take 2 or more arguments
         case ("min", "max")
+            ! For now, create a type that accepts multiple arguments
+            ! This is a simplification - proper variadic support would be better
             typ = create_fun_type(real_type, real_type)
 
             ! Mod function
@@ -860,6 +854,106 @@ contains
             ! Precision inquiry function (real -> integer)
         case ("precision")
             typ = create_fun_type(real_type, int_type)
+            
+        ! Array intrinsic functions
+        case ("size")
+            ! size(array) -> integer
+            ! For now, create a polymorphic array type
+            block
+                type(mono_type_t) :: array_type, elem_var
+                type(mono_type_t), allocatable :: array_args(:)
+                
+                elem_var = create_mono_type(TVAR, var=this%fresh_type_var())
+                allocate(array_args(1))
+                array_args(1) = elem_var
+                array_type = create_mono_type(TARRAY, args=array_args)
+                typ = create_fun_type(array_type, int_type)
+            end block
+            
+        case ("sum")
+            ! sum(array) -> element_type (numeric)
+            ! For now, handle integer and real arrays
+            block
+                type(mono_type_t) :: array_type
+                type(mono_type_t), allocatable :: array_args(:)
+                
+                allocate(array_args(1))
+                array_args(1) = int_type
+                array_type = create_mono_type(TARRAY, args=array_args)
+                typ = create_fun_type(array_type, int_type)
+            end block
+            
+        case ("shape")
+            ! shape(array) -> integer array
+            block
+                type(mono_type_t) :: array_type, result_type, elem_var
+                type(mono_type_t), allocatable :: array_args(:), result_args(:)
+                
+                ! Input: array of any type
+                elem_var = create_mono_type(TVAR, var=this%fresh_type_var())
+                allocate(array_args(1))
+                array_args(1) = elem_var
+                array_type = create_mono_type(TARRAY, args=array_args)
+                
+                ! Output: integer array
+                allocate(result_args(1))
+                result_args(1) = int_type
+                result_type = create_mono_type(TARRAY, args=result_args)
+                
+                typ = create_fun_type(array_type, result_type)
+            end block
+
+        ! String intrinsic functions
+        case ("len")
+            ! len(string) -> integer
+            block
+                type(mono_type_t) :: char_type
+                char_type = create_mono_type(TCHAR)
+                typ = create_fun_type(char_type, int_type)
+            end block
+            
+        case ("len_trim")
+            ! len_trim(string) -> integer
+            block
+                type(mono_type_t) :: char_type
+                char_type = create_mono_type(TCHAR)
+                typ = create_fun_type(char_type, int_type)
+            end block
+            
+        case ("trim")
+            ! trim(string) -> string
+            block
+                type(mono_type_t) :: char_type
+                char_type = create_mono_type(TCHAR)
+                typ = create_fun_type(char_type, char_type)
+            end block
+            
+        case ("adjustl", "adjustr")
+            ! adjustl/adjustr(string) -> string
+            block
+                type(mono_type_t) :: char_type
+                char_type = create_mono_type(TCHAR)
+                typ = create_fun_type(char_type, char_type)
+            end block
+            
+        case ("index")
+            ! index(string, substring) -> integer
+            ! For now, simplified as string -> integer
+            block
+                type(mono_type_t) :: char_type
+                char_type = create_mono_type(TCHAR)
+                typ = create_fun_type(char_type, int_type)
+            end block
+            
+        case ("present")
+            ! present(optional_param) -> logical
+            ! Takes any type and returns logical
+            block
+                type(mono_type_t) :: param_type, logical_type
+                param_type = create_mono_type(TVAR, var=this%fresh_type_var())
+                logical_type = create_mono_type(TLOGICAL)
+                typ = create_fun_type(param_type, logical_type)
+            end block
 
         case default
             ! Return empty type to indicate not found
@@ -1092,6 +1186,9 @@ contains
 
         ! Enter function scope
         call ctx%scopes%enter_function(func_def%name)
+        
+        ! Clear parameter tracker for new function
+        call ctx%param_tracker%clear()
 
         ! Process parameters and add to local scope
         if (allocated(func_def%param_indices)) then
@@ -1104,6 +1201,11 @@ contains
                 if (allocated(arena%entries(func_def%param_indices(i))%node)) then
                     select type (param => arena%entries(func_def%param_indices(i))%node)
                     type is (identifier_node)
+                        call ctx%scopes%define(param%name, &
+                      create_poly_type(forall_vars=[type_var_t::], mono=param_types(i)))
+                    type is (parameter_declaration_node)
+                        ! Track parameter with intent
+                        call ctx%param_tracker%add_parameter(param%name, param%intent)
                         call ctx%scopes%define(param%name, &
                       create_poly_type(forall_vars=[type_var_t::], mono=param_types(i)))
                     end select
@@ -1176,6 +1278,9 @@ contains
 
         ! Enter subroutine scope
         call ctx%scopes%enter_subroutine(sub_def%name)
+        
+        ! Clear parameter tracker for new subroutine
+        call ctx%param_tracker%clear()
 
         ! Process parameters and add to local scope
         if (allocated(sub_def%param_indices)) then
@@ -1184,6 +1289,12 @@ contains
                 if (allocated(arena%entries(sub_def%param_indices(i))%node)) then
                     select type (param => arena%entries(sub_def%param_indices(i))%node)
                     type is (identifier_node)
+                        call ctx%scopes%define(param%name, &
+                                          create_poly_type(forall_vars=[type_var_t::], &
+                                 mono=create_mono_type(TVAR, var=ctx%fresh_type_var())))
+                    type is (parameter_declaration_node)
+                        ! Track parameter with intent
+                        call ctx%param_tracker%add_parameter(param%name, param%intent)
                         call ctx%scopes%define(param%name, &
                                           create_poly_type(forall_vars=[type_var_t::], &
                                  mono=create_mono_type(TVAR, var=ctx%fresh_type_var())))
@@ -1460,5 +1571,57 @@ contains
         typ%size = size(arr_node%element_indices)
 
     end function infer_array_literal
+
+    ! Infer type of implied DO loop in array constructor
+    function infer_implied_do_loop(this, arena, do_node, expr_index) result(typ)
+        class(semantic_context_t), intent(inout) :: this
+        type(ast_arena_t), intent(inout) :: arena
+        type(do_loop_node), intent(in) :: do_node
+        integer, intent(in) :: expr_index
+        type(mono_type_t) :: typ
+        type(mono_type_t) :: elem_type, start_type, end_type, step_type
+        type(mono_type_t), allocatable :: array_args(:)
+        type(poly_type_t) :: loop_var_scheme
+        
+        ! Enter a new scope for the implied DO loop
+        call this%scopes%enter_block()
+        
+        ! Add loop variable to scope as integer
+        loop_var_scheme = create_poly_type(forall_vars=[type_var_t::], &
+                                         mono=create_mono_type(TINT))
+        call this%scopes%define(do_node%var_name, loop_var_scheme)
+        
+        ! Infer types of bounds
+        if (do_node%start_expr_index > 0) then
+            start_type = this%infer(arena, do_node%start_expr_index)
+        end if
+        
+        if (do_node%end_expr_index > 0) then
+            end_type = this%infer(arena, do_node%end_expr_index)
+        end if
+        
+        if (do_node%step_expr_index > 0) then
+            step_type = this%infer(arena, do_node%step_expr_index)
+        end if
+        
+        ! Infer type of the body expression
+        if (allocated(do_node%body_indices) .and. size(do_node%body_indices) > 0) then
+            elem_type = this%infer(arena, do_node%body_indices(1))
+        else
+            ! Default to integer if no body
+            elem_type = create_mono_type(TINT)
+        end if
+        
+        ! Leave the implied DO scope
+        call this%scopes%leave_scope()
+        
+        ! Return array type with element type
+        allocate(array_args(1))
+        array_args(1) = elem_type
+        typ = create_mono_type(TARRAY, args=array_args)
+        ! Size is not known at compile time for implied DO
+        typ%size = -1
+        
+    end function infer_implied_do_loop
 
 end module semantic_analyzer

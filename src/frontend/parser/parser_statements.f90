@@ -2,7 +2,7 @@ module parser_statements_module
     ! Parser module for various statement types (use, include, print, etc.)
     use lexer_core
     use parser_state_module
-    use parser_expressions_module
+    use parser_expressions_module, only: parse_comparison, parse_expression
     use parser_declarations_module, only: parse_declaration, parse_multi_declaration
     use ast_core
     use ast_factory
@@ -13,6 +13,8 @@ module parser_statements_module
     public :: parse_function_definition, parse_subroutine_definition
     public :: parse_interface_block, parse_module, parse_program_statement
     public :: parse_typed_parameters
+    public :: parse_stop_statement, parse_return_statement
+    public :: parse_cycle_statement, parse_exit_statement
 
 contains
 
@@ -181,6 +183,134 @@ contains
        print_index = push_print_statement(arena, format_spec, arg_indices, line, column)
 
     end function parse_print_statement
+    
+    ! Parse STOP statement: stop [stop-code]
+    ! stop-code can be an integer expression or string literal
+    function parse_stop_statement(parser, arena) result(stop_index)
+        type(parser_state_t), intent(inout) :: parser
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: stop_index
+        
+        type(token_t) :: token
+        integer :: line, column, stop_code_index
+        character(len=:), allocatable :: stop_message
+        
+        ! Consume 'stop' keyword
+        token = parser%peek()
+        line = token%line
+        column = token%column
+        token = parser%consume()
+        
+        ! Check for optional stop code or message
+        token = parser%peek()
+        stop_code_index = 0
+        stop_message = ""
+        
+        if (token%kind == TK_STRING) then
+            ! String literal message
+            stop_message = token%text
+            token = parser%consume()
+        else if (token%kind == TK_NUMBER .or. token%kind == TK_IDENTIFIER) then
+            ! Integer expression or variable
+            stop_code_index = parse_comparison(parser, arena)
+        end if
+        
+        ! Create STOP node
+        if (len_trim(stop_message) > 0) then
+            stop_index = push_stop(arena, stop_message=stop_message, &
+                                 line=line, column=column)
+        else
+            stop_index = push_stop(arena, stop_code_index=stop_code_index, &
+                                 line=line, column=column)
+        end if
+    end function parse_stop_statement
+    
+    ! Parse RETURN statement
+    function parse_return_statement(parser, arena) result(return_index)
+        type(parser_state_t), intent(inout) :: parser
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: return_index
+        
+        type(token_t) :: token
+        integer :: line, column
+        
+        ! Consume 'return' keyword
+        token = parser%peek()
+        line = token%line
+        column = token%column
+        token = parser%consume()
+        
+        ! Create RETURN node
+        return_index = push_return(arena, line=line, column=column)
+    end function parse_return_statement
+    
+    ! Parse CYCLE statement: cycle [loop-label]
+    function parse_cycle_statement(parser, arena) result(cycle_index)
+        type(parser_state_t), intent(inout) :: parser
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: cycle_index
+        
+        type(token_t) :: token
+        integer :: line, column
+        character(len=:), allocatable :: loop_label
+        
+        ! Consume 'cycle' keyword
+        token = parser%peek()
+        line = token%line
+        column = token%column
+        token = parser%consume()
+        
+        ! Check for optional loop label
+        token = parser%peek()
+        if (token%kind == TK_IDENTIFIER) then
+            loop_label = token%text
+            token = parser%consume()
+        else
+            loop_label = ""
+        end if
+        
+        ! Create CYCLE node
+        if (len_trim(loop_label) > 0) then
+            cycle_index = push_cycle(arena, loop_label=loop_label, &
+                                   line=line, column=column)
+        else
+            cycle_index = push_cycle(arena, line=line, column=column)
+        end if
+    end function parse_cycle_statement
+    
+    ! Parse EXIT statement: exit [loop-label]
+    function parse_exit_statement(parser, arena) result(exit_index)
+        type(parser_state_t), intent(inout) :: parser
+        type(ast_arena_t), intent(inout) :: arena
+        integer :: exit_index
+        
+        type(token_t) :: token
+        integer :: line, column
+        character(len=:), allocatable :: loop_label
+        
+        ! Consume 'exit' keyword
+        token = parser%peek()
+        line = token%line
+        column = token%column
+        token = parser%consume()
+        
+        ! Check for optional loop label
+        token = parser%peek()
+        if (token%kind == TK_IDENTIFIER) then
+            loop_label = token%text
+            token = parser%consume()
+        else
+            loop_label = ""
+        end if
+        
+        ! Create EXIT node
+        if (len_trim(loop_label) > 0) then
+            exit_index = push_exit(arena, loop_label=loop_label, &
+                                 line=line, column=column)
+        else
+            exit_index = push_exit(arena, line=line, column=column)
+        end if
+    end function parse_exit_statement
 
     ! Parse only list helper
     subroutine parse_only_list(parser, only_list, rename_list)
@@ -570,6 +700,10 @@ contains
                                 token = parser%consume()
                             end do
                         end if
+                    else if (token%kind == TK_KEYWORD .and. token%text == "optional") then
+                        ! Mark current type as optional (stored with intent value 4)
+                        current_intent = 4  ! Using 4 to indicate optional
+                        token = parser%consume()
                     end if
                 end if
 

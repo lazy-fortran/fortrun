@@ -8,7 +8,9 @@ module parser_dispatcher_module
     use parser_statements_module, only: parse_use_statement, parse_include_statement, &
                                      parse_print_statement, parse_function_definition, &
                                    parse_subroutine_definition, parse_interface_block, &
-                                        parse_module, parse_program_statement
+                                        parse_module, parse_program_statement, &
+                                        parse_stop_statement, parse_return_statement, &
+                                        parse_cycle_statement, parse_exit_statement
     use parser_control_flow_module
     use ast_core
     use ast_factory
@@ -46,6 +48,8 @@ contains
                 stmt_index = parse_if(parser, arena)
             case ("do")
                 stmt_index = parse_do_loop(parser, arena)
+            case ("where")
+                stmt_index = parse_where_construct(parser, arena)
             case ("select")
                 stmt_index = parse_select_case(parser, arena)
             case ("function")
@@ -64,6 +68,14 @@ contains
                 stmt_index = parse_type_or_declaration(parser, arena)
             case ("call")
                 stmt_index = parse_call_statement(parser, arena)
+            case ("stop")
+                stmt_index = parse_stop_statement(parser, arena)
+            case ("return")
+                stmt_index = parse_return_statement(parser, arena)
+            case ("cycle")
+                stmt_index = parse_cycle_statement(parser, arena)
+            case ("exit")
+                stmt_index = parse_exit_statement(parser, arena)
             case default
                 stmt_index = parse_as_expression(tokens, arena)
             end select
