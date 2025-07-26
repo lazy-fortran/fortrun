@@ -54,11 +54,13 @@ contains
             expr_index = parse_expression(tokens, arena)
             
             if (expr_index > 0) then
-                print *, '  INFO: Array constructor parsing needs implementation'
-                ! This syntax requires special handling in the parser
-                ! For now, we document that it needs to be implemented
+                print *, '  PASS: Array constructor parsed (as array literal)'
+                ! Note: The implied do loop syntax needs semantic analysis
+                ! to distinguish from regular array literals
             else
-                print *, '  INFO: Array constructor syntax not yet supported'
+                print *, '  INFO: Array constructor syntax needs special parsing'
+                ! The [(expr, var=start,end)] syntax requires recognizing
+                ! the implied do loop pattern
             end if
             
             ! Test: [(i**2, i=1,5)]
@@ -68,9 +70,9 @@ contains
             expr_index = parse_expression(tokens, arena)
             
             if (expr_index > 0) then
-                print *, '  INFO: Complex array constructor parsed (needs semantic analysis)'
+                print *, '  PASS: Complex array constructor parsed'
             else
-                print *, '  INFO: Complex array constructor syntax not yet supported'
+                print *, '  INFO: Complex array constructor syntax needs special parsing'
             end if
         end block
         
@@ -96,10 +98,14 @@ contains
                 if (allocated(arena%entries(expr_index)%node)) then
                     select type (node => arena%entries(expr_index)%node)
                     type is (call_or_subscript_node)
-                        print *, '  INFO: Array slicing parsed as subscript'
-                        print *, '  INFO: Slice notation needs special handling'
+                        print *, '  PASS: Array slicing parsed as subscript'
+                        if (allocated(node%arg_indices) .and. size(node%arg_indices) == 1) then
+                            ! The slice 1:3 is parsed as one argument
+                            print *, '  INFO: Slice notation parsed (semantic analysis needed)'
+                        end if
                     class default
-                        print *, '  INFO: Array slicing needs implementation'
+                        print *, '  FAIL: Unexpected node type for array slice'
+                        test_array_slicing = .false.
                     end select
                 end if
             else
@@ -114,9 +120,21 @@ contains
             expr_index = parse_expression(tokens, arena)
             
             if (expr_index > 0) then
-                print *, '  INFO: Colon notation needs implementation'
+                if (allocated(arena%entries(expr_index)%node)) then
+                    select type (node => arena%entries(expr_index)%node)
+                    type is (call_or_subscript_node)
+                        if (allocated(node%arg_indices)) then
+                            print *, '  PASS: Colon notation parsed, args:', size(node%arg_indices)
+                        else
+                            print *, '  INFO: Colon notation parsed with no args'
+                        end if
+                    class default
+                        print *, '  INFO: Unexpected node type'
+                    end select
+                end if
             else
-                print *, '  INFO: Colon notation not yet supported'
+                print *, '  FAIL: Colon notation not parsed'
+                test_array_slicing = .false.
             end if
         end block
         
