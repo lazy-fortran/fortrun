@@ -4,8 +4,8 @@ This document outlines the remaining features to implement in the Fortran compil
 
 ## High Priority - Core Language Features
 
-### 1. Array Constructors with Implied DO Loops
-**Status**: Parser support exists, semantic analysis and codegen missing
+### 1. Array Constructors with Implied DO Loops ✓
+**Status**: COMPLETED - Parser, semantic analysis, and codegen all working
 
 **RED Test**:
 ```fortran
@@ -16,9 +16,9 @@ matrix = [((i+j, i=1,3), j=1,3)] ! Nested implied do
 ```
 
 **Implementation Tasks**:
-- [ ] Fix semantic analyzer to handle loop variables in implied DO
-- [ ] Implement type inference for implied DO expressions
-- [ ] Generate proper code for array construction
+- [x] Fix semantic analyzer to handle loop variables in implied DO
+- [x] Implement type inference for implied DO expressions
+- [x] Generate proper code for array construction
 
 ### 2. STOP and RETURN Statements
 **Status**: Not implemented

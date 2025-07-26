@@ -308,6 +308,9 @@ contains
         type is (array_literal_node)
             typ = infer_array_literal(this, arena, expr, expr_index)
 
+        type is (do_loop_node)
+            typ = infer_implied_do_loop(this, arena, expr, expr_index)
+
         class default
             ! Return real type as default for unsupported expressions
             typ = create_mono_type(TREAL)
@@ -1460,5 +1463,57 @@ contains
         typ%size = size(arr_node%element_indices)
 
     end function infer_array_literal
+
+    ! Infer type of implied DO loop in array constructor
+    function infer_implied_do_loop(this, arena, do_node, expr_index) result(typ)
+        class(semantic_context_t), intent(inout) :: this
+        type(ast_arena_t), intent(inout) :: arena
+        type(do_loop_node), intent(in) :: do_node
+        integer, intent(in) :: expr_index
+        type(mono_type_t) :: typ
+        type(mono_type_t) :: elem_type, start_type, end_type, step_type
+        type(mono_type_t), allocatable :: array_args(:)
+        type(poly_type_t) :: loop_var_scheme
+        
+        ! Enter a new scope for the implied DO loop
+        call this%scopes%enter_block()
+        
+        ! Add loop variable to scope as integer
+        loop_var_scheme = create_poly_type(forall_vars=[type_var_t::], &
+                                         mono=create_mono_type(TINT))
+        call this%scopes%define(do_node%var_name, loop_var_scheme)
+        
+        ! Infer types of bounds
+        if (do_node%start_expr_index > 0) then
+            start_type = this%infer(arena, do_node%start_expr_index)
+        end if
+        
+        if (do_node%end_expr_index > 0) then
+            end_type = this%infer(arena, do_node%end_expr_index)
+        end if
+        
+        if (do_node%step_expr_index > 0) then
+            step_type = this%infer(arena, do_node%step_expr_index)
+        end if
+        
+        ! Infer type of the body expression
+        if (allocated(do_node%body_indices) .and. size(do_node%body_indices) > 0) then
+            elem_type = this%infer(arena, do_node%body_indices(1))
+        else
+            ! Default to integer if no body
+            elem_type = create_mono_type(TINT)
+        end if
+        
+        ! Leave the implied DO scope
+        call this%scopes%leave_scope()
+        
+        ! Return array type with element type
+        allocate(array_args(1))
+        array_args(1) = elem_type
+        typ = create_mono_type(TARRAY, args=array_args)
+        ! Size is not known at compile time for implied DO
+        typ%size = -1
+        
+    end function infer_implied_do_loop
 
 end module semantic_analyzer
