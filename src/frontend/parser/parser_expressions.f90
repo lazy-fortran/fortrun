@@ -137,7 +137,7 @@ contains
         do while (.not. parser%is_at_end())
             op_token = parser%peek()
             if (op_token%kind == TK_OPERATOR .and. &
-                (op_token%text == "+" .or. op_token%text == "-")) then
+                (op_token%text == "+" .or. op_token%text == "-" .or. op_token%text == "//")) then
                 op_token = parser%consume()
                 right_index = parse_factor(parser, arena)
                 expr_index = push_binary_op(arena, expr_index, right_index, op_token%text, op_token%line, op_token%column)
