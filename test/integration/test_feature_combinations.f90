@@ -108,7 +108,7 @@ contains
         integer :: i, j, k
         
         ! Complex array constructor with nested implied DO
-        vector = [(i*j, i=1,3, j=1,3)]
+        vector = [((i*j, j=1,3), i=1,3)]
         
         ! Reshape with type inference
         matrix = reshape(vector, [3, 3])

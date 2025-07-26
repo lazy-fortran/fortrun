@@ -215,6 +215,8 @@ contains
         do
             read(unit, '(a)', iostat=iostat) line
             if (iostat /= 0) exit
+            ! Debug output
+            if (len_trim(line) > 0) print *, '  DEBUG: ', trim(line)
             if (index(line, 'character') > 0 .and. index(line, 'words(3)') > 0) then
                 found_char_array = .true.
                 exit

@@ -4,7 +4,8 @@ program test_intent_semantic_check
     implicit none
     
     type(temp_dir_manager) :: temp_mgr
-    character(len=:), allocatable :: test_file, output_file, error_msg
+    character(len=:), allocatable :: test_file, output_file
+    character(len=1024) :: error_msg
     type(compilation_options_t) :: options
     logical :: test_passed
     

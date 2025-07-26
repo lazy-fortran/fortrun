@@ -6,9 +6,7 @@ program test_cycle_exit_parser
     use parser_statements_module
     use ast_factory
     use ast_core
-    use ast_arena_module
     use ast_json
-    use error_handling
     implicit none
 
     call test_simple_cycle()
