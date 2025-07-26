@@ -170,6 +170,11 @@ contains
         write(random_suffix, '(I8.8)') rand_int
         hash_key = 'test_cache_key_' // random_suffix
 
+        ! Clean up any existing entry first (in case of previous test failure)
+        if (cache_exists(hash_key)) then
+            call invalidate_cache(hash_key, success)
+        end if
+
         ! Initially should not exist
         if (cache_exists(hash_key)) then
             write (error_unit, *) 'Error: Cache should not exist initially'
