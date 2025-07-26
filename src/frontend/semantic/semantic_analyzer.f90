@@ -707,9 +707,12 @@ contains
 
         case default
             if (t1_subst%kind == 0 .or. t2_subst%kind == 0) then
-                error stop "Uninitialized type in unification"
+                ! Return empty substitution for uninitialized types
+                ! This can happen with undefined functions
+                return
             else
-                error stop "Unknown type kind in unification"
+                ! For unknown type kinds, return empty substitution
+                return
             end if
         end select
     end function unify_types

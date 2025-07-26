@@ -12,7 +12,7 @@ module parser_dispatcher_module
     use parser_control_flow_module
     use ast_core
     use ast_factory
-    use parser_expressions_module, only: parse_expression
+    use parser_expressions_module, only: parse_expression, parse_range
     implicit none
     private
 
@@ -136,7 +136,7 @@ contains
     target_index = push_identifier(arena, id_token%text, id_token%line, id_token%column)
 
             ! Parse value expression
-            value_index = parse_expression(parser%tokens(parser%current_token:), arena)
+            value_index = parse_range(parser, arena)
 
             ! Create assignment
             if (value_index > 0) then
@@ -267,18 +267,9 @@ contains
 
             ! Parse argument expression
             arg_count = arg_count + 1
- temp_indices(arg_count) = parse_expression(parser%tokens(parser%current_token:), arena)
+            temp_indices(arg_count) = parse_range(parser, arena)
 
-            ! Advance parser position based on expression length
-            ! For now, just advance to next comma or closing paren
-            do
-                token = parser%peek()
-                if (token%kind == TK_OPERATOR .and. &
-                    (token%text == "," .or. token%text == ")")) then
-                    exit
-                end if
-                token = parser%consume()
-            end do
+            ! Parser position already advanced by parse_range
 
             ! Check for comma
             token = parser%peek()

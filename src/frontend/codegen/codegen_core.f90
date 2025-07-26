@@ -136,6 +136,7 @@ contains
         ! Generate code for value
         if (node%value_index > 0 .and. node%value_index <= arena%size) then
             value_code = generate_code_from_arena(arena, node%value_index)
+            
         else
             value_code = "???"
         end if
@@ -388,23 +389,8 @@ contains
                 end if
                 if (node%arg_indices(i) > 0) then
                     arg_code = generate_code_from_arena(arena, node%arg_indices(i))
-                    ! Check if this is a binary_op node with : operator
-                    if (node%arg_indices(i) <= arena%size .and. &
-                        allocated(arena%entries(node%arg_indices(i))%node)) then
-                        select type (arg_node => arena%entries(node%arg_indices(i))%node)
-                        type is (binary_op_node)
-                            if (trim(arg_node%operator) == ':') then
-                                ! For colon operator in subscripts, use the generated code directly
-                                args_code = args_code//arg_code
-                            else
-                                args_code = args_code//arg_code
-                            end if
-                        class default
-                            args_code = args_code//arg_code
-                        end select
-                    else
-                        args_code = args_code//arg_code
-                    end if
+                    
+                    args_code = args_code//arg_code
                 end if
             end do
         end if
