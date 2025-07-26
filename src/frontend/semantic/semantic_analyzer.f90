@@ -851,8 +851,10 @@ contains
         case ("real", "float")
             typ = create_fun_type(int_type, real_type)
 
-            ! Min/max (for now, just real -> real)
+            ! Min/max - variadic functions that take 2 or more arguments
         case ("min", "max")
+            ! For now, create a type that accepts multiple arguments
+            ! This is a simplification - proper variadic support would be better
             typ = create_fun_type(real_type, real_type)
 
             ! Mod function
@@ -863,6 +865,54 @@ contains
             ! Precision inquiry function (real -> integer)
         case ("precision")
             typ = create_fun_type(real_type, int_type)
+            
+        ! Array intrinsic functions
+        case ("size")
+            ! size(array) -> integer
+            ! For now, create a polymorphic array type
+            block
+                type(mono_type_t) :: array_type, elem_var
+                type(mono_type_t), allocatable :: array_args(:)
+                
+                elem_var = create_mono_type(TVAR, var=this%fresh_type_var())
+                allocate(array_args(1))
+                array_args(1) = elem_var
+                array_type = create_mono_type(TARRAY, args=array_args)
+                typ = create_fun_type(array_type, int_type)
+            end block
+            
+        case ("sum")
+            ! sum(array) -> element_type (numeric)
+            ! For now, handle integer and real arrays
+            block
+                type(mono_type_t) :: array_type
+                type(mono_type_t), allocatable :: array_args(:)
+                
+                allocate(array_args(1))
+                array_args(1) = int_type
+                array_type = create_mono_type(TARRAY, args=array_args)
+                typ = create_fun_type(array_type, int_type)
+            end block
+            
+        case ("shape")
+            ! shape(array) -> integer array
+            block
+                type(mono_type_t) :: array_type, result_type, elem_var
+                type(mono_type_t), allocatable :: array_args(:), result_args(:)
+                
+                ! Input: array of any type
+                elem_var = create_mono_type(TVAR, var=this%fresh_type_var())
+                allocate(array_args(1))
+                array_args(1) = elem_var
+                array_type = create_mono_type(TARRAY, args=array_args)
+                
+                ! Output: integer array
+                allocate(result_args(1))
+                result_args(1) = int_type
+                result_type = create_mono_type(TARRAY, args=result_args)
+                
+                typ = create_fun_type(array_type, result_type)
+            end block
 
         case default
             ! Return empty type to indicate not found
