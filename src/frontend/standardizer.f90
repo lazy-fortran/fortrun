@@ -559,6 +559,8 @@ contains
         integer, intent(inout) :: var_count
         character(len=64), intent(in) :: function_names(:)
         integer, intent(in) :: func_count
+        type(mono_type_t), pointer :: value_type
+        character(len=64) :: var_type
 
         if (assign_index <= 0 .or. assign_index > arena%size) return
         if (.not. allocated(arena%entries(assign_index)%node)) return
@@ -570,8 +572,28 @@ contains
                 if (allocated(arena%entries(assign%target_index)%node)) then
                     select type (target => arena%entries(assign%target_index)%node)
                     type is (identifier_node)
-    call collect_identifier_var(target, var_names, var_types, var_declared, var_count, &
-                                                    function_names, func_count)
+                        ! Check if the value is an array expression
+                        var_type = "real(8)"  ! Default type
+                        
+                        ! Try to get type from the value expression
+                        if (assign%value_index > 0 .and. assign%value_index <= arena%size) then
+                            if (allocated(arena%entries(assign%value_index)%node)) then
+                                ! Check if it's an array expression by structure
+                                if (is_array_expression(arena, assign%value_index)) then
+                                    ! Try to determine array size if possible
+                                    var_type = get_array_var_type(arena, assign%value_index)
+                                else
+                                    value_type => get_expression_type(arena, assign%value_index)
+                                    if (associated(value_type)) then
+                                        var_type = get_fortran_type_string(value_type)
+                                    end if
+                                end if
+                            end if
+                        end if
+                        
+                        ! Now collect the variable with the determined type
+                        call collect_identifier_var_with_type(target, var_type, var_names, var_types, &
+                                                              var_declared, var_count, function_names, func_count)
                     end select
                 end if
             end if
@@ -628,6 +650,55 @@ contains
             end if
         end if
     end subroutine collect_identifier_var
+    
+    ! Collect variable from identifier node with explicit type
+    subroutine collect_identifier_var_with_type(identifier, var_type, var_names, var_types, var_declared, &
+                                                 var_count, function_names, func_count)
+        type(identifier_node), intent(in) :: identifier
+        character(len=*), intent(in) :: var_type
+        character(len=64), intent(inout) :: var_names(:)
+        character(len=64), intent(inout) :: var_types(:)
+        logical, intent(inout) :: var_declared(:)
+        integer, intent(inout) :: var_count
+        character(len=64), intent(in) :: function_names(:)
+        integer, intent(in) :: func_count
+        integer :: i
+        logical :: found, is_function
+
+        ! Check if this identifier is a function name
+        is_function = .false.
+        do i = 1, func_count
+            if (trim(function_names(i)) == trim(identifier%name)) then
+                is_function = .true.
+                exit
+            end if
+        end do
+
+        ! Skip if it's a function
+        if (is_function) return
+
+        ! Check if variable already exists
+        found = .false.
+        do i = 1, var_count
+            if (trim(var_names(i)) == trim(identifier%name)) then
+                found = .true.
+                ! Update type if it's an array and wasn't before
+                if (index(var_type, "(") > 0 .and. index(var_types(i), "(") == 0) then
+                    var_types(i) = var_type
+                end if
+                exit
+            end if
+        end do
+
+        if (.not. found) then
+            var_count = var_count + 1
+            if (var_count <= size(var_names)) then
+                var_names(var_count) = identifier%name
+                var_types(var_count) = var_type
+                var_declared(var_count) = .true.
+            end if
+        end if
+    end subroutine collect_identifier_var_with_type
 
     ! Add a variable to the collection list
     subroutine add_variable(var_name, var_type, var_names, var_types, var_declared, var_count, &
@@ -759,6 +830,126 @@ contains
         
         is_array = (mono_type%kind == TARRAY)
     end function is_array_type
+    
+    ! Get the type of an expression from the AST
+    function get_expression_type(arena, expr_index) result(expr_type)
+        type(ast_arena_t), intent(in) :: arena
+        integer, intent(in) :: expr_index
+        type(mono_type_t), pointer :: expr_type
+        
+        expr_type => null()
+        
+        if (expr_index <= 0 .or. expr_index > arena%size) return
+        if (.not. allocated(arena%entries(expr_index)%node)) return
+        
+        select type (node => arena%entries(expr_index)%node)
+        type is (identifier_node)
+            if (allocated(node%inferred_type)) then
+                expr_type => node%inferred_type
+            end if
+        type is (array_literal_node)
+            if (allocated(node%inferred_type)) then
+                expr_type => node%inferred_type
+            end if
+        type is (call_or_subscript_node)
+            ! Check if this is an array subscript
+            if (allocated(node%inferred_type)) then
+                expr_type => node%inferred_type
+            else
+                ! If it's a subscript of an array, the result should be the element type or a subarray
+                ! For now, we'll check if it has a colon operator (array slice)
+                if (has_array_slice_args(arena, node)) then
+                    ! This is an array slice, so result is an array
+                    ! We need to get the base array type
+                    allocate(expr_type)
+                    expr_type%kind = TARRAY
+                    ! TODO: Set proper element type
+                end if
+            end if
+        type is (binary_op_node)
+            if (allocated(node%inferred_type)) then
+                expr_type => node%inferred_type
+            end if
+        type is (literal_node)
+            if (allocated(node%inferred_type)) then
+                expr_type => node%inferred_type
+            end if
+        end select
+    end function get_expression_type
+    
+    ! Check if a call_or_subscript node has array slice arguments
+    function has_array_slice_args(arena, node) result(has_slice)
+        type(ast_arena_t), intent(in) :: arena
+        type(call_or_subscript_node), intent(in) :: node
+        logical :: has_slice
+        integer :: i
+        
+        has_slice = .false.
+        
+        if (.not. allocated(node%arg_indices)) return
+        
+        do i = 1, size(node%arg_indices)
+            if (node%arg_indices(i) > 0 .and. node%arg_indices(i) <= arena%size) then
+                if (allocated(arena%entries(node%arg_indices(i))%node)) then
+                    select type (arg => arena%entries(node%arg_indices(i))%node)
+                    type is (binary_op_node)
+                        if (trim(arg%operator) == ":") then
+                            has_slice = .true.
+                            return
+                        end if
+                    end select
+                end if
+            end if
+        end do
+    end function has_array_slice_args
+    
+    ! Check if an expression is an array expression by structure
+    function is_array_expression(arena, expr_index) result(is_array)
+        type(ast_arena_t), intent(in) :: arena
+        integer, intent(in) :: expr_index
+        logical :: is_array
+        
+        is_array = .false.
+        
+        if (expr_index <= 0 .or. expr_index > arena%size) return
+        if (.not. allocated(arena%entries(expr_index)%node)) return
+        
+        select type (node => arena%entries(expr_index)%node)
+        type is (array_literal_node)
+            is_array = .true.
+        type is (call_or_subscript_node)
+            ! Check if this is an array slice (has colon operator in args)
+            if (has_array_slice_args(arena, node)) then
+                is_array = .true.
+            end if
+        end select
+    end function is_array_expression
+    
+    ! Get array variable type declaration from an array expression
+    function get_array_var_type(arena, expr_index) result(var_type)
+        type(ast_arena_t), intent(in) :: arena
+        integer, intent(in) :: expr_index
+        character(len=64) :: var_type
+        
+        var_type = "real(8), dimension(:), allocatable"  ! Default
+        
+        if (expr_index <= 0 .or. expr_index > arena%size) return
+        if (.not. allocated(arena%entries(expr_index)%node)) return
+        
+        select type (node => arena%entries(expr_index)%node)
+        type is (array_literal_node)
+            ! For array literals, we know the exact size
+            if (allocated(node%element_indices)) then
+                write(var_type, '(a,i0,a)') "real(8), dimension(", size(node%element_indices), ")"
+            end if
+        type is (call_or_subscript_node)
+            ! For array slices, try to calculate the size
+            if (has_array_slice_args(arena, node)) then
+                ! For now, use allocatable. TODO: Calculate slice size
+                var_type = "real(8), dimension(:), allocatable"
+            end if
+        end select
+    end function get_array_var_type
 
     ! Standardize existing declaration nodes (e.g., real -> real(8))
     subroutine standardize_declarations(arena, prog)
