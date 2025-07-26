@@ -441,6 +441,28 @@ contains
             call ctx%compose_with_subst(s2)
             result_typ = create_mono_type(TLOGICAL)
 
+        case ("//")
+            ! String concatenation
+            ! For now, just check both are character types
+            ! The result will have combined length
+            if (left_typ%kind == TCHAR .or. left_typ%kind == TVAR) then
+                ! Left is char or will be inferred as char
+            else
+                s1 = ctx%unify(left_typ, create_mono_type(TCHAR))
+                call ctx%compose_with_subst(s1)
+            end if
+            
+            if (right_typ%kind == TCHAR .or. right_typ%kind == TVAR) then
+                ! Right is char or will be inferred as char
+            else
+                s2 = ctx%unify(right_typ, create_mono_type(TCHAR))
+                call ctx%compose_with_subst(s2)
+            end if
+            
+            ! Result is a character type with combined length
+            ! For now, use default size
+            result_typ = create_mono_type(TCHAR)
+
         case default
             error stop "Unknown binary operator: "//trim(binop%operator)
         end select
@@ -543,6 +565,19 @@ contains
                         cycle
                     end if
                     
+                    print *, "DEBUG infer_function_call: About to unify at line 546"
+                    print *, "  result_typ kind:", result_typ%kind
+                    print *, "  expected_fun_type kind:", expected_fun_type%kind
+                    if (result_typ%kind == TINT) then
+                        print *, "  result_typ is TINT"
+                    end if
+                    if (expected_fun_type%kind == TFUN) then
+                        print *, "  expected_fun_type is TFUN"
+                        if (allocated(expected_fun_type%args) .and. size(expected_fun_type%args) >= 1) then
+                            print *, "    arg type kind:", expected_fun_type%args(1)%kind
+                        end if
+                    end if
+                    
                     s = ctx%unify(result_typ, expected_fun_type)
                     call ctx%compose_with_subst(s)
 
@@ -600,6 +635,8 @@ contains
 
         ! Both are concrete types
         if (t1_subst%kind /= t2_subst%kind) then
+            print *, "DEBUG: unify_types - t1 kind:", t1_subst%kind, "t2 kind:", t2_subst%kind
+            
             ! Special case: trying to unify integer with function type likely means array subscripting
             if ((t1_subst%kind == TINT .and. t2_subst%kind == TFUN) .or. &
                 (t1_subst%kind == TFUN .and. t2_subst%kind == TINT)) then
@@ -627,9 +664,10 @@ contains
             ! Base types unify if equal (already checked kind)
 
         case (TCHAR)
-            if (t1_subst%size /= t2_subst%size) then
-                error stop "Cannot unify character types of different lengths"
-            end if
+            ! For string concatenation and other operations, we may need to
+            ! unify character types of different lengths
+            ! For now, just accept any character types
+            ! TODO: Properly handle character length in type system
 
         case (TFUN)
             if (.not. allocated(t1_subst%args) .or. .not. allocated(t2_subst%args)) then

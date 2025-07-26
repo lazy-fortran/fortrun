@@ -31,7 +31,7 @@ contains
         character(len=:), allocatable :: input_file, output_file
         character(len=256) :: error_msg
         type(compilation_options_t) :: options
-        integer :: unit
+        integer :: unit, iostat
         character(len=256) :: line
         logical :: found_correct_output
         
@@ -60,11 +60,11 @@ contains
         
         ! Check generated code
         found_correct_output = .false.
-        open(newunit=unit, file=output_file, status='old', iostat=unit)
-        if (unit == 0) then
+        open(newunit=unit, file=output_file, status='old', iostat=iostat)
+        if (iostat == 0) then
             do
-                read(unit, '(a)', iostat=unit) line
-                if (unit /= 0) exit
+                read(unit, '(a)', iostat=iostat) line
+                if (iostat /= 0) exit
                 ! Look for array declaration and initialization
                 if (index(line, 'integer') > 0 .and. index(line, 'arr(3)') > 0) then
                     print *, '  PASS: Array declaration found'
@@ -91,7 +91,7 @@ contains
         character(len=:), allocatable :: input_file, output_file
         character(len=256) :: error_msg
         type(compilation_options_t) :: options
-        integer :: unit
+        integer :: unit, iostat
         
         test_array_slicing = .true.
         print *, 'Testing array slicing through full pipeline...'
@@ -127,7 +127,7 @@ contains
         character(len=:), allocatable :: input_file, output_file
         character(len=256) :: error_msg
         type(compilation_options_t) :: options
-        integer :: unit
+        integer :: unit, iostat
         
         test_array_constructors = .true.
         print *, 'Testing array constructors with implied do loops...'
@@ -165,7 +165,7 @@ contains
         character(len=:), allocatable :: input_file, output_file
         character(len=256) :: error_msg, line
         type(compilation_options_t) :: options
-        integer :: unit
+        integer :: unit, iostat
         logical :: found_concat
         
         test_string_concatenation = .true.
@@ -193,11 +193,11 @@ contains
         
         ! Check generated code
         found_concat = .false.
-        open(newunit=unit, file=output_file, status='old', iostat=unit)
-        if (unit == 0) then
+        open(newunit=unit, file=output_file, status='old', iostat=iostat)
+        if (iostat == 0) then
             do
-                read(unit, '(a)', iostat=unit) line
-                if (unit /= 0) exit
+                read(unit, '(a)', iostat=iostat) line
+                if (iostat /= 0) exit
                 if (index(line, '//') > 0) then
                     print *, '  PASS: String concatenation preserved'
                     found_concat = .true.

@@ -152,6 +152,8 @@ module ast_core
     contains
         procedure :: accept => call_or_subscript_accept
         procedure :: to_json => call_or_subscript_to_json
+        procedure :: assign => call_or_subscript_assign
+        generic :: assignment(=) => assign
     end type call_or_subscript_node
 
     ! Identifier node
@@ -177,6 +179,8 @@ module ast_core
     contains
         procedure :: accept => array_literal_accept
         procedure :: to_json => array_literal_to_json
+        procedure :: assign => array_literal_assign
+        generic :: assignment(=) => assign
     end type array_literal_node
 
     ! Use statement node
@@ -261,6 +265,8 @@ module ast_core
     contains
         procedure :: accept => do_loop_accept
         procedure :: to_json => do_loop_to_json
+        procedure :: assign => do_loop_assign
+        generic :: assignment(=) => assign
     end type do_loop_node
 
     ! Do while loop node
@@ -2120,5 +2126,71 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
             end do
         end if
     end subroutine ast_arena_assign
+
+    ! Assignment operator for call_or_subscript_node (deep copy)
+    subroutine call_or_subscript_assign(lhs, rhs)
+        class(call_or_subscript_node), intent(out) :: lhs
+        type(call_or_subscript_node), intent(in) :: rhs
+        
+        ! Copy base class components
+        lhs%line = rhs%line
+        lhs%column = rhs%column
+        if (allocated(rhs%inferred_type)) then
+            allocate(lhs%inferred_type, source=rhs%inferred_type)
+        end if
+        
+        ! Copy specific components
+        lhs%name = rhs%name
+        
+        ! Deep copy allocatable array
+        if (allocated(rhs%arg_indices)) then
+            allocate(lhs%arg_indices(size(rhs%arg_indices)))
+            lhs%arg_indices = rhs%arg_indices
+        end if
+    end subroutine call_or_subscript_assign
+
+    ! Assignment operator for array_literal_node (deep copy)
+    subroutine array_literal_assign(lhs, rhs)
+        class(array_literal_node), intent(out) :: lhs
+        type(array_literal_node), intent(in) :: rhs
+        
+        ! Copy base class components
+        lhs%line = rhs%line
+        lhs%column = rhs%column
+        if (allocated(rhs%inferred_type)) then
+            allocate(lhs%inferred_type, source=rhs%inferred_type)
+        end if
+        
+        ! Deep copy allocatable array
+        if (allocated(rhs%element_indices)) then
+            allocate(lhs%element_indices(size(rhs%element_indices)))
+            lhs%element_indices = rhs%element_indices
+        end if
+    end subroutine array_literal_assign
+
+    ! Assignment operator for do_loop_node (deep copy)
+    subroutine do_loop_assign(lhs, rhs)
+        class(do_loop_node), intent(out) :: lhs
+        type(do_loop_node), intent(in) :: rhs
+        
+        ! Copy base class components
+        lhs%line = rhs%line
+        lhs%column = rhs%column
+        if (allocated(rhs%inferred_type)) then
+            allocate(lhs%inferred_type, source=rhs%inferred_type)
+        end if
+        
+        ! Copy specific components
+        lhs%var_name = rhs%var_name
+        lhs%start_expr_index = rhs%start_expr_index
+        lhs%end_expr_index = rhs%end_expr_index
+        lhs%step_expr_index = rhs%step_expr_index
+        
+        ! Deep copy allocatable array
+        if (allocated(rhs%body_indices)) then
+            allocate(lhs%body_indices(size(rhs%body_indices)))
+            lhs%body_indices = rhs%body_indices
+        end if
+    end subroutine do_loop_assign
 
 end module ast_core
