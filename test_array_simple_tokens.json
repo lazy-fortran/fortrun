@@ -1,0 +1,5 @@
+<ERROR> Compilation failed for object " app_main.f90.o "
+app/main.f90:5:43:
+Error: Invalid character in name at (1)
+<ERROR> stopping due to failed compilation
+STOP 1

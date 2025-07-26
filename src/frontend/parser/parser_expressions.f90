@@ -176,6 +176,7 @@ contains
         type(ast_arena_t), intent(inout) :: arena
         integer :: expr_index
         type(token_t) :: current
+        
 
         current = parser%peek()
 
@@ -290,6 +291,8 @@ contains
             end block
 
         case (TK_OPERATOR)
+            ! Debug: print operator
+            ! print *, "DEBUG parse_primary: operator = '", trim(current%text), "'"
             ! Check for parentheses
             if (current%text == "(") then
                 current = parser%consume()  ! consume '('
