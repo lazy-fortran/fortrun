@@ -575,8 +575,12 @@ contains
         if (allocated(node%stop_message) .and. len_trim(node%stop_message) > 0) then
             code = code//" "//node%stop_message
         else if (node%stop_code_index > 0 .and. node%stop_code_index <= arena%size) then
-            stop_code_str = generate_code_from_arena(arena, node%stop_code_index)
-            code = code//" "//stop_code_str
+            if (allocated(arena%entries(node%stop_code_index)%node)) then
+                stop_code_str = generate_code_from_arena(arena, node%stop_code_index)
+                code = code//" "//stop_code_str
+            else
+                code = code//" 0"  ! Default stop code
+            end if
         end if
     end function generate_code_stop
     

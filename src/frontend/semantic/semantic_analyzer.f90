@@ -565,26 +565,12 @@ contains
                     ! Unify current function type with expected
                     ! Check if we're trying to unify incompatible types
                     if (result_typ%kind /= TFUN .and. expected_fun_type%kind == TFUN) then
-                        print *, "WARNING: Trying to unify non-function type with function type"
-                        print *, "  This might be array subscripting, skipping unification"
                         ! Create a type variable as result
                         tv = ctx%fresh_type_var()
                         result_typ = create_mono_type(TVAR, var=tv)
                         cycle
                     end if
                     
-                    print *, "DEBUG infer_function_call: About to unify at line 546"
-                    print *, "  result_typ kind:", result_typ%kind
-                    print *, "  expected_fun_type kind:", expected_fun_type%kind
-                    if (result_typ%kind == TINT) then
-                        print *, "  result_typ is TINT"
-                    end if
-                    if (expected_fun_type%kind == TFUN) then
-                        print *, "  expected_fun_type is TFUN"
-                        if (allocated(expected_fun_type%args) .and. size(expected_fun_type%args) >= 1) then
-                            print *, "    arg type kind:", expected_fun_type%args(1)%kind
-                        end if
-                    end if
                     
                     s = ctx%unify(result_typ, expected_fun_type)
                     call ctx%compose_with_subst(s)
@@ -643,12 +629,10 @@ contains
 
         ! Both are concrete types
         if (t1_subst%kind /= t2_subst%kind) then
-            print *, "DEBUG: unify_types - t1 kind:", t1_subst%kind, "t2 kind:", t2_subst%kind
             
             ! Special case: trying to unify integer with function type likely means array subscripting
             if ((t1_subst%kind == TINT .and. t2_subst%kind == TFUN) .or. &
                 (t1_subst%kind == TFUN .and. t2_subst%kind == TINT)) then
-                print *, "WARNING: Trying to unify integer with function - likely array subscripting"
                 ! Return empty substitution to continue
                 subst%count = 0
                 allocate(subst%vars(0))
