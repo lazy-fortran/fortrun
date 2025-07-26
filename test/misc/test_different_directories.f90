@@ -107,10 +107,13 @@ contains
             rel_exit_file = get_temp_file_path(temp_dir, 'rel_exit.txt')
 
             if (get_os_type() == OS_WINDOWS) then
-                command = trim(fortran_with_isolated_cache('test_diff_dirs_rel')) // ' '//path_join(test_dir, 'subdir/hello.f90')
+                command = trim(fortran_with_isolated_cache('test_diff_dirs_rel')) // ' '// &
+                         path_join(test_dir, 'subdir/hello.f90')
             else
                 command = 'ORIGINAL_DIR=$(pwd) && cd '//trim(test_dir)// &
-                         ' && cd $ORIGINAL_DIR && ' // trim(fortran_with_isolated_cache('test_diff_dirs_rel')) // ' '//path_join(test_dir, 'subdir/hello.f90')
+                         ' && cd $ORIGINAL_DIR && ' // &
+                         trim(fortran_with_isolated_cache('test_diff_dirs_rel')) // ' '// &
+                         path_join(test_dir, 'subdir/hello.f90')
             end if
             call sys_run_command_with_exit_code(command, rel_output_file, rel_exit_file)
 

@@ -150,7 +150,7 @@ contains
 
         ! Clean up
         call execute_command_line('rm -f "'//trim(escape_shell_arg(temp_output_file))//'"')
-        call sys_remove_dir(temp_cache)
+        call sys_remove_dir(temp_dir)
 
     end subroutine run_fortran
 
