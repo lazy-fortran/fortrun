@@ -1,4 +1,4 @@
-program test_codegen_red
+program test_codegen_green
     use frontend, only: compile_source, compilation_options_t, BACKEND_FORTRAN
     use temp_utils, only: create_temp_file
     implicit none
@@ -7,8 +7,8 @@ program test_codegen_red
     
     all_passed = .true.
     
-    print *, '=== Code Generation RED Tests ==='
-    print *, 'These tests check code generation output (expected to fail or produce non-standard code)'
+    print *, '=== Code Generation Tests ==='
+    print *, 'These tests check code generation is working correctly'
     print *
     
     if (.not. test_array_literal_codegen()) all_passed = .false.
@@ -17,8 +17,13 @@ program test_codegen_red
     if (.not. test_complex_expr_codegen()) all_passed = .false.
     
     print *
-    print *, 'Code generation RED tests completed'
-    stop 0  ! Exit 0 since failures are expected
+    if (all_passed) then
+        print *, 'All code generation tests passed!'
+        stop 0
+    else
+        print *, 'Some code generation tests failed!'
+        stop 1
+    end if
     
 contains
 
@@ -202,4 +207,4 @@ contains
         
     end function test_complex_expr_codegen
     
-end program test_codegen_red
+end program test_codegen_green

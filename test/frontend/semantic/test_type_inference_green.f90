@@ -1,4 +1,4 @@
-program test_type_inference_red
+program test_type_inference_green
     use frontend, only: compile_source, compilation_options_t, BACKEND_FORTRAN
     use temp_utils, only: create_temp_file
     implicit none
@@ -7,8 +7,8 @@ program test_type_inference_red
     
     all_passed = .true.
     
-    print *, '=== Type Inference RED Tests ==='
-    print *, 'These tests are expected to fail (RED) until type inference is fully implemented'
+    print *, '=== Type Inference Tests ==='
+    print *, 'Testing that type inference is working correctly'
     print *
     
     ! Test type inference for various expressions
@@ -19,11 +19,11 @@ program test_type_inference_red
     
     print *
     if (all_passed) then
-        print *, 'All type inference tests completed (failures expected)!'
+        print *, 'All type inference tests passed!'
         stop 0
     else
-        print *, 'Type inference tests revealed expected failures'
-        stop 0  ! Still exit 0 since these are RED tests
+        print *, 'Some type inference tests failed!'
+        stop 1
     end if
     
 contains
@@ -53,10 +53,10 @@ contains
         call compile_source(input_file, options, error_msg)
         
         if (error_msg /= '') then
-            print *, '  EXPECTED FAIL: Type inference not implemented - ', trim(error_msg)
-            ! This is a RED test, so failure is expected
+            print *, '  FAIL: Type inference error - ', trim(error_msg)
+            test_array_literal_inference = .false.
         else
-            print *, '  Type inference might be working'
+            print *, '  PASS: Array literal type inference working'
         end if
         
     end function test_array_literal_inference
@@ -86,9 +86,10 @@ contains
         call compile_source(input_file, options, error_msg)
         
         if (error_msg /= '') then
-            print *, '  EXPECTED FAIL: Array constructor type inference - ', trim(error_msg)
+            print *, '  FAIL: Array constructor type inference - ', trim(error_msg)
+            test_array_constructor_inference = .false.
         else
-            print *, '  Array constructor type inference might be working'
+            print *, '  PASS: Array constructor type inference working'
         end if
         
     end function test_array_constructor_inference
@@ -118,9 +119,10 @@ contains
         call compile_source(input_file, options, error_msg)
         
         if (error_msg /= '') then
-            print *, '  EXPECTED FAIL: String concat type inference - ', trim(error_msg)
+            print *, '  FAIL: String concat type inference - ', trim(error_msg)
+            test_string_concat_inference = .false.
         else
-            print *, '  String concatenation type inference might be working'
+            print *, '  PASS: String concatenation type inference working'
         end if
         
     end function test_string_concat_inference
@@ -138,4 +140,4 @@ contains
         
     end function test_mixed_type_inference
     
-end program test_type_inference_red
+end program test_type_inference_green
