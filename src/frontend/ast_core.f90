@@ -338,6 +338,23 @@ module ast_core
         procedure :: accept => module_accept
         procedure :: to_json => module_to_json
     end type module_node
+    
+    ! STOP statement node
+    type, extends(ast_node), public :: stop_node
+        integer :: stop_code_index = 0                ! Optional stop code expression index
+        character(len=:), allocatable :: stop_message ! Optional stop message string
+    contains
+        procedure :: accept => stop_accept
+        procedure :: to_json => stop_to_json
+    end type stop_node
+    
+    ! RETURN statement node
+    type, extends(ast_node), public :: return_node
+        ! RETURN statement has no additional data
+    contains
+        procedure :: accept => return_accept
+        procedure :: to_json => return_to_json
+    end type return_node
 
     ! Case statement wrapper
     type, public :: case_wrapper
@@ -367,6 +384,7 @@ module ast_core
     public :: create_use_statement, create_include_statement, create_print_statement
     public :: create_declaration, create_do_loop, create_do_while, create_if, create_select_case
     public :: create_derived_type, create_interface_block, create_module
+    public :: create_stop, create_return
 
 contains
 
@@ -1138,6 +1156,34 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         if (present(line)) node%line = line
         if (present(column)) node%column = column
     end function create_module
+    
+    ! Create a STOP node
+    function create_stop(stop_code_index, stop_message, line, column) result(node)
+        integer, intent(in), optional :: stop_code_index
+        character(len=*), intent(in), optional :: stop_message
+        integer, intent(in), optional :: line, column
+        type(stop_node) :: node
+        
+        if (present(stop_code_index)) then
+            node%stop_code_index = stop_code_index
+        end if
+        
+        if (present(stop_message)) then
+            node%stop_message = stop_message
+        end if
+        
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_stop
+    
+    ! Create a RETURN node
+    function create_return(line, column) result(node)
+        integer, intent(in), optional :: line, column
+        type(return_node) :: node
+        
+        if (present(line)) node%line = line
+        if (present(column)) node%column = column
+    end function create_return
 
     ! JSON serialization implementations (I'll include the key ones)
 
@@ -1873,6 +1919,42 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
 
         call json%add(parent, obj)
     end subroutine module_to_json
+    
+    subroutine stop_to_json(this, json, parent)
+        class(stop_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj
+        
+        call json%create_object(obj, '')
+        call json%add(obj, 'node_type', 'stop')
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+        
+        if (this%stop_code_index > 0) then
+            call json%add(obj, 'stop_code_index', this%stop_code_index)
+        end if
+        
+        if (allocated(this%stop_message)) then
+            call json%add(obj, 'stop_message', this%stop_message)
+        end if
+        
+        call json%add(parent, obj)
+    end subroutine stop_to_json
+    
+    subroutine return_to_json(this, json, parent)
+        class(return_node), intent(in) :: this
+        type(json_core), intent(inout) :: json
+        type(json_value), pointer, intent(in) :: parent
+        type(json_value), pointer :: obj
+        
+        call json%create_object(obj, '')
+        call json%add(obj, 'node_type', 'return')
+        call json%add(obj, 'line', this%line)
+        call json%add(obj, 'column', this%column)
+        
+        call json%add(parent, obj)
+    end subroutine return_to_json
 
     ! High-performance arena memory management operations
 
@@ -2022,6 +2104,18 @@ function create_function_def(name, param_indices, return_type, body_indices, lin
         class(*), intent(inout) :: visitor
         ! Basic accept implementation - can be overridden
     end subroutine module_accept
+    
+    subroutine stop_accept(this, visitor)
+        class(stop_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine stop_accept
+    
+    subroutine return_accept(this, visitor)
+        class(return_node), intent(in) :: this
+        class(*), intent(inout) :: visitor
+        ! Basic accept implementation - can be overridden
+    end subroutine return_accept
 
     ! Deep copy an AST entry
     function ast_entry_deep_copy(this) result(copy)

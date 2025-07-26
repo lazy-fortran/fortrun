@@ -10,6 +10,7 @@ module ast_factory
     public :: push_if, push_do_loop, push_do_while, push_select_case
     public :: push_use_statement, push_include_statement, push_print_statement
     public :: push_function_def, push_subroutine_def, push_interface_block, push_module
+    public :: push_stop, push_return
     public :: build_ast_from_nodes
 
 contains
@@ -601,5 +602,35 @@ contains
         call arena%push(mod_node, "module_node", parent_index)
         module_index = arena%size
     end function push_module
+    
+    ! Create STOP statement node and add to stack
+    function push_stop(arena, stop_code_index, stop_message, line, column, parent_index) result(stop_index)
+        type(ast_arena_t), intent(inout) :: arena
+        integer, intent(in), optional :: stop_code_index
+        character(len=*), intent(in), optional :: stop_message
+        integer, intent(in), optional :: line, column, parent_index
+        integer :: stop_index
+        type(stop_node) :: stop_stmt
+        
+        stop_stmt = create_stop(stop_code_index=stop_code_index, &
+                              stop_message=stop_message, &
+                              line=line, column=column)
+        
+        call arena%push(stop_stmt, "stop_node", parent_index)
+        stop_index = arena%size
+    end function push_stop
+    
+    ! Create RETURN statement node and add to stack
+    function push_return(arena, line, column, parent_index) result(return_index)
+        type(ast_arena_t), intent(inout) :: arena
+        integer, intent(in), optional :: line, column, parent_index
+        integer :: return_index
+        type(return_node) :: return_stmt
+        
+        return_stmt = create_return(line=line, column=column)
+        
+        call arena%push(return_stmt, "return_node", parent_index)
+        return_index = arena%size
+    end function push_return
 
 end module ast_factory

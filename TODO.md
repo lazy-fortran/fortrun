@@ -20,8 +20,8 @@ matrix = [((i+j, i=1,3), j=1,3)] ! Nested implied do
 - [x] Implement type inference for implied DO expressions
 - [x] Generate proper code for array construction
 
-### 2. STOP and RETURN Statements
-**Status**: Not implemented
+### 2. STOP and RETURN Statements ✓
+**Status**: COMPLETED - Tokens, parsing, AST nodes, and code generation all working
 
 **RED Test**:
 ```fortran
@@ -39,10 +39,10 @@ end function
 ```
 
 **Implementation Tasks**:
-- [ ] Add STOP token and parsing
-- [ ] Add RETURN token and parsing
-- [ ] Implement AST nodes for both statements
-- [ ] Generate appropriate code
+- [x] Add STOP token and parsing
+- [x] Add RETURN token and parsing
+- [x] Implement AST nodes for both statements
+- [x] Generate appropriate code
 
 ### 3. Basic Intrinsic Functions
 **Status**: Not implemented

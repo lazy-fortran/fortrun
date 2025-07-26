@@ -63,6 +63,10 @@ contains
             code = "contains"
         type is (array_literal_node)
             code = generate_code_array_literal(arena, node, node_index)
+        type is (stop_node)
+            code = generate_code_stop(arena, node, node_index)
+        type is (return_node)
+            code = generate_code_return(arena, node, node_index)
         class default
             code = "! Unknown node type"
         end select
@@ -550,6 +554,35 @@ contains
             end do
         end if
     end function generate_code_print_statement
+    
+    ! Generate code for STOP statement
+    function generate_code_stop(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
+        type(stop_node), intent(in) :: node
+        integer, intent(in) :: node_index
+        character(len=:), allocatable :: code
+        character(len=:), allocatable :: stop_code_str
+        
+        code = with_indent("stop")
+        
+        ! Add stop code or message if present
+        if (allocated(node%stop_message) .and. len_trim(node%stop_message) > 0) then
+            code = code//" "//node%stop_message
+        else if (node%stop_code_index > 0 .and. node%stop_code_index <= arena%size) then
+            stop_code_str = generate_code_from_arena(arena, node%stop_code_index)
+            code = code//" "//stop_code_str
+        end if
+    end function generate_code_stop
+    
+    ! Generate code for RETURN statement
+    function generate_code_return(arena, node, node_index) result(code)
+        type(ast_arena_t), intent(in) :: arena
+        type(return_node), intent(in) :: node
+        integer, intent(in) :: node_index
+        character(len=:), allocatable :: code
+        
+        code = with_indent("return")
+    end function generate_code_return
 
     ! Generate code for declaration
     function generate_code_declaration(arena, node, node_index) result(code)
