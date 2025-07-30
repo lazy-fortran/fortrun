@@ -1,0 +1,121 @@
+program test_performance_baseline
+    use system_utils, only: get_current_time_ms
+    implicit none
+
+    ! Performance benchmarks for various language features
+    integer :: i, j
+    real :: start_time, end_time
+
+    ! Benchmark array operations
+    call benchmark_array_operations()
+
+    ! Benchmark string operations
+    call benchmark_string_operations()
+
+    ! Benchmark intrinsic functions
+    call benchmark_intrinsic_functions()
+
+    print *, "All performance benchmarks completed!"
+
+contains
+
+    subroutine benchmark_array_operations()
+        integer, parameter :: N = 1000
+        real :: array1(N), array2(N), result(N)
+        real :: start_ms, end_ms
+
+        ! Initialize arrays
+        array1 = [(real(i), i=1,N)]
+        array2 = [(real(i*2), i=1,N)]
+
+        start_ms = get_current_time_ms()
+
+        ! Benchmark WHERE construct
+        do j = 1, 100
+            where (array1 > N/2)
+                result = array1 * array2
+            elsewhere
+                result = array1 + array2
+            end where
+        end do
+
+        end_ms = get_current_time_ms()
+
+        print '(A,F8.2,A)', "Array operations (WHERE): ", end_ms - start_ms, " ms"
+
+        ! Verify correctness
+        do i = 1, N
+            if (array1(i) > N/2) then
+                if (abs(result(i) - array1(i) * array2(i)) > 1e-6) then
+                    error stop "Benchmark verification failed: array operations"
+                end if
+            else
+                if (abs(result(i) - (array1(i) + array2(i))) > 1e-6) then
+                    error stop "Benchmark verification failed: array operations"
+                end if
+            end if
+        end do
+    end subroutine benchmark_array_operations
+
+    subroutine benchmark_string_operations()
+        character(len=:), allocatable :: str1, str2, result
+        character(len=100) :: buffer
+        real :: start_ms, end_ms
+        integer :: k
+
+        start_ms = get_current_time_ms()
+
+        ! Benchmark string concatenation and intrinsics
+        do k = 1, 1000
+            str1 = "Hello"
+            str2 = "World"
+            result = trim(str1) // " " // trim(str2)
+            buffer = result
+            j = len_trim(buffer)
+            i = index(buffer, "World")
+        end do
+
+        end_ms = get_current_time_ms()
+
+        print '(A,F8.2,A)', "String operations: ", end_ms - start_ms, " ms"
+
+        ! Verify correctness
+        if (result /= "Hello World") then
+            error stop "Benchmark verification failed: string operations"
+        end if
+        if (j /= 11) then
+            error stop "Benchmark verification failed: len_trim"
+        end if
+        if (i /= 7) then
+            error stop "Benchmark verification failed: index"
+        end if
+    end subroutine benchmark_string_operations
+
+    subroutine benchmark_intrinsic_functions()
+        integer, parameter :: N = 100
+        real :: data(N), result
+        real :: start_ms, end_ms
+
+        ! Initialize data
+        data = [(sin(real(i) * 0.1), i=1,N)]
+
+        start_ms = get_current_time_ms()
+
+        ! Benchmark intrinsic functions
+        do j = 1, 1000
+            result = sum(data) / size(data)
+            result = maxval(data) - minval(data)
+            result = sqrt(sum(data**2))
+        end do
+
+        end_ms = get_current_time_ms()
+
+        print '(A,F8.2,A)', "Intrinsic functions: ", end_ms - start_ms, " ms"
+
+        ! Basic sanity check
+        if (size(data) /= N) then
+            error stop "Benchmark verification failed: size intrinsic"
+        end if
+    end subroutine benchmark_intrinsic_functions
+
+end program test_performance_baseline

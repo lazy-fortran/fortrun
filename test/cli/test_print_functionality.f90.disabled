@@ -1,0 +1,223 @@
+program test_print_functionality
+    use iso_fortran_env, only: error_unit
+    use system_utils, only: sys_file_exists, sys_get_temp_dir, sys_remove_file
+    implicit none
+
+    logical :: all_tests_passed
+    character(len=:), allocatable :: temp_dir, fortran_file, exe_file
+    character(len=1024) :: command, output
+    integer :: stat
+
+    print *, "=== Print Statement Functionality Tests ==="
+    print *
+
+    all_tests_passed = .true.
+
+    ! Create temporary directory for test files
+    write (command, '(a,i0)') trim(sys_get_temp_dir())//"/fortran_print_test_", getpid()
+    temp_dir = trim(command)
+    command = "mkdir -p "//temp_dir
+    call execute_command_line(command, exitstat=stat)
+    if (stat /= 0) then
+        print *, "FAIL: Could not create temp directory"
+        stop 1
+    end if
+
+    ! Test 1: Simple string literal print
+    if (.not. test_string_print()) all_tests_passed = .false.
+
+    ! Test 2: Integer variable print
+    if (.not. test_integer_print()) all_tests_passed = .false.
+
+    ! Test 3: Multiple values print
+    if (.not. test_multiple_print()) all_tests_passed = .false.
+
+    ! Cleanup
+    command = "rm -rf "//temp_dir
+    call execute_command_line(command)
+
+    print *
+    if (all_tests_passed) then
+        print *, "All print functionality tests passed!"
+        stop 0
+    else
+        print *, "Some print functionality tests failed!"
+        stop 1
+    end if
+
+contains
+
+    function test_string_print() result(passed)
+        logical :: passed
+        integer :: exit_stat, unit
+        character(len=1024) :: line
+
+        passed = .false.
+
+        ! Create test program
+        fortran_file = temp_dir//"/test_string.f90"
+        exe_file = temp_dir//"/test_string"
+
+        open (newunit=unit, file=fortran_file, status='replace')
+        write (unit, '(a)') 'program test_string'
+        write (unit, '(a)') '    print *, "Hello, World!"'
+        write (unit, '(a)') 'end program test_string'
+        close (unit)
+
+        ! Compile to executable
+      command = 'fortran --compile -o "'//trim(exe_file)//'" "'//trim(fortran_file)//'"'
+        call execute_command_line(command, exitstat=exit_stat)
+
+        if (exit_stat == 0) then
+            ! Run and capture output
+            command = '"'//trim(exe_file)//'" > "'//trim(temp_dir)//'/output.txt" 2>&1'
+            call execute_command_line(command, exitstat=exit_stat)
+
+            if (exit_stat == 0) then
+                ! Check output
+            open (newunit=unit, file=temp_dir//'/output.txt', status='old', iostat=stat)
+                if (stat == 0) then
+                    read (unit, '(a)', iostat=stat) line
+                    close (unit)
+
+                    if (stat == 0 .and. index(line, "Hello, World!") > 0) then
+                        print *, "PASS: String literal print works"
+                        passed = .true.
+                    else
+                        print *, "FAIL: String print output incorrect"
+                        print *, "  Expected: Hello, World!"
+                        print *, "  Got: ", trim(line)
+                    end if
+                else
+                    print *, "FAIL: Could not read output file"
+                end if
+            else
+                print *, "FAIL: Executable failed to run"
+            end if
+        else
+            print *, "FAIL: Compilation failed"
+        end if
+
+        ! Cleanup
+        call sys_remove_file(fortran_file)
+        call sys_remove_file(exe_file)
+    end function test_string_print
+
+    function test_integer_print() result(passed)
+        logical :: passed
+        integer :: exit_stat, unit
+        character(len=1024) :: line
+
+        passed = .false.
+
+        ! Create test program
+        fortran_file = temp_dir//"/test_integer.f90"
+        exe_file = temp_dir//"/test_integer"
+
+        open (newunit=unit, file=fortran_file, status='replace')
+        write (unit, '(a)') 'program test_integer'
+        write (unit, '(a)') '    integer :: x'
+        write (unit, '(a)') '    x = 42'
+        write (unit, '(a)') '    print *, x'
+        write (unit, '(a)') 'end program test_integer'
+        close (unit)
+
+        ! Compile to executable
+      command = 'fortran --compile -o "'//trim(exe_file)//'" "'//trim(fortran_file)//'"'
+        call execute_command_line(command, exitstat=exit_stat)
+
+        if (exit_stat == 0) then
+            ! Run and capture output
+            command = '"'//trim(exe_file)//'" > "'//trim(temp_dir)//'/output.txt" 2>&1'
+            call execute_command_line(command, exitstat=exit_stat)
+
+            if (exit_stat == 0) then
+                ! Check output
+            open (newunit=unit, file=temp_dir//'/output.txt', status='old', iostat=stat)
+                if (stat == 0) then
+                    read (unit, '(a)', iostat=stat) line
+                    close (unit)
+
+                    if (stat == 0 .and. index(adjustl(line), "42") > 0) then
+                        print *, "PASS: Integer print works"
+                        passed = .true.
+                    else
+                        print *, "FAIL: Integer print output incorrect"
+                        print *, "  Expected: 42"
+                        print *, "  Got: ", trim(line)
+                    end if
+                else
+                    print *, "FAIL: Could not read output file"
+                end if
+            else
+                print *, "FAIL: Executable failed to run"
+            end if
+        else
+            print *, "FAIL: Compilation failed"
+        end if
+
+        ! Cleanup
+        call sys_remove_file(fortran_file)
+        call sys_remove_file(exe_file)
+    end function test_integer_print
+
+    function test_multiple_print() result(passed)
+        logical :: passed
+        integer :: exit_stat, unit
+        character(len=1024) :: line
+
+        passed = .false.
+
+        ! Create test program
+        fortran_file = temp_dir//"/test_multiple.f90"
+        exe_file = temp_dir//"/test_multiple"
+
+        open (newunit=unit, file=fortran_file, status='replace')
+        write (unit, '(a)') 'program test_multiple'
+        write (unit, '(a)') '    integer :: x, y'
+        write (unit, '(a)') '    x = 10'
+        write (unit, '(a)') '    y = 20'
+        write (unit, '(a)') '    print *, "Sum:", x + y'
+        write (unit, '(a)') 'end program test_multiple'
+        close (unit)
+
+        ! Compile to executable
+      command = 'fortran --compile -o "'//trim(exe_file)//'" "'//trim(fortran_file)//'"'
+        call execute_command_line(command, exitstat=exit_stat)
+
+        if (exit_stat == 0) then
+            ! Run and capture output
+            command = '"'//trim(exe_file)//'" > "'//trim(temp_dir)//'/output.txt" 2>&1'
+            call execute_command_line(command, exitstat=exit_stat)
+
+            if (exit_stat == 0) then
+                ! Check output
+            open (newunit=unit, file=temp_dir//'/output.txt', status='old', iostat=stat)
+                if (stat == 0) then
+                    read (unit, '(a)', iostat=stat) line
+                    close (unit)
+
+           if (stat == 0 .and. index(line, "Sum:") > 0 .and. index(line, "30") > 0) then
+                        print *, "PASS: Multiple value print works"
+                        passed = .true.
+                    else
+                        print *, "FAIL: Multiple print output incorrect"
+                        print *, "  Expected: Sum: 30"
+                        print *, "  Got: ", trim(line)
+                    end if
+                else
+                    print *, "FAIL: Could not read output file"
+                end if
+            else
+                print *, "FAIL: Executable failed to run"
+            end if
+        else
+            print *, "FAIL: Compilation failed"
+        end if
+
+        ! Cleanup
+        call sys_remove_file(fortran_file)
+        call sys_remove_file(exe_file)
+    end function test_multiple_print
+
+end program test_print_functionality

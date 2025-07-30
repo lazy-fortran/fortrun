@@ -1,0 +1,12 @@
+# Registry file for Fortran package resolution
+
+[packages]
+
+[packages.fortplot]
+git = "https://github.com/krystophny/fortplot"
+prefix = "fortplot"  # Any module starting with "fortplot" belongs to this package
+
+[packages.pyplot-fortran]
+git = "https://github.com/jacobwilliams/pyplot-fortran"
+# No prefix specified, will use default behavior:
+# pyplot_module -> package name = "pyplot" (before underscore)

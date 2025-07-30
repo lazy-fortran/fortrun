@@ -1,0 +1,64 @@
+program test_emission_pipeline_simple
+    use iso_fortran_env, only: error_unit
+    use temp_utils, only: temp_dir_manager, fortran_with_isolated_cache
+    implicit none
+
+    type(temp_dir_manager) :: temp_mgr
+    character(len=:), allocatable :: test_file, command
+    logical :: all_passed
+    integer :: exit_code
+
+    print *, "=== Emission Pipeline Tests ==="
+    all_passed = .true.
+
+    call temp_mgr%create('emission_pipeline')
+    test_file = temp_mgr%get_file_path('simple.f90')
+
+    ! Create test file
+    open (unit=20, file=test_file, status='replace')
+    write (20, '(a)') 'program simple'
+    write (20, '(a)') '  integer :: x'
+    write (20, '(a)') '  x = 5'
+    write (20, '(a)') 'end program simple'
+    close (20)
+
+    ! Test 1: --emit-hlfir
+    command = fortran_with_isolated_cache('emission_hlfir') // ' --emit-hlfir ' // test_file // ' > /dev/null 2>&1'
+    call execute_command_line(command, exitstat=exit_code)
+    if (exit_code == 0) then
+        print *, "PASS: --emit-hlfir works"
+    else
+        print *, "FAIL: --emit-hlfir failed with exit code:", exit_code
+        all_passed = .false.
+    end if
+
+    ! Test 2: --emit-fir
+    command = fortran_with_isolated_cache('emission_fir') // ' --emit-fir ' // test_file // ' > /dev/null 2>&1'
+    call execute_command_line(command, exitstat=exit_code)
+    if (exit_code == 0) then
+        print *, "PASS: --emit-fir works"
+    else
+        print *, "FAIL: --emit-fir failed with exit code:", exit_code
+        all_passed = .false.
+    end if
+
+    ! Test 3: --emit-llvm
+    command = fortran_with_isolated_cache('emission_llvm') // ' --emit-llvm ' // test_file // ' > /dev/null 2>&1'
+    call execute_command_line(command, exitstat=exit_code)
+    if (exit_code == 0) then
+        print *, "PASS: --emit-llvm works"
+    else
+        print *, "FAIL: --emit-llvm failed with exit code:", exit_code
+        all_passed = .false.
+    end if
+
+    print *
+    if (all_passed) then
+        print *, "All emission pipeline tests passed!"
+        stop 0
+    else
+        print *, "Some emission pipeline tests failed!"
+        stop 1
+    end if
+
+end program test_emission_pipeline_simple
