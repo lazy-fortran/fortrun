@@ -6,6 +6,24 @@ set -e
 
 echo "Installing fortran CLI tool..."
 
+# Install fortfront dependency
+echo "Installing fortfront dependency..."
+mkdir -p thirdparty
+if [ ! -d "thirdparty/fortfront" ]; then
+    echo "Cloning fortfront from https://github.com/lazy-fortran/fortfront..."
+    git clone https://github.com/lazy-fortran/fortfront thirdparty/fortfront
+    cd thirdparty/fortfront
+    echo "Installing fortfront..."
+    fpm install
+    cd ../..
+else
+    echo "fortfront already exists at thirdparty/fortfront, skipping clone..."
+    cd thirdparty/fortfront
+    echo "Installing fortfront..."
+    fpm install
+    cd ../..
+fi
+
 # Parse arguments to separate FPM flags from install options
 FPM_FLAGS=""
 INSTALL_ARGS=""

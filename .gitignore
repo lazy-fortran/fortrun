@@ -57,3 +57,6 @@ coverage.*
 *.gcov
 *.gcda
 *.gcno
+
+# Third-party dependencies
+thirdparty/
