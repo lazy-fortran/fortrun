@@ -4,12 +4,6 @@ program test_scalability
     use fpm_environment, only: get_os_type, OS_WINDOWS, get_env
     implicit none
 
-    ! Skip this test on Windows CI - parallel builds hang
-    if (get_os_type() == OS_WINDOWS .and. len_trim(get_env('CI', '')) > 0) then
-        print *, 'SKIP: test_scalability on Windows CI (parallel builds hang)'
-        stop 0
-    end if
-
     type(temp_dir_manager) :: temp_mgr
     character(len=256) :: project_dir, module_file, main_file
     character(len=1024) :: command
@@ -17,6 +11,12 @@ program test_scalability
     logical :: success
     real :: start_time, end_time, build_time
     integer :: num_files, num_modules
+
+    ! Skip this test on Windows CI - parallel builds hang
+    if (get_os_type() == OS_WINDOWS .and. len_trim(get_env('CI', '')) > 0) then
+        print *, 'SKIP: test_scalability on Windows CI (parallel builds hang)'
+        stop 0
+    end if
 
     test_count = 0
     pass_count = 0

@@ -5,18 +5,18 @@ program test_concurrent_builds
     use fpm_environment, only: get_os_type, OS_WINDOWS, get_env
     implicit none
 
-    ! Skip this test on Windows CI - concurrent operations hang
-    if (get_os_type() == OS_WINDOWS .and. len_trim(get_env('CI', '')) > 0) then
-        print *, 'SKIP: test_concurrent_builds on Windows CI (concurrent operations hang)'
-        stop 0
-    end if
-
     type(temp_dir_manager) :: temp_mgr
     character(len=256) :: test_file, test_cache_dir, cache_dir
     character(len=1024) :: command1, command2
     integer :: test_count, pass_count, exit_code1, exit_code2, unit, ios
     logical :: success, lock1, lock2
     real :: start_time, end_time
+
+    ! Skip this test on Windows CI - concurrent operations hang
+    if (get_os_type() == OS_WINDOWS .and. len_trim(get_env('CI', '')) > 0) then
+        print *, 'SKIP: test_concurrent_builds on Windows CI (concurrent operations hang)'
+        stop 0
+    end if
 
     test_count = 0
     pass_count = 0

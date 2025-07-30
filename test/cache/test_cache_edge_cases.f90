@@ -6,18 +6,18 @@ program test_cache_edge_cases
     use fpm_environment, only: get_os_type, OS_WINDOWS, get_env
     implicit none
 
-    ! Skip this test on Windows CI - simultaneous cache operations hang
-    if (get_os_type() == OS_WINDOWS .and. len_trim(get_env('CI', '')) > 0) then
-        print *, 'SKIP: test_cache_edge_cases on Windows CI (simultaneous cache operations hang)'
-        stop 0
-    end if
-
     type(temp_dir_manager) :: temp_mgr
     character(len=256) :: test_file, cache_dir, test_cache_dir
     character(len=1024) :: command
     integer :: test_count, pass_count, exit_code, unit, ios, i
     logical :: success
     character(len=1024) :: large_content
+
+    ! Skip this test on Windows CI - simultaneous cache operations hang
+    if (get_os_type() == OS_WINDOWS .and. len_trim(get_env('CI', '')) > 0) then
+        print *, 'SKIP: test_cache_edge_cases on Windows CI (simultaneous cache operations hang)'
+        stop 0
+    end if
 
     test_count = 0
     pass_count = 0
