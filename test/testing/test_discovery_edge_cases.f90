@@ -67,7 +67,7 @@ contains
         if (n_tests == 0) then
             print *, "  PASS: Empty directory returns no tests"
         else
-            print *, "  FAIL: Empty directory should have no tests"
+            print *, "  FAIL: Empty directory should have no tests (found", n_tests, ")"
             all_passed = .false.
         end if
 
@@ -395,7 +395,8 @@ contains
         temp_file = get_temp_file_path(get_system_temp_dir(), 'test_discovery_list.txt')
         
         ! Count test files in directory (test_*.f90 pattern)
-        cmd = 'find "'//trim(dir)//'" -name "test_*.f90" -type f 2>/dev/null | head -100 > "'//trim(temp_file)//'"'
+        ! Use maxdepth to avoid finding files in subdirectories unless explicitly testing that
+        cmd = 'find "'//trim(dir)//'" -maxdepth 1 -name "test_*.f90" -type f 2>/dev/null | head -100 > "'//trim(temp_file)//'"'
         call execute_command_line(trim(cmd), exitstat=ios)
         
         ! Count lines to get number of tests
