@@ -5,7 +5,7 @@
 
 A Fortran runner with automatic dependency resolution, intelligent caching, and frontend analysis support.
 
-Our experimental *lowercase fortran* dialect pushes beyond all alternative scientific computing languages to combine Fortran's performance with modern expressiveness!
+Our experimental *lazy fortran* dialect pushes beyond all alternative scientific computing languages to combine Fortran's performance with modern expressiveness!
 
 ## Quick Start
 
