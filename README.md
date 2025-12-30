@@ -3,7 +3,7 @@
 [![codecov](https://codecov.io/gh/lazy-fortran/fortrun/branch/main/graph/badge.svg)](https://codecov.io/gh/lazy-fortran/fortrun)
 [![Documentation](https://img.shields.io/badge/docs-FORD-blue.svg)](https://lazy-fortran.github.io/fortrun/)
 
-> **Note**: This project is experimental and subject to major changes. APIs may change without notice.
+> **Note**: This project is experimental and currently not working. It is on hold pending alignment with [LFortran](https://lfortran.org/) and related tooling.
 
 A Fortran runner with automatic dependency resolution, intelligent caching, and frontend analysis support.
 
