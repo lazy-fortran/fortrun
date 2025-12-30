@@ -204,6 +204,20 @@ jobs:
       run: |
         fpm test --flag '-cpp'
 
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    needs: [test-linux, test-windows, test-macos]
+    if: always()
+    steps:
+      - name: Check test results
+        run: |
+          if [ "${{ needs.test-linux.result }}" != "success" ] || [ "${{ needs.test-windows.result }}" != "success" ] || [ "${{ needs.test-macos.result }}" != "success" ]; then
+            echo "Tests failed"
+            exit 1
+          fi
+          echo "All tests passed"
+
   test-macos:
     runs-on: macos-latest
 
