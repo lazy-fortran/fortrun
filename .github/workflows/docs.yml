@@ -29,7 +29,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install FORD
-        run: pip install ford
+        run: |
+          python3 -m venv "$RUNNER_TEMP/docs-venv"
+          "$RUNNER_TEMP/docs-venv/bin/python" -m pip install ford
+          echo "$RUNNER_TEMP/docs-venv/bin" >> "$GITHUB_PATH"
 
       - name: Build documentation
         run: ford README.md
